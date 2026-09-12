@@ -205,7 +205,7 @@ function colourFor(id, team) {
 // Drop short-lived ghost tracks, bridge small gaps, and smooth each track's
 // path with a centred moving average so merged multi-camera jitter doesn't
 // make players teleport.
-const MIN_TRACK_FRAMES = 20, MAX_GAP = 12, SMOOTH_HALF = 6, MAX_STEP_M = 1.2;
+const MIN_TRACK_FRAMES = 60, MAX_GAP = 12, SMOOTH_HALF = 6, MAX_STEP_M = 1.2, DEDUPE_M = 1.5;
 function cleanTracks(frames) {
   const tracks = new Map();
   frames.forEach((fr, i) => {
@@ -247,6 +247,20 @@ function cleanTracks(frames) {
       out[dense[k].i].players.push({ ...src, id, x: sx / n, y: sy / n });
     }
   }
+  // per-frame dedupe: two tracks within DEDUPE_M are the same person seen
+  // from different cameras -> keep the longer-lived one
+  const life = new Map([...tracks].map(([id, s]) => [id, s.length]));
+  for (const fr of out) {
+    const keep = [];
+    fr.players.sort((a, b) => life.get(b.id) - life.get(a.id));
+    for (const p of fr.players) {
+      if (!keep.some(q => Math.hypot(q.x - p.x, q.y - p.y) < DEDUPE_M)) keep.push(p);
+    }
+    fr.players = keep;
+  }
+  const left = new Map();
+  for (const fr of out) for (const p of fr.players) left.set(p.id, (left.get(p.id) || 0) + 1);
+  for (const fr of out) fr.players = fr.players.filter(p => left.get(p.id) >= MIN_TRACK_FRAMES);
   return out;
 }
 
