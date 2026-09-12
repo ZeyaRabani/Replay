@@ -447,7 +447,12 @@ function anchorPose() {
     let dir = lastHeading.get(state.anchorId);
     if (!dir) {
       const v = velocity(state.anchorId, state.frame);
-      dir = v.lengthSq() > 0.01 ? v.normalize() : new THREE.Vector3(state.data.pitch.length / 2 - pl.x, 0, state.data.pitch.width / 2 - pl.y).normalize();
+      const { length: L, width: W } = state.data.pitch;
+      const toCentre = new THREE.Vector3(L / 2 - pl.x, 0, W / 2 - pl.y).normalize();
+      // face the run direction when clearly moving and it keeps the pitch in view; otherwise face the centre
+      const ahead = v.clone().normalize().multiplyScalar(8);
+      const onPitch = pl.x + ahead.x > -2 && pl.x + ahead.x < L + 2 && pl.y + ahead.z > -2 && pl.y + ahead.z < W + 2;
+      dir = v.lengthSq() > 1 && onPitch ? v.normalize() : toCentre;
     }
     return { pos, target: pos.clone().add(dir.clone().multiplyScalar(10).setY(-0.6)) };
   }
@@ -614,7 +619,7 @@ document.getElementById('reactor-stop').addEventListener('click', () => reactor.
   else if (cfg.media.includes('tracking.json')) await fetchJson('media/tracking.json');
   else buildPitch({ length: 50, width: 30, goal_width: 3.66, d_radius: 6, penalty_depth: 0, penalty_width: 0, goal_area_depth: 0, goal_area_width: 0, centre_circle_radius: 0 });
   if (cfg.reactor && params.get('world')) reactor.attach(params.get('world'));
-  else if (cfg.reactor && params.get('create')) reactor.create(state.data);
+  else if (cfg.reactor && params.has('create')) reactor.create(state.data);
   else setModeBadge('fallback', cfg.reactor ? '3D fallback (Three.js) — Reactor key present, no ?world=<id>' : '3D fallback (Three.js) — Reactor not configured');
 })();
 

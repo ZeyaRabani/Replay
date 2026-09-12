@@ -30,6 +30,7 @@ export class ReactorWorld {
     this.error = null;
     this.busy = Promise.resolve();
     this.dragAxis = null;
+    this.gen = 0;  // bumped by shutdown(); in-flight tasks compare against it and bail
   }
 
   statusLine() {
@@ -43,20 +44,24 @@ export class ReactorWorld {
 
   async _connect() {
     if (this.model) return this.model;
+    const gen = this.gen;
     this._status('busy', 'Reactor: fetching token…');
     const r = await fetch('token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL_SLUG }) });
     const tok = await r.json();
     if (!r.ok || !tok.jwt) throw new Error(tok.error || `token ${r.status}`);
     this._status('busy', 'Reactor: loading SDK…');
     const { HappyOysterModel } = await import(SDK_URL);
+    if (gen !== this.gen) throw new Cancelled();
     const model = new HappyOysterModel({ mode: 'adventure', videoElement: this.video });
     model.onWorldState?.((s) => {
+      if (gen !== this.gen) return;
       if (s?.encrypted_world_id) this.worldId = s.encrypted_world_id;
       if (s?.phase && !this.live) this._status('busy', `Reactor: world ${s.phase}`);
       if (s?.phase === 'failed') this.shutdown('world build failed');
     });
     this._status('busy', 'Reactor: connecting (waiting for GPU)…');
     await model.connect(tok.jwt);
+    if (gen !== this.gen) { try { await model.disconnect?.(); } catch { /* ignore */ } throw new Cancelled(); }
     this.model = model;
     return model;
   }
@@ -68,7 +73,7 @@ export class ReactorWorld {
       const model = await this._connect();
       this._status('busy', 'Reactor: attachWorld…');
       await model.attachWorld(worldId);
-      await this._travel();
+      await this._travel(model);
     });
   }
 
@@ -96,13 +101,15 @@ export class ReactorWorld {
       if (this.worldId) {
         const u = new URL(location.href); u.searchParams.set('world', this.worldId); history.replaceState(null, '', u);
       }
-      await this._travel();
+      await this._travel(model);
     });
   }
 
-  async _travel() {
+  async _travel(model) {
+    if (model !== this.model) throw new Cancelled();
     this._status('busy', 'Reactor: startTravel…');
-    const res = await this.model.startTravel();
+    const res = await model.startTravel();
+    if (model !== this.model) throw new Cancelled();
     if (res && res.streaming === false) throw new Error('startTravel refused (travel budget?)');
     this.live = true;
     this.error = null;
@@ -112,11 +119,12 @@ export class ReactorWorld {
 
   _run(fn) {
     if (!this.configured) { this._status('fallback', '3D fallback (Three.js) — Reactor not configured'); return; }
-    this.busy = this.busy.then(fn).catch((e) => this.shutdown(String(e?.message || e)));
+    this.busy = this.busy.then(fn).catch((e) => { if (!(e instanceof Cancelled)) return this.shutdown(String(e?.message || e)); });
     return this.busy;
   }
 
   async shutdown(reason) {
+    this.gen++;
     this.live = false;
     this.error = reason || null;
     const m = this.model; this.model = null;
@@ -168,6 +176,7 @@ export class ReactorWorld {
   }
 }
 
+class Cancelled extends Error { constructor() { super('cancelled'); } }
 function wrap(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 function short(id) { return id ? id.slice(0, 8) + '…' : '—'; }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

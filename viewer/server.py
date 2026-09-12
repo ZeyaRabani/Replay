@@ -41,15 +41,18 @@ def api_key() -> str | None:
 
 class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quieter
-        if "/media/" not in (args[0] if args else ""):
+        if "/media/" not in str(args[0] if args else ""):
             super().log_message(fmt, *args)
+
+    def end_headers(self):  # dev server: always revalidate so edits show up on reload
+        self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def _json(self, code: int, body: dict) -> None:
         data = json.dumps(body).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
 
