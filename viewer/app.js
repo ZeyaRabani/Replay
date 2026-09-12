@@ -33,6 +33,7 @@ const state = {
   anchors: {},            // name -> {pos: Vector3, look: Vector3}
   firstPerson: false,
   showArrows: true,
+  playerStyle: '3d',
   camPos: new THREE.Vector3(),
   camTarget: new THREE.Vector3(),
 };
@@ -244,24 +245,65 @@ const spriteIndex = {};
 const texLoader = new THREE.TextureLoader();
 const spritesReady = fetch('sprites/index.json').then(r => r.ok ? r.json() : {}).then(j => Object.assign(spriteIndex, j)).catch(() => {});
 
+// low-poly humanoid: kit/shorts colours sampled from the player's real cut-out
+const SKIN = new THREE.MeshStandardMaterial({ color: 0xc9956b, roughness: 0.8 });
+const BOOT = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+function makeHumanoid(kit, shorts) {
+  const H = PLAYER_HEIGHT;
+  const kitM = new THREE.MeshStandardMaterial({ color: kit, roughness: 0.7 });
+  const shM = new THREE.MeshStandardMaterial({ color: shorts, roughness: 0.8 });
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = H * 0.5; root.add(hips);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(H * 0.11, H * 0.22, 4, 10), kitM);
+  torso.position.y = H * 0.22; hips.add(torso);
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.1, H * 0.11, H * 0.1, 10), shM);
+  pelvis.position.y = H * 0.03; hips.add(pelvis);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(H * 0.075, 12, 10), SKIN);
+  head.position.y = H * 0.43; hips.add(head);
+  const limb = (r, len, mat, x, y, z) => {
+    const p = new THREE.Group(); p.position.set(x, y, z);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len - 2 * r, 3, 8), mat);
+    m.position.y = -len / 2; p.add(m);
+    return p;
+  };
+  const legL = limb(H * 0.045, H * 0.48, SKIN, -H * 0.06, H * 0.02, 0);
+  const legR = limb(H * 0.045, H * 0.48, SKIN, H * 0.06, H * 0.02, 0);
+  for (const l of [legL, legR]) {
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(H * 0.06, H * 0.04, H * 0.12), BOOT);
+    boot.position.set(0, -H * 0.47, H * 0.02); l.add(boot);
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.055, H * 0.05, H * 0.14, 8), shM);
+    sh.position.y = -H * 0.07; l.add(sh);
+    hips.add(l);
+  }
+  const armL = limb(H * 0.035, H * 0.36, SKIN, -H * 0.15, H * 0.33, 0);
+  const armR = limb(H * 0.035, H * 0.36, SKIN, H * 0.15, H * 0.33, 0);
+  for (const a of [armL, armR]) {
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.045, H * 0.04, H * 0.1, 8), kitM);
+    sl.position.y = -H * 0.04; a.add(sl);
+    hips.add(a);
+  }
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { root, hips, legL, legR, armL, armR };
+}
+
 function makePlayer(id, colour) {
   const group = new THREE.Group();
-  let capsule;
   const sp = spriteIndex[String(id)];
+  const hex = '#' + colour.toString(16).padStart(6, '0');
+  let sprite = null;
   if (sp) {
     const tex = texLoader.load(`sprites/${id}.png`);
     tex.colorSpace = THREE.SRGBColorSpace;
-    capsule = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.05 }));
-    capsule.scale.set(PLAYER_HEIGHT * 1.05 * sp.aspect, PLAYER_HEIGHT * 1.05, 1);
-    capsule.position.y = PLAYER_HEIGHT * 1.05 / 2;
-  } else {
-    capsule = new THREE.Mesh(
-      new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 6, 16),
-      new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 }));
-    capsule.position.y = PLAYER_HEIGHT / 2;
-    capsule.castShadow = true;
+    sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.05 }));
+    sprite.scale.set(PLAYER_HEIGHT * 1.05 * sp.aspect, PLAYER_HEIGHT * 1.05, 1);
+    sprite.position.y = PLAYER_HEIGHT * 1.05 / 2;
   }
+  const human = makeHumanoid(new THREE.Color(sp?.kit || hex), new THREE.Color(sp?.shorts || '#222222'));
+  const capsule = new THREE.Group(); // container toggled by first-person hide + style filter
+  capsule.add(human.root); if (sprite) capsule.add(sprite);
   group.add(capsule);
+  human.root.visible = state.playerStyle === '3d' || !sprite;
+  if (sprite) sprite.visible = !human.root.visible;
   const ring = new THREE.Mesh(new THREE.RingGeometry(PLAYER_RADIUS + 0.05, PLAYER_RADIUS + 0.2, 32),
     new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.8 }));
   ring.rotation.x = -Math.PI / 2;
@@ -275,7 +317,34 @@ function makePlayer(id, colour) {
   group.add(arrow);
   group.visible = false;
   scene.add(group);
-  return { group, capsule, label, arrow };
+  return { group, capsule, label, arrow, human, sprite, phase: Math.random() * Math.PI * 2 };
+}
+
+function setPlayerStyle(style) {
+  state.playerStyle = style;
+  for (const m of state.meshes.values()) {
+    const use3d = style === '3d' || !m.sprite;
+    m.human.root.visible = use3d;
+    if (m.sprite) m.sprite.visible = !use3d;
+  }
+  document.getElementById('style-3d').classList.toggle('active', style === '3d');
+  document.getElementById('style-photo').classList.toggle('active', style !== '3d');
+}
+
+// pose the humanoid: face heading, swing limbs with stride frequency ~ speed
+function animateHumanoid(m, id, speed, t) {
+  const h = m.human;
+  const dir = lastHeading.get(id);
+  if (dir) h.root.rotation.y = Math.atan2(dir.x, dir.z);
+  const run = Math.min(1, speed / 6);
+  const w = t * (4 + 8 * run) + m.phase;
+  const amp = 0.15 + 0.85 * run;
+  h.legL.rotation.x = Math.sin(w) * amp;
+  h.legR.rotation.x = -Math.sin(w) * amp;
+  h.armL.rotation.x = -Math.sin(w) * amp * 0.8;
+  h.armR.rotation.x = Math.sin(w) * amp * 0.8;
+  h.hips.position.y = PLAYER_HEIGHT * 0.5 + Math.abs(Math.sin(w)) * 0.06 * run;
+  h.hips.rotation.x = -0.15 * run;
 }
 
 // finite-difference velocity in pitch coords (m/s), central window of ±k frames
@@ -309,6 +378,7 @@ function updateFrame() {
     m.group.position.set(pl.x, 0, pl.y);
     const v = velocity(pl.id, state.frame);
     const speed = v.length();
+    animateHumanoid(m, pl.id, speed, state.frame / (d.fps || 25));
     if (speed > 0.3) {
       lastHeading.set(pl.id, v.clone().normalize());
       m.arrow.visible = state.showArrows;
@@ -509,6 +579,7 @@ window.addEventListener('keydown', e => {
   else if (e.code === 'Escape') setMode('orbit');
   else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
   else if (e.code === 'KeyH') setArrows(!state.showArrows);
+  else if (e.code === 'KeyM') setPlayerStyle(state.playerStyle === '3d' ? 'photo' : '3d');
   else if (e.code === 'ArrowRight' && state.data) { state.frame = Math.min(state.data.frames.length - 1, state.frame + 1); updateFrame(); }
   else if (e.code === 'ArrowLeft' && state.data) { state.frame = Math.max(0, state.frame - 1); updateFrame(); }
   else if (e.code === 'Home' && state.data) { state.frame = 0; updateFrame(); }
@@ -522,6 +593,8 @@ function setArrows(on) {
 }
 document.getElementById('filter-arrows-on').addEventListener('click', () => setArrows(true));
 document.getElementById('filter-arrows-off').addEventListener('click', () => setArrows(false));
+document.getElementById('style-3d').addEventListener('click', () => setPlayerStyle('3d'));
+document.getElementById('style-photo').addEventListener('click', () => setPlayerStyle('photo'));
 
 // file loading
 document.getElementById('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
