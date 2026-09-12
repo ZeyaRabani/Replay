@@ -205,7 +205,7 @@ function colourFor(id, team) {
 // Drop short-lived ghost tracks, bridge small gaps, and smooth each track's
 // path with a centred moving average so merged multi-camera jitter doesn't
 // make players teleport.
-const MIN_TRACK_FRAMES = 60, MAX_GAP = 12, SMOOTH_HALF = 6, MAX_STEP_M = 1.2, DEDUPE_M = 1.5;
+const MIN_TRACK_FRAMES = 60, MAX_GAP = 12, SMOOTH_HALF = 10, MAX_STEP_M = 0.6, DEDUPE_M = 1.5;
 function cleanTracks(frames) {
   const tracks = new Map();
   frames.forEach((fr, i) => {
@@ -548,6 +548,8 @@ function actionPose() {
   const c = new THREE.Vector3();
   for (const p of pls) c.add(new THREE.Vector3(p.x, 0, p.y));
   c.divideScalar(pls.length);
+  // when the ball is seen, centre on it (blended with the player cluster)
+  if (ballMesh.visible) c.lerp(new THREE.Vector3(ballMesh.position.x, 0, ballMesh.position.z), 0.7);
   const W = state.data.pitch.width;
   // hover on the near touchline side of the action, elevated, looking down at it
   const pos = new THREE.Vector3(c.x, 9, Math.max(c.z + 18, W + 4));
@@ -657,6 +659,7 @@ window.addEventListener('keydown', e => {
   else if (e.code === 'Escape') setMode('orbit');
   else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
   else if (e.code === 'KeyH') setArrows(!state.showArrows);
+  else if (e.code === 'KeyF') setSplit(!document.getElementById('stage').classList.contains('split'));
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoom(1);
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoom(-1);
   else if (e.code === 'KeyM') setPlayerStyle(state.playerStyle === '3d' ? 'photo' : '3d');
@@ -719,19 +722,48 @@ fetch(src ? src.replace(/[^/]*$/, 'ball.json') : 'sample/ball.json').then(r => r
       fr[i] = { frame: i, x: fr[a].x + (fr[b].x - fr[a].x) * t, y: fr[a].y + (fr[b].y - fr[a].y) * t, interp: true };
     }
   }
-  // clamp to pitch bounds and smooth (cam-0-only projection is noisy)
   const P = state.data ? state.data.pitch : { length: 50, width: 30 };
-  const pts = fr.map(f => f.x == null ? null : { x: THREE.MathUtils.clamp(f.x, -1, (P.length || 50) + 1), y: THREE.MathUtils.clamp(f.y, -1, (P.width || 30) + 1) });
+  const L = P.length || 50, W = P.width || 30, GW = P.goal_width || 7.32;
+  // a 'ball' that sits on the exact same spot for a large share of the clip is a
+  // static object (cone, spare ball, logo) misdetected as the ball -> drop it
+  const det = j.frames.filter(f => f.x != null);
+  const stuck = [];
+  for (const f of det) {
+    const c = stuck.find(s => Math.hypot(s.x - f.x, s.y - f.y) < 0.4);
+    if (c) c.n++; else stuck.push({ x: f.x, y: f.y, n: 1 });
+  }
+  const bad = stuck.filter(s => s.n > j.frames.length * 0.15);
   for (let i = 0; i < fr.length; i++) {
+    if (fr[i].x != null && bad.some(s => Math.hypot(s.x - fr[i].x, s.y - fr[i].y) < 0.6)) fr[i] = { frame: i, x: null, y: null };
+  }
+  // clamp: within the pitch, or (if it crossed a goal line) inside that net
+  const pts = fr.map(f => {
+    if (f.x == null) return null;
+    let x = f.x, y = f.y;
+    if (x < 0 || x > L) { x = THREE.MathUtils.clamp(x, -1.5, L + 1.5); y = THREE.MathUtils.clamp(y, W / 2 - GW / 2 + 0.3, W / 2 + GW / 2 - 0.3); }
+    else y = THREE.MathUtils.clamp(y, 0, W);
+    return { x, y };
+  });
+  // limit implausible per-frame speed (> ~35 m/s) which comes from projection blow-up
+  let prev = null;
+  for (let i = 0; i < pts.length; i++) {
     if (!pts[i]) continue;
+    if (prev) {
+      const df = i - prev.i, dx = pts[i].x - prev.x, dy = pts[i].y - prev.y, d = Math.hypot(dx, dy), lim = 1.2 * df;
+      if (d > lim) { pts[i].x = prev.x + dx * lim / d; pts[i].y = prev.y + dy * lim / d; }
+    }
+    prev = { i, x: pts[i].x, y: pts[i].y };
+  }
+  for (let i = 0; i < fr.length; i++) {
+    if (!pts[i]) { fr[i] = { frame: i, x: null, y: null }; continue; }
     let sx = 0, sy = 0, n = 0;
-    for (let j = Math.max(0, i - 4); j <= Math.min(fr.length - 1, i + 4); j++) if (pts[j]) { sx += pts[j].x; sy += pts[j].y; n++; }
+    for (let k = Math.max(0, i - 5); k <= Math.min(fr.length - 1, i + 5); k++) if (pts[k]) { sx += pts[k].x; sy += pts[k].y; n++; }
     fr[i] = { ...fr[i], x: sx / n, y: sy / n };
   }
   ballFrames = fr;
   const cov = j.frames.filter(f => f.x != null).length / j.frames.length;
   const el = document.getElementById('ball-note');
-  if (el) el.textContent = `Ball detected in ${Math.round(cov * 100)}% of frames (YOLO sports-ball, gaps interpolated); hidden where not seen.`;
+  if (el) el.textContent = `Ball detected in ${Math.round(cov * 100)}% of frames (YOLO sports-ball, cam 0 mostly). Static false positives removed, gaps interpolated, positions clamped to pitch/net; hidden where not seen.`;
 });
 function updateBall() {
   if (!ballFrames) return;
@@ -742,6 +774,14 @@ function updateBall() {
   ballMesh.position.z += (b.y - ballMesh.position.z) * 0.35;
   ballMesh.rotation.x += 0.2;
 }
+
+// ---------------------------------------------------------------- footage layout (half-screen vs thumbnails)
+function setSplit(on) {
+  document.getElementById('stage').classList.toggle('split', on);
+  document.getElementById('split-toggle').textContent = on ? 'Footage: half screen' : 'Footage: thumbnails';
+  resize();
+}
+document.getElementById('split-toggle').addEventListener('click', () => setSplit(!document.getElementById('stage').classList.contains('split')));
 
 // ---------------------------------------------------------------- picture-in-picture source clips (synced to the timeline)
 const pipVideos = [...document.querySelectorAll('#pip video')];

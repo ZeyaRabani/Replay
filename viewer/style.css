@@ -91,6 +91,17 @@ code { background: #0b0e12; padding: 1px 4px; border-radius: 3px; }
 #timeline select { background: #232a34; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
 #play { width: 40px; }
 
-.pip { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
-.pip video { width: 200px; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; background: #000; display: block; }
+#stage { display: flex; }
+#view { position: relative; flex: 1 1 0; min-width: 0; min-height: 0; }
+#split-toggle { position: absolute; right: 10px; top: 10px; z-index: 6; font-size: 12px; padding: 4px 8px; }
+/* split: footage takes the right half, synced to the timeline */
+#stage.split .pip { position: relative; flex: 0 0 50%; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #000; border-left: 1px solid var(--line); min-width: 0; }
+#stage.split .pip video { width: 100%; height: auto; border-radius: 6px; }
+#stage.split .pip-row { display: flex; gap: 6px; }
+#stage.split .pip-row video { width: calc(50% - 3px); }
+/* compact: small thumbnails bottom-right */
+#stage:not(.split) .pip { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+#stage:not(.split) .pip video { width: 200px; display: block; }
+#stage:not(.split) .pip-row { display: flex; flex-direction: column; gap: 6px; }
+.pip video { border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; background: #000; }
 .pip video.missing { display: none; }

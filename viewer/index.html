@@ -74,14 +74,19 @@
     </section>
   </aside>
 
-  <main id="stage">
-    <canvas id="c"></canvas>
-    <div id="hud" class="hud hidden"></div>
-    <div id="drop" class="drop hidden">Drop tracking.json</div>
+  <main id="stage" class="split">
+    <div id="view">
+      <canvas id="c"></canvas>
+      <div id="hud" class="hud hidden"></div>
+      <div id="drop" class="drop hidden">Drop tracking.json</div>
+      <button id="split-toggle" class="btn" title="toggle side-by-side footage">Footage: half screen</button>
+    </div>
     <div id="pip" class="pip">
       <video id="pip0" muted playsinline preload="auto" src="sample/clips/cam0.mp4"></video>
-      <video id="pip1" muted playsinline preload="auto" src="sample/clips/cam1.mp4"></video>
-      <video id="pip2" muted playsinline preload="auto" src="sample/clips/cam2.mp4"></video>
+      <div class="pip-row">
+        <video id="pip1" muted playsinline preload="auto" src="sample/clips/cam1.mp4"></video>
+        <video id="pip2" muted playsinline preload="auto" src="sample/clips/cam2.mp4"></video>
+      </div>
     </div>
   </main>
 
