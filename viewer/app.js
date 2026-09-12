@@ -31,6 +31,7 @@ const state = {
   meshes: new Map(),      // id -> {group, capsule, label}
   pitchGroup: null,
   anchors: {},            // name -> {pos: Vector3, look: Vector3}
+  firstPerson: false,
   camPos: new THREE.Vector3(),
   camTarget: new THREE.Vector3(),
 };
@@ -158,6 +159,9 @@ function buildPitch(p) {
     corner_B_N: mk(L + 3, W + 3),
     half_S: mk(L / 2, -5),
     half_N: mk(L / 2, W + 5),
+    broadcast: { pos: new THREE.Vector3(L / 2, Math.max(W * 0.45, 12), W + Math.max(W * 0.7, 18)), look: centre.clone() },
+    tactical: { pos: new THREE.Vector3(L / 2, Math.max(L, W) * 0.75, cy + 0.01), look: centre.clone() },
+    action: null, // dynamic: follows the centre of play
   };
   controls.target.copy(centre);
   camera.position.set(L / 2, Math.max(L, W) * 0.7, W + Math.max(L, W) * 0.9);
@@ -235,13 +239,27 @@ function loadTracking(data, label = 'tracking.json') {
   updateFrame();
 }
 
+const spriteIndex = {};
+const texLoader = new THREE.TextureLoader();
+const spritesReady = fetch('sprites/index.json').then(r => r.ok ? r.json() : {}).then(j => Object.assign(spriteIndex, j)).catch(() => {});
+
 function makePlayer(id, colour) {
   const group = new THREE.Group();
-  const capsule = new THREE.Mesh(
-    new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 6, 16),
-    new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 }));
-  capsule.position.y = PLAYER_HEIGHT / 2;
-  capsule.castShadow = true;
+  let capsule;
+  const sp = spriteIndex[String(id)];
+  if (sp) {
+    const tex = texLoader.load(`sprites/${id}.png`);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    capsule = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.05 }));
+    capsule.scale.set(PLAYER_HEIGHT * 1.05 * sp.aspect, PLAYER_HEIGHT * 1.05, 1);
+    capsule.position.y = PLAYER_HEIGHT * 1.05 / 2;
+  } else {
+    capsule = new THREE.Mesh(
+      new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 6, 16),
+      new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 }));
+    capsule.position.y = PLAYER_HEIGHT / 2;
+    capsule.castShadow = true;
+  }
   group.add(capsule);
   const ring = new THREE.Mesh(new THREE.RingGeometry(PLAYER_RADIUS + 0.05, PLAYER_RADIUS + 0.2, 32),
     new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.8 }));
@@ -341,17 +359,23 @@ function setMode(mode, anchorId = null) {
     if (state.data) { camera.fov = 60; camera.updateProjectionMatrix(); }
   } else {
     hud.classList.remove('hidden');
-    hud.textContent = mode === 'player' ? `camera on player ${anchorId} (head height ${HEAD_HEIGHT} m, looking along velocity)` : `anchor: ${anchorId}`;
-    // snap on switch
+    hud.textContent = mode === 'player'
+      ? `camera on player ${anchorId} — ${state.firstPerson ? 'first person (eye level)' : 'chase cam'} · press V to switch`
+      : `anchor: ${anchorId}`;
+    // start the transition from where the camera currently is
+    state.camPos.copy(camera.position);
     const t = anchorPose();
-    if (t) { camera.position.copy(t.pos); state.camPos.copy(t.pos); state.camTarget.copy(t.target); }
+    if (t && state.camTarget.lengthSq() === 0) state.camTarget.copy(t.target);
   }
-  // hide the capsule we're sitting inside
-  for (const [id, m] of state.meshes) m.capsule.visible = !(mode === 'player' && id === anchorId);
+  refreshOccupantVisibility();
+}
+function refreshOccupantVisibility() {
+  for (const [id, m] of state.meshes) m.capsule.visible = !(state.mode === 'player' && state.firstPerson && id === state.anchorId);
 }
 
 function anchorPose() {
   if (state.mode === 'anchor') {
+    if (state.anchorId === 'action') return actionPose();
     const a = state.anchors[state.anchorId];
     if (!a) return null;
     return { pos: a.pos.clone(), target: a.look.clone() };
@@ -364,22 +388,41 @@ function anchorPose() {
       for (let i = state.frame; i >= 0 && !pl; i--) pl = track.get(i);
       if (!pl) return null;
     }
-    const pos = new THREE.Vector3(pl.x, HEAD_HEIGHT, pl.y);
     let dir = lastHeading.get(state.anchorId);
     if (!dir) {
       const v = velocity(state.anchorId, state.frame);
       dir = v.lengthSq() > 0.01 ? v.normalize() : new THREE.Vector3(state.data.pitch.length / 2 - pl.x, 0, state.data.pitch.width / 2 - pl.y).normalize();
     }
-    return { pos, target: pos.clone().add(dir.clone().multiplyScalar(10).setY(-0.6)) };
+    const feet = new THREE.Vector3(pl.x, 0, pl.y);
+    if (state.firstPerson) {
+      const pos = feet.clone().setY(HEAD_HEIGHT);
+      return { pos, target: pos.clone().add(dir.clone().multiplyScalar(10).setY(-0.6)) };
+    }
+    // third-person chase: behind and above the player, looking past them
+    const pos = feet.clone().sub(dir.clone().multiplyScalar(5)).setY(2.8);
+    return { pos, target: feet.clone().add(dir.clone().multiplyScalar(6)).setY(1.0) };
   }
   return null;
+}
+
+function actionPose() {
+  const fr = state.data.frames[state.frame];
+  const pls = fr.players || [];
+  if (!pls.length) return null;
+  const c = new THREE.Vector3();
+  for (const p of pls) c.add(new THREE.Vector3(p.x, 0, p.y));
+  c.divideScalar(pls.length);
+  const W = state.data.pitch.width;
+  // hover on the near touchline side of the action, elevated, looking down at it
+  const pos = new THREE.Vector3(c.x, 9, Math.max(c.z + 18, W + 4));
+  return { pos, target: c.clone().setY(0.8) };
 }
 
 function applyCamera(dt) {
   if (state.mode === 'orbit') { controls.update(); return; }
   const t = anchorPose();
   if (!t) return;
-  const k = state.mode === 'player' ? 1 - Math.exp(-dt * 12) : 1;
+  const k = state.mode === 'orbit' ? 1 : 1 - Math.exp(-dt * (state.mode === 'player' ? 8 : 4));
   state.camPos.lerp(t.pos, k);
   state.camTarget.lerp(t.target, k);
   camera.position.copy(state.camPos);
@@ -449,7 +492,9 @@ function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;'
 document.querySelectorAll('.anchor').forEach(b => b.addEventListener('click', () => {
   const a = b.dataset.anchor;
   if (!state.data) return;
-  a === 'orbit' ? setMode('orbit') : setMode('anchor', a);
+  if (a === 'orbit') setMode('orbit');
+  else if (a === 'broadcast') { setMode('orbit'); const p = state.anchors.broadcast; camera.position.copy(p.pos); controls.target.copy(p.look); controls.update(); }
+  else setMode('anchor', a);
 }));
 
 const scrub = document.getElementById('scrub');
@@ -461,6 +506,7 @@ window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.code === 'Escape') setMode('orbit');
+  else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
   else if (e.code === 'ArrowRight' && state.data) { state.frame = Math.min(state.data.frames.length - 1, state.frame + 1); updateFrame(); }
   else if (e.code === 'ArrowLeft' && state.data) { state.frame = Math.max(0, state.frame - 1); updateFrame(); }
   else if (e.code === 'Home' && state.data) { state.frame = 0; updateFrame(); }
@@ -482,14 +528,14 @@ function readFile(f) {
 }
 async function fetchJson(url) {
   try {
+    await spritesReady;
     const r = await fetch(url);
     if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     loadTracking(await r.json(), url);
   } catch (err) { alert(`Failed to load ${url}: ${err}`); }
 }
 const src = new URLSearchParams(location.search).get('src');
-if (src) fetchJson(src);
-else buildPitch({ length: 50, width: 30, goal_width: 3.66, d_radius: 6, penalty_depth: 0, penalty_width: 0, goal_area_depth: 0, goal_area_width: 0, centre_circle_radius: 0 });
+fetchJson(src || 'sample/real.json');
 
 // ---------------------------------------------------------------- loop
 function tick(ts) {
