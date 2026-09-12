@@ -22,7 +22,7 @@ PITCH = {"preset": "small_sided", "length": 50, "width": 30}
 
 
 def _fake_track_local(video_path: str, model_name: str = "yolov8n.pt", conf: float = 0.25, imgsz: int = 1280,
-                      classes=(0,)) -> dict:
+                      classes=(0,), ball_imgsz: int = 1920) -> dict:
     """Two 'players' walking across the frame; feet stay inside the pitch quadrilateral."""
     info = probe(Path(video_path))
     n = round(info["duration"] * info["fps"])
