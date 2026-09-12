@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pitchworld"
+version = "0.1.0"
+description = "Multi-camera football clips -> synced clips + unified pitch-coordinate player tracking"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "scipy",
+  "opencv-python",
+  "modal>=1.0",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+local = ["ultralytics>=8.3,<9", "lap>=0.5"]
+
+[project.scripts]
+pitchworld = "pitchworld.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pitchworld*"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "E702", "E741", "B007", "B905", "RUF005"]
