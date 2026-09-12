@@ -20,7 +20,7 @@ app = modal.App(APP_NAME)
 
 
 def _track_impl(video_bytes: bytes, model_name: str, conf: float, imgsz: int, classes: list[int],
-                weights_dir: str | None) -> dict:
+                weights_dir: str | None, ball_imgsz: int = 0) -> dict:
     import os
     import tempfile
 
@@ -53,20 +53,31 @@ def _track_impl(video_bytes: bytes, model_name: str, conf: float, imgsz: int, cl
                 dets.append({"id": int(t), "cls": int(k), "conf": round(float(c), 3),
                              "box": [round(float(v), 1) for v in b]})
         frames.append(dets)
+    if 32 in classes and ball_imgsz > 0:
+        ball_results = model.predict(source=path, stream=True, conf=min(conf, 0.15), imgsz=ball_imgsz,
+                                     classes=[32], verbose=False, half=True)
+        for i, r in enumerate(ball_results):
+            if i >= len(frames) or r.boxes is None or not len(r.boxes):
+                continue
+            xyxy = r.boxes.xyxy.cpu().numpy()
+            cf = r.boxes.conf.cpu().numpy()
+            for b, c in zip(xyxy, cf):
+                frames[i].append({"id": -1, "cls": 32, "conf": round(float(c), 3),
+                                  "box": [round(float(v), 1) for v in b]})
     return {"fps": fps, "width": w, "height": h, "model": model_name, "frames": frames}
 
 
 @app.function(image=image, gpu="A10G", timeout=60 * 30, volumes={"/weights": weights})
 def track_video(video_bytes: bytes, model_name: str = "yolov8m.pt", conf: float = 0.25, imgsz: int = 1280,
-                classes: list[int] = (0,)) -> dict:
-    out = _track_impl(video_bytes, model_name, conf, imgsz, list(classes), "/weights")
+                classes: list[int] = (0,), ball_imgsz: int = 0) -> dict:
+    out = _track_impl(video_bytes, model_name, conf, imgsz, list(classes), "/weights", ball_imgsz)
     weights.commit()
     return out
 
 
 def track_local(video_path: str, model_name: str = "yolov8n.pt", conf: float = 0.25, imgsz: int = 1280,
-                classes: list[int] = (0,)) -> dict:
+                classes: list[int] = (0,), ball_imgsz: int = 0) -> dict:
     """CPU fallback (slow) for debugging without Modal."""
     from pathlib import Path
 
-    return _track_impl(Path(video_path).read_bytes(), model_name, conf, imgsz, list(classes), None)
+    return _track_impl(Path(video_path).read_bytes(), model_name, conf, imgsz, list(classes), None, ball_imgsz)
