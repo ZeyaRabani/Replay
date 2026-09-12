@@ -32,6 +32,7 @@ const state = {
   pitchGroup: null,
   anchors: {},            // name -> {pos: Vector3, look: Vector3}
   firstPerson: false,
+  showArrows: true,
   camPos: new THREE.Vector3(),
   camTarget: new THREE.Vector3(),
 };
@@ -310,7 +311,7 @@ function updateFrame() {
     const speed = v.length();
     if (speed > 0.3) {
       lastHeading.set(pl.id, v.clone().normalize());
-      m.arrow.visible = true;
+      m.arrow.visible = state.showArrows;
       m.arrow.setDirection(v.clone().normalize());
       m.arrow.setLength(Math.min(3, 0.5 + speed * 0.3), 0.3, 0.2);
     } else {
@@ -347,7 +348,7 @@ function setMode(mode, anchorId = null) {
   state.yaw = 0; state.pitch = 0;
   state.fov = 60;
   controls.enabled = mode === 'orbit';
-  for (const b of document.querySelectorAll('.anchor')) {
+  for (const b of document.querySelectorAll('.anchor[data-anchor]')) {
     b.classList.toggle('active', mode === 'orbit' ? b.dataset.anchor === 'orbit' : mode === 'anchor' && b.dataset.anchor === anchorId);
   }
   for (const r of document.querySelectorAll('#players .player')) {
@@ -489,7 +490,7 @@ function showQuality(q) {
 }
 function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 
-document.querySelectorAll('.anchor').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('.anchor[data-anchor]').forEach(b => b.addEventListener('click', () => {
   const a = b.dataset.anchor;
   if (!state.data) return;
   if (a === 'orbit') setMode('orbit');
@@ -507,10 +508,20 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.code === 'Escape') setMode('orbit');
   else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
+  else if (e.code === 'KeyH') setArrows(!state.showArrows);
   else if (e.code === 'ArrowRight' && state.data) { state.frame = Math.min(state.data.frames.length - 1, state.frame + 1); updateFrame(); }
   else if (e.code === 'ArrowLeft' && state.data) { state.frame = Math.max(0, state.frame - 1); updateFrame(); }
   else if (e.code === 'Home' && state.data) { state.frame = 0; updateFrame(); }
 });
+
+function setArrows(on) {
+  state.showArrows = on;
+  for (const m of state.meshes.values()) if (!on) m.arrow.visible = false;
+  document.getElementById('filter-arrows-on').classList.toggle('active', on);
+  document.getElementById('filter-arrows-off').classList.toggle('active', !on);
+}
+document.getElementById('filter-arrows-on').addEventListener('click', () => setArrows(true));
+document.getElementById('filter-arrows-off').addEventListener('click', () => setArrows(false));
 
 // file loading
 document.getElementById('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
