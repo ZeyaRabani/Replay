@@ -205,7 +205,9 @@ function colourFor(id, team) {
 // Drop short-lived ghost tracks, bridge small gaps, and smooth each track's
 // path with a centred moving average so merged multi-camera jitter doesn't
 // make players teleport.
-const MIN_TRACK_FRAMES = 60, MAX_GAP = 12, SMOOTH_HALF = 10, MAX_STEP_M = 0.6, DEDUPE_M = 1.5;
+const MIN_TRACK_FRAMES = 90, MAX_GAP = 15, SMOOTH_HALF = 12, MAX_STEP_M = 0.5, DEDUPE_M = 2.0;
+// small-sided game: 2 x 8 players + 2 keepers is the most that can be on the pitch
+const MAX_ON_PITCH = 18;
 function cleanTracks(frames) {
   const tracks = new Map();
   frames.forEach((fr, i) => {
@@ -254,6 +256,7 @@ function cleanTracks(frames) {
     const keep = [];
     fr.players.sort((a, b) => life.get(b.id) - life.get(a.id));
     for (const p of fr.players) {
+      if (keep.length >= MAX_ON_PITCH) break;
       if (!keep.some(q => Math.hypot(q.x - p.x, q.y - p.y) < DEDUPE_M)) keep.push(p);
     }
     fr.players = keep;
@@ -848,7 +851,7 @@ function tick(ts) {
     }
   }
   // ease players toward their tracked position / heading so per-frame jitter never reaches the screen
-  const k = 1 - Math.exp(-dt * 10);
+  const k = 1 - Math.exp(-dt * 6);
   const tAnim = state.data ? state.frame / (state.data.fps || 25) : 0;
   for (const [id, m] of state.meshes) {
     if (!m.group.visible) continue;
@@ -859,7 +862,7 @@ function tick(ts) {
     else if (ballMesh.visible) want = Math.atan2(ballMesh.position.x - m.group.position.x, ballMesh.position.z - m.group.position.z);
     let dy = want - m.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    m.yaw += dy * Math.min(1, dt * 6);
+    m.yaw += dy * Math.min(1, dt * 4);
     animateHumanoid(m, tAnim);
   }
   updateBall();
