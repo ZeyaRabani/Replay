@@ -117,7 +117,7 @@ def test_run_full_pipeline_writes_tracking_json(make_clips, calib_files, fake_tr
 
     q = tr["quality"]
     assert set(q) == {"sync_low_confidence", "calibration_low_confidence", "cross_camera_disagreement_m",
-                      "warnings", "stats"}
+                      "warnings", "stats", "teams"}
     assert q["sync_low_confidence"] is False
     assert isinstance(q["calibration_low_confidence"], bool)
     assert isinstance(q["warnings"], list)
