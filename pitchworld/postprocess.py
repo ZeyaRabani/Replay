@@ -99,7 +99,8 @@ def jersey_feature(frame_bgr: np.ndarray, box: list[float]) -> np.ndarray | None
     if x2 <= x1 or y2 <= y1:
         return None
     hsv = cv2.cvtColor(frame_bgr[y1:y2, x1:x2], cv2.COLOR_BGR2HSV).reshape(-1, 3)
-    keep = ~(((hsv[:, 0] >= 35) & (hsv[:, 0] <= 90) & (hsv[:, 1] > 60)) | (hsv[:, 2] < 40))
+    grass = (hsv[:, 0] >= 40) & (hsv[:, 0] <= 85) & (hsv[:, 1] > 60) & (hsv[:, 2] < 190)
+    keep = ~(grass | (hsv[:, 2] < 40))
     hsv = hsv[keep]
     if len(hsv) < 20:
         return None
@@ -141,20 +142,25 @@ def cluster_teams(features_by_id: dict[int, np.ndarray | list[np.ndarray]], k: i
     medians = []
     for gid in ids:
         values = np.asarray(features_by_id[gid])
-        medians.append(np.median(values, axis=0) if values.ndim > 1 else values)
+        feature = np.median(values, axis=0) if values.ndim > 1 else values
+        sat, value = feature[2], feature[3]
+        angle = math.atan2(feature[1], feature[0])
+        medians.append([sat * math.cos(angle), sat * math.sin(angle), 0.5 * sat, 0.25 * value])
     if not ids:
         return {}
     data = np.asarray(medians, dtype=float)
-    n_clusters = min(k, len(ids))
+    n_clusters = min(4, len(ids))
     if n_clusters == 1:
         labels = np.zeros(len(ids), dtype=int)
         centres = np.array([data.mean(axis=0)])
     else:
         centres, labels = kmeans2(data, n_clusters, minit="++", seed=0)
     counts = np.bincount(labels, minlength=n_clusters)
-    big = [i for i in range(n_clusters) if counts[i] > max(2, min_team_frac * len(ids))]
+    candidates = [i for i in range(n_clusters) if counts[i] >= 3]
+    candidates.sort(key=lambda i: (-centres[i][2], -counts[i], i))
+    big = candidates[:2]
     if len(big) < 2:
-        big = sorted(range(n_clusters), key=lambda i: counts[i], reverse=True)[:2]
+        big = sorted(range(n_clusters), key=lambda i: (-counts[i], i))[:2]
     big = sorted(big, key=lambda i: math.atan2(centres[i][1], centres[i][0]))
     result = {}
     for pos, cluster in enumerate(big[:2]):
@@ -164,11 +170,7 @@ def cluster_teams(features_by_id: dict[int, np.ndarray | list[np.ndarray]], k: i
     for gid, label in zip(ids, labels):
         if gid in result:
             continue
-        if len(big) >= 2 and counts[label] <= max(2, min_team_frac * len(ids)):
-            result[gid] = (None, "other")
-        else:
-            nearest = min(big, key=lambda i: np.linalg.norm(centres[i] - centres[label]))
-            result[gid] = (big.index(nearest), "player")
+        result[gid] = (None, "other")
     return result
 
 
@@ -178,7 +180,7 @@ def assign_teams(timeline: list[dict], synced_clips: list[Path], pitch: PitchMod
     assignments = cluster_teams(features)
     all_ids = sorted({p["id"] for fr in timeline for p in fr["players"]})
     for gid in all_ids:
-        assignments.setdefault(gid, (None, "other"))
+        assignments.setdefault(gid, (None, "unknown"))
     medians = {}
     for gid in all_ids:
         pts = [(p["x"], p["y"]) for fr in timeline for p in fr["players"] if p["id"] == gid]
@@ -229,9 +231,10 @@ def id_stability(timeline: list[dict], fps: float | None = None) -> dict:
     duration_min = (len(timeline) / fps / 60) if fps else None
     lengths = [len(points) for points in tracks.values()]
     counts = [len(fr["players"]) for fr in timeline]
-    return {"id_switches_est": switches, "id_switches_per_min": switches / duration_min if duration_min else None,
-            "fragmentation": len(tracks) / max(1, np.mean(counts) if counts else 1),
-            "mean_track_len_frames": float(np.mean(lengths)) if lengths else 0.0,
+    return {"id_switches_est": switches,
+            "id_switches_per_min": round(float(switches / duration_min), 2) if duration_min else None,
+            "fragmentation": round(float(len(tracks) / max(1, np.mean(counts) if counts else 1)), 2),
+            "mean_track_len_frames": round(float(np.mean(lengths)), 2) if lengths else 0.0,
             "short_tracks_lt15": sum(length < 15 for length in lengths)}
 
 
@@ -245,13 +248,17 @@ def render_team_snapshot(timeline: list[dict], pitch: PitchModel, frame_idx: int
     for p in frame["players"]:
         pt = canvas.to_px(p["x"], p["y"])
         team = p.get("team")
-        colour = tuple(team_colours_bgr[team]) if team in (0, 1) else (0, 255, 255)
+        colour = tuple(team_colours_bgr[team]) if team in (0, 1) else (128, 128, 128)
         if p.get("interpolated"):
             cv2.circle(image, pt, 8, colour, 2)
         else:
             cv2.circle(image, pt, 7, colour, -1)
         cv2.putText(image, str(p["id"]), (pt[0] + 8, pt[1] - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
                     (255, 255, 255), 1)
+    for team, label in enumerate(("team0", "team1")):
+        cv2.putText(image, label, (12, 24 + 22 * team), cv2.FONT_HERSHEY_SIMPLEX, 0.55,
+                    tuple(team_colours_bgr[team]), 2)
+    cv2.putText(image, "other", (12, 68), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (128, 128, 128), 2)
     if frame.get("ball"):
         b = frame["ball"]
         cv2.circle(image, canvas.to_px(b["x"], b["y"]), 5, (255, 255, 255), -1)
