@@ -1,0 +1,11 @@
+{
+ "length": 60,
+ "width": 40,
+ "goal_width": 3.66,
+ "d_radius": 7.32,
+ "penalty_depth": 0,
+ "penalty_width": 0,
+ "goal_area_depth": 0,
+ "goal_area_width": 0,
+ "centre_circle_radius": 0
+}
