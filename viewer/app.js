@@ -163,6 +163,7 @@ function buildPitch(p) {
     half_N: mk(L / 2, W + 5),
     broadcast: { pos: new THREE.Vector3(L / 2, Math.max(W * 0.45, 12), W + Math.max(W * 0.7, 18)), look: centre.clone() },
     tactical: { pos: new THREE.Vector3(L / 2, Math.max(L, W) * 0.75, cy + 0.01), look: centre.clone() },
+    birdseye: { pos: new THREE.Vector3(L / 2, Math.max(L, W) * 1.15, cy + 0.01), look: centre.clone() },
     action: null, // dynamic: follows the centre of play
   };
   controls.target.copy(centre);
@@ -507,6 +508,19 @@ function applyCamera(dt) {
   if (camera.fov !== state.fov) { camera.fov = state.fov; camera.updateProjectionMatrix(); }
 }
 
+function zoom(dir) {
+  if (state.mode === 'orbit') {
+    const off = camera.position.clone().sub(controls.target);
+    off.multiplyScalar(dir > 0 ? 0.75 : 1.33);
+    camera.position.copy(controls.target).add(off);
+    controls.update();
+  } else {
+    state.fov = THREE.MathUtils.clamp(state.fov + (dir > 0 ? -10 : 10), 15, 110);
+  }
+}
+document.getElementById('zoom-in').addEventListener('click', () => zoom(1));
+document.getElementById('zoom-out').addEventListener('click', () => zoom(-1));
+
 // mouse-look
 let dragging = false, lx = 0, ly = 0;
 canvas.addEventListener('pointerdown', e => { if (state.mode !== 'orbit') { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); } });
@@ -579,6 +593,8 @@ window.addEventListener('keydown', e => {
   else if (e.code === 'Escape') setMode('orbit');
   else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
   else if (e.code === 'KeyH') setArrows(!state.showArrows);
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoom(1);
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoom(-1);
   else if (e.code === 'KeyM') setPlayerStyle(state.playerStyle === '3d' ? 'photo' : '3d');
   else if (e.code === 'ArrowRight' && state.data) { state.frame = Math.min(state.data.frames.length - 1, state.frame + 1); updateFrame(); }
   else if (e.code === 'ArrowLeft' && state.data) { state.frame = Math.max(0, state.frame - 1); updateFrame(); }
