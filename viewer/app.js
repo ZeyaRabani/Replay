@@ -202,6 +202,54 @@ function colourFor(id, team) {
   return ID_PALETTE[Math.abs(n) % ID_PALETTE.length];
 }
 
+// Drop short-lived ghost tracks, bridge small gaps, and smooth each track's
+// path with a centred moving average so merged multi-camera jitter doesn't
+// make players teleport.
+const MIN_TRACK_FRAMES = 20, MAX_GAP = 12, SMOOTH_HALF = 6, MAX_STEP_M = 1.2;
+function cleanTracks(frames) {
+  const tracks = new Map();
+  frames.forEach((fr, i) => {
+    for (const pl of fr.players || []) {
+      if (!tracks.has(pl.id)) tracks.set(pl.id, []);
+      tracks.get(pl.id).push({ i, pl });
+    }
+  });
+  const out = frames.map(fr => ({ ...fr, players: [] }));
+  for (const [id, samples] of tracks) {
+    if (samples.length < MIN_TRACK_FRAMES) continue;
+    // clamp implausible per-frame jumps (merge glitches) before smoothing
+    const raw = samples.map(s => ({ i: s.i, x: s.pl.x, y: s.pl.y, pl: s.pl }));
+    for (let k = 1; k < raw.length; k++) {
+      const p = raw[k - 1], c = raw[k], df = Math.max(1, c.i - p.i);
+      const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy), lim = MAX_STEP_M * df;
+      if (d > lim) { c.x = p.x + dx * lim / d; c.y = p.y + dy * lim / d; }
+    }
+    // bridge gaps by linear interpolation
+    const dense = [];
+    for (let k = 0; k < raw.length; k++) {
+      dense.push(raw[k]);
+      const n = raw[k + 1];
+      if (n && n.i - raw[k].i > 1 && n.i - raw[k].i <= MAX_GAP) {
+        for (let j = raw[k].i + 1; j < n.i; j++) {
+          const t = (j - raw[k].i) / (n.i - raw[k].i);
+          dense.push({ i: j, x: raw[k].x + (n.x - raw[k].x) * t, y: raw[k].y + (n.y - raw[k].y) * t, pl: raw[k].pl });
+        }
+      }
+    }
+    // centred moving average over contiguous neighbours
+    for (let k = 0; k < dense.length; k++) {
+      let sx = 0, sy = 0, n = 0;
+      for (let j = Math.max(0, k - SMOOTH_HALF); j <= Math.min(dense.length - 1, k + SMOOTH_HALF); j++) {
+        if (Math.abs(dense[j].i - dense[k].i) > SMOOTH_HALF) continue;
+        sx += dense[j].x; sy += dense[j].y; n++;
+      }
+      const src = dense[k].pl;
+      out[dense[k].i].players.push({ ...src, id, x: sx / n, y: sy / n });
+    }
+  }
+  return out;
+}
+
 function loadTracking(data, label = 'tracking.json') {
   if (!data || !Array.isArray(data.frames)) { alert('Not a pitchworld tracking.json (missing "frames")'); return; }
   state.data = data;
@@ -215,6 +263,7 @@ function loadTracking(data, label = 'tracking.json') {
   state.meshes.clear();
   state.playerIndex.clear();
   state.colours.clear();
+  data.frames = cleanTracks(data.frames);
   const teams = new Map();
   data.frames.forEach((fr, i) => {
     for (const pl of fr.players || []) {
@@ -349,7 +398,7 @@ function animateHumanoid(m, id, speed, t) {
 }
 
 // finite-difference velocity in pitch coords (m/s), central window of ±k frames
-function velocity(id, frame, k = 3) {
+function velocity(id, frame, k = 6) {
   const track = state.playerIndex.get(id);
   const fps = state.data.fps || 25;
   let a = null, b = null, fa = frame, fb = frame;
@@ -380,8 +429,9 @@ function updateFrame() {
     const v = velocity(pl.id, state.frame);
     const speed = v.length();
     animateHumanoid(m, pl.id, speed, state.frame / (d.fps || 25));
-    if (speed > 0.3) {
-      lastHeading.set(pl.id, v.clone().normalize());
+    if (speed > 0.5) {
+      const nh = v.clone().normalize(), oh = lastHeading.get(pl.id);
+      lastHeading.set(pl.id, oh ? oh.clone().lerp(nh, 0.2).normalize() : nh);
       m.arrow.visible = state.showArrows;
       m.arrow.setDirection(v.clone().normalize());
       m.arrow.setLength(Math.min(3, 0.5 + speed * 0.3), 0.3, 0.2);
@@ -637,6 +687,69 @@ async function fetchJson(url) {
 const src = new URLSearchParams(location.search).get('src');
 fetchJson(src || 'sample/real.json');
 
+// ---------------------------------------------------------------- ball (optional ball.json next to the tracking file)
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0x444444 }));
+ballMesh.position.y = 0.32; ballMesh.castShadow = true; ballMesh.visible = false;
+scene.add(ballMesh);
+let ballFrames = null;
+fetch(src ? src.replace(/[^/]*$/, 'ball.json') : 'sample/ball.json').then(r => r.ok ? r.json() : null).then(j => {
+  if (!j || !Array.isArray(j.frames)) return;
+  // interpolate across short detection gaps so the ball doesn't flicker
+  const fr = j.frames.slice();
+  for (let i = 0; i < fr.length; i++) {
+    if (fr[i].x != null) continue;
+    let a = i - 1; while (a >= 0 && fr[a].x == null) a--;
+    let b = i + 1; while (b < fr.length && fr[b].x == null) b++;
+    if (a >= 0 && b < fr.length && b - a <= 20) {
+      const t = (i - a) / (b - a);
+      fr[i] = { frame: i, x: fr[a].x + (fr[b].x - fr[a].x) * t, y: fr[a].y + (fr[b].y - fr[a].y) * t, interp: true };
+    }
+  }
+  // clamp to pitch bounds and smooth (cam-0-only projection is noisy)
+  const P = state.data ? state.data.pitch : { length: 50, width: 30 };
+  const pts = fr.map(f => f.x == null ? null : { x: THREE.MathUtils.clamp(f.x, -1, (P.length || 50) + 1), y: THREE.MathUtils.clamp(f.y, -1, (P.width || 30) + 1) });
+  for (let i = 0; i < fr.length; i++) {
+    if (!pts[i]) continue;
+    let sx = 0, sy = 0, n = 0;
+    for (let j = Math.max(0, i - 4); j <= Math.min(fr.length - 1, i + 4); j++) if (pts[j]) { sx += pts[j].x; sy += pts[j].y; n++; }
+    fr[i] = { ...fr[i], x: sx / n, y: sy / n };
+  }
+  ballFrames = fr;
+  const cov = j.frames.filter(f => f.x != null).length / j.frames.length;
+  const el = document.getElementById('ball-note');
+  if (el) el.textContent = `Ball detected in ${Math.round(cov * 100)}% of frames (YOLO sports-ball, gaps interpolated); hidden where not seen.`;
+});
+function updateBall() {
+  if (!ballFrames) return;
+  const b = ballFrames[state.frame];
+  if (!b || b.x == null) { ballMesh.visible = false; return; }
+  ballMesh.visible = true;
+  ballMesh.position.x += (b.x - ballMesh.position.x) * 0.35;
+  ballMesh.position.z += (b.y - ballMesh.position.z) * 0.35;
+  ballMesh.rotation.x += 0.2;
+}
+
+// ---------------------------------------------------------------- picture-in-picture source clips (synced to the timeline)
+const pipVideos = [...document.querySelectorAll('#pip video')];
+for (const v of pipVideos) v.addEventListener('error', () => v.classList.add('missing'));
+let pipLastFrame = -1;
+function syncPip() {
+  if (!state.data) return;
+  const t = state.frame / (state.data.fps || 25);
+  for (const v of pipVideos) {
+    if (v.classList.contains('missing') || v.readyState < 1) continue;
+    if (state.playing) {
+      if (v.paused) v.play().catch(() => {});
+      if (v.playbackRate !== state.speed) v.playbackRate = state.speed;
+      if (Math.abs(v.currentTime - t) > 0.25) v.currentTime = t;
+    } else {
+      if (!v.paused) v.pause();
+      if (pipLastFrame !== state.frame) v.currentTime = t;
+    }
+  }
+  pipLastFrame = state.frame;
+}
+
 // ---------------------------------------------------------------- loop
 function tick(ts) {
   requestAnimationFrame(tick);
@@ -653,7 +766,16 @@ function tick(ts) {
       updateFrame();
     }
   }
+  updateBall();
+  syncPip();
   applyCamera(dt);
+  // hide labels that are right in front of the camera so they don't fill the screen
+  for (const m of state.meshes.values()) {
+    if (!m.group.visible) continue;
+    const dd = camera.position.distanceTo(m.group.position);
+    m.label.visible = dd > 4;
+    m.label.material.opacity = THREE.MathUtils.clamp((dd - 4) / 4, 0, 1);
+  }
   renderer.render(scene, camera);
 }
 requestAnimationFrame(tick);

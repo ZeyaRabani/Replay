@@ -90,3 +90,7 @@ code { background: #0b0e12; padding: 1px 4px; border-radius: 3px; }
 #timeline input[type=range] { flex: 1; accent-color: var(--accent); }
 #timeline select { background: #232a34; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
 #play { width: 40px; }
+
+.pip { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+.pip video { width: 200px; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; background: #000; display: block; }
+.pip video.missing { display: none; }
