@@ -73,7 +73,7 @@ def build_seed(frame: Path, out: Path) -> Path:
         canvas = Image.new("RGB", (w, th), (20, 24, 20))
         canvas.paste(im, (0, (th - h) // 2))
         im = canvas
-    im = im.resize((SEED_WIDTH, int(round(SEED_WIDTH / (im.size[0] / im.size[1])))))
+    im = im.resize((SEED_WIDTH, round(SEED_WIDTH / (im.size[0] / im.size[1]))))
     q = 92
     while True:
         im.save(out, "JPEG", quality=q)
@@ -86,7 +86,7 @@ def build_seed(frame: Path, out: Path) -> Path:
 def build_prompt(tracking: dict, n_cams: int) -> str:
     pitch = tracking.get("pitch", {})
     stats = tracking.get("quality", {}).get("stats", {})
-    n_players = int(round(stats.get("mean_players_per_frame", 10)))
+    n_players = round(stats.get("mean_players_per_frame", 10))
     return (
         "Photorealistic third-person view of a real small-sided football pitch, "
         f"about {pitch.get('length', 50):.0f} by {pitch.get('width', 30):.0f} metres, "
