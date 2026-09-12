@@ -2,6 +2,15 @@ __pycache__/
 *.pyc
 *.egg-info/
 .venv*/
+.venv-whisperx/
 out*/
 *.pt
 .env
+
+# demo toolchain
+.venv-whisperx/
+.open-edit/
+demo/out/
+replay-demo.mp4
+replay-demo.wv.html
+replay-demo.shots.json
