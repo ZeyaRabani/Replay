@@ -2,9 +2,17 @@ __pycache__/
 *.pyc
 *.egg-info/
 .venv*/
+.venv-whisperx/
 out*/
 *.pt
 .env
 
 # viewer media: full-res synced clips are too big for git; thumbnails + tracking.json + seed are committed
 viewer/media/cam?.mp4
+
+# demo toolchain
+.open-edit/
+demo/out/
+replay-demo.mp4
+replay-demo.wv.html
+replay-demo.shots.json
