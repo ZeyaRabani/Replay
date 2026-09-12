@@ -90,6 +90,13 @@ def cmd_check_calib(args) -> int:
 
 def cmd_run(args) -> int:
     from .merge import fuse, summarize
+    from .postprocess import (
+        assign_teams,
+        filter_static_tracks,
+        render_jersey_sheet,
+        render_team_snapshot,
+        smooth_tracks,
+    )
     from .viz import calibration_check_image, render_overlay, render_pitch_map, sync_contact_sheet
 
     t_start = time.time()
@@ -161,14 +168,18 @@ def cmd_run(args) -> int:
             from .modal_app import track_local
 
             for s in synced:
-                per_cam.append(track_local(str(s), model_name=args.model, conf=args.conf, imgsz=args.imgsz)["frames"])
+                per_cam.append(track_local(str(s), model_name=args.model, conf=args.conf, imgsz=args.imgsz,
+                                           classes=(0, 32) if args.ball else (0,),
+                                           ball_imgsz=args.ball_imgsz)["frames"])
         else:
             from .modal_app import app, track_video
 
             payloads = [s.read_bytes() for s in synced]
             with app.run():
                 results = list(track_video.map(payloads, kwargs={"model_name": args.model, "conf": args.conf,
-                                                                "imgsz": args.imgsz}))
+                                                                "imgsz": args.imgsz,
+                                                                "classes": (0, 32) if args.ball else (0,),
+                                                                "ball_imgsz": args.ball_imgsz}))
             per_cam = [r["frames"] for r in results]
         cache.write_text(json.dumps(per_cam))
     for i, fr in enumerate(per_cam):
@@ -201,7 +212,18 @@ def cmd_run(args) -> int:
     elif worst > 1.0:
         warnings.append(f"cameras disagree on player positions by up to {worst:.2f} m (median): the calibrations "
                         "do not define one shared pitch frame; merged positions/IDs are LOW confidence")
-    timeline = fuse(per_cam, cals, pitch, fps, merge_dist=args.merge_dist)
+    timeline = fuse(per_cam, cals, pitch, fps, merge_dist=args.merge_dist, margin=args.pitch_margin,
+                    min_box_h=args.min_box_h, min_conf=args.min_det_conf, ball=args.ball)
+    team_info = None
+    if not args.no_static_filter:
+        timeline, dropped = filter_static_tracks(timeline, pitch, fps, min_disp_m=args.static_min_disp)
+        print(f"  static filter dropped {len(dropped)} ids: {dropped}")
+    if not args.no_smooth:
+        timeline = smooth_tracks(timeline, fps, window=args.smooth_window, max_gap=args.max_gap,
+                                 min_frames=args.min_track_frames)
+    if not args.no_team:
+        timeline, team_info = assign_teams(timeline, synced, pitch, n_samples=args.team_samples)
+        print(f"  team sizes: {team_info['team_sizes']}")
     stats = summarize(timeline)
     low_sync = sync.low_confidence
     low_cal = any(c.confidence < 0.5 for c in cals) or math.isnan(worst) or worst > 1.0
@@ -222,8 +244,13 @@ def cmd_run(args) -> int:
                     "cross_camera_disagreement_m": consistency, "warnings": warnings, "stats": stats},
         "frames": timeline,
     }
+    if team_info is not None:
+        result["quality"]["teams"] = team_info
     (out / "tracking.json").write_text(json.dumps(result))
     print(f"  tracking.json: {len(timeline)} frames, {stats}")
+    render_team_snapshot(timeline, pitch, len(timeline) // 2, out / "debug" / "teams_pitch.png",
+                         team_info["team_colours_bgr"] if team_info else [[0, 0, 255], [255, 0, 0]])
+    render_jersey_sheet(synced[0], timeline, 0, len(timeline) // 2, out / "debug" / "jerseys_cam0.jpg")
 
     if not args.no_viz:
         render_pitch_map(timeline, pitch, fps, out / "debug" / "pitch_map.mp4")
@@ -266,6 +293,19 @@ def main(argv=None) -> int:
     p.add_argument("--conf", type=float, default=0.25)
     p.add_argument("--imgsz", type=int, default=1280)
     p.add_argument("--merge-dist", type=float, default=2.0, help="max pitch distance (m) to merge cross-camera detections")
+    p.add_argument("--ball", action="store_true")
+    p.add_argument("--ball-imgsz", type=int, default=1920)
+    p.add_argument("--min-box-h", type=int, default=12)
+    p.add_argument("--min-det-conf", type=float, default=0.0)
+    p.add_argument("--pitch-margin", type=float, default=3.0)
+    p.add_argument("--no-team", action="store_true")
+    p.add_argument("--no-static-filter", action="store_true")
+    p.add_argument("--static-min-disp", type=float, default=1.5)
+    p.add_argument("--no-smooth", action="store_true")
+    p.add_argument("--smooth-window", type=int, default=9)
+    p.add_argument("--max-gap", type=int, default=10)
+    p.add_argument("--min-track-frames", type=int, default=15)
+    p.add_argument("--team-samples", type=int, default=40)
     p.add_argument("--joint-refine", action="store_true",
                    help="experimental: jointly refine pose-fitted calibrations using players seen by >=2 cameras")
     p.add_argument("--local", action="store_true", help="run YOLO locally on CPU instead of Modal")
