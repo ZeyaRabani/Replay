@@ -1,0 +1,25 @@
+{
+  "offsets_s": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "confidences": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "method": [
+    "manual",
+    "manual",
+    "manual"
+  ],
+  "common_start_s": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "common_duration_s": 24.053,
+  "low_confidence": false,
+  "notes": []
+}

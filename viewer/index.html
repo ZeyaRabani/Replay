@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Replay</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="banner" class="banner hidden"></div>
+
+  <aside id="sidebar">
+    <header>
+      <h1><span class="logo">▶</span> Replay</h1>
+      <div class="muted" id="meta">no tracking.json loaded</div>
+      <div id="mode" class="mode">
+        <span id="mode-dot" class="dot"></span><span id="mode-text">starting…</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>World</h2>
+      <div id="reactor-panel" class="muted">
+        <div id="reactor-status">Reactor: checking…</div>
+        <div class="row">
+          <button class="btn small" id="reactor-attach" title="attachWorld(?world=…)">Attach world</button>
+          <button class="btn small" id="reactor-create" title="createWorld from media/seed.jpg">Create world</button>
+          <button class="btn small" id="reactor-stop" title="disconnect and fall back to 3D">3D fallback</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Camera</h2>
+      <div class="anchor-grid">
+        <button class="anchor" data-anchor="orbit">Free orbit</button>
+        <button class="anchor" data-anchor="behind_A">Behind goal A</button>
+        <button class="anchor" data-anchor="behind_B">Behind goal B</button>
+        <button class="anchor" data-anchor="centre">Centre circle</button>
+        <button class="anchor" data-anchor="touch_S">Touchline S</button>
+        <button class="anchor" data-anchor="touch_N">Touchline N</button>
+      </div>
+      <div class="muted" id="cam-hint">Drag to look around · wheel = zoom / FOV · Esc = orbit · space = play</div>
+    </section>
+
+    <section class="grow">
+      <h2>Players <span class="muted" id="player-count"></span></h2>
+      <div id="players" class="player-list"></div>
+    </section>
+
+    <section>
+      <h2>Load</h2>
+      <label class="btn small" for="file">Open tracking.json</label>
+      <input type="file" id="file" accept=".json,application/json" hidden />
+      <div class="muted">drag &amp; drop, or <code>?src=URL</code></div>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <video id="world" class="hidden" autoplay playsinline muted></video>
+    <div id="hud" class="hud hidden"></div>
+    <div id="drop" class="drop hidden">Drop tracking.json</div>
+    <div id="thumbs" class="thumbs"></div>
+  </main>
+
+  <footer id="timeline">
+    <button id="play" class="btn" title="space">▶</button>
+    <input type="range" id="scrub" min="0" max="0" value="0" step="1" />
+    <span id="time" class="mono">0.00 s / 0.00 s · f 0</span>
+    <select id="speed" title="playback speed">
+      <option value="0.25">0.25×</option>
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="2">2×</option>
+    </select>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

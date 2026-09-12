@@ -1,0 +1,8 @@
+{"jumps":[
+ {"t":5.0,"target":"play","label":"Replay world — live Reactor HappyOyster stream"},
+ {"t":8.3,"target":"player:16","label":"Jump to Player 16 (head-height cam)"},
+ {"t":22.1,"target":"player:12","label":"Jump to Player 12"},
+ {"t":29.7,"target":"player:23","label":"Jump to Player 23"},
+ {"t":37.0,"target":"freelook","label":"Free look — drag to look around"},
+ {"t":43.4,"target":"anchor:behind_A","label":"Free viewpoint — behind goal A"}
+]}

@@ -1,3 +1,26 @@
+# Replay
+
+Upload 2–4 fixed-camera clips of one football moment → an explorable,
+persistent real-time 3D replay: jump to any tracked player or free pitch
+viewpoint, look around, at any point in the timeline.
+
+## Run Replay
+
+```bash
+pip install -e .
+echo "REACTOR_API_KEY=rk_..." > .env     # optional; git-ignored, exchanged server-side
+python viewer/server.py                  # -> http://localhost:8080
+```
+
+- Live Reactor (HappyOyster) world: `http://localhost:8080/?world=dHpmaEU0lINZtc81EZgHEnya1amxS9MxfbMbSnp2-J4`
+- Three.js fallback (no key needed): `http://localhost:8080/`
+- Demo video: [`replay-demo.mp4`](replay-demo.mp4) · full run notes and honest
+  limitations: [`docs/REPORT.md`](docs/REPORT.md)
+
+Stage 1 (`pitchworld`, below) builds `tracking.json`; Stage 2 (`pitchworld/worldmap.py`,
+`reactor-app/`, `docs/stage2_*.md`) maps it into a Reactor world; Stage 3 (`viewer/`)
+is the explorable viewer; Stage 4 (`demo/`) cuts the demo video.
+
 # pitchworld
 
 `pitchworld` turns 2–4 football clips from a shared pitch into synchronized
