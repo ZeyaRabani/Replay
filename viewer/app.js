@@ -330,24 +330,33 @@ function makeHumanoid(kit, shorts) {
     m.position.y = -len / 2; p.add(m);
     return p;
   };
-  const legL = limb(H * 0.045, H * 0.48, SKIN, -H * 0.06, H * 0.02, 0);
-  const legR = limb(H * 0.045, H * 0.48, SKIN, H * 0.06, H * 0.02, 0);
+  // two-segment limbs: upper (thigh / upper arm) pivots at the hip/shoulder, lower pivots at knee/elbow
+  const legL = limb(H * 0.045, H * 0.24, SKIN, -H * 0.06, H * 0.02, 0);
+  const legR = limb(H * 0.045, H * 0.24, SKIN, H * 0.06, H * 0.02, 0);
+  const knees = [];
   for (const l of [legL, legR]) {
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(H * 0.06, H * 0.04, H * 0.12), BOOT);
-    boot.position.set(0, -H * 0.47, H * 0.02); l.add(boot);
     const sh = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.055, H * 0.05, H * 0.14, 8), shM);
     sh.position.y = -H * 0.07; l.add(sh);
+    const shin = limb(H * 0.04, H * 0.24, SKIN, 0, -H * 0.24, 0);
+    const sock = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.04, H * 0.035, H * 0.1, 8), shM);
+    sock.position.y = -H * 0.17; shin.add(sock);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(H * 0.06, H * 0.04, H * 0.12), BOOT);
+    boot.position.set(0, -H * 0.23, H * 0.02); shin.add(boot);
+    l.add(shin); knees.push(shin);
     hips.add(l);
   }
-  const armL = limb(H * 0.035, H * 0.36, SKIN, -H * 0.15, H * 0.33, 0);
-  const armR = limb(H * 0.035, H * 0.36, SKIN, H * 0.15, H * 0.33, 0);
+  const armL = limb(H * 0.035, H * 0.18, SKIN, -H * 0.15, H * 0.33, 0);
+  const armR = limb(H * 0.035, H * 0.18, SKIN, H * 0.15, H * 0.33, 0);
+  const elbows = [];
   for (const a of [armL, armR]) {
     const sl = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.045, H * 0.04, H * 0.1, 8), kitM);
     sl.position.y = -H * 0.04; a.add(sl);
+    const fore = limb(H * 0.03, H * 0.18, SKIN, 0, -H * 0.18, 0);
+    a.add(fore); elbows.push(fore);
     hips.add(a);
   }
   root.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return { root, hips, legL, legR, armL, armR };
+  return { root, hips, legL, legR, armL, armR, kneeL: knees[0], kneeR: knees[1], elbowL: elbows[0], elbowR: elbows[1] };
 }
 
 function makePlayer(id, colour) {
@@ -381,7 +390,7 @@ function makePlayer(id, colour) {
   group.add(arrow);
   group.visible = false;
   scene.add(group);
-  return { group, capsule, label, arrow, human, sprite, phase: Math.random() * Math.PI * 2 };
+  return { group, capsule, label, arrow, human, sprite, phase: Math.random() * Math.PI * 2, target: new THREE.Vector3(), yaw: 0, speed: 0 };
 }
 
 function setPlayerStyle(style) {
@@ -395,20 +404,29 @@ function setPlayerStyle(style) {
   document.getElementById('style-photo').classList.toggle('active', style !== '3d');
 }
 
-// pose the humanoid: face heading, swing limbs with stride frequency ~ speed
-function animateHumanoid(m, id, speed, t) {
+// pose the humanoid: knees/elbows bend with stride, lean into the run, idle stance when standing
+function animateHumanoid(m, t) {
   const h = m.human;
-  const dir = lastHeading.get(id);
-  if (dir) h.root.rotation.y = Math.atan2(dir.x, dir.z);
-  const run = Math.min(1, speed / 6);
-  const w = t * (4 + 8 * run) + m.phase;
-  const amp = 0.15 + 0.85 * run;
-  h.legL.rotation.x = Math.sin(w) * amp;
-  h.legR.rotation.x = -Math.sin(w) * amp;
-  h.armL.rotation.x = -Math.sin(w) * amp * 0.8;
-  h.armR.rotation.x = Math.sin(w) * amp * 0.8;
-  h.hips.position.y = PLAYER_HEIGHT * 0.5 + Math.abs(Math.sin(w)) * 0.06 * run;
-  h.hips.rotation.x = -0.15 * run;
+  h.root.rotation.y = m.yaw;
+  const speed = m.speed;
+  const run = THREE.MathUtils.smoothstep(speed, 0.4, 6);
+  const w = t * (3 + 9 * run) + m.phase;
+  const s = Math.sin(w), c = Math.cos(w);
+  const amp = 0.9 * run;
+  h.legL.rotation.x = s * amp;
+  h.legR.rotation.x = -s * amp;
+  // knee folds during the back-swing (heel kick), straightens as the foot plants
+  h.kneeL.rotation.x = 0.08 + Math.max(0, s) * 1.4 * run;
+  h.kneeR.rotation.x = 0.08 + Math.max(0, -s) * 1.4 * run;
+  h.armL.rotation.x = -s * amp * 0.7 - 0.2 * run;
+  h.armR.rotation.x = s * amp * 0.7 - 0.2 * run;
+  h.armL.rotation.z = -0.12 - 0.1 * run; h.armR.rotation.z = 0.12 + 0.1 * run;
+  h.elbowL.rotation.x = -0.4 - 1.2 * run; h.elbowR.rotation.x = -0.4 - 1.2 * run;
+  const idle = (1 - run) * Math.sin(t * 1.5 + m.phase) * 0.01;
+  h.hips.position.y = PLAYER_HEIGHT * 0.5 - 0.02 * run + Math.abs(s) * 0.05 * run + idle;
+  h.hips.rotation.x = 0.22 * run;
+  h.hips.rotation.z = s * 0.04 * run;
+  h.hips.rotation.y = -s * 0.15 * run;
 }
 
 // finite-difference velocity in pitch coords (m/s), central window of ±k frames
@@ -438,11 +456,13 @@ function updateFrame() {
     present.add(pl.id);
     const m = state.meshes.get(pl.id);
     if (!m) continue;
+    const wasVisible = m.group.visible;
     m.group.visible = true;
-    m.group.position.set(pl.x, 0, pl.y);
+    m.target.set(pl.x, 0, pl.y);
+    if (!wasVisible || !state.playing) m.group.position.copy(m.target);
     const v = velocity(pl.id, state.frame);
     const speed = v.length();
-    animateHumanoid(m, pl.id, speed, state.frame / (d.fps || 25));
+    m.speed = speed;
     if (speed > 0.5) {
       const nh = v.clone().normalize(), oh = lastHeading.get(pl.id);
       lastHeading.set(pl.id, oh ? oh.clone().lerp(nh, 0.2).normalize() : nh);
@@ -659,7 +679,7 @@ window.addEventListener('keydown', e => {
   else if (e.code === 'Escape') setMode('orbit');
   else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
   else if (e.code === 'KeyH') setArrows(!state.showArrows);
-  else if (e.code === 'KeyF') setSplit(!document.getElementById('stage').classList.contains('split'));
+  else if (e.code === 'KeyF') cycleFootage();
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoom(1);
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoom(-1);
   else if (e.code === 'KeyM') setPlayerStyle(state.playerStyle === '3d' ? 'photo' : '3d');
@@ -775,13 +795,20 @@ function updateBall() {
   ballMesh.rotation.x += 0.2;
 }
 
-// ---------------------------------------------------------------- footage layout (half-screen vs thumbnails)
-function setSplit(on) {
-  document.getElementById('stage').classList.toggle('split', on);
-  document.getElementById('split-toggle').textContent = on ? 'Footage: half screen' : 'Footage: thumbnails';
+// ---------------------------------------------------------------- footage layout: half screen -> thumbnails -> hidden
+const FOOTAGE_MODES = ['split', 'thumbs', 'hidden'];
+const FOOTAGE_LABEL = { split: 'Footage: half screen', thumbs: 'Footage: thumbnails', hidden: 'Footage: hidden' };
+let footageMode = 'split';
+function setFootage(mode) {
+  footageMode = mode;
+  const st = document.getElementById('stage');
+  st.classList.toggle('split', mode === 'split');
+  st.classList.toggle('nopip', mode === 'hidden');
+  document.getElementById('split-toggle').textContent = FOOTAGE_LABEL[mode];
   resize();
 }
-document.getElementById('split-toggle').addEventListener('click', () => setSplit(!document.getElementById('stage').classList.contains('split')));
+function cycleFootage() { setFootage(FOOTAGE_MODES[(FOOTAGE_MODES.indexOf(footageMode) + 1) % FOOTAGE_MODES.length]); }
+document.getElementById('split-toggle').addEventListener('click', cycleFootage);
 
 // ---------------------------------------------------------------- picture-in-picture source clips (synced to the timeline)
 const pipVideos = [...document.querySelectorAll('#pip video')];
@@ -819,6 +846,21 @@ function tick(ts) {
       if (state.frame >= state.data.frames.length) state.frame = 0;
       updateFrame();
     }
+  }
+  // ease players toward their tracked position / heading so per-frame jitter never reaches the screen
+  const k = 1 - Math.exp(-dt * 10);
+  const tAnim = state.data ? state.frame / (state.data.fps || 25) : 0;
+  for (const [id, m] of state.meshes) {
+    if (!m.group.visible) continue;
+    if (state.playing) m.group.position.lerp(m.target, k);
+    let want = m.yaw;
+    const dir = lastHeading.get(id);
+    if (m.speed > 0.5 && dir) want = Math.atan2(dir.x, dir.z);
+    else if (ballMesh.visible) want = Math.atan2(ballMesh.position.x - m.group.position.x, ballMesh.position.z - m.group.position.z);
+    let dy = want - m.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    m.yaw += dy * Math.min(1, dt * 6);
+    animateHumanoid(m, tAnim);
   }
   updateBall();
   syncPip();

@@ -105,3 +105,6 @@ code { background: #0b0e12; padding: 1px 4px; border-radius: 3px; }
 #stage:not(.split) .pip-row { display: flex; flex-direction: column; gap: 6px; }
 .pip video { border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; background: #000; }
 .pip video.missing { display: none; }
+
+/* hidden: footage panel minimised */
+#stage.nopip .pip { display: none; }
