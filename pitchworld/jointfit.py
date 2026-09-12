@@ -62,6 +62,7 @@ class JointResult:
     n_rejected_tracks: int = 0
     n_rejected_dets: int = 0
     person_height_m: float = PERSON_HEIGHT_M  # robust median implied height after refinement
+    accepted: bool = True  # False -> the fit was physically implausible and the *input* poses/pitch are returned
 
 
 class Consistency(dict):
@@ -388,12 +389,13 @@ def refine_joint(cals: list[CameraCalibration], pitch: PitchModel, raw_tracks: l
         return np.concatenate(parts)
 
     v = v0.copy()
-    lo_c = [np.array([-1e3, -1e3, 1.0, -np.inf, math.radians(-5), math.radians(-30), 0.5 * w]) for (w, _) in frame_sizes]
-    hi_c = [np.array([1e3, 1e3, 15.0, np.inf, math.radians(60), math.radians(30), 2.5 * w]) for (w, _) in frame_sizes]
+    L, Wd = pitch.length, pitch.width
+    lo_c = [np.array([-L, -Wd, 1.0, -np.inf, math.radians(-5), math.radians(-30), 0.5 * w]) for (w, _) in frame_sizes]
+    hi_c = [np.array([2 * L, 2 * Wd, 15.0, np.inf, math.radians(60), math.radians(30), 2.5 * w]) for (w, _) in frame_sizes]
     lo, hi = np.concatenate(lo_c), np.concatenate(hi_c)
     if free_radius:
         v = np.append(v, pitch.d_radius)
-        lo, hi = np.append(lo, 0.6 * pitch.d_radius), np.append(hi, 1.6 * pitch.d_radius)
+        lo, hi = np.append(lo, 0.65 * pitch.d_radius), np.append(hi, 1.5 * pitch.d_radius)
     if free_scale:
         v = np.append(v, 1.0)
         lo, hi = np.append(lo, 0.7), np.append(hi, 1.4)
@@ -445,15 +447,32 @@ def refine_joint(cals: list[CameraCalibration], pitch: PitchModel, raw_tracks: l
                          + ", ".join(bad))
     zs = np.concatenate([_track_heights(ps[c], *frame_sizes[c], dets[c]) for c in range(n)])
     z_med = float(np.nanmedian(zs)) if np.isfinite(zs).any() else float("nan")
+    reject: list[str] = []
     for c, q in enumerate(ps):
-        if q.z < 1.2 or q.z > 12.0 or not (0.6 * frame_sizes[c][0] <= q.f <= 2.2 * frame_sizes[c][0]):
-            notes.append(f"joint refinement: camera {c} pose implausible (height {q.z:.1f} m, focal {q.f:.0f} px)")
-    if free_radius and not (0.8 * pitch.d_radius <= p.d_radius <= 1.25 * pitch.d_radius):
-        notes.append(f"joint refinement: fitted D radius {p.d_radius:.2f} m far from prior {pitch.d_radius:.2f} m")
+        if q.z < 1.2 or q.z > 12.0 or not (0.45 * frame_sizes[c][0] <= q.f <= 2.2 * frame_sizes[c][0]):
+            reject.append(f"camera {c} pose implausible (height {q.z:.1f} m, focal {q.f:.0f} px)")
+        moved = math.hypot(q.x - poses[c].x, q.y - poses[c].y)
+        if moved > 3 * PRIOR_SIGMA["x"] and {f"cam{c}.x", f"cam{c}.y"} & set(bad):
+            reject.append(f"camera {c} moved {moved:.1f} m from its line fit while its position is unconstrained")
+    if free_radius and not (0.7 * pitch.d_radius <= p.d_radius <= 1.4 * pitch.d_radius):
+        reject.append(f"fitted D radius {p.d_radius:.2f} m far from prior {pitch.d_radius:.2f} m")
+    if math.isfinite(z_med) and not (0.8 * person_height_m <= z_med <= 1.2 * person_height_m):
+        reject.append(f"implied player height {z_med:.2f} m (prior {person_height_m:.2f} m): scale not recovered")
     if n_rej_tr:
         notes.append(f"joint refinement: rejected {n_rej_tr} track pairs / {n_rej_det} detections as gross outliers")
-    return JointResult(ps, p, pair_med, n_m, notes, pair_frac, float(v[-1]) if free_scale else 1.0, sig, bad,
-                       n_rej_tr, n_rej_det, z_med)
+    accepted = not reject
+    if not accepted:
+        # a degenerate joint solution is worse than none: keep the single-camera fits and say why
+        notes.append("joint refinement REJECTED (input poses kept): " + "; ".join(reject))
+        ps, p = poses, pitch
+        G = ground_all(ps)
+        pair_med, pair_frac = {}, {}
+        for a, b, ia, ib in _group(_reject_outliers(G, _match_tracks(G, dets, 3.0))[0]):
+            d = np.linalg.norm(G[a][ia] - G[b][ib], axis=1)
+            pair_med[f"{a}-{b}"] = float(np.nanmedian(d)) if len(d) else float("nan")
+            pair_frac[f"{a}-{b}"] = float(np.nanmean(d < 1.0)) if len(d) else float("nan")
+    return JointResult(ps, p, pair_med, n_m, notes, pair_frac, float(v[-1]) if free_scale and accepted else 1.0,
+                       sig, bad, n_rej_tr, n_rej_det, z_med, accepted)
 
 
 def cross_camera_consistency(cals: list[CameraCalibration], raw_tracks: list[list[list[dict]]],
