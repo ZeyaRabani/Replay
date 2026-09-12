@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Replay — Stage 3 viewer</title>
+  <title>Replay</title>
   <link rel="stylesheet" href="style.css" />
   <script type="importmap">
     {
@@ -19,16 +19,23 @@
 
   <aside id="sidebar">
     <header>
-      <h1>Replay viewer</h1>
+      <h1><span class="logo">▶</span> Replay</h1>
       <div class="muted" id="meta">no tracking.json loaded</div>
+      <div id="mode" class="mode">
+        <span id="mode-dot" class="dot"></span><span id="mode-text">starting…</span>
+      </div>
     </header>
 
     <section>
-      <h2>Load</h2>
-      <label class="btn" for="file">Open tracking.json</label>
-      <input type="file" id="file" accept=".json,application/json" hidden />
-      <button class="btn" id="load-sample">Load sample</button>
-      <div class="muted">…or drag &amp; drop a tracking.json anywhere, or use <code>?src=URL</code></div>
+      <h2>World</h2>
+      <div id="reactor-panel" class="muted">
+        <div id="reactor-status">Reactor: checking…</div>
+        <div class="row">
+          <button class="btn small" id="reactor-attach" title="attachWorld(?world=…)">Attach world</button>
+          <button class="btn small" id="reactor-create" title="createWorld from media/seed.jpg">Create world</button>
+          <button class="btn small" id="reactor-stop" title="disconnect and fall back to 3D">3D fallback</button>
+        </div>
+      </div>
     </section>
 
     <section>
@@ -37,24 +44,32 @@
         <button class="anchor" data-anchor="orbit">Free orbit</button>
         <button class="anchor" data-anchor="behind_A">Behind goal A</button>
         <button class="anchor" data-anchor="behind_B">Behind goal B</button>
-        <button class="anchor" data-anchor="corner_A_S">Corner A/S</button>
-        <button class="anchor" data-anchor="corner_B_N">Corner B/N</button>
-        <button class="anchor" data-anchor="half_S">Halfway S</button>
-        <button class="anchor" data-anchor="half_N">Halfway N</button>
+        <button class="anchor" data-anchor="centre">Centre circle</button>
+        <button class="anchor" data-anchor="touch_S">Touchline S</button>
+        <button class="anchor" data-anchor="touch_N">Touchline N</button>
       </div>
-      <div class="muted" id="cam-hint">Drag in the 3D view to look around. Wheel = zoom (orbit) / FOV (anchors). Esc = orbit.</div>
+      <div class="muted" id="cam-hint">Drag to look around · wheel = zoom / FOV · Esc = orbit · space = play</div>
+    </section>
+
+    <section class="grow">
+      <h2>Players <span class="muted" id="player-count"></span></h2>
+      <div id="players" class="player-list"></div>
     </section>
 
     <section>
-      <h2>Players <span class="muted" id="player-count"></span></h2>
-      <div id="players" class="player-list"></div>
+      <h2>Load</h2>
+      <label class="btn small" for="file">Open tracking.json</label>
+      <input type="file" id="file" accept=".json,application/json" hidden />
+      <div class="muted">drag &amp; drop, or <code>?src=URL</code></div>
     </section>
   </aside>
 
   <main id="stage">
     <canvas id="c"></canvas>
+    <video id="world" class="hidden" autoplay playsinline muted></video>
     <div id="hud" class="hud hidden"></div>
     <div id="drop" class="drop hidden">Drop tracking.json</div>
+    <div id="thumbs" class="thumbs"></div>
   </main>
 
   <footer id="timeline">

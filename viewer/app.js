@@ -5,6 +5,9 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { ReactorWorld } from './reactor.js';
+
+const TRANSITION_S = 0.4;
 
 const HEAD_HEIGHT = 1.7;
 const PLAYER_RADIUS = 0.3;
@@ -33,6 +36,8 @@ const state = {
   anchors: {},            // name -> {pos: Vector3, look: Vector3}
   camPos: new THREE.Vector3(),
   camTarget: new THREE.Vector3(),
+  transition: null,       // {pos0, quat0, t} while blending into a new anchor
+  clips: [],              // synced thumbnail <video>s, one per camera
 };
 
 // ---------------------------------------------------------------- three setup
@@ -41,8 +46,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0f1216);
-scene.fog = new THREE.Fog(0x0f1216, 120, 260);
+scene.background = new THREE.Color(0x000000);
+scene.fog = new THREE.Fog(0x000000, 120, 260);
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
 camera.position.set(25, 35, 60);
 const controls = new OrbitControls(camera, canvas);
@@ -74,6 +79,19 @@ function buildPitch(p) {
   const g = new THREE.Group();
   const L = p.length, W = p.width, cy = W / 2;
 
+  // surroundings so head-height views have a horizon: dark ground + low stands on all four sides
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600),
+    new THREE.MeshStandardMaterial({ color: 0x0d120d, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(L / 2, -0.03, cy);
+  ground.receiveShadow = true;
+  g.add(ground);
+  const standMat = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.9 });
+  for (const [sx, sz, sw, sd] of [[L / 2, -14, L + 40, 6], [L / 2, W + 14, L + 40, 6], [-14, cy, 6, W + 40], [L + 14, cy, 6, W + 40]]) {
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(sw, 6, sd), standMat);
+    stand.position.set(sx, 3, sz);
+    g.add(stand);
+  }
   const grass = new THREE.Mesh(
     new THREE.PlaneGeometry(L + 8, W + 8),
     new THREE.MeshStandardMaterial({ color: 0x2f7d3a, roughness: 1 }));
@@ -152,12 +170,11 @@ function buildPitch(p) {
   const centre = new THREE.Vector3(L / 2, 0, cy);
   const mk = (x, z) => ({ pos: new THREE.Vector3(x, HEAD_HEIGHT, z), look: centre.clone() });
   state.anchors = {
-    behind_A: mk(-8, cy),
-    behind_B: mk(L + 8, cy),
-    corner_A_S: mk(-3, -3),
-    corner_B_N: mk(L + 3, W + 3),
-    half_S: mk(L / 2, -5),
-    half_N: mk(L / 2, W + 5),
+    behind_A: mk(-6, cy),
+    behind_B: mk(L + 6, cy),
+    centre: { pos: new THREE.Vector3(L / 2, HEAD_HEIGHT, cy), look: new THREE.Vector3(L, 0, cy) },
+    touch_S: mk(L / 2, -4),
+    touch_N: mk(L / 2, W + 4),
   };
   controls.target.copy(centre);
   camera.position.set(L / 2, Math.max(L, W) * 0.7, W + Math.max(L, W) * 0.9);
@@ -209,14 +226,19 @@ function loadTracking(data, label = 'tracking.json') {
   state.playerIndex.clear();
   state.colours.clear();
   const teams = new Map();
+  state.jerseys = new Map();
   data.frames.forEach((fr, i) => {
     for (const pl of fr.players || []) {
       if (!state.playerIndex.has(pl.id)) state.playerIndex.set(pl.id, new Map());
       state.playerIndex.get(pl.id).set(i, pl);
-      if (pl.team !== undefined) teams.set(pl.id, pl.team);
+      if (pl.team !== undefined && pl.team !== null) teams.set(pl.id, pl.team);
+      const j = pl.jersey ?? pl.number ?? pl.jersey_number;
+      if (j !== undefined && j !== null) state.jerseys.set(pl.id, j);
     }
   });
-  state.playerIds = [...state.playerIndex.keys()].sort((a, b) => (a > b) - (a < b));
+  state.teams = teams;
+  // longest-seen first: the ids a judge wants to jump to are the stable tracks
+  state.playerIds = [...state.playerIndex.keys()].sort((a, b) => state.playerIndex.get(b).size - state.playerIndex.get(a).size || (a > b) - (a < b));
   for (const id of state.playerIds) {
     const col = colourFor(id, teams.get(id));
     state.colours.set(id, col);
@@ -230,9 +252,49 @@ function loadTracking(data, label = 'tracking.json') {
   scrub.max = Math.max(0, data.frames.length - 1);
   scrub.value = 0;
   buildPlayerList();
+  buildThumbs(data);
   showQuality(data.quality);
   setMode('orbit');
   updateFrame();
+}
+
+// ---------------------------------------------------------------- synced clip thumbnails (generic N cameras)
+function buildThumbs(data) {
+  const el = document.getElementById('thumbs');
+  el.innerHTML = '';
+  state.clips = [];
+  const cams = data.cameras || [];
+  const media = new Set(state.media || []);
+  cams.forEach((cam, i) => {
+    const idx = cam.index ?? i;
+    const base = cam.synced_clip ? cam.synced_clip.split('/').pop() : `cam${idx}.mp4`;
+    const stem = base.replace(/\.[^.]+$/, '');
+    const candidates = [`${stem}_thumb.mp4`, base].filter(n => media.has(n));
+    if (!candidates.length) return;
+    const box = document.createElement('div');
+    box.className = 'thumb';
+    const v = document.createElement('video');
+    v.src = `media/${candidates[0]}`;
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    box.appendChild(v);
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = `cam${idx}`;
+    box.appendChild(tag);
+    el.appendChild(box);
+    state.clips.push(v);
+  });
+}
+function syncThumbs(t, hard) {
+  for (const v of state.clips) {
+    if (state.playing && state.speed === 1) {
+      if (v.paused) v.play().catch(() => {});
+      if (Math.abs(v.currentTime - t) > 0.15) v.currentTime = t;
+    } else {
+      if (!v.paused) v.pause();
+      if (hard || Math.abs(v.currentTime - t) > 0.04) v.currentTime = t;
+    }
+  }
 }
 
 function makePlayer(id, colour) {
@@ -302,11 +364,15 @@ function updateFrame() {
   for (const [id, m] of state.meshes) if (!present.has(id)) m.group.visible = false;
 
   const fps = d.fps || 25;
+  const t = fr.t ?? state.frame / fps;
   document.getElementById('scrub').value = state.frame;
   document.getElementById('time').textContent =
-    `${(fr.t ?? state.frame / fps).toFixed(2)} s / ${(d.duration_s ?? d.frames.length / fps).toFixed(2)} s · f ${state.frame}`;
-  document.getElementById('play').textContent = state.playing ? '❚❚' : '▶';
+    `${t.toFixed(2)} s / ${(d.duration_s ?? d.frames.length / fps).toFixed(2)} s · f ${state.frame}`;
+  const playBtn = document.getElementById('play');
+  playBtn.textContent = state.playing ? '❚❚' : '▶';
+  playBtn.classList.toggle('playing', state.playing);
   updatePlayerListRows(fr);
+  syncThumbs(t, !state.playing);
 }
 
 function updatePlayerListRows(fr) {
@@ -324,6 +390,7 @@ function coerceId(s) {
 
 // ---------------------------------------------------------------- camera modes
 function setMode(mode, anchorId = null) {
+  const prev = { mode: state.mode, anchorId: state.anchorId };
   state.mode = mode;
   state.anchorId = anchorId;
   state.yaw = 0; state.pitch = 0;
@@ -342,12 +409,24 @@ function setMode(mode, anchorId = null) {
   } else {
     hud.classList.remove('hidden');
     hud.textContent = mode === 'player' ? `camera on player ${anchorId} (head height ${HEAD_HEIGHT} m, looking along velocity)` : `anchor: ${anchorId}`;
-    // snap on switch
+    // smooth ~0.4 s blend from the current camera pose into the new anchor
     const t = anchorPose();
-    if (t) { camera.position.copy(t.pos); state.camPos.copy(t.pos); state.camTarget.copy(t.target); }
+    if (t) {
+      state.transition = { pos0: camera.position.clone(), quat0: camera.quaternion.clone(), t: 0 };
+      state.camPos.copy(t.pos); state.camTarget.copy(t.target);
+    }
   }
   // hide the capsule we're sitting inside
   for (const [id, m] of state.meshes) m.capsule.visible = !(mode === 'player' && id === anchorId);
+  if (mode !== 'orbit' && (prev.mode !== mode || prev.anchorId !== anchorId)) reactor.jumpTo(anchorPose(), prevPose(prev));
+}
+
+function prevPose(prev) {
+  const saved = { mode: state.mode, anchorId: state.anchorId };
+  state.mode = prev.mode; state.anchorId = prev.anchorId;
+  const p = prev.mode === 'orbit' ? { pos: camera.position.clone(), target: controls.target.clone() } : anchorPose();
+  state.mode = saved.mode; state.anchorId = saved.anchorId;
+  return p;
 }
 
 function anchorPose() {
@@ -382,27 +461,43 @@ function applyCamera(dt) {
   const k = state.mode === 'player' ? 1 - Math.exp(-dt * 12) : 1;
   state.camPos.lerp(t.pos, k);
   state.camTarget.lerp(t.target, k);
-  camera.position.copy(state.camPos);
   // base direction, then apply mouse-look yaw/pitch offsets
   const base = state.camTarget.clone().sub(state.camPos);
   const baseYaw = Math.atan2(base.x, base.z);
   const basePitch = Math.atan2(base.y, Math.hypot(base.x, base.z));
   const yaw = baseYaw + state.yaw, pitch = THREE.MathUtils.clamp(basePitch + state.pitch, -1.4, 1.4);
   const look = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-  camera.lookAt(state.camPos.clone().add(look));
+  const goalQuat = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().lookAt(state.camPos, state.camPos.clone().add(look), camera.up));
+  const tr = state.transition;
+  if (tr) {
+    tr.t += dt;
+    const s = THREE.MathUtils.smoothstep(tr.t / TRANSITION_S, 0, 1);
+    camera.position.lerpVectors(tr.pos0, state.camPos, s);
+    camera.quaternion.slerpQuaternions(tr.quat0, goalQuat, s);
+    if (tr.t >= TRANSITION_S) state.transition = null;
+  } else {
+    camera.position.copy(state.camPos);
+    camera.quaternion.copy(goalQuat);
+  }
   if (camera.fov !== state.fov) { camera.fov = state.fov; camera.updateProjectionMatrix(); }
 }
 
 // mouse-look
 let dragging = false, lx = 0, ly = 0;
-canvas.addEventListener('pointerdown', e => { if (state.mode !== 'orbit') { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); } });
-canvas.addEventListener('pointermove', e => {
-  if (!dragging) return;
-  state.yaw -= (e.clientX - lx) * 0.004;
-  state.pitch -= (e.clientY - ly) * 0.004;
-  lx = e.clientX; ly = e.clientY;
-});
-canvas.addEventListener('pointerup', () => { dragging = false; });
+const worldVideo = document.getElementById('world');
+for (const surf of [canvas, worldVideo]) {
+  surf.addEventListener('pointerdown', e => { if (state.mode !== 'orbit' || surf === worldVideo) { dragging = true; lx = e.clientX; ly = e.clientY; surf.setPointerCapture(e.pointerId); } });
+  surf.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    state.yaw -= dx * 0.004;
+    state.pitch -= dy * 0.004;
+    lx = e.clientX; ly = e.clientY;
+    reactor.lookDrag(dx, dy);
+  });
+  surf.addEventListener('pointerup', () => { dragging = false; reactor.lookRelease(); });
+}
 canvas.addEventListener('wheel', e => {
   if (state.mode === 'orbit') return;
   e.preventDefault();
@@ -419,8 +514,10 @@ function buildPlayerList() {
     row.dataset.id = String(id);
     const col = '#' + state.colours.get(id).toString(16).padStart(6, '0');
     const frames = state.playerIndex.get(id).size;
+    const team = state.teams.get(id), jersey = state.jerseys.get(id);
+    const extra = [team !== undefined ? `team ${team}` : null, jersey !== undefined ? `№${jersey}` : null, `${frames}f`].filter(Boolean).join(' · ');
     row.innerHTML = `<span class="swatch" style="background:${col}"></span><span class="pid">#${id}</span>
-      <span class="muted">${frames}f</span><span class="pos">—</span>`;
+      <span class="muted">${extra}</span><span class="pos">—</span>`;
     row.title = `attach camera to player ${id}`;
     row.addEventListener('click', () => setMode(state.mode === 'player' && state.anchorId === id ? 'orbit' : 'player', id));
     el.appendChild(row);
@@ -468,7 +565,6 @@ window.addEventListener('keydown', e => {
 
 // file loading
 document.getElementById('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
-document.getElementById('load-sample').addEventListener('click', () => fetchJson('sample/tracking.json'));
 const drop = document.getElementById('drop');
 window.addEventListener('dragover', e => { e.preventDefault(); drop.classList.remove('hidden'); });
 window.addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.add('hidden'); });
@@ -487,9 +583,40 @@ async function fetchJson(url) {
     loadTracking(await r.json(), url);
   } catch (err) { alert(`Failed to load ${url}: ${err}`); }
 }
-const src = new URLSearchParams(location.search).get('src');
-if (src) fetchJson(src);
-else buildPitch({ length: 50, width: 30, goal_width: 3.66, d_radius: 6, penalty_depth: 0, penalty_width: 0, goal_area_depth: 0, goal_area_width: 0, centre_circle_radius: 0 });
+const params = new URLSearchParams(location.search);
+const src = params.get('src');
+
+// ---------------------------------------------------------------- Reactor live world (falls back to Three.js)
+function setModeBadge(kind, text) {
+  const m = document.getElementById('mode');
+  m.classList.toggle('live', kind === 'live');
+  m.classList.toggle('busy', kind === 'busy');
+  document.getElementById('mode-text').textContent = text;
+  worldVideo.classList.toggle('hidden', kind !== 'live');
+  document.getElementById('reactor-status').textContent = reactor.statusLine();
+}
+const reactor = new ReactorWorld({
+  video: worldVideo,
+  worldId: params.get('world'),
+  onStatus: (kind, text) => setModeBadge(kind, text),
+});
+document.getElementById('reactor-attach').addEventListener('click', () => reactor.attach(prompt('encrypted_world_id', reactor.worldId || '') || null));
+document.getElementById('reactor-create').addEventListener('click', () => reactor.create(state.data));
+document.getElementById('reactor-stop').addEventListener('click', () => reactor.shutdown('stopped by user'));
+
+(async () => {
+  let cfg = { reactor: false, media: [] };
+  try { cfg = await (await fetch('config')).json(); } catch { /* plain static hosting */ }
+  state.media = cfg.media || [];
+  reactor.configured = cfg.reactor;
+  reactor.seedUrl = params.get('seed') || cfg.seed_url || null;
+  if (src) await fetchJson(src);
+  else if (cfg.media.includes('tracking.json')) await fetchJson('media/tracking.json');
+  else buildPitch({ length: 50, width: 30, goal_width: 3.66, d_radius: 6, penalty_depth: 0, penalty_width: 0, goal_area_depth: 0, goal_area_width: 0, centre_circle_radius: 0 });
+  if (cfg.reactor && params.get('world')) reactor.attach(params.get('world'));
+  else if (cfg.reactor && params.get('create')) reactor.create(state.data);
+  else setModeBadge('fallback', cfg.reactor ? '3D fallback (Three.js) — Reactor key present, no ?world=<id>' : '3D fallback (Three.js) — Reactor not configured');
+})();
 
 // ---------------------------------------------------------------- loop
 function tick(ts) {

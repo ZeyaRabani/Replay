@@ -5,3 +5,6 @@ __pycache__/
 out*/
 *.pt
 .env
+
+# viewer media: full-res synced clips are too big for git; thumbnails + tracking.json + seed are committed
+viewer/media/cam?.mp4
