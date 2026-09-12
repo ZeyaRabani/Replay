@@ -35,6 +35,10 @@
       <h2>Camera</h2>
       <div class="anchor-grid">
         <button class="anchor" data-anchor="orbit">Free orbit</button>
+        <button class="anchor" data-anchor="broadcast">TV broadcast</button>
+        <button class="anchor" data-anchor="tactical">Tactical (top)</button>
+        <button class="anchor" data-anchor="birdseye">Bird's eye</button>
+        <button class="anchor" data-anchor="action">Follow the action</button>
         <button class="anchor" data-anchor="behind_A">Behind goal A</button>
         <button class="anchor" data-anchor="behind_B">Behind goal B</button>
         <button class="anchor" data-anchor="corner_A_S">Corner A/S</button>
@@ -42,7 +46,27 @@
         <button class="anchor" data-anchor="half_S">Halfway S</button>
         <button class="anchor" data-anchor="half_N">Halfway N</button>
       </div>
+      <div class="anchor-grid" style="margin-top:8px">
+        <button class="anchor" id="zoom-in">Zoom in (+)</button>
+        <button class="anchor" id="zoom-out">Zoom out (−)</button>
+      </div>
       <div class="muted" id="cam-hint">Drag in the 3D view to look around. Wheel = zoom (orbit) / FOV (anchors). Esc = orbit.</div>
+    </section>
+
+    <section>
+      <h2>Filters</h2>
+      <div class="anchor-grid">
+        <button class="anchor active" id="filter-arrows-on">Heading arrows</button>
+        <button class="anchor" id="filter-arrows-off">Clean (no arrows)</button>
+      </div>
+      <div class="muted">Arrows point where each player is heading (from tracked velocity). Key: H.</div>
+      <div class="anchor-grid" style="margin-top:8px">
+        <button class="anchor active" id="style-3d">3D players</button>
+        <button class="anchor" id="style-photo">Photo cut-outs</button>
+      </div>
+      <div class="muted">3D kits are coloured from each player's real footage. Key: M.</div>
+      <div class="muted">Footage panel: button top-right of the 3D view or key F cycles half screen → thumbnails → hidden.</div>
+      <div class="muted" id="ball-note">Ball: not detected in this tracking run.</div>
     </section>
 
     <section>
@@ -51,10 +75,20 @@
     </section>
   </aside>
 
-  <main id="stage">
-    <canvas id="c"></canvas>
-    <div id="hud" class="hud hidden"></div>
-    <div id="drop" class="drop hidden">Drop tracking.json</div>
+  <main id="stage" class="split">
+    <div id="view">
+      <canvas id="c"></canvas>
+      <div id="hud" class="hud hidden"></div>
+      <div id="drop" class="drop hidden">Drop tracking.json</div>
+      <button id="split-toggle" class="btn" title="toggle side-by-side footage">Footage: half screen</button>
+    </div>
+    <div id="pip" class="pip">
+      <video id="pip0" muted playsinline preload="auto" src="sample/clips/cam0.mp4"></video>
+      <div class="pip-row">
+        <video id="pip1" muted playsinline preload="auto" src="sample/clips/cam1.mp4"></video>
+        <video id="pip2" muted playsinline preload="auto" src="sample/clips/cam2.mp4"></video>
+      </div>
+    </div>
   </main>
 
   <footer id="timeline">

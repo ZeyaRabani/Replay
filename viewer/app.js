@@ -31,6 +31,9 @@ const state = {
   meshes: new Map(),      // id -> {group, capsule, label}
   pitchGroup: null,
   anchors: {},            // name -> {pos: Vector3, look: Vector3}
+  firstPerson: false,
+  showArrows: true,
+  playerStyle: '3d',
   camPos: new THREE.Vector3(),
   camTarget: new THREE.Vector3(),
 };
@@ -158,6 +161,10 @@ function buildPitch(p) {
     corner_B_N: mk(L + 3, W + 3),
     half_S: mk(L / 2, -5),
     half_N: mk(L / 2, W + 5),
+    broadcast: { pos: new THREE.Vector3(L / 2, Math.max(W * 0.45, 12), W + Math.max(W * 0.7, 18)), look: centre.clone() },
+    tactical: { pos: new THREE.Vector3(L / 2, Math.max(L, W) * 0.75, cy + 0.01), look: centre.clone() },
+    birdseye: { pos: new THREE.Vector3(L / 2, Math.max(L, W) * 1.15, cy + 0.01), look: centre.clone() },
+    action: null, // dynamic: follows the centre of play
   };
   controls.target.copy(centre);
   camera.position.set(L / 2, Math.max(L, W) * 0.7, W + Math.max(L, W) * 0.9);
@@ -195,6 +202,71 @@ function colourFor(id, team) {
   return ID_PALETTE[Math.abs(n) % ID_PALETTE.length];
 }
 
+// Drop short-lived ghost tracks, bridge small gaps, and smooth each track's
+// path with a centred moving average so merged multi-camera jitter doesn't
+// make players teleport.
+const MIN_TRACK_FRAMES = 90, MAX_GAP = 15, SMOOTH_HALF = 12, MAX_STEP_M = 0.5, DEDUPE_M = 2.0;
+// small-sided game: 2 x 8 players + 2 keepers is the most that can be on the pitch
+const MAX_ON_PITCH = 18;
+function cleanTracks(frames) {
+  const tracks = new Map();
+  frames.forEach((fr, i) => {
+    for (const pl of fr.players || []) {
+      if (!tracks.has(pl.id)) tracks.set(pl.id, []);
+      tracks.get(pl.id).push({ i, pl });
+    }
+  });
+  const out = frames.map(fr => ({ ...fr, players: [] }));
+  for (const [id, samples] of tracks) {
+    if (samples.length < MIN_TRACK_FRAMES) continue;
+    // clamp implausible per-frame jumps (merge glitches) before smoothing
+    const raw = samples.map(s => ({ i: s.i, x: s.pl.x, y: s.pl.y, pl: s.pl }));
+    for (let k = 1; k < raw.length; k++) {
+      const p = raw[k - 1], c = raw[k], df = Math.max(1, c.i - p.i);
+      const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy), lim = MAX_STEP_M * df;
+      if (d > lim) { c.x = p.x + dx * lim / d; c.y = p.y + dy * lim / d; }
+    }
+    // bridge gaps by linear interpolation
+    const dense = [];
+    for (let k = 0; k < raw.length; k++) {
+      dense.push(raw[k]);
+      const n = raw[k + 1];
+      if (n && n.i - raw[k].i > 1 && n.i - raw[k].i <= MAX_GAP) {
+        for (let j = raw[k].i + 1; j < n.i; j++) {
+          const t = (j - raw[k].i) / (n.i - raw[k].i);
+          dense.push({ i: j, x: raw[k].x + (n.x - raw[k].x) * t, y: raw[k].y + (n.y - raw[k].y) * t, pl: raw[k].pl });
+        }
+      }
+    }
+    // centred moving average over contiguous neighbours
+    for (let k = 0; k < dense.length; k++) {
+      let sx = 0, sy = 0, n = 0;
+      for (let j = Math.max(0, k - SMOOTH_HALF); j <= Math.min(dense.length - 1, k + SMOOTH_HALF); j++) {
+        if (Math.abs(dense[j].i - dense[k].i) > SMOOTH_HALF) continue;
+        sx += dense[j].x; sy += dense[j].y; n++;
+      }
+      const src = dense[k].pl;
+      out[dense[k].i].players.push({ ...src, id, x: sx / n, y: sy / n });
+    }
+  }
+  // per-frame dedupe: two tracks within DEDUPE_M are the same person seen
+  // from different cameras -> keep the longer-lived one
+  const life = new Map([...tracks].map(([id, s]) => [id, s.length]));
+  for (const fr of out) {
+    const keep = [];
+    fr.players.sort((a, b) => life.get(b.id) - life.get(a.id));
+    for (const p of fr.players) {
+      if (keep.length >= MAX_ON_PITCH) break;
+      if (!keep.some(q => Math.hypot(q.x - p.x, q.y - p.y) < DEDUPE_M)) keep.push(p);
+    }
+    fr.players = keep;
+  }
+  const left = new Map();
+  for (const fr of out) for (const p of fr.players) left.set(p.id, (left.get(p.id) || 0) + 1);
+  for (const fr of out) fr.players = fr.players.filter(p => left.get(p.id) >= MIN_TRACK_FRAMES);
+  return out;
+}
+
 function loadTracking(data, label = 'tracking.json') {
   if (!data || !Array.isArray(data.frames)) { alert('Not a pitchworld tracking.json (missing "frames")'); return; }
   state.data = data;
@@ -208,6 +280,7 @@ function loadTracking(data, label = 'tracking.json') {
   state.meshes.clear();
   state.playerIndex.clear();
   state.colours.clear();
+  data.frames = cleanTracks(data.frames);
   const teams = new Map();
   data.frames.forEach((fr, i) => {
     for (const pl of fr.players || []) {
@@ -235,14 +308,78 @@ function loadTracking(data, label = 'tracking.json') {
   updateFrame();
 }
 
+const spriteIndex = {};
+const texLoader = new THREE.TextureLoader();
+const spritesReady = fetch('sprites/index.json').then(r => r.ok ? r.json() : {}).then(j => Object.assign(spriteIndex, j)).catch(() => {});
+
+// low-poly humanoid: kit/shorts colours sampled from the player's real cut-out
+const SKIN = new THREE.MeshStandardMaterial({ color: 0xc9956b, roughness: 0.8 });
+const BOOT = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+function makeHumanoid(kit, shorts) {
+  const H = PLAYER_HEIGHT;
+  const kitM = new THREE.MeshStandardMaterial({ color: kit, roughness: 0.7 });
+  const shM = new THREE.MeshStandardMaterial({ color: shorts, roughness: 0.8 });
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = H * 0.5; root.add(hips);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(H * 0.11, H * 0.22, 4, 10), kitM);
+  torso.position.y = H * 0.22; hips.add(torso);
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.1, H * 0.11, H * 0.1, 10), shM);
+  pelvis.position.y = H * 0.03; hips.add(pelvis);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(H * 0.075, 12, 10), SKIN);
+  head.position.y = H * 0.43; hips.add(head);
+  const limb = (r, len, mat, x, y, z) => {
+    const p = new THREE.Group(); p.position.set(x, y, z);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len - 2 * r, 3, 8), mat);
+    m.position.y = -len / 2; p.add(m);
+    return p;
+  };
+  // two-segment limbs: upper (thigh / upper arm) pivots at the hip/shoulder, lower pivots at knee/elbow
+  const legL = limb(H * 0.045, H * 0.24, SKIN, -H * 0.06, H * 0.02, 0);
+  const legR = limb(H * 0.045, H * 0.24, SKIN, H * 0.06, H * 0.02, 0);
+  const knees = [];
+  for (const l of [legL, legR]) {
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.055, H * 0.05, H * 0.14, 8), shM);
+    sh.position.y = -H * 0.07; l.add(sh);
+    const shin = limb(H * 0.04, H * 0.24, SKIN, 0, -H * 0.24, 0);
+    const sock = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.04, H * 0.035, H * 0.1, 8), shM);
+    sock.position.y = -H * 0.17; shin.add(sock);
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(H * 0.06, H * 0.04, H * 0.12), BOOT);
+    boot.position.set(0, -H * 0.23, H * 0.02); shin.add(boot);
+    l.add(shin); knees.push(shin);
+    hips.add(l);
+  }
+  const armL = limb(H * 0.035, H * 0.18, SKIN, -H * 0.15, H * 0.33, 0);
+  const armR = limb(H * 0.035, H * 0.18, SKIN, H * 0.15, H * 0.33, 0);
+  const elbows = [];
+  for (const a of [armL, armR]) {
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.045, H * 0.04, H * 0.1, 8), kitM);
+    sl.position.y = -H * 0.04; a.add(sl);
+    const fore = limb(H * 0.03, H * 0.18, SKIN, 0, -H * 0.18, 0);
+    a.add(fore); elbows.push(fore);
+    hips.add(a);
+  }
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { root, hips, legL, legR, armL, armR, kneeL: knees[0], kneeR: knees[1], elbowL: elbows[0], elbowR: elbows[1] };
+}
+
 function makePlayer(id, colour) {
   const group = new THREE.Group();
-  const capsule = new THREE.Mesh(
-    new THREE.CapsuleGeometry(PLAYER_RADIUS, PLAYER_HEIGHT - 2 * PLAYER_RADIUS, 6, 16),
-    new THREE.MeshStandardMaterial({ color: colour, roughness: 0.6 }));
-  capsule.position.y = PLAYER_HEIGHT / 2;
-  capsule.castShadow = true;
+  const sp = spriteIndex[String(id)];
+  const hex = '#' + colour.toString(16).padStart(6, '0');
+  let sprite = null;
+  if (sp) {
+    const tex = texLoader.load(`sprites/${id}.png`);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.05 }));
+    sprite.scale.set(PLAYER_HEIGHT * 1.05 * sp.aspect, PLAYER_HEIGHT * 1.05, 1);
+    sprite.position.y = PLAYER_HEIGHT * 1.05 / 2;
+  }
+  const human = makeHumanoid(new THREE.Color(sp?.kit || hex), new THREE.Color(sp?.shorts || '#222222'));
+  const capsule = new THREE.Group(); // container toggled by first-person hide + style filter
+  capsule.add(human.root); if (sprite) capsule.add(sprite);
   group.add(capsule);
+  human.root.visible = state.playerStyle === '3d' || !sprite;
+  if (sprite) sprite.visible = !human.root.visible;
   const ring = new THREE.Mesh(new THREE.RingGeometry(PLAYER_RADIUS + 0.05, PLAYER_RADIUS + 0.2, 32),
     new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.8 }));
   ring.rotation.x = -Math.PI / 2;
@@ -256,11 +393,47 @@ function makePlayer(id, colour) {
   group.add(arrow);
   group.visible = false;
   scene.add(group);
-  return { group, capsule, label, arrow };
+  return { group, capsule, label, arrow, human, sprite, phase: Math.random() * Math.PI * 2, target: new THREE.Vector3(), yaw: 0, speed: 0 };
+}
+
+function setPlayerStyle(style) {
+  state.playerStyle = style;
+  for (const m of state.meshes.values()) {
+    const use3d = style === '3d' || !m.sprite;
+    m.human.root.visible = use3d;
+    if (m.sprite) m.sprite.visible = !use3d;
+  }
+  document.getElementById('style-3d').classList.toggle('active', style === '3d');
+  document.getElementById('style-photo').classList.toggle('active', style !== '3d');
+}
+
+// pose the humanoid: knees/elbows bend with stride, lean into the run, idle stance when standing
+function animateHumanoid(m, t) {
+  const h = m.human;
+  h.root.rotation.y = m.yaw;
+  const speed = m.speed;
+  const run = THREE.MathUtils.smoothstep(speed, 0.4, 6);
+  const w = t * (3 + 9 * run) + m.phase;
+  const s = Math.sin(w), c = Math.cos(w);
+  const amp = 0.9 * run;
+  h.legL.rotation.x = s * amp;
+  h.legR.rotation.x = -s * amp;
+  // knee folds during the back-swing (heel kick), straightens as the foot plants
+  h.kneeL.rotation.x = 0.08 + Math.max(0, s) * 1.4 * run;
+  h.kneeR.rotation.x = 0.08 + Math.max(0, -s) * 1.4 * run;
+  h.armL.rotation.x = -s * amp * 0.7 - 0.2 * run;
+  h.armR.rotation.x = s * amp * 0.7 - 0.2 * run;
+  h.armL.rotation.z = -0.12 - 0.1 * run; h.armR.rotation.z = 0.12 + 0.1 * run;
+  h.elbowL.rotation.x = -0.4 - 1.2 * run; h.elbowR.rotation.x = -0.4 - 1.2 * run;
+  const idle = (1 - run) * Math.sin(t * 1.5 + m.phase) * 0.01;
+  h.hips.position.y = PLAYER_HEIGHT * 0.5 - 0.02 * run + Math.abs(s) * 0.05 * run + idle;
+  h.hips.rotation.x = 0.22 * run;
+  h.hips.rotation.z = s * 0.04 * run;
+  h.hips.rotation.y = -s * 0.15 * run;
 }
 
 // finite-difference velocity in pitch coords (m/s), central window of ±k frames
-function velocity(id, frame, k = 3) {
+function velocity(id, frame, k = 6) {
   const track = state.playerIndex.get(id);
   const fps = state.data.fps || 25;
   let a = null, b = null, fa = frame, fb = frame;
@@ -286,13 +459,17 @@ function updateFrame() {
     present.add(pl.id);
     const m = state.meshes.get(pl.id);
     if (!m) continue;
+    const wasVisible = m.group.visible;
     m.group.visible = true;
-    m.group.position.set(pl.x, 0, pl.y);
+    m.target.set(pl.x, 0, pl.y);
+    if (!wasVisible || !state.playing) m.group.position.copy(m.target);
     const v = velocity(pl.id, state.frame);
     const speed = v.length();
-    if (speed > 0.3) {
-      lastHeading.set(pl.id, v.clone().normalize());
-      m.arrow.visible = true;
+    m.speed = speed;
+    if (speed > 0.5) {
+      const nh = v.clone().normalize(), oh = lastHeading.get(pl.id);
+      lastHeading.set(pl.id, oh ? oh.clone().lerp(nh, 0.2).normalize() : nh);
+      m.arrow.visible = state.showArrows;
       m.arrow.setDirection(v.clone().normalize());
       m.arrow.setLength(Math.min(3, 0.5 + speed * 0.3), 0.3, 0.2);
     } else {
@@ -329,7 +506,7 @@ function setMode(mode, anchorId = null) {
   state.yaw = 0; state.pitch = 0;
   state.fov = 60;
   controls.enabled = mode === 'orbit';
-  for (const b of document.querySelectorAll('.anchor')) {
+  for (const b of document.querySelectorAll('.anchor[data-anchor]')) {
     b.classList.toggle('active', mode === 'orbit' ? b.dataset.anchor === 'orbit' : mode === 'anchor' && b.dataset.anchor === anchorId);
   }
   for (const r of document.querySelectorAll('#players .player')) {
@@ -341,17 +518,23 @@ function setMode(mode, anchorId = null) {
     if (state.data) { camera.fov = 60; camera.updateProjectionMatrix(); }
   } else {
     hud.classList.remove('hidden');
-    hud.textContent = mode === 'player' ? `camera on player ${anchorId} (head height ${HEAD_HEIGHT} m, looking along velocity)` : `anchor: ${anchorId}`;
-    // snap on switch
+    hud.textContent = mode === 'player'
+      ? `camera on player ${anchorId} — ${state.firstPerson ? 'first person (eye level)' : 'chase cam'} · press V to switch`
+      : `anchor: ${anchorId}`;
+    // start the transition from where the camera currently is
+    state.camPos.copy(camera.position);
     const t = anchorPose();
-    if (t) { camera.position.copy(t.pos); state.camPos.copy(t.pos); state.camTarget.copy(t.target); }
+    if (t && state.camTarget.lengthSq() === 0) state.camTarget.copy(t.target);
   }
-  // hide the capsule we're sitting inside
-  for (const [id, m] of state.meshes) m.capsule.visible = !(mode === 'player' && id === anchorId);
+  refreshOccupantVisibility();
+}
+function refreshOccupantVisibility() {
+  for (const [id, m] of state.meshes) m.capsule.visible = !(state.mode === 'player' && state.firstPerson && id === state.anchorId);
 }
 
 function anchorPose() {
   if (state.mode === 'anchor') {
+    if (state.anchorId === 'action') return actionPose();
     const a = state.anchors[state.anchorId];
     if (!a) return null;
     return { pos: a.pos.clone(), target: a.look.clone() };
@@ -364,22 +547,43 @@ function anchorPose() {
       for (let i = state.frame; i >= 0 && !pl; i--) pl = track.get(i);
       if (!pl) return null;
     }
-    const pos = new THREE.Vector3(pl.x, HEAD_HEIGHT, pl.y);
     let dir = lastHeading.get(state.anchorId);
     if (!dir) {
       const v = velocity(state.anchorId, state.frame);
       dir = v.lengthSq() > 0.01 ? v.normalize() : new THREE.Vector3(state.data.pitch.length / 2 - pl.x, 0, state.data.pitch.width / 2 - pl.y).normalize();
     }
-    return { pos, target: pos.clone().add(dir.clone().multiplyScalar(10).setY(-0.6)) };
+    const feet = new THREE.Vector3(pl.x, 0, pl.y);
+    if (state.firstPerson) {
+      const pos = feet.clone().setY(HEAD_HEIGHT);
+      return { pos, target: pos.clone().add(dir.clone().multiplyScalar(10).setY(-0.6)) };
+    }
+    // third-person chase: behind and above the player, looking past them
+    const pos = feet.clone().sub(dir.clone().multiplyScalar(5)).setY(2.8);
+    return { pos, target: feet.clone().add(dir.clone().multiplyScalar(6)).setY(1.0) };
   }
   return null;
+}
+
+function actionPose() {
+  const fr = state.data.frames[state.frame];
+  const pls = fr.players || [];
+  if (!pls.length) return null;
+  const c = new THREE.Vector3();
+  for (const p of pls) c.add(new THREE.Vector3(p.x, 0, p.y));
+  c.divideScalar(pls.length);
+  // when the ball is seen, centre on it (blended with the player cluster)
+  if (ballMesh.visible) c.lerp(new THREE.Vector3(ballMesh.position.x, 0, ballMesh.position.z), 0.7);
+  const W = state.data.pitch.width;
+  // hover on the near touchline side of the action, elevated, looking down at it
+  const pos = new THREE.Vector3(c.x, 9, Math.max(c.z + 18, W + 4));
+  return { pos, target: c.clone().setY(0.8) };
 }
 
 function applyCamera(dt) {
   if (state.mode === 'orbit') { controls.update(); return; }
   const t = anchorPose();
   if (!t) return;
-  const k = state.mode === 'player' ? 1 - Math.exp(-dt * 12) : 1;
+  const k = state.mode === 'orbit' ? 1 : 1 - Math.exp(-dt * (state.mode === 'player' ? 8 : 4));
   state.camPos.lerp(t.pos, k);
   state.camTarget.lerp(t.target, k);
   camera.position.copy(state.camPos);
@@ -392,6 +596,19 @@ function applyCamera(dt) {
   camera.lookAt(state.camPos.clone().add(look));
   if (camera.fov !== state.fov) { camera.fov = state.fov; camera.updateProjectionMatrix(); }
 }
+
+function zoom(dir) {
+  if (state.mode === 'orbit') {
+    const off = camera.position.clone().sub(controls.target);
+    off.multiplyScalar(dir > 0 ? 0.75 : 1.33);
+    camera.position.copy(controls.target).add(off);
+    controls.update();
+  } else {
+    state.fov = THREE.MathUtils.clamp(state.fov + (dir > 0 ? -10 : 10), 15, 110);
+  }
+}
+document.getElementById('zoom-in').addEventListener('click', () => zoom(1));
+document.getElementById('zoom-out').addEventListener('click', () => zoom(-1));
 
 // mouse-look
 let dragging = false, lx = 0, ly = 0;
@@ -446,10 +663,12 @@ function showQuality(q) {
 }
 function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 
-document.querySelectorAll('.anchor').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('.anchor[data-anchor]').forEach(b => b.addEventListener('click', () => {
   const a = b.dataset.anchor;
   if (!state.data) return;
-  a === 'orbit' ? setMode('orbit') : setMode('anchor', a);
+  if (a === 'orbit') setMode('orbit');
+  else if (a === 'broadcast') { setMode('orbit'); const p = state.anchors.broadcast; camera.position.copy(p.pos); controls.target.copy(p.look); controls.update(); }
+  else setMode('anchor', a);
 }));
 
 const scrub = document.getElementById('scrub');
@@ -461,10 +680,27 @@ window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.code === 'Escape') setMode('orbit');
+  else if (e.code === 'KeyV' && state.mode === 'player') { state.firstPerson = !state.firstPerson; setMode('player', state.anchorId); }
+  else if (e.code === 'KeyH') setArrows(!state.showArrows);
+  else if (e.code === 'KeyF') cycleFootage();
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoom(1);
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoom(-1);
+  else if (e.code === 'KeyM') setPlayerStyle(state.playerStyle === '3d' ? 'photo' : '3d');
   else if (e.code === 'ArrowRight' && state.data) { state.frame = Math.min(state.data.frames.length - 1, state.frame + 1); updateFrame(); }
   else if (e.code === 'ArrowLeft' && state.data) { state.frame = Math.max(0, state.frame - 1); updateFrame(); }
   else if (e.code === 'Home' && state.data) { state.frame = 0; updateFrame(); }
 });
+
+function setArrows(on) {
+  state.showArrows = on;
+  for (const m of state.meshes.values()) if (!on) m.arrow.visible = false;
+  document.getElementById('filter-arrows-on').classList.toggle('active', on);
+  document.getElementById('filter-arrows-off').classList.toggle('active', !on);
+}
+document.getElementById('filter-arrows-on').addEventListener('click', () => setArrows(true));
+document.getElementById('filter-arrows-off').addEventListener('click', () => setArrows(false));
+document.getElementById('style-3d').addEventListener('click', () => setPlayerStyle('3d'));
+document.getElementById('style-photo').addEventListener('click', () => setPlayerStyle('photo'));
 
 // file loading
 document.getElementById('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
@@ -482,14 +718,121 @@ function readFile(f) {
 }
 async function fetchJson(url) {
   try {
+    await spritesReady;
     const r = await fetch(url);
     if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     loadTracking(await r.json(), url);
   } catch (err) { alert(`Failed to load ${url}: ${err}`); }
 }
 const src = new URLSearchParams(location.search).get('src');
-if (src) fetchJson(src);
-else buildPitch({ length: 50, width: 30, goal_width: 3.66, d_radius: 6, penalty_depth: 0, penalty_width: 0, goal_area_depth: 0, goal_area_width: 0, centre_circle_radius: 0 });
+fetchJson(src || 'sample/real.json');
+
+// ---------------------------------------------------------------- ball (optional ball.json next to the tracking file)
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0x444444 }));
+ballMesh.position.y = 0.32; ballMesh.castShadow = true; ballMesh.visible = false;
+scene.add(ballMesh);
+let ballFrames = null;
+fetch(src ? src.replace(/[^/]*$/, 'ball.json') : 'sample/ball.json').then(r => r.ok ? r.json() : null).then(j => {
+  if (!j || !Array.isArray(j.frames)) return;
+  // interpolate across short detection gaps so the ball doesn't flicker
+  const fr = j.frames.slice();
+  for (let i = 0; i < fr.length; i++) {
+    if (fr[i].x != null) continue;
+    let a = i - 1; while (a >= 0 && fr[a].x == null) a--;
+    let b = i + 1; while (b < fr.length && fr[b].x == null) b++;
+    if (a >= 0 && b < fr.length && b - a <= 20) {
+      const t = (i - a) / (b - a);
+      fr[i] = { frame: i, x: fr[a].x + (fr[b].x - fr[a].x) * t, y: fr[a].y + (fr[b].y - fr[a].y) * t, interp: true };
+    }
+  }
+  const P = state.data ? state.data.pitch : { length: 50, width: 30 };
+  const L = P.length || 50, W = P.width || 30, GW = P.goal_width || 7.32;
+  // a 'ball' that sits on the exact same spot for a large share of the clip is a
+  // static object (cone, spare ball, logo) misdetected as the ball -> drop it
+  const det = j.frames.filter(f => f.x != null);
+  const stuck = [];
+  for (const f of det) {
+    const c = stuck.find(s => Math.hypot(s.x - f.x, s.y - f.y) < 0.4);
+    if (c) c.n++; else stuck.push({ x: f.x, y: f.y, n: 1 });
+  }
+  const bad = stuck.filter(s => s.n > j.frames.length * 0.15);
+  for (let i = 0; i < fr.length; i++) {
+    if (fr[i].x != null && bad.some(s => Math.hypot(s.x - fr[i].x, s.y - fr[i].y) < 0.6)) fr[i] = { frame: i, x: null, y: null };
+  }
+  // clamp: within the pitch, or (if it crossed a goal line) inside that net
+  const pts = fr.map(f => {
+    if (f.x == null) return null;
+    let x = f.x, y = f.y;
+    if (x < 0 || x > L) { x = THREE.MathUtils.clamp(x, -1.5, L + 1.5); y = THREE.MathUtils.clamp(y, W / 2 - GW / 2 + 0.3, W / 2 + GW / 2 - 0.3); }
+    else y = THREE.MathUtils.clamp(y, 0, W);
+    return { x, y };
+  });
+  // limit implausible per-frame speed (> ~35 m/s) which comes from projection blow-up
+  let prev = null;
+  for (let i = 0; i < pts.length; i++) {
+    if (!pts[i]) continue;
+    if (prev) {
+      const df = i - prev.i, dx = pts[i].x - prev.x, dy = pts[i].y - prev.y, d = Math.hypot(dx, dy), lim = 1.2 * df;
+      if (d > lim) { pts[i].x = prev.x + dx * lim / d; pts[i].y = prev.y + dy * lim / d; }
+    }
+    prev = { i, x: pts[i].x, y: pts[i].y };
+  }
+  for (let i = 0; i < fr.length; i++) {
+    if (!pts[i]) { fr[i] = { frame: i, x: null, y: null }; continue; }
+    let sx = 0, sy = 0, n = 0;
+    for (let k = Math.max(0, i - 5); k <= Math.min(fr.length - 1, i + 5); k++) if (pts[k]) { sx += pts[k].x; sy += pts[k].y; n++; }
+    fr[i] = { ...fr[i], x: sx / n, y: sy / n };
+  }
+  ballFrames = fr;
+  const cov = j.frames.filter(f => f.x != null).length / j.frames.length;
+  const el = document.getElementById('ball-note');
+  if (el) el.textContent = `Ball detected in ${Math.round(cov * 100)}% of frames (YOLO sports-ball, cam 0 mostly). Static false positives removed, gaps interpolated, positions clamped to pitch/net; hidden where not seen.`;
+});
+function updateBall() {
+  if (!ballFrames) return;
+  const b = ballFrames[state.frame];
+  if (!b || b.x == null) { ballMesh.visible = false; return; }
+  ballMesh.visible = true;
+  ballMesh.position.x += (b.x - ballMesh.position.x) * 0.35;
+  ballMesh.position.z += (b.y - ballMesh.position.z) * 0.35;
+  ballMesh.rotation.x += 0.2;
+}
+
+// ---------------------------------------------------------------- footage layout: half screen -> thumbnails -> hidden
+const FOOTAGE_MODES = ['split', 'thumbs', 'hidden'];
+const FOOTAGE_LABEL = { split: 'Footage: half screen', thumbs: 'Footage: thumbnails', hidden: 'Footage: hidden' };
+let footageMode = 'split';
+function setFootage(mode) {
+  footageMode = mode;
+  const st = document.getElementById('stage');
+  st.classList.toggle('split', mode === 'split');
+  st.classList.toggle('nopip', mode === 'hidden');
+  document.getElementById('split-toggle').textContent = FOOTAGE_LABEL[mode];
+  resize();
+}
+function cycleFootage() { setFootage(FOOTAGE_MODES[(FOOTAGE_MODES.indexOf(footageMode) + 1) % FOOTAGE_MODES.length]); }
+document.getElementById('split-toggle').addEventListener('click', cycleFootage);
+
+// ---------------------------------------------------------------- picture-in-picture source clips (synced to the timeline)
+const pipVideos = [...document.querySelectorAll('#pip video')];
+for (const v of pipVideos) v.addEventListener('error', () => v.classList.add('missing'));
+let pipLastFrame = -1;
+function syncPip() {
+  if (!state.data) return;
+  const t = state.frame / (state.data.fps || 25);
+  for (const v of pipVideos) {
+    if (v.classList.contains('missing') || v.readyState < 1) continue;
+    if (state.playing) {
+      if (v.paused) v.play().catch(() => {});
+      if (v.playbackRate !== state.speed) v.playbackRate = state.speed;
+      if (Math.abs(v.currentTime - t) > 0.25) v.currentTime = t;
+    } else {
+      if (!v.paused) v.pause();
+      if (pipLastFrame !== state.frame) v.currentTime = t;
+    }
+  }
+  pipLastFrame = state.frame;
+}
 
 // ---------------------------------------------------------------- loop
 function tick(ts) {
@@ -507,7 +850,31 @@ function tick(ts) {
       updateFrame();
     }
   }
+  // ease players toward their tracked position / heading so per-frame jitter never reaches the screen
+  const k = 1 - Math.exp(-dt * 6);
+  const tAnim = state.data ? state.frame / (state.data.fps || 25) : 0;
+  for (const [id, m] of state.meshes) {
+    if (!m.group.visible) continue;
+    if (state.playing) m.group.position.lerp(m.target, k);
+    let want = m.yaw;
+    const dir = lastHeading.get(id);
+    if (m.speed > 0.5 && dir) want = Math.atan2(dir.x, dir.z);
+    else if (ballMesh.visible) want = Math.atan2(ballMesh.position.x - m.group.position.x, ballMesh.position.z - m.group.position.z);
+    let dy = want - m.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    m.yaw += dy * Math.min(1, dt * 4);
+    animateHumanoid(m, tAnim);
+  }
+  updateBall();
+  syncPip();
   applyCamera(dt);
+  // hide labels that are right in front of the camera so they don't fill the screen
+  for (const m of state.meshes.values()) {
+    if (!m.group.visible) continue;
+    const dd = camera.position.distanceTo(m.group.position);
+    m.label.visible = dd > 4;
+    m.label.material.opacity = THREE.MathUtils.clamp((dd - 4) / 4, 0, 1);
+  }
   renderer.render(scene, camera);
 }
 requestAnimationFrame(tick);
