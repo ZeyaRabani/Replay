@@ -23,7 +23,7 @@ class Config:
     ball_model: str = "hf:AurevinP/PULSE_AI_Models:ball_tracker_200_epoch_92L_25M.pt"
     ball_tile: tuple[int, int] = (960, 960)
     ball_overlap: float = 0.2
-    ball_conf: float = 0.25
+    ball_conf: float = 0.2
     ball_keep: int = 3              # top-N ball detections per frame
 
     # binning / events

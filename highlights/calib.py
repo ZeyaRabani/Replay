@@ -76,32 +76,35 @@ def _manual_entry(manual_calib_path: Path) -> dict | None:
 
 
 def calibrate_frame(frame: np.ndarray, pitch: PitchModel, manual_entry: dict | None = None,
-                    goal_zones_px: Path | None = None) -> CalibResult:
+                    goal_zones_px: Path | None = None, auto: bool = False) -> CalibResult:
     """Calibrate from a decoded BGR frame (used for remote sources)."""
-    return _fit(frame, pitch, manual_entry, goal_zones_px)
+    return _fit(frame, pitch, manual_entry, goal_zones_px, auto)
 
 
 def calibrate(video: Path, pitch: PitchModel, manual_calib_path: Path | None = None,
-              frame_time: float = 1.0, goal_zones_px: Path | None = None) -> CalibResult:
+              frame_time: float = 1.0, goal_zones_px: Path | None = None, auto: bool = False) -> CalibResult:
     frame = read_frame(video, frame_time)
     return _fit(frame, pitch, _manual_entry(manual_calib_path) if manual_calib_path else None,
-                goal_zones_px)
+                goal_zones_px, auto)
 
 
 def _fit(frame: np.ndarray, pitch: PitchModel, manual_entry: dict | None,
-         goal_zones_px: Path | None = None) -> CalibResult:
+         goal_zones_px: Path | None = None, auto: bool = False) -> CalibResult:
     warnings: list[str] = []
     h, w = frame.shape[:2]
     cal: CameraCalibration | None = None
 
-    auto, reason, _ = auto_calibrate(frame, pitch)
-    if auto is not None and auto.confidence >= 0.6:
-        cal = auto
-    else:
-        warnings.append(reason if auto is None else f"auto confidence {auto.confidence:.2f} < 0.6")
-        if manual_entry is not None:
-            cal = manual_calibrate(manual_entry, pitch, frame_size=(w, h))
-            warnings += cal.notes
+    auto_cal = None
+    if auto:
+        auto_cal, reason, _ = auto_calibrate(frame, pitch)
+        if auto_cal is not None and auto_cal.confidence >= 0.6:
+            cal = auto_cal
+        else:
+            warnings.append(reason if auto_cal is None
+                            else f"auto confidence {auto_cal.confidence:.2f} < 0.6")
+    if cal is None and manual_entry is not None:
+        cal = manual_calibrate(manual_entry, pitch, frame_size=(w, h))
+        warnings += cal.notes
 
     if cal is None:
         warnings.append("no calibration -> falling back to PIXEL space; speed thresholds are heuristic")

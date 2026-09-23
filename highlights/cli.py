@@ -93,13 +93,14 @@ def cmd_check_calib(args) -> int:
         with app.run():
             frame = _decode_jpg(read_frame_remote.remote(video, args.time))
         res = calibrate_frame(frame, pitch, _manual_entry(Path(args.calib)) if args.calib else None,
-                              Path(args.goal_zones_px) if args.goal_zones_px else None)
+                              Path(args.goal_zones_px) if args.goal_zones_px else None, auto=args.auto_calib)
         for w in res.warnings:
             print("note:", w, file=sys.stderr)
         render_check_frame(frame, res.cal, pitch, res.zones, Path(args.out))
     else:
         res = calibrate(Path(video), pitch, Path(args.calib) if args.calib else None,
-                        frame_time=args.time, goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None)
+                        frame_time=args.time, goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None,
+                        auto=args.auto_calib)
         for w in res.warnings:
             print("note:", w, file=sys.stderr)
         render_check(Path(video), res.cal, pitch, res.zones, Path(args.out), frame_time=args.time)
@@ -234,11 +235,13 @@ def cmd_run(args) -> int:
                 frame_jpg.write_bytes(read_frame_remote.remote(video, args.frame_time))
             frame = _decode_jpg(frame_jpg.read_bytes())
             res = calibrate_frame(frame, pitch, _manual_entry(Path(args.calib)) if args.calib else None,
-                                  Path(args.goal_zones_px) if args.goal_zones_px else None)
+                                  Path(args.goal_zones_px) if args.goal_zones_px else None,
+                                  auto=args.auto_calib)
         else:
             res = calibrate(Path(video), pitch, Path(args.calib) if args.calib else None,
                             frame_time=args.frame_time,
-                            goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None)
+                            goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None,
+                            auto=args.auto_calib)
         det_paths = _run_ranges(video, remote, t_start, t_end, cfg, det_dir, args.reuse)
         return info, t_start, t_end, res, det_paths
 
@@ -367,6 +370,8 @@ def main() -> int:
     p.add_argument("--start-minutes", type=float)
     p.add_argument("--max-minutes", type=float)
     p.add_argument("--frame-time", type=float, default=1.0)
+    p.add_argument("--auto-calib", action="store_true",
+                   help="try line-based auto calibration first (off by default; spurious on ground-level footage)")
     p.add_argument("--no-clips", action="store_true")
     p.set_defaults(f=cmd_run)
 
@@ -393,6 +398,7 @@ def main() -> int:
     p.add_argument("--calib")
     p.add_argument("--goal-zones-px")
     p.add_argument("--time", type=float, default=1.0)
+    p.add_argument("--auto-calib", action="store_true")
     p.add_argument("--out", required=True)
     p.set_defaults(f=cmd_check_calib)
 
