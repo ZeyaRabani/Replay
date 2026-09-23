@@ -39,8 +39,9 @@ def test_goal_and_chance_and_merge():
     other = cands[1]
     assert other.type == "chance" and other.confidence < 0.5
     assert [c.id for c in cands] == ["c01", "c02"]
-    assert top.start == top.t_event - cfg.pre_roll_s
-    assert top.end > top.t_event
+    assert top.start <= top.t_event - cfg.roll_goal_s
+    assert top.end >= top.t_event + cfg.roll_goal_s  # merged anchors union the windows
+    assert other.end - other.start == 2 * cfg.roll_chance_s
 
 
 def test_play_gate_drops_warmup_anchors():

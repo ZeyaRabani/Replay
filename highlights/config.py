@@ -28,8 +28,9 @@ class Config:
 
     # binning / events
     bin_s: float = 0.5
-    pre_roll_s: float = 8.0
-    post_roll_s: float = 12.0
+    roll_chance_s: float = 3.0        # clip = t_event +- roll
+    roll_goal_s: float = 5.0
+    audio_lead_s: float = 1.5         # crowd reacts ~1.5 s after the event
     merge_gap_s: float = 15.0
 
     # ball linking / signals
@@ -75,6 +76,8 @@ class Config:
             data = json.loads(Path(path).read_text())
             names = {f.name for f in fields(cls)}
             for k, v in data.items():
+                if k in ("pre_roll_s", "post_roll_s"):  # retired keys, ignored
+                    continue
                 if k not in names:
                     raise KeyError(f"unknown config key {k!r}")
                 if k == "ball_tile":

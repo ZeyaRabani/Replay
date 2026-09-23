@@ -102,10 +102,11 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
         conf = float(np.clip(cfg.w_audio * audio_score + cfg.w_attack * attack_v
                              + cfg.w_cluster * cl + cfg.w_lost * lo + cfg.w_restart * re, 0, 1))
         typ = "goal" if dur >= 4.0 and (cl >= 0.5 or lo >= 0.5 or attack_v >= 0.3) else "chance"
-        t_event = b0 * bin_s + t_offset
-        end = min(t_event + cfg.post_roll_s + dur, duration_s)
+        t_event = b0 * bin_s - cfg.audio_lead_s + t_offset  # crowd reacts after the event
+        roll = cfg.roll_goal_s if typ == "goal" else cfg.roll_chance_s
+        end = min(t_event + roll, duration_s)
         cands.append(Candidate("", 0, typ, round(conf, 3), g, round(t_event, 2),
-                               round(max(0.0, t_event - cfg.pre_roll_s), 2), round(end, 2),
+                               round(max(0.0, t_event - roll), 2), round(end, 2),
                                {"attack": round(attack_v, 3), "audio": round(audio_score, 3),
                                 "cluster": round(cl, 3), "restart": round(re, 3),
                                 "ball_lost": round(lo, 3), "audio_dur_s": round(dur, 1)},
@@ -152,14 +153,10 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
                                  + cfg.w_restart * re + cfg.w_lost * lo_v, 0, 1))
             typ = "goal" if (cl > 0 or re > 0.5 or lo_v > 0) and a > cfg.audio_goal_min else "chance"
             t_event = b * bin_s + t_offset
-            # extend end to cover audio/cluster peak within the window
-            tail = np.zeros_like(audio)
-            tail[b:b + w2] = np.maximum(audio[b:b + w2], cluster[b:b + w2])
-            peaks = np.where(tail > 0.3)[0]
-            end_extra = max(0.0, (peaks.max() - b) * bin_s + 3.0) if len(peaks) else 0.0
-            end = min(t_event + cfg.post_roll_s + end_extra, t_event + cfg.post_roll_s + 25.0, duration_s)
+            roll = cfg.roll_goal_s if typ == "goal" else cfg.roll_chance_s
+            end = min(t_event + roll, duration_s)
             cands.append(Candidate("", 0, typ, round(conf, 3), g, round(t_event, 2),
-                                   round(max(0.0, t_event - cfg.pre_roll_s), 2), round(end, 2),
+                                   round(max(0.0, t_event - roll), 2), round(end, 2),
                                    {"attack": round(float(attack[b]), 3), "audio": round(a, 3),
                                     "cluster": round(cluster_score, 3), "restart": round(re, 3),
                                     "ball_lost": round(lo_v, 3)}))

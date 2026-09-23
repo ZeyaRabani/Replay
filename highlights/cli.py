@@ -421,6 +421,10 @@ def cmd_reel(args) -> int:
     out = Path(args.out)
     payload = json.loads((out / "candidates.json").read_text())
     cands = payload.get("candidates", [])
+    if args.goal:
+        cands = [c for c in cands if c.get("goal") == args.goal]
+    if args.type:
+        cands = [c for c in cands if c["type"] == args.type]
     if args.ids:
         want = {f"c{int(i):02d}" for i in args.ids.split(",")}
         cands = [c for c in cands if c["id"] in want]
@@ -433,8 +437,20 @@ def cmd_reel(args) -> int:
     if not cands:
         print("no clips selected", file=sys.stderr)
         return 1
+    gap_path = None
+    if args.fade > 0 and len(cands) > 1:
+        gap_path = out / "clips" / ".gap.mp4"
+        if not gap_path.exists():
+            subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 f"color=c=black:s=1600x720:d={args.fade}:r=30",
+                 "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                 "-t", f"{args.fade}", "-c:v", "libx264", "-preset", "veryfast",
+                 "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(gap_path)], check=True)
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
-        for c in cands:
+        for i, c in enumerate(cands):
+            if i and gap_path:
+                f.write(f"file '{gap_path.resolve()}'\n")
             f.write(f"file '{(out / 'clips' / c['clip']).resolve()}'\n")
         list_path = f.name
     dst = out / "reel.mp4"
@@ -510,6 +526,9 @@ def main() -> int:
     p.add_argument("--top", type=int, default=0, help="keep only the N highest-confidence clips")
     p.add_argument("--min-conf", type=float, default=0.3)
     p.add_argument("--ids", default="", help="comma-separated candidate ids, e.g. 1,3,5")
+    p.add_argument("--goal", choices=["A", "B"], default="")
+    p.add_argument("--type", choices=["goal", "chance"], default="")
+    p.add_argument("--fade", type=float, default=0.4, help="black gap seconds between clips (0=off)")
     p.set_defaults(f=cmd_reel)
 
     args = ap.parse_args()
