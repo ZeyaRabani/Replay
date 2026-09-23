@@ -42,13 +42,12 @@ class Config:
     v_shot_pixel: float = 0.6          # frame-heights/s (pixel space)
 
     # player signals
-    v_run_pitch: float = 3.0           # m/s sprint toward goal (pitch space)
-    v_run_pixel: float = 0.25          # frame-heights/s (pixel space)
+    # player signals use pitch (metre) thresholds in both spaces; pixel space is
+    # pseudo-metric via box-height scale (1.75 m / box_h)
+    v_run_pitch: float = 3.0           # m/s sprint toward goal
     cluster_radius_pitch: float = 5.0  # m
-    cluster_radius_pixel: float = 0.12  # of frame width
-    cluster_min_players: int = 4
+    cluster_min_players: int = 5
     cluster_slow_pitch: float = 1.0    # m/s
-    cluster_slow_pixel: float = 0.08
     cluster_min_dur_s: float = 2.0
     restart_half_width: float = 12.0   # m either side of centre line
     restart_centre_r: float = 4.0      # m around pitch centre

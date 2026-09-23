@@ -127,7 +127,9 @@ def project_ball(track: BallTrack, cal, space: Space) -> tuple[np.ndarray, np.nd
 
 
 def ball_signals(track: BallTrack, zones: dict[str, GoalZone], space: Space, bin_s: float,
-                 v_shot: float, cal=None, lost_s: float = 1.0) -> dict[str, np.ndarray]:
+                 v_shot: float, cal=None, lost_s: float = 1.0,
+                 player_frames: list | None = None, v_shot_fb: float | None = None,
+                 frame_h: float = 1080.0) -> dict[str, np.ndarray]:
     """Per-bin attack/lost/seen signals for both goals."""
     n_bins = max(1, int(np.ceil((track.t[-1] + 1.0 / track.fps_eff) / bin_s))) if len(track.t) else 1
     out: dict[str, np.ndarray] = {k: np.zeros(n_bins) for k in
@@ -136,6 +138,27 @@ def ball_signals(track: BallTrack, zones: dict[str, GoalZone], space: Space, bin
         return out
     x, y, speed = project_ball(track, cal, space)
     seen = np.isfinite(x)
+    if space is Space.PIXEL:
+        # pseudo-metric scale from nearby players' box heights; frame-height heuristic fallback
+        from .players import frame_scales, median_scale
+
+        mpp = np.full(len(track.t), np.nan)
+        if player_frames:
+            for i, fr in enumerate(player_frames[:len(track.t)]):
+                if not seen[i] or not fr:
+                    continue
+                near = [d for d in fr
+                        if abs((d["box"][0] + d["box"][2]) / 2 - x[i]) < 300
+                        and abs(d["box"][3] - y[i]) < 300]
+                sc = frame_scales(near)
+                mpp[i] = float(np.median(list(sc.values()))) if sc else (median_scale(fr) or np.nan)
+        shot_speed = np.where(np.isfinite(mpp),
+                              speed * np.where(np.isfinite(mpp), mpp, 1.0),
+                              speed / frame_h)
+        thr = np.where(np.isfinite(mpp), v_shot, v_shot_fb if v_shot_fb is not None else v_shot)
+    else:
+        shot_speed = speed
+        thr = np.full(len(track.t), v_shot)
     bin_idx = np.clip((track.t / bin_s).astype(int), 0, n_bins - 1)
     np.add.at(out["ball_seen"], bin_idx[seen], 1.0)
     counts = np.zeros(n_bins)
@@ -148,7 +171,7 @@ def ball_signals(track: BallTrack, zones: dict[str, GoalZone], space: Space, bin
         inside = np.zeros(len(track.t), dtype=bool)
         inside[seen] = in_zone(poly, np.c_[x[seen], y[seen]])
         toward = np.sign(dx) == np.sign(z.attack_dir)
-        shot = inside & seen & toward & (speed > v_shot)
+        shot = inside & seen & toward & (shot_speed > thr)
         att = np.zeros(n_bins)
         np.add.at(att, bin_idx[shot], 1.0)
         att_counts = np.zeros(n_bins)

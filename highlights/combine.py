@@ -46,8 +46,15 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
         lost = signals.get(f"ball_lost_{g}", np.zeros_like(attack))
 
         # anchors: local maxima above threshold
+        n_players = signals.get("n_players", np.zeros_like(attack))
         for b in range(len(attack)):
             if attack[b] <= cfg.attack_anchor:
+                continue
+            if n_players[b] < 4:
+                continue
+            # isolated single-bin spikes are tracker artifacts; require a neighbour > anchor
+            if not ((b > 0 and attack[b - 1] > cfg.attack_anchor)
+                    or (b + 1 < len(attack) and attack[b + 1] > cfg.attack_anchor)):
                 continue
             lo, hi = max(0, b - 1), min(len(attack), b + 2)
             if attack[b] < attack[lo:hi].max() or (b > 0 and attack[b] == attack[b - 1]):

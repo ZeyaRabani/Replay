@@ -110,7 +110,15 @@ def cmd_check_calib(args) -> int:
 
 def _detections_to_frames(paths: list[Path]) -> dict:
     """Range detection JSONs -> global per-frame grid keyed by absolute frame index."""
-    recs = [json.loads(p.read_text()) for p in paths]
+    recs = []
+    for p in paths:
+        r = json.loads(p.read_text())
+        r["_ns"] = int(p.stem.split("_")[1]) * 100000
+        for fr in r["players"]:
+            for d in fr:
+                if d["id"] >= 0:
+                    d["id"] += r["_ns"]
+        recs.append(r)
     if not recs:
         return {"players": [], "ball": [], "fps_eff": None, "w": 0, "h": 0, "frame0": 0}
     fps = recs[0]["fps"]
@@ -128,7 +136,8 @@ def _detections_to_frames(paths: list[Path]) -> dict:
             "w": recs[0]["width"], "h": recs[0]["height"], "frame0": base}
 
 
-def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool, t_off: float) -> tuple[dict, dict]:
+def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool, t_off: float,
+             audio_cache: Path | None = None) -> tuple[dict, dict]:
     from .audio import audio_envelope, audio_spikes
     from .ball import ball_signals, link_ball
     from .players import PlayerSigCfg, player_signals
@@ -139,27 +148,36 @@ def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool, t_off: flo
 
     track = link_ball(det["ball"], fps_eff, w, cfg.ball_max_jump_frac, cfg.ball_min_tracklet,
                       cfg.ball_interp_gap_s, cfg.ball_smooth_window)
-    v_shot = cfg.v_shot_pitch if res.space is Space.PITCH else cfg.v_shot_pixel
-    sig = ball_signals(track, res.zones, res.space, cfg.bin_s, v_shot, cal=res.cal, lost_s=cfg.ball_lost_s)
+    sig = ball_signals(track, res.zones, res.space, cfg.bin_s, cfg.v_shot_pitch, cal=res.cal,
+                       lost_s=cfg.ball_lost_s, player_frames=det["players"],
+                       v_shot_fb=cfg.v_shot_pixel, frame_h=h)
     diag["ball_seen"] = float(sig["ball_seen"].mean())
 
     pcfg = PlayerSigCfg(
-        v_run=cfg.v_run_pitch if res.space is Space.PITCH else cfg.v_run_pixel,
-        cluster_radius=cfg.cluster_radius_pitch if res.space is Space.PITCH else cfg.cluster_radius_pixel,
+        v_run=cfg.v_run_pitch,
+        cluster_radius=cfg.cluster_radius_pitch,
         cluster_min_players=cfg.cluster_min_players,
-        cluster_slow=cfg.cluster_slow_pitch if res.space is Space.PITCH else cfg.cluster_slow_pixel,
+        cluster_slow=cfg.cluster_slow_pitch,
         cluster_min_dur_s=cfg.cluster_min_dur_s,
         restart_half_width=cfg.restart_half_width,
         restart_centre_r=cfg.restart_centre_r)
     sig.update(player_signals(det["players"], fps_eff, res.cal, res.space, res.zones, w, h, pitch, pcfg, cfg.bin_s))
 
-    if remote:
+    if audio_cache and audio_cache.exists():
+        env = json.loads(audio_cache.read_text())
+        t_a, db = np.array(env["t"]), np.array(env["rms_db"])
+    elif remote:
         from .modal_app import audio_envelope_remote
 
         env = audio_envelope_remote.remote(video, cfg.audio_hop_s)
         t_a, db = np.array(env["t"]), np.array(env["rms_db"])
+        if audio_cache:
+            audio_cache.write_text(json.dumps({"hop_s": cfg.audio_hop_s, "t": env["t"], "rms_db": env["rms_db"]}))
     else:
         t_a, db = audio_envelope(Path(video), cfg.audio_hop_s)
+        if audio_cache:
+            audio_cache.write_text(json.dumps({"hop_s": cfg.audio_hop_s,
+                                               "t": t_a.tolist(), "rms_db": db.tolist()}))
     audio_bins = audio_spikes(t_a, db, cfg.bin_s, cfg.audio_baseline_win_s,
                               cfg.audio_thresh_db, cfg.audio_min_dur_s)
     # audio is over the whole file; slice to the processed window [t_off, t_off + window]
@@ -263,8 +281,8 @@ def cmd_run(args) -> int:
     def _audio_and_signals() -> tuple[dict, dict]:
         if remote:
             with app.run():
-                return _signals(video, det, res, pitch, cfg, remote, t_off)
-        return _signals(video, det, res, pitch, cfg, remote, t_off)
+                return _signals(video, det, res, pitch, cfg, remote, t_off, out / "audio_env.json")
+        return _signals(video, det, res, pitch, cfg, remote, t_off, out / "audio_env.json")
 
     sig, diag = _audio_and_signals()
     np.savez(out / "signals.npz", **{k: np.asarray(v) for k, v in sig.items()})
@@ -292,8 +310,9 @@ def cmd_run(args) -> int:
 
     write_review_html(out, cands)
     payload = {"video": args.video, "duration_s": info["duration"], "window": [t_start, t_end],
+               "zones_px": ({g: z.poly for g, z in res.zones.items()} if res.space is Space.PIXEL else None),
                "calibration": ({"method": res.cal.method, "confidence": res.cal.confidence,
-                                "warnings": warnings} if res.cal else None),
+                                "warnings": warnings, "full": res.cal.to_dict()} if res.cal else None),
                "space": res.space.value, "config": cfg.to_dict(), "diagnostics": diag,
                "warnings": warnings, "candidates": [c.to_dict() for c in cands]}
     (out / "candidates.json").write_text(json.dumps(payload, indent=2))
@@ -313,6 +332,37 @@ def cmd_run(args) -> int:
     return 0
 
 
+def _resignals(out: Path, payload: dict, cfg: Config) -> tuple[dict, dict]:
+    """Rebuild signals from cached detection JSONs + cached audio envelope (no Modal detection)."""
+    from pitchworld.calibrate import CameraCalibration
+    from pitchworld.pitch import PitchModel
+
+    from .calib import CalibResult, GoalZone, Space
+
+    det = _detections_to_frames(sorted((out / "detections").glob("chunk_*.json")))
+    space = Space(payload.get("space", "pixel"))
+    cal = None
+    if payload.get("calibration") and payload["calibration"].get("full"):
+        cal = CameraCalibration(**payload["calibration"]["full"])
+    if space is Space.PIXEL and payload.get("zones_px"):
+        zones = {g: GoalZone(g, 1.0 if np.mean([p[0] for p in poly]) > det["w"] / 2 else -1.0,
+                             float("nan"), poly) for g, poly in payload["zones_px"].items()}
+    else:
+        from .calib import goal_zones_pitch
+
+        zones = goal_zones_pitch(PitchModel.standard())
+    res = CalibResult(cal, zones, space, [])
+    meta = json.loads((out / "signal_meta.json").read_text()) if (out / "signal_meta.json").exists() else {}
+    t_off = meta.get("t_offset", det["frame0"] / (det["fps_eff"] * cfg.stride) if det["players"] else 0.0)
+    video, remote = _parse_source(payload["video"], cfg)
+    if remote and not (out / "audio_env.json").exists():
+        from .modal_app import app
+
+        with app.run():
+            return _signals(video, det, res, PitchModel.standard(), cfg, remote, t_off, out / "audio_env.json")
+    return _signals(video, det, res, PitchModel.standard(), cfg, remote, t_off, out / "audio_env.json")
+
+
 def cmd_recombine(args) -> int:
     from .combine import combine
     from .report import write_review_html
@@ -320,7 +370,14 @@ def cmd_recombine(args) -> int:
     out = Path(args.out)
     cfg = Config.load(Path(args.config) if args.config else None)
     payload = json.loads((out / "candidates.json").read_text())
-    sig = dict(np.load(out / "signals.npz"))
+    if args.resignal:
+        sig, diag = _resignals(out, payload, cfg)
+        np.savez(out / "signals.npz", **{k: np.asarray(v) for k, v in sig.items()})
+        meta = json.loads((out / "signal_meta.json").read_text()) if (out / "signal_meta.json").exists() else {}
+        meta.update(diag)
+        (out / "signal_meta.json").write_text(json.dumps(meta))
+    else:
+        sig = dict(np.load(out / "signals.npz"))
     meta = json.loads((out / "signal_meta.json").read_text()) if (out / "signal_meta.json").exists() else {}
     duration = payload["duration_s"]
     t_off = meta.get("t_offset", 0.0)
@@ -406,6 +463,8 @@ def main() -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--pitch")
     p.add_argument("--config")
+    p.add_argument("--resignal", action="store_true",
+                   help="recompute signals from cached detections + audio_env.json (no detection calls)")
     p.add_argument("--no-clips", action="store_true")
     p.set_defaults(f=cmd_recombine)
 
