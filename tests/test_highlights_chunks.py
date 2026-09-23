@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from highlights.chunks import extract_clip, split
+from highlights.chunks import extract_clip
 
 pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg missing")
 
@@ -15,16 +15,6 @@ def test_video(tmp_path_factory):
                     "-f", "lavfi", "-i", "sine=frequency=440:duration=6", "-c:v", "libx264",
                     "-g", "30", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(p)], check=True)
     return p
-
-
-def test_split_two_chunks(test_video, tmp_path):
-    chunks = split(test_video, tmp_path / "chunks", chunk_s=3.0)
-    assert len(chunks) == 2
-    assert chunks[0].idx == 0 and chunks[1].idx == 1
-    assert 2.0 < chunks[0].duration <= 3.5
-    assert chunks[1].t0 > 0
-    for c in chunks:
-        assert c.path.exists() and c.path.stat().st_size > 0
 
 
 def test_extract_clip(test_video, tmp_path):

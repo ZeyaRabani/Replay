@@ -31,7 +31,8 @@ def _win(sig: np.ndarray, b0: int, b1: int) -> float:
     return float(sig[b0:b1].max()) if b1 > b0 else 0.0
 
 
-def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_s: float) -> list[Candidate]:
+def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_s: float,
+            t_offset: float = 0.0) -> list[Candidate]:
     cands: list[Candidate] = []
     for g in ("A", "B"):
         if f"ball_attack_{g}" not in signals:
@@ -67,7 +68,7 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
             conf = float(np.clip(cfg.w_attack * attack[b] + cfg.w_audio * a + cfg.w_cluster * cluster_score
                                  + cfg.w_restart * re + cfg.w_lost * lo_v, 0, 1))
             typ = "goal" if (cl > 0 or re > 0.5 or lo_v > 0) and a > cfg.audio_goal_min else "chance"
-            t_event = b * bin_s
+            t_event = b * bin_s + t_offset
             # extend end to cover audio/cluster peak within the window
             tail = np.zeros_like(audio)
             tail[b:b + w2] = np.maximum(audio[b:b + w2], cluster[b:b + w2])

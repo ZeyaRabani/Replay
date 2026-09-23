@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-local = ["ultralytics>=8.3,<9", "lap>=0.5"]
+local = ["ultralytics>=8.3,<9", "lap>=0.5", "huggingface_hub"]
 
 [project.scripts]
 pitchworld = "pitchworld.cli:main"

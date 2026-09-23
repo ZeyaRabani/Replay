@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
@@ -13,7 +14,8 @@ class Config:
     source_volume: str = "football-footage"
     # detection
     stride: int = 2                 # process every Nth frame
-    chunk_s: float = 300.0          # ffmpeg stream-copy chunk length
+    chunk_s: float = 30.0           # seconds per detection range (fanned out on Modal)
+    gpu: str | None = "A10G"        # Modal GPU tier; None/"" = CPU container
     player_model: str = "yolov8m.pt"
     player_imgsz: int = 1280
     player_conf: float = 0.25
@@ -78,6 +80,8 @@ class Config:
                 if k == "ball_tile":
                     v = tuple(v)
                 setattr(cfg, k, v)
+        if os.environ.get("HIGHLIGHTS_GPU") is not None:
+            cfg.gpu = os.environ["HIGHLIGHTS_GPU"] or None
         return cfg
 
     def to_dict(self) -> dict:

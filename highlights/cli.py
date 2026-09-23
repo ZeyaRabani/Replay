@@ -1,7 +1,8 @@
 """highlights — single-camera football highlight detection.
 
-    highlights run video.mp4 --out out/ [--pitch p.json] [--calib c.json]
-                [--goal-zones-px z.json] [--local] [--reuse] [--no-clips]
+    highlights run <video|modal://football-footage/x.mp4> --out out/ [--pitch p.json] [--calib c.json]
+                [--goal-zones-px z.json] [--start-minutes M] [--max-minutes N] [--local] [--reuse] [--no-clips]
+    highlights frame <src> --time T --out f.jpg        # save a frame (for picking --goal-zones-px)
     highlights calibrate video.mp4 --pitch p.json --out calib.json
     highlights check-calib video.mp4 --pitch p.json [--calib c.json] [--goal-zones-px z.json] --out check.jpg
     highlights recombine --out out/ [--config c.json]
@@ -20,6 +21,9 @@ import numpy as np
 from .calib import Space, calibrate, default_landmarks, render_check
 from .config import Config
 
+ZONES_HINT = ("tip: `highlights frame <video> --time T --out f.jpg`, pick 4 pixel corners around each goal mouth, "
+              "and pass them as --goal-zones-px zones.json ({\"A\": [[u,v]x4], \"B\": [[u,v]x4]})")
+
 
 def _parse_source(video: str, cfg: Config) -> tuple[str, bool]:
     """modal://<volume>/<path> -> (path_in_volume, True); else (path, False)."""
@@ -37,6 +41,29 @@ def _warn(msg: str, warnings: list[str]) -> None:
     print(f"WARNING: {msg}", file=sys.stderr)
 
 
+def _decode_jpg(jpg: bytes) -> np.ndarray:
+    import cv2
+
+    return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
+
+
+def cmd_frame(args) -> int:
+    video, remote = _parse_source(args.video, Config.load(Path(args.config) if args.config else None))
+    if remote:
+        from .modal_app import app, read_frame_remote
+
+        with app.run():
+            Path(args.out).write_bytes(read_frame_remote.remote(video, args.time))
+    else:
+        import cv2
+
+        from pitchworld.calibrate import read_frame
+
+        cv2.imwrite(str(args.out), read_frame(Path(video), args.time))
+    print(f"wrote {args.out}")
+    return 0
+
+
 def cmd_calibrate(args) -> int:
     import pitchworld.calib_tool as calib_tool
     from pitchworld.pitch import PitchModel
@@ -44,12 +71,10 @@ def cmd_calibrate(args) -> int:
     pitch = PitchModel.load(Path(args.pitch)) if args.pitch else PitchModel.standard()
     video, remote = _parse_source(args.video, Config.load(Path(args.config) if args.config else None))
     if remote:
-        import cv2
+        from .modal_app import app, read_frame_remote
 
-        from .modal_app import read_frame_remote
-
-        jpg = read_frame_remote.remote(video, args.time)
-        frame = cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
+        with app.run():
+            frame = _decode_jpg(read_frame_remote.remote(video, args.time))
         calib_tool.read_frame = lambda v, t=1.0: frame
     calib_tool.run_click_tool(Path(video), 0, pitch, Path(args.out),
                               args.landmarks or default_landmarks(pitch), frame_time=args.time)
@@ -62,13 +87,11 @@ def cmd_check_calib(args) -> int:
     pitch = PitchModel.load(Path(args.pitch)) if args.pitch else PitchModel.standard()
     video, remote = _parse_source(args.video, Config.load(Path(args.config) if args.config else None))
     if remote:
-        import cv2
-
         from .calib import _manual_entry, calibrate_frame, render_check_frame
-        from .modal_app import read_frame_remote
+        from .modal_app import app, read_frame_remote
 
-        frame = cv2.imdecode(np.frombuffer(read_frame_remote.remote(video, args.time), np.uint8),
-                             cv2.IMREAD_COLOR)
+        with app.run():
+            frame = _decode_jpg(read_frame_remote.remote(video, args.time))
         res = calibrate_frame(frame, pitch, _manual_entry(Path(args.calib)) if args.calib else None,
                               Path(args.goal_zones_px) if args.goal_zones_px else None)
         for w in res.warnings:
@@ -85,26 +108,31 @@ def cmd_check_calib(args) -> int:
 
 
 def _detections_to_frames(paths: list[Path]) -> dict:
-    """Chunk detection JSONs -> single timeline on the source clock."""
-    frames_players, frames_ball = [], []
-    fps_eff = None
-    w = h = None
-    for p, chunk in paths:
-        d = json.loads(p.read_text())
-        if fps_eff is None:
-            fps_eff = d["fps"] / d.get("stride", 1)
-            w, h = d["width"], d["height"]
-        frames_players += d["players"]
-        frames_ball += d["ball"]
-    return {"players": frames_players, "ball": frames_ball, "fps_eff": fps_eff, "w": w, "h": h}
+    """Range detection JSONs -> global per-frame grid keyed by absolute frame index."""
+    recs = [json.loads(p.read_text()) for p in paths]
+    if not recs:
+        return {"players": [], "ball": [], "fps_eff": None, "w": 0, "h": 0, "frame0": 0}
+    fps = recs[0]["fps"]
+    stride = recs[0]["stride"]
+    base = min(r["frame0"] for r in recs)
+    last = max((r["frame_idx"] or [r["frame0"]])[-1] for r in recs)
+    n = (last - base) // stride + 1
+    players, ball = [[] for _ in range(n)], [[] for _ in range(n)]
+    for r in recs:
+        for k, gi in enumerate(r["frame_idx"]):
+            idx = (gi - base) // stride
+            if 0 <= idx < n:
+                players[idx], ball[idx] = r["players"][k], r["ball"][k]
+    return {"players": players, "ball": ball, "fps_eff": fps / stride,
+            "w": recs[0]["width"], "h": recs[0]["height"], "frame0": base}
 
 
-def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool = False) -> tuple[dict, dict]:
+def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool, t_off: float) -> tuple[dict, dict]:
     from .audio import audio_envelope, audio_spikes
     from .ball import ball_signals, link_ball
     from .players import PlayerSigCfg, player_signals
 
-    fps_eff = det["fps_eff"]
+    fps_eff = det["fps_eff"] or 1.0
     w, h = det["w"], det["h"]
     diag: dict = {}
 
@@ -126,17 +154,49 @@ def _signals(video, det: dict, res, pitch, cfg: Config, remote: bool = False) ->
 
     if remote:
         from .modal_app import audio_envelope_remote
+
         env = audio_envelope_remote.remote(video, cfg.audio_hop_s)
         t_a, db = np.array(env["t"]), np.array(env["rms_db"])
     else:
         t_a, db = audio_envelope(Path(video), cfg.audio_hop_s)
-    sig["audio"] = audio_spikes(t_a, db, cfg.bin_s, cfg.audio_baseline_win_s,
-                                cfg.audio_thresh_db, cfg.audio_min_dur_s)
+    audio_bins = audio_spikes(t_a, db, cfg.bin_s, cfg.audio_baseline_win_s,
+                              cfg.audio_thresh_db, cfg.audio_min_dur_s)
+    # audio is over the whole file; slice to the processed window [t_off, t_off + window]
     n_bins = max(len(v) for v in sig.values())
+    b0 = round(t_off / cfg.bin_s)
+    sig["audio"] = audio_bins[b0:b0 + n_bins] if len(audio_bins) > b0 else np.zeros(n_bins)
     for k, v in list(sig.items()):
         if len(v) < n_bins:
             sig[k] = np.pad(v, (0, n_bins - len(v)))
     return sig, diag
+
+
+def _run_ranges(video: str, remote: bool, start: float, end: float, cfg: Config,
+                det_dir: Path, reuse: bool) -> list[Path]:
+    """Detection over [start, end) cut into chunk_s ranges; returns cached JSON paths."""
+    from .modal_app import detect_local, detect_range
+
+    chunk = cfg.chunk_s
+    t = start
+    ranges = []
+    while t < end - 0.05:
+        ranges.append((t, min(chunk, end - t)))
+        t += chunk
+    det_paths = [det_dir / f"chunk_{i:03d}.json" for i in range(len(ranges))]
+    todo = [(r, p) for r, p in zip(ranges, det_paths) if not (reuse and p.exists())]
+    if not todo:
+        return det_paths
+    if remote:
+        from .modal_app import detect_range_cpu
+
+        fn = detect_range if cfg.gpu else detect_range_cpu
+        results = fn.map([video] * len(todo), [r[0] for r, _ in todo],
+                         [r[1] for r, _ in todo], [cfg.to_dict()] * len(todo))
+    else:
+        results = [detect_local(video, r[0], r[1], cfg.to_dict()) for r, _ in todo]
+    for (_, p), res in zip(todo, results):
+        p.write_text(json.dumps(res))
+    return det_paths
 
 
 def cmd_run(args) -> int:
@@ -144,16 +204,9 @@ def cmd_run(args) -> int:
     from pitchworld.sync import probe
 
     from .calib import _manual_entry, calibrate_frame
-    from .chunks import extract_clip, split
+    from .chunks import extract_clip
     from .combine import combine
-    from .modal_app import (
-        detect_chunk_path,
-        extract_clips_remote,
-        probe_remote,
-        read_frame_remote,
-        run_detection,
-        split_remote,
-    )
+    from .modal_app import app, extract_clips_remote, probe_remote, read_frame_remote
     from .report import write_review_html
 
     out = Path(args.out)
@@ -165,55 +218,62 @@ def cmd_run(args) -> int:
     video, remote = _parse_source(args.video, cfg)
     if remote and args.local:
         raise ValueError("--local is only for local files")
-    info = probe_remote.remote(video) if remote else probe(Path(video))
-    duration = info["duration"]
-    if args.max_minutes:
-        duration = min(duration, args.max_minutes * 60)
+
+    det_dir = out / "detections"
+    det_dir.mkdir(exist_ok=True)
+
+    def _work() -> tuple:
+        """Everything that may need the Modal app context."""
+        info = probe_remote.remote(video) if remote else probe(Path(video))
+        t_start = (args.start_minutes or 0.0) * 60.0
+        t_end = min(info["duration"], t_start + args.max_minutes * 60.0) if args.max_minutes else info["duration"]
+
+        if remote:
+            frame_jpg = out / "calib_frame.jpg"
+            if not frame_jpg.exists():
+                frame_jpg.write_bytes(read_frame_remote.remote(video, args.frame_time))
+            frame = _decode_jpg(frame_jpg.read_bytes())
+            res = calibrate_frame(frame, pitch, _manual_entry(Path(args.calib)) if args.calib else None,
+                                  Path(args.goal_zones_px) if args.goal_zones_px else None)
+        else:
+            res = calibrate(Path(video), pitch, Path(args.calib) if args.calib else None,
+                            frame_time=args.frame_time,
+                            goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None)
+        det_paths = _run_ranges(video, remote, t_start, t_end, cfg, det_dir, args.reuse)
+        return info, t_start, t_end, res, det_paths
 
     if remote:
-        frame_jpg = out / "calib_frame.jpg"
-        if not frame_jpg.exists():
-            frame_jpg.write_bytes(read_frame_remote.remote(video, args.frame_time))
-        import cv2
-        frame = cv2.imdecode(np.frombuffer(frame_jpg.read_bytes(), np.uint8), cv2.IMREAD_COLOR)
-        res = calibrate_frame(frame, pitch, _manual_entry(Path(args.calib)) if args.calib else None,
-                              Path(args.goal_zones_px) if args.goal_zones_px else None)
+        with app.run():
+            info, t_start, t_end, res, det_paths = _work()
     else:
-        res = calibrate(Path(video), pitch, Path(args.calib) if args.calib else None,
-                        frame_time=args.frame_time,
-                        goal_zones_px=Path(args.goal_zones_px) if args.goal_zones_px else None)
+        info, t_start, t_end, res, det_paths = _work()
+
     warnings += res.warnings
     if res.space is Space.PIXEL:
         print("WARNING: calibration failed -> PIXEL space heuristics in use", file=sys.stderr)
         if not res.zones:
             _warn("no goal zones (need --goal-zones-px in pixel space); ball/attack signals will be zero", warnings)
 
-    det_dir = out / "detections"
-    det_dir.mkdir(exist_ok=True)
-    if args.reuse and list(det_dir.glob("chunk_*.json")):
-        det_paths = sorted(det_dir.glob("chunk_*.json"))
-    elif remote:
-        chunks = split_remote.remote(video, cfg.chunk_s)
-        det_paths = [det_dir / f"chunk_{c['idx']:03d}.json" for c in chunks]
-        todo = [(c, p) for c, p in zip(chunks, det_paths) if not p.exists()]
-        if todo:
-            results = detect_chunk_path.map([c["path"] for c, _ in todo], [cfg.to_dict()] * len(todo))
-            for (_, p), r in zip(todo, results):
-                p.write_text(json.dumps(r))
-    else:
-        chunks = split(Path(video), out / "chunks", cfg.chunk_s)
-        det_paths = run_detection(chunks, cfg, det_dir, local=args.local)
+    det = _detections_to_frames(det_paths)
+    t_off = det["frame0"] / (det["fps_eff"] * cfg.stride) if det["players"] else t_start
 
-    det = _detections_to_frames([(p, None) for p in det_paths])
-    sig, diag = _signals(video, det, res, pitch, cfg, remote=remote)
+    def _audio_and_signals() -> tuple[dict, dict]:
+        if remote:
+            with app.run():
+                return _signals(video, det, res, pitch, cfg, remote, t_off)
+        return _signals(video, det, res, pitch, cfg, remote, t_off)
+
+    sig, diag = _audio_and_signals()
     np.savez(out / "signals.npz", **{k: np.asarray(v) for k, v in sig.items()})
-    (out / "signal_meta.json").write_text(json.dumps({"bin_s": cfg.bin_s, **diag}))
+    (out / "signal_meta.json").write_text(json.dumps({"bin_s": cfg.bin_s, "t_offset": t_off, **diag}))
 
-    cands = combine(sig, cfg.bin_s, cfg, duration)
+    window_s = t_end - t_start
+    cands = combine(sig, cfg.bin_s, cfg, info["duration"], t_offset=t_off)
     if not args.no_clips:
         if remote:
-            clips = [{"id": c.id, "start": c.start, "end": min(c.end, duration)} for c in cands]
-            blob = extract_clips_remote.remote(video, clips) if clips else {}
+            clips = [{"id": c.id, "start": c.start, "end": min(c.end, info["duration"])} for c in cands]
+            with app.run():
+                blob = extract_clips_remote.remote(video, clips) if clips else {}
             (out / "clips").mkdir(exist_ok=True)
             for c in cands:
                 mm, ss = int(c.t_event // 60), int(c.t_event % 60)
@@ -224,11 +284,11 @@ def cmd_run(args) -> int:
             for c in cands:
                 mm, ss = int(c.t_event // 60), int(c.t_event % 60)
                 name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
-                extract_clip(Path(video), c.start, min(c.end, duration), out / "clips" / name)
+                extract_clip(Path(video), c.start, min(c.end, info["duration"]), out / "clips" / name)
                 c.clip = name
 
     write_review_html(out, cands)
-    payload = {"video": args.video, "duration_s": duration,
+    payload = {"video": args.video, "duration_s": info["duration"], "window": [t_start, t_end],
                "calibration": ({"method": res.cal.method, "confidence": res.cal.confidence,
                                 "warnings": warnings} if res.cal else None),
                "space": res.space.value, "config": cfg.to_dict(), "diagnostics": diag,
@@ -237,12 +297,15 @@ def cmd_run(args) -> int:
     if diag["ball_seen"] < 0.2:
         print(f"WARNING: ball_seen={diag['ball_seen']:.2f} (<0.2) — ball model unreliable on this footage",
               file=sys.stderr)
-    print(f"space={res.space.value}  ball_seen={diag['ball_seen']:.2f}  candidates={len(cands)}")
+    print(f"space={res.space.value}  ball_seen={diag['ball_seen']:.2f}  candidates={len(cands)}  "
+          f"window={window_s:.0f}s @ {t_off:.1f}s")
     print(f"{'rank':<5}{'type':<8}{'conf':<7}{'time':<8}{'goal':<5}signals")
     for c in cands:
         mm, ss = int(c.t_event // 60), int(c.t_event % 60)
         print(f"{c.rank:<5}{c.type:<8}{c.confidence:<7.2f}{mm}:{ss:02d}    {c.goal:<5}"
               + " ".join(f"{k}={v:.2f}" for k, v in c.signals.items()))
+    if res.space is Space.PIXEL:
+        print(ZONES_HINT)
     print(f"-> {out}/candidates.json, review.html, clips/")
     return 0
 
@@ -254,17 +317,32 @@ def cmd_recombine(args) -> int:
     out = Path(args.out)
     cfg = Config.load(Path(args.config) if args.config else None)
     payload = json.loads((out / "candidates.json").read_text())
-    video = Path(payload["video"])
     sig = dict(np.load(out / "signals.npz"))
+    meta = json.loads((out / "signal_meta.json").read_text()) if (out / "signal_meta.json").exists() else {}
     duration = payload["duration_s"]
-    cands = combine(sig, cfg.bin_s, cfg, duration)
+    t_off = meta.get("t_offset", 0.0)
+    cands = combine(sig, cfg.bin_s, cfg, duration, t_offset=t_off)
     if not args.no_clips:
-        from .chunks import extract_clip
-        for c in cands:
-            mm, ss = int(c.t_event // 60), int(c.t_event % 60)
-            name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
-            extract_clip(video, c.start, min(c.end, duration), out / "clips" / name)
-            c.clip = name
+        video, remote = _parse_source(payload["video"], cfg)
+        clips = [{"id": c.id, "start": c.start, "end": min(c.end, duration)} for c in cands]
+        if remote:
+            from .modal_app import app, extract_clips_remote
+
+            with app.run():
+                blob = extract_clips_remote.remote(video, clips) if clips else {}
+            (out / "clips").mkdir(exist_ok=True)
+            for c in cands:
+                mm, ss = int(c.t_event // 60), int(c.t_event % 60)
+                name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
+                (out / "clips" / name).write_bytes(blob[c.id])
+                c.clip = name
+        else:
+            from .chunks import extract_clip
+            for c in cands:
+                mm, ss = int(c.t_event // 60), int(c.t_event % 60)
+                name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
+                extract_clip(Path(video), c.start, min(c.end, duration), out / "clips" / name)
+                c.clip = name
     write_review_html(out, cands)
     payload["candidates"] = [c.to_dict() for c in cands]
     payload["config"] = cfg.to_dict()
@@ -286,10 +364,18 @@ def main() -> int:
     p.add_argument("--config")
     p.add_argument("--local", action="store_true")
     p.add_argument("--reuse", action="store_true")
+    p.add_argument("--start-minutes", type=float)
     p.add_argument("--max-minutes", type=float)
     p.add_argument("--frame-time", type=float, default=1.0)
     p.add_argument("--no-clips", action="store_true")
     p.set_defaults(f=cmd_run)
+
+    p = sub.add_parser("frame")
+    p.add_argument("video")
+    p.add_argument("--time", type=float, default=1.0)
+    p.add_argument("--config")
+    p.add_argument("--out", required=True)
+    p.set_defaults(f=cmd_frame)
 
     p = sub.add_parser("calibrate")
     p.add_argument("video")
