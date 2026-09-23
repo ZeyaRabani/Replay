@@ -66,6 +66,7 @@ class Config:
     w_lost: float = 0.10
     attack_anchor: float = 0.3         # attack signal needed to seed a candidate
     audio_goal_min: float = 0.3        # audio needed to call it a "goal"
+    min_players_active: float = 10.0   # rolling-median tracked players needed for real play
 
     @classmethod
     def load(cls, path: Path | None) -> Config:

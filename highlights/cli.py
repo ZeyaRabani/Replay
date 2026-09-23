@@ -289,7 +289,7 @@ def cmd_run(args) -> int:
     (out / "signal_meta.json").write_text(json.dumps({"bin_s": cfg.bin_s, "t_offset": t_off, **diag}))
 
     window_s = t_end - t_start
-    cands = combine(sig, cfg.bin_s, cfg, info["duration"], t_offset=t_off)
+    cands, act_windows = combine(sig, cfg.bin_s, cfg, info["duration"], t_offset=t_off)
     if not args.no_clips:
         if remote:
             clips = [{"id": c.id, "start": c.start, "end": min(c.end, info["duration"])} for c in cands]
@@ -308,8 +308,9 @@ def cmd_run(args) -> int:
                 extract_clip(Path(video), c.start, min(c.end, info["duration"]), out / "clips" / name)
                 c.clip = name
 
-    write_review_html(out, cands)
+    write_review_html(out, cands, act_windows)
     payload = {"video": args.video, "duration_s": info["duration"], "window": [t_start, t_end],
+               "active_windows": act_windows,
                "zones_px": ({g: z.poly for g, z in res.zones.items()} if res.space is Space.PIXEL else None),
                "calibration": ({"method": res.cal.method, "confidence": res.cal.confidence,
                                 "warnings": warnings, "full": res.cal.to_dict()} if res.cal else None),
@@ -381,7 +382,7 @@ def cmd_recombine(args) -> int:
     meta = json.loads((out / "signal_meta.json").read_text()) if (out / "signal_meta.json").exists() else {}
     duration = payload["duration_s"]
     t_off = meta.get("t_offset", 0.0)
-    cands = combine(sig, cfg.bin_s, cfg, duration, t_offset=t_off)
+    cands, act_windows = combine(sig, cfg.bin_s, cfg, duration, t_offset=t_off)
     if not args.no_clips:
         video, remote = _parse_source(payload["video"], cfg)
         clips = [{"id": c.id, "start": c.start, "end": min(c.end, duration)} for c in cands]
@@ -403,11 +404,47 @@ def cmd_recombine(args) -> int:
                 name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
                 extract_clip(Path(video), c.start, min(c.end, duration), out / "clips" / name)
                 c.clip = name
-    write_review_html(out, cands)
+    write_review_html(out, cands, act_windows)
+    payload["active_windows"] = act_windows
     payload["candidates"] = [c.to_dict() for c in cands]
     payload["config"] = cfg.to_dict()
     (out / "candidates.json").write_text(json.dumps(payload, indent=2))
     print(f"{len(cands)} candidates -> {out}/candidates.json")
+    return 0
+
+
+def cmd_reel(args) -> int:
+    """Concatenate chosen clips chronologically into out/reel.mp4."""
+    import subprocess
+    import tempfile
+
+    out = Path(args.out)
+    payload = json.loads((out / "candidates.json").read_text())
+    cands = payload.get("candidates", [])
+    if args.ids:
+        want = {f"c{int(i):02d}" for i in args.ids.split(",")}
+        cands = [c for c in cands if c["id"] in want]
+    else:
+        cands = [c for c in cands if c["confidence"] >= args.min_conf]
+        if args.top:
+            cands = sorted(cands, key=lambda c: -c["confidence"])[: args.top]
+    cands = [c for c in cands if c.get("clip")]
+    cands.sort(key=lambda c: c["t_event"])
+    if not cands:
+        print("no clips selected", file=sys.stderr)
+        return 1
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+        for c in cands:
+            f.write(f"file '{(out / 'clips' / c['clip']).resolve()}'\n")
+        list_path = f.name
+    dst = out / "reel.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", list_path,
+         "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dst)],
+        check=True)
+    print(f"{len(cands)} clips -> {dst}")
     return 0
 
 
@@ -467,6 +504,13 @@ def main() -> int:
                    help="recompute signals from cached detections + audio_env.json (no detection calls)")
     p.add_argument("--no-clips", action="store_true")
     p.set_defaults(f=cmd_recombine)
+
+    p = sub.add_parser("reel", help="concatenate selected clips into out/reel.mp4")
+    p.add_argument("--out", required=True)
+    p.add_argument("--top", type=int, default=0, help="keep only the N highest-confidence clips")
+    p.add_argument("--min-conf", type=float, default=0.3)
+    p.add_argument("--ids", default="", help="comma-separated candidate ids, e.g. 1,3,5")
+    p.set_defaults(f=cmd_reel)
 
     args = ap.parse_args()
     t0 = time.time()

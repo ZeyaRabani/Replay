@@ -31,8 +31,32 @@ def _win(sig: np.ndarray, b0: int, b1: int) -> float:
     return float(sig[b0:b1].max()) if b1 > b0 else 0.0
 
 
+def play_gate(n_players: np.ndarray, bin_s: float, min_players: float) -> np.ndarray:
+    """Per-bin bool: rolling 60 s median of n_players >= min_players (real play, not warm-up)."""
+    w = max(1, int(60.0 / bin_s))
+    med = np.array([np.median(n_players[max(0, i - w // 2):i + w // 2 + 1])
+                    for i in range(len(n_players))])
+    return med >= min_players
+
+
+def active_windows(gate: np.ndarray, bin_s: float, t_offset: float) -> list[list[float]]:
+    """Merge active gate bins into [[t0, t1], ...] absolute-second windows."""
+    out = []
+    start = None
+    for i, on in enumerate(np.append(gate, False)):
+        if on and start is None:
+            start = i
+        elif not on and start is not None:
+            out.append([round(start * bin_s + t_offset, 1), round(i * bin_s + t_offset, 1)])
+            start = None
+    return out
+
+
 def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_s: float,
-            t_offset: float = 0.0) -> list[Candidate]:
+            t_offset: float = 0.0) -> tuple[list[Candidate], list[list[float]]]:
+    n_players = signals.get("n_players", np.full(1, cfg.min_players_active))
+    gate = play_gate(n_players, bin_s, cfg.min_players_active)
+    windows = active_windows(gate, bin_s, t_offset)
     cands: list[Candidate] = []
     for g in ("A", "B"):
         if f"ball_attack_{g}" not in signals:
@@ -46,9 +70,8 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
         lost = signals.get(f"ball_lost_{g}", np.zeros_like(attack))
 
         # anchors: local maxima above threshold
-        n_players = signals.get("n_players", np.zeros_like(attack))
-        for b in range(len(attack)):
-            if attack[b] <= cfg.attack_anchor:
+        for b in range(min(len(attack), len(gate))):
+            if attack[b] <= cfg.attack_anchor or not gate[b]:
                 continue
             if n_players[b] < 4:
                 continue
@@ -104,4 +127,4 @@ def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_
     for rank, c in enumerate(merged, start=1):
         c.rank = rank
         c.id = f"c{rank:02d}"
-    return merged
+    return merged, windows

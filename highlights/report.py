@@ -10,7 +10,11 @@ def _mmss(t: float) -> str:
     return f"{int(t // 60)}:{int(t % 60):02d}"
 
 
-def write_review_html(out_dir: Path, candidates) -> Path:
+def write_review_html(out_dir: Path, candidates, active_windows=None) -> Path:
+    win_html = ""
+    if active_windows:
+        spans = ", ".join(f"{_mmss(a)}-{_mmss(b)}" for a, b in active_windows)
+        win_html = f'<p class="win">active play: {html.escape(spans)}</p>'
     cards = []
     for c in candidates:
         bars = "".join(
@@ -37,7 +41,8 @@ video{{width:100%;border-radius:8px;background:#000}}
 .sigs{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin-top:8px}}
 .sig span{{font-size:11px;color:#9fb4c8}} .bar{{height:6px;background:#2c3440;border-radius:3px}}
 .fill{{height:100%;background:#4da3ff;border-radius:3px}}
-</style></head><body><h1>Highlight candidates</h1>{''.join(cards) or '<p>No candidates.</p>'}</body></html>"""
+.win{{font-size:13px;color:#9fb4c8}}
+</style></head><body><h1>Highlight candidates</h1>{win_html}{''.join(cards) or '<p>No candidates.</p>'}</body></html>"""
     out = Path(out_dir) / "review.html"
     out.write_text(page)
     return out

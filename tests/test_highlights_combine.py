@@ -31,7 +31,8 @@ def test_goal_and_chance_and_merge():
     # isolated bin with no players — must not anchor
     sig["n_players"][300] = 1.0
     sig["ball_attack_B"][300] = 0.9
-    cands = combine(sig, bin_s, cfg, duration_s=200)
+    cands, windows = combine(sig, bin_s, cfg, duration_s=200)
+    assert windows == [[0.0, 200.0]]
     assert len(cands) == 2
     top = cands[0]
     assert top.type == "goal" and top.confidence > 0.7 and top.goal == "B"
@@ -40,3 +41,22 @@ def test_goal_and_chance_and_merge():
     assert [c.id for c in cands] == ["c01", "c02"]
     assert top.start == top.t_event - cfg.pre_roll_s
     assert top.end > top.t_event
+
+
+def test_play_gate_drops_warmup_anchors():
+    bin_s = 0.5
+    cfg = Config()
+    sig = _sig(600)  # 300 s
+    sig["n_players"][:240] = 2.0   # first 120 s = warm-up, median < 10
+    sig["ball_attack_B"][80] = 1.0  # strong anchor inside the warm-up window
+    sig["ball_attack_B"][81] = 0.9
+    sig["audio"][84:90] = 1.0
+    sig["cluster_B"][82:88] = 1.0
+    sig["ball_attack_B"][500] = 1.0  # same anchor during real play
+    sig["ball_attack_B"][501] = 0.9
+    sig["audio"][504:510] = 1.0
+    sig["cluster_B"][502:508] = 1.0
+    cands, windows = combine(sig, bin_s, cfg, duration_s=300)
+    assert all(c.t_event > 120.0 for c in cands)
+    assert len(cands) == 1
+    assert windows == [[120.0, 300.0]]  # warm-up half gated off, real-play half active

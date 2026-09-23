@@ -179,7 +179,7 @@ def _detect_range(path: str, frame0: int, n_frames: int, cfg: dict, weights_dir:
             "n_frames": len(players), "players": players, "ball": ball}
 
 
-@app.function(image=image, gpu=GPU or None, cpu=4.0, timeout=60 * 30,
+@app.function(image=image, gpu=GPU or None, cpu=4.0, timeout=60 * 30, max_containers=100,
               volumes={"/weights": weights, FOOTAGE_DIR: footage})
 def detect_range(path: str, t0: float, duration: float, cfg_dict: dict) -> dict:
     """Detect on ``duration`` seconds of ``path`` (on the footage volume) starting at ``t0``."""
@@ -194,7 +194,7 @@ def detect_range(path: str, t0: float, duration: float, cfg_dict: dict) -> dict:
     return out
 
 
-@app.function(image=image, cpu=4.0, timeout=60 * 30,
+@app.function(image=image, cpu=4.0, timeout=60 * 30, max_containers=100,
               volumes={"/weights": weights, FOOTAGE_DIR: footage})
 def detect_range_cpu(path: str, t0: float, duration: float, cfg_dict: dict) -> dict:
     """CPU variant, used when Config.gpu / HIGHLIGHTS_GPU requests no GPU."""
