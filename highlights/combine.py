@@ -54,7 +54,8 @@ def active_windows(gate: np.ndarray, bin_s: float, t_offset: float) -> list[list
 
 def combine(signals: dict[str, np.ndarray], bin_s: float, cfg: Config, duration_s: float,
             t_offset: float = 0.0) -> tuple[list[Candidate], list[list[float]]]:
-    n_players = signals.get("n_players", np.full(1, cfg.min_players_active))
+    n_bins = max((len(v) for v in signals.values()), default=0)
+    n_players = signals.get("n_players", np.full(n_bins, float(cfg.min_players_active)))
     gate = play_gate(n_players, bin_s, cfg.min_players_active)
     windows = active_windows(gate, bin_s, t_offset)
     cands: list[Candidate] = []
