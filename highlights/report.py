@@ -26,7 +26,8 @@ def write_review_html(out_dir: Path, candidates, active_windows=None) -> Path:
         cards.append(
             f'<div class="card {c.type}"><div class="hdr"><b>#{c.rank}</b> '
             f'<span class="type">{c.type}</span> conf={c.confidence:.2f} '
-            f'<span class="t">{_mmss(c.t_event)}</span> goal {c.goal}</div>{vid}'
+            f'<span class="t">{_mmss(c.t_event)}</span> goal {c.goal or "?"} '
+            f'<span class="anch">{c.anchor}</span></div>{vid}'
             f'<div class="sigs">{bars}</div></div>')
     page = f"""<!doctype html><html><head><meta charset="utf-8"><title>highlights review</title>
 <style>
@@ -42,6 +43,7 @@ video{{width:100%;border-radius:8px;background:#000}}
 .sig span{{font-size:11px;color:#9fb4c8}} .bar{{height:6px;background:#2c3440;border-radius:3px}}
 .fill{{height:100%;background:#4da3ff;border-radius:3px}}
 .win{{font-size:13px;color:#9fb4c8}}
+.anch{{font-size:11px;padding:1px 6px;border-radius:4px;background:#37404e;color:#9fb4c8}}
 </style></head><body><h1>Highlight candidates</h1>{win_html}{''.join(cards) or '<p>No candidates.</p>'}</body></html>"""
     out = Path(out_dir) / "review.html"
     out.write_text(page)
