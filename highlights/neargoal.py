@@ -38,21 +38,42 @@ def _seg_near_poly(p0: np.ndarray, p1: np.ndarray, poly: np.ndarray, tol: float)
     return False
 
 
-def _observations(chunks: list[dict]) -> list[tuple[int, float, float, str]]:
-    """Merge ball dets + blobs per frame -> [(frame_idx, x, y, kind)]."""
+def _observations(chunks: list[dict], max_blob_area: float = 100.0,
+                  max_obs_per_frame: int = 30) -> list[tuple[int, float, float, str]]:
+    """Merge ball dets + blobs per frame -> [(frame_idx, x, y, kind)].
+
+    MOG2 yields thousands of grass/crowd blobs per frame; keep only ball-sized
+    blobs (area <= max_blob_area at half-res), cap per frame preferring smallest,
+    and drop blobs in cells that fire in >70% of frames (static background churn).
+    """
     per_frame: dict[int, list] = {}
     for ch in chunks:
         for fi, cx, cy, _w, _h, conf in ch["ball"]:
             per_frame.setdefault(fi, []).append((cx, cy, "ball", conf))
+    blob_cells: dict[tuple, int] = {}
+    n_frames = 0
     for ch in chunks:
-        for fi, cx, cy, _area in ch["blobs"]:
+        n_frames += len({b[0] for b in ch["blobs"]} | {b[0] for b in ch["ball"]})
+        for fi, cx, cy, area in ch["blobs"]:
+            key = (int(cx) // 8, int(cy) // 8)
+            blob_cells[key] = blob_cells.get(key, 0) + 1
+    for ch in chunks:
+        for fi, cx, cy, area in ch["blobs"]:
+            if area > max_blob_area:
+                continue
+            if blob_cells[(int(cx) // 8, int(cy) // 8)] > 0.7 * n_frames:
+                continue  # static churn
             balls = [o for o in per_frame.get(fi, []) if o[2] == "ball"]
             if any(np.hypot(cx - bx, cy - by) <= 40.0 for bx, by, *_ in balls):
                 continue  # blob duplicates a ball det
-            per_frame.setdefault(fi, []).append((cx, cy, "blob", 0.0))
+            per_frame.setdefault(fi, []).append((cx, cy, "blob", area))
     out = []
     for fi in sorted(per_frame):
-        for x, y, kind, conf in per_frame[fi]:
+        obs = per_frame[fi]
+        if len(obs) > max_obs_per_frame:
+            obs.sort(key=lambda o: (o[2] != "ball", o[3]))  # ball dets first, then smallest blobs
+            obs = obs[:max_obs_per_frame]
+        for x, y, kind, conf in obs:
             out.append((fi, x, y, kind))
     return out
 
