@@ -1,0 +1,4388 @@
+{
+ "source": "audio",
+ "video_duration_s": 5337.153,
+ "events": [
+  {
+   "type": "other",
+   "t": 46.58,
+   "t_start": 46.37,
+   "t_end": 46.78,
+   "confidence": 0.526,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.41,
+    "peak_hz": 4406.0,
+    "peak_hz_std": 866.0,
+    "tonality": 26.8,
+    "level_db": -65.9
+   },
+   "notes": "referee whistle 0.41s @ 4406 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 178.78,
+   "t_start": 178.64,
+   "t_end": 178.92,
+   "confidence": 0.683,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.28,
+    "peak_hz": 3062.0,
+    "peak_hz_std": 78.0,
+    "tonality": 49.9,
+    "level_db": -63.4
+   },
+   "notes": "referee whistle 0.28s @ 3062 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 181.76,
+   "t_start": 180.44,
+   "t_end": 183.09,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 2.65,
+    "peak_hz": 2906.0,
+    "peak_hz_std": 152.0,
+    "tonality": 60.6,
+    "level_db": -60.4
+   },
+   "notes": "referee whistle 2.65s @ 2906 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 185.46,
+   "t_start": 183.25,
+   "t_end": 187.67,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 4.42,
+    "peak_hz": 2938.0,
+    "peak_hz_std": 159.0,
+    "tonality": 80.7,
+    "level_db": -61.9
+   },
+   "notes": "referee whistle 4.42s @ 2938 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 188.49,
+   "t_start": 188.26,
+   "t_end": 188.72,
+   "confidence": 0.866,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.46,
+    "peak_hz": 2906.0,
+    "peak_hz_std": 149.0,
+    "tonality": 56.6,
+    "level_db": -67.3
+   },
+   "notes": "referee whistle 0.46s @ 2906 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 190.05,
+   "t_start": 188.89,
+   "t_end": 191.21,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 2.32,
+    "peak_hz": 2938.0,
+    "peak_hz_std": 147.0,
+    "tonality": 66.2,
+    "level_db": -59.7
+   },
+   "notes": "referee whistle 2.32s @ 2938 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 308.0,
+   "t_start": 303.0,
+   "t_end": 314.0,
+   "confidence": 0.613,
+   "signals": {
+    "z300_speech_s5_peak": 2.32,
+    "z300_rms_peak": 1.95,
+    "rms_db_peak": -57.2,
+    "duration_s": 11.0,
+    "onset_density_mean": 0.55,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.003,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.688,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.341,
+    "kind": "warmup"
+   },
+   "notes": "WARM-UP (before kick-off) audio peak: sustained speech-band level 2.3 sd above 5-min baseline for 11s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 353.39,
+   "t_start": 353.26,
+   "t_end": 353.52,
+   "confidence": 0.717,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.26,
+    "peak_hz": 3406.0,
+    "peak_hz_std": 7.0,
+    "tonality": 91.2,
+    "level_db": -77.3
+   },
+   "notes": "referee whistle 0.26s @ 3406 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 366.0,
+   "t_start": 364.0,
+   "t_end": 368.0,
+   "confidence": 0.44,
+   "signals": {
+    "z300_speech_s5_peak": 1.86,
+    "z300_rms_peak": 3.21,
+    "rms_db_peak": -57.3,
+    "duration_s": 4.0,
+    "onset_density_mean": 0.0,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.0,
+    "panns_crowd_max": 0.001,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.601,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.308,
+    "kind": "warmup"
+   },
+   "notes": "WARM-UP (before kick-off) audio peak: sustained speech-band level 1.9 sd above 5-min baseline for 4s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 652.0,
+   "t_start": 647.0,
+   "t_end": 657.0,
+   "confidence": 0.72,
+   "signals": {
+    "z300_speech_s5_peak": 3.0,
+    "z300_rms_peak": 4.0,
+    "rms_db_peak": -51.8,
+    "duration_s": 10.0,
+    "onset_density_mean": 0.3,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     652.7
+    ],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.004,
+    "panns_crowd_max": 0.068,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.797,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.235,
+    "kind": "warmup"
+   },
+   "notes": "WARM-UP (before kick-off) audio peak: sustained speech-band level 3.0 sd above 5-min baseline for 10s; referee whistle within 5 s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 652.66,
+   "t_start": 652.21,
+   "t_end": 653.12,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.91,
+    "peak_hz": 3234.0,
+    "peak_hz_std": 309.0,
+    "tonality": 65.4,
+    "level_db": -48.6
+   },
+   "notes": "referee whistle 0.91s @ 3234 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 668.07,
+   "t_start": 667.92,
+   "t_end": 668.22,
+   "confidence": 0.522,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.3,
+    "peak_hz": 2734.0,
+    "peak_hz_std": 398.0,
+    "tonality": 44.4,
+    "level_db": -62.5
+   },
+   "notes": "referee whistle 0.3s @ 2734 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 683.21,
+   "t_start": 683.08,
+   "t_end": 683.33,
+   "confidence": 0.375,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.25,
+    "peak_hz": 2625.0,
+    "peak_hz_std": 498.0,
+    "tonality": 23.3,
+    "level_db": -63.7
+   },
+   "notes": "referee whistle 0.25s @ 2625 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 683.63,
+   "t_start": 683.51,
+   "t_end": 683.76,
+   "confidence": 0.436,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.25,
+    "peak_hz": 3422.0,
+    "peak_hz_std": 367.0,
+    "tonality": 35.6,
+    "level_db": -66.7
+   },
+   "notes": "referee whistle 0.25s @ 3422 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 691.69,
+   "t_start": 691.45,
+   "t_end": 691.93,
+   "confidence": 0.671,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.48,
+    "peak_hz": 3297.0,
+    "peak_hz_std": 432.0,
+    "tonality": 44.3,
+    "level_db": -66.1
+   },
+   "notes": "referee whistle 0.48s @ 3297 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 692.59,
+   "t_start": 692.39,
+   "t_end": 692.79,
+   "confidence": 0.561,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.4,
+    "peak_hz": 2805.0,
+    "peak_hz_std": 563.0,
+    "tonality": 35.6,
+    "level_db": -61.4
+   },
+   "notes": "referee whistle 0.4s @ 2805 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 693.35,
+   "t_start": 693.2,
+   "t_end": 693.49,
+   "confidence": 0.636,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.29,
+    "peak_hz": 3469.0,
+    "peak_hz_std": 78.0,
+    "tonality": 38.8,
+    "level_db": -62.5
+   },
+   "notes": "referee whistle 0.29s @ 3469 Hz (warm-up period)"
+  },
+  {
+   "type": "other",
+   "t": 921.0,
+   "t_start": 917.0,
+   "t_end": 927.0,
+   "confidence": 0.561,
+   "signals": {
+    "z300_speech_s5_peak": 1.83,
+    "z300_rms_peak": 1.89,
+    "rms_db_peak": -59.9,
+    "duration_s": 10.0,
+    "onset_density_mean": 0.4,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.006,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.75,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.332,
+    "kind": "warmup"
+   },
+   "notes": "WARM-UP (before kick-off) audio peak: sustained speech-band level 1.8 sd above 5-min baseline for 10s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 1017.63,
+   "t_start": 1017.47,
+   "t_end": 1017.79,
+   "confidence": 0.443,
+   "signals": {
+    "kind": "whistle",
+    "warmup": true,
+    "duration_s": 0.32,
+    "peak_hz": 3469.0,
+    "peak_hz_std": 359.0,
+    "tonality": 25.2,
+    "level_db": -65.1
+   },
+   "notes": "referee whistle 0.32s @ 3469 Hz (warm-up period)"
+  },
+  {
+   "type": "excitement",
+   "t": 1075.0,
+   "t_start": 1073.0,
+   "t_end": 1078.0,
+   "confidence": 0.435,
+   "signals": {
+    "z300_speech_s5_peak": 1.55,
+    "z300_rms_peak": -0.13,
+    "rms_db_peak": -66.5,
+    "duration_s": 5.0,
+    "onset_density_mean": 0.2,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.01,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.867,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.019
+   },
+   "notes": "sustained speech-band level 1.6 sd above 5-min baseline for 5s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "excitement",
+   "t": 1097.0,
+   "t_start": 1093.0,
+   "t_end": 1100.0,
+   "confidence": 0.573,
+   "signals": {
+    "z300_speech_s5_peak": 2.22,
+    "z300_rms_peak": 2.39,
+    "rms_db_peak": -58.9,
+    "duration_s": 7.0,
+    "onset_density_mean": 0.14,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.004,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.79,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.406
+   },
+   "notes": "sustained speech-band level 2.2 sd above 5-min baseline for 7s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 1164.23,
+   "t_start": 1164.1,
+   "t_end": 1164.37,
+   "confidence": 0.618,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3766.0,
+    "peak_hz_std": 48.0,
+    "tonality": 38.5,
+    "level_db": -67.7
+   },
+   "notes": "referee whistle 0.27s @ 3766 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1296.45,
+   "t_start": 1296.23,
+   "t_end": 1296.66,
+   "confidence": 0.572,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.43,
+    "peak_hz": 2688.0,
+    "peak_hz_std": 668.0,
+    "tonality": 32.8,
+    "level_db": -67.3
+   },
+   "notes": "referee whistle 0.43s @ 2688 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1350.49,
+   "t_start": 1350.34,
+   "t_end": 1350.63,
+   "confidence": 0.432,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 2859.0,
+    "peak_hz_std": 486.0,
+    "tonality": 28.1,
+    "level_db": -62.5
+   },
+   "notes": "referee whistle 0.29s @ 2859 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1353.22,
+   "t_start": 1353.02,
+   "t_end": 1353.42,
+   "confidence": 0.711,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.4,
+    "peak_hz": 3781.0,
+    "peak_hz_std": 95.0,
+    "tonality": 35.5,
+    "level_db": -53.5
+   },
+   "notes": "referee whistle 0.4s @ 3781 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1354.0,
+   "t_start": 1351.0,
+   "t_end": 1359.0,
+   "confidence": 0.73,
+   "signals": {
+    "z300_speech_s5_peak": 3.02,
+    "z300_rms_peak": 3.41,
+    "rms_db_peak": -55.6,
+    "duration_s": 8.0,
+    "onset_density_mean": 2.12,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     1350.5,
+     1353.2
+    ],
+    "panns_cheering_max": 0.005,
+    "panns_applause_max": 0.003,
+    "panns_crowd_max": 0.065,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.84,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.028
+   },
+   "notes": "sustained speech-band level 3.0 sd above 5-min baseline for 8s; referee whistle within 5 s; PANNs cheer/shout p=0.06"
+  },
+  {
+   "type": "other",
+   "t": 1359.13,
+   "t_start": 1358.83,
+   "t_end": 1359.44,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.61,
+    "peak_hz": 3688.0,
+    "peak_hz_std": 257.0,
+    "tonality": 72.9,
+    "level_db": -65.3
+   },
+   "notes": "referee whistle 0.61s @ 3688 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1374.13,
+   "t_start": 1373.98,
+   "t_end": 1374.29,
+   "confidence": 0.608,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.31,
+    "peak_hz": 3250.0,
+    "peak_hz_std": 328.0,
+    "tonality": 67.9,
+    "level_db": -61.5
+   },
+   "notes": "referee whistle 0.31s @ 3250 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1443.0,
+   "t_start": 1435.0,
+   "t_end": 1447.0,
+   "confidence": 0.615,
+   "signals": {
+    "z300_speech_s5_peak": 2.34,
+    "z300_rms_peak": 3.52,
+    "rms_db_peak": -56.5,
+    "duration_s": 12.0,
+    "onset_density_mean": 0.5,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.003,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.68,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.338
+   },
+   "notes": "sustained speech-band level 2.3 sd above 5-min baseline for 12s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 1462.91,
+   "t_start": 1462.42,
+   "t_end": 1463.39,
+   "confidence": 0.786,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.97,
+    "peak_hz": 2406.0,
+    "peak_hz_std": 357.0,
+    "tonality": 47.3,
+    "level_db": -64.8
+   },
+   "notes": "referee whistle 0.97s @ 2406 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1500.07,
+   "t_start": 1499.82,
+   "t_end": 1500.33,
+   "confidence": 0.925,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.51,
+    "peak_hz": 2266.0,
+    "peak_hz_std": 248.0,
+    "tonality": 68.2,
+    "level_db": -68.3
+   },
+   "notes": "referee whistle 0.51s @ 2266 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1597.0,
+   "t_start": 1595.0,
+   "t_end": 1600.0,
+   "confidence": 0.521,
+   "signals": {
+    "z300_speech_s5_peak": 2.31,
+    "z300_rms_peak": 1.77,
+    "rms_db_peak": -58.3,
+    "duration_s": 5.0,
+    "onset_density_mean": 2.0,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.036,
+    "panns_shout_max": 0.004,
+    "panns_speech_max": 0.782,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.037
+   },
+   "notes": "sustained speech-band level 2.3 sd above 5-min baseline for 5s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 1615.57,
+   "t_start": 1615.28,
+   "t_end": 1615.87,
+   "confidence": 0.904,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.59,
+    "peak_hz": 2672.0,
+    "peak_hz_std": 152.0,
+    "tonality": 42.4,
+    "level_db": -60.8
+   },
+   "notes": "referee whistle 0.59s @ 2672 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1638.0,
+   "t_start": 1635.0,
+   "t_end": 1640.0,
+   "confidence": 0.429,
+   "signals": {
+    "z300_speech_s5_peak": 1.51,
+    "z300_rms_peak": 1.13,
+    "rms_db_peak": -62.8,
+    "duration_s": 5.0,
+    "onset_density_mean": 0.4,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.008,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.832,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.111
+   },
+   "notes": "sustained speech-band level 1.5 sd above 5-min baseline for 5s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 1661.38,
+   "t_start": 1661.16,
+   "t_end": 1661.6,
+   "confidence": 0.867,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.44,
+    "peak_hz": 2703.0,
+    "peak_hz_std": 215.0,
+    "tonality": 70.8,
+    "level_db": -73.2
+   },
+   "notes": "referee whistle 0.44s @ 2703 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1669.1,
+   "t_start": 1668.89,
+   "t_end": 1669.3,
+   "confidence": 0.692,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.41,
+    "peak_hz": 3367.0,
+    "peak_hz_std": 727.0,
+    "tonality": 61.8,
+    "level_db": -58.5
+   },
+   "notes": "referee whistle 0.41s @ 3367 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1670.0,
+   "t_start": 1668.0,
+   "t_end": 1674.0,
+   "confidence": 0.57,
+   "signals": {
+    "z300_speech_s5_peak": 2.0,
+    "z300_rms_peak": 0.96,
+    "rms_db_peak": -64.3,
+    "duration_s": 6.0,
+    "onset_density_mean": 2.83,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     1669.1
+    ],
+    "panns_cheering_max": 0.003,
+    "panns_applause_max": 0.008,
+    "panns_crowd_max": 0.049,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.86,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.008
+   },
+   "notes": "sustained speech-band level 2.0 sd above 5-min baseline for 6s; referee whistle within 5 s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 1707.91,
+   "t_start": 1707.77,
+   "t_end": 1708.05,
+   "confidence": 0.733,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 2297.0,
+    "peak_hz_std": 8.0,
+    "tonality": 85.8,
+    "level_db": -62.6
+   },
+   "notes": "referee whistle 0.28s @ 2297 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1710.0,
+   "t_start": 1706.0,
+   "t_end": 1714.0,
+   "confidence": 0.605,
+   "signals": {
+    "z300_speech_s5_peak": 1.76,
+    "z300_rms_peak": 0.96,
+    "rms_db_peak": -63.9,
+    "duration_s": 8.0,
+    "onset_density_mean": 0.38,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     1707.9
+    ],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.028,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.863,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.088
+   },
+   "notes": "sustained speech-band level 1.8 sd above 5-min baseline for 8s; referee whistle within 5 s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 1715.45,
+   "t_start": 1715.28,
+   "t_end": 1715.62,
+   "confidence": 0.625,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 3625.0,
+    "peak_hz_std": 100.0,
+    "tonality": 28.3,
+    "level_db": -68.8
+   },
+   "notes": "referee whistle 0.34s @ 3625 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1767.32,
+   "t_start": 1767.19,
+   "t_end": 1767.44,
+   "confidence": 0.657,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2781.0,
+    "peak_hz_std": 194.0,
+    "tonality": 49.7,
+    "level_db": -70.4
+   },
+   "notes": "referee whistle 0.25s @ 2781 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1790.0,
+   "t_start": 1788.0,
+   "t_end": 1794.0,
+   "confidence": 0.587,
+   "signals": {
+    "z300_speech_s5_peak": 2.18,
+    "z300_rms_peak": 2.03,
+    "rms_db_peak": -61.6,
+    "duration_s": 6.0,
+    "onset_density_mean": 1.5,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     1791.1
+    ],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.008,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.803,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.04
+   },
+   "notes": "sustained speech-band level 2.2 sd above 5-min baseline for 6s; referee whistle within 5 s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 1791.11,
+   "t_start": 1790.7,
+   "t_end": 1791.51,
+   "confidence": 0.942,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.81,
+    "peak_hz": 2938.0,
+    "peak_hz_std": 199.0,
+    "tonality": 48.5,
+    "level_db": -59.2
+   },
+   "notes": "referee whistle 0.81s @ 2938 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1848.82,
+   "t_start": 1848.68,
+   "t_end": 1848.95,
+   "confidence": 0.394,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3438.0,
+    "peak_hz_std": 395.0,
+    "tonality": 23.7,
+    "level_db": -65.9
+   },
+   "notes": "referee whistle 0.27s @ 3438 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1874.93,
+   "t_start": 1874.64,
+   "t_end": 1875.23,
+   "confidence": 0.992,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.59,
+    "peak_hz": 3000.0,
+    "peak_hz_std": 54.0,
+    "tonality": 64.4,
+    "level_db": -61.9
+   },
+   "notes": "referee whistle 0.59s @ 3000 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1894.24,
+   "t_start": 1894.08,
+   "t_end": 1894.39,
+   "confidence": 0.547,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.31,
+    "peak_hz": 2422.0,
+    "peak_hz_std": 317.0,
+    "tonality": 47.7,
+    "level_db": -72.7
+   },
+   "notes": "referee whistle 0.31s @ 2422 Hz"
+  },
+  {
+   "type": "other",
+   "t": 1925.92,
+   "t_start": 1925.8,
+   "t_end": 1926.05,
+   "confidence": 0.558,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2438.0,
+    "peak_hz_std": 476.0,
+    "tonality": 71.5,
+    "level_db": -67.9
+   },
+   "notes": "referee whistle 0.25s @ 2438 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 1958.0,
+   "t_start": 1954.0,
+   "t_end": 1961.0,
+   "confidence": 0.559,
+   "signals": {
+    "z300_speech_s5_peak": 2.09,
+    "z300_rms_peak": 2.13,
+    "rms_db_peak": -59.0,
+    "duration_s": 7.0,
+    "onset_density_mean": 0.43,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.005,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.731,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.258
+   },
+   "notes": "sustained speech-band level 2.1 sd above 5-min baseline for 7s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 2022.72,
+   "t_start": 2022.56,
+   "t_end": 2022.88,
+   "confidence": 0.576,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 3250.0,
+    "peak_hz_std": 186.0,
+    "tonality": 21.8,
+    "level_db": -70.3
+   },
+   "notes": "referee whistle 0.32s @ 3250 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2048.78,
+   "t_start": 2048.59,
+   "t_end": 2048.96,
+   "confidence": 0.808,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.37,
+    "peak_hz": 3609.0,
+    "peak_hz_std": 58.0,
+    "tonality": 87.4,
+    "level_db": -67.3
+   },
+   "notes": "referee whistle 0.37s @ 3609 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2061.33,
+   "t_start": 2061.17,
+   "t_end": 2061.49,
+   "confidence": 0.674,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 3078.0,
+    "peak_hz_std": 237.0,
+    "tonality": 41.5,
+    "level_db": -61.8
+   },
+   "notes": "referee whistle 0.32s @ 3078 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2063.0,
+   "t_start": 2059.0,
+   "t_end": 2068.0,
+   "confidence": 0.592,
+   "signals": {
+    "z300_speech_s5_peak": 1.66,
+    "z300_rms_peak": 1.11,
+    "rms_db_peak": -63.1,
+    "duration_s": 9.0,
+    "onset_density_mean": 1.11,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     2061.3
+    ],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.033,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.826,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.093
+   },
+   "notes": "sustained speech-band level 1.7 sd above 5-min baseline for 9s; referee whistle within 5 s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 2108.81,
+   "t_start": 2108.61,
+   "t_end": 2109.0,
+   "confidence": 0.544,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.39,
+    "peak_hz": 3625.0,
+    "peak_hz_std": 502.0,
+    "tonality": 33.7,
+    "level_db": -64.4
+   },
+   "notes": "referee whistle 0.39s @ 3625 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2161.48,
+   "t_start": 2161.1,
+   "t_end": 2161.87,
+   "confidence": 0.792,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.77,
+    "peak_hz": 3547.0,
+    "peak_hz_std": 769.0,
+    "tonality": 48.5,
+    "level_db": -62.4
+   },
+   "notes": "referee whistle 0.77s @ 3547 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2163.43,
+   "t_start": 2163.06,
+   "t_end": 2163.79,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.73,
+    "peak_hz": 3391.0,
+    "peak_hz_std": 488.0,
+    "tonality": 80.3,
+    "level_db": -61.2
+   },
+   "notes": "referee whistle 0.73s @ 3391 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2243.64,
+   "t_start": 2243.47,
+   "t_end": 2243.81,
+   "confidence": 0.431,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 2688.0,
+    "peak_hz_std": 314.0,
+    "tonality": 19.6,
+    "level_db": -61.8
+   },
+   "notes": "referee whistle 0.34s @ 2688 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2244.51,
+   "t_start": 2244.3,
+   "t_end": 2244.71,
+   "confidence": 0.842,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.41,
+    "peak_hz": 3500.0,
+    "peak_hz_std": 210.0,
+    "tonality": 73.9,
+    "level_db": -59.4
+   },
+   "notes": "referee whistle 0.41s @ 3500 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2245.24,
+   "t_start": 2245.08,
+   "t_end": 2245.4,
+   "confidence": 0.737,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 3211.0,
+    "peak_hz_std": 218.0,
+    "tonality": 54.0,
+    "level_db": -64.2
+   },
+   "notes": "referee whistle 0.32s @ 3211 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2249.15,
+   "t_start": 2248.86,
+   "t_end": 2249.45,
+   "confidence": 0.646,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.59,
+    "peak_hz": 3531.0,
+    "peak_hz_std": 532.0,
+    "tonality": 20.8,
+    "level_db": -63.5
+   },
+   "notes": "referee whistle 0.59s @ 3531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2252.34,
+   "t_start": 2252.15,
+   "t_end": 2252.53,
+   "confidence": 0.562,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.38,
+    "peak_hz": 3156.0,
+    "peak_hz_std": 407.0,
+    "tonality": 39.0,
+    "level_db": -63.5
+   },
+   "notes": "referee whistle 0.38s @ 3156 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2283.0,
+   "t_start": 2280.0,
+   "t_end": 2286.0,
+   "confidence": 0.537,
+   "signals": {
+    "z300_speech_s5_peak": 2.15,
+    "z300_rms_peak": 1.89,
+    "rms_db_peak": -52.0,
+    "duration_s": 6.0,
+    "onset_density_mean": 0.83,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.004,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.046,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.819,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.094
+   },
+   "notes": "sustained speech-band level 2.2 sd above 5-min baseline for 6s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 2357.39,
+   "t_start": 2357.26,
+   "t_end": 2357.51,
+   "confidence": 0.436,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3734.0,
+    "peak_hz_std": 352.0,
+    "tonality": 35.6,
+    "level_db": -68.4
+   },
+   "notes": "referee whistle 0.25s @ 3734 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2365.91,
+   "t_start": 2365.69,
+   "t_end": 2366.14,
+   "confidence": 0.756,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.45,
+    "peak_hz": 3266.0,
+    "peak_hz_std": 105.0,
+    "tonality": 36.3,
+    "level_db": -61.0
+   },
+   "notes": "referee whistle 0.45s @ 3266 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2450.96,
+   "t_start": 2450.82,
+   "t_end": 2451.1,
+   "confidence": 0.696,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 2359.0,
+    "peak_hz_std": 33.0,
+    "tonality": 52.5,
+    "level_db": -63.4
+   },
+   "notes": "referee whistle 0.28s @ 2359 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2463.0,
+   "t_start": 2459.0,
+   "t_end": 2469.0,
+   "confidence": 0.586,
+   "signals": {
+    "z300_speech_s5_peak": 2.02,
+    "z300_rms_peak": 0.85,
+    "rms_db_peak": -55.7,
+    "duration_s": 10.0,
+    "onset_density_mean": 1.0,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.045,
+    "panns_shout_max": 0.005,
+    "panns_speech_max": 0.836,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.079
+   },
+   "notes": "sustained speech-band level 2.0 sd above 5-min baseline for 10s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 2473.61,
+   "t_start": 2473.48,
+   "t_end": 2473.75,
+   "confidence": 0.575,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3062.0,
+    "peak_hz_std": 379.0,
+    "tonality": 63.5,
+    "level_db": -63.8
+   },
+   "notes": "referee whistle 0.27s @ 3062 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2485.95,
+   "t_start": 2485.79,
+   "t_end": 2486.11,
+   "confidence": 0.644,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 2930.0,
+    "peak_hz_std": 271.0,
+    "tonality": 35.5,
+    "level_db": -57.4
+   },
+   "notes": "referee whistle 0.32s @ 2930 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2511.34,
+   "t_start": 2511.13,
+   "t_end": 2511.55,
+   "confidence": 0.694,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.42,
+    "peak_hz": 3273.0,
+    "peak_hz_std": 437.0,
+    "tonality": 58.8,
+    "level_db": -57.0
+   },
+   "notes": "referee whistle 0.42s @ 3273 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2512.09,
+   "t_start": 2511.82,
+   "t_end": 2512.35,
+   "confidence": 0.792,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.53,
+    "peak_hz": 3531.0,
+    "peak_hz_std": 303.0,
+    "tonality": 62.9,
+    "level_db": -60.6
+   },
+   "notes": "referee whistle 0.53s @ 3531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2585.28,
+   "t_start": 2584.99,
+   "t_end": 2585.58,
+   "confidence": 0.776,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.59,
+    "peak_hz": 3375.0,
+    "peak_hz_std": 321.0,
+    "tonality": 46.8,
+    "level_db": -65.8
+   },
+   "notes": "referee whistle 0.59s @ 3375 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2586.22,
+   "t_start": 2585.8,
+   "t_end": 2586.63,
+   "confidence": 0.955,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.83,
+    "peak_hz": 2656.0,
+    "peak_hz_std": 172.0,
+    "tonality": 51.0,
+    "level_db": -60.0
+   },
+   "notes": "referee whistle 0.83s @ 2656 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2592.27,
+   "t_start": 2591.93,
+   "t_end": 2592.61,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.68,
+    "peak_hz": 3445.0,
+    "peak_hz_std": 505.0,
+    "tonality": 67.8,
+    "level_db": -64.5
+   },
+   "notes": "referee whistle 0.68s @ 3445 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2597.18,
+   "t_start": 2597.04,
+   "t_end": 2597.33,
+   "confidence": 0.568,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3312.0,
+    "peak_hz_std": 546.0,
+    "tonality": 55.3,
+    "level_db": -67.4
+   },
+   "notes": "referee whistle 0.29s @ 3312 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2598.06,
+   "t_start": 2597.79,
+   "t_end": 2598.32,
+   "confidence": 0.702,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.53,
+    "peak_hz": 3344.0,
+    "peak_hz_std": 600.0,
+    "tonality": 42.1,
+    "level_db": -69.8
+   },
+   "notes": "referee whistle 0.53s @ 3344 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2600.26,
+   "t_start": 2600.11,
+   "t_end": 2600.4,
+   "confidence": 0.645,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3375.0,
+    "peak_hz_std": 291.0,
+    "tonality": 40.6,
+    "level_db": -63.1
+   },
+   "notes": "referee whistle 0.29s @ 3375 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2616.88,
+   "t_start": 2616.74,
+   "t_end": 2617.01,
+   "confidence": 0.725,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 2266.0,
+    "peak_hz_std": 105.0,
+    "tonality": 61.1,
+    "level_db": -58.9
+   },
+   "notes": "referee whistle 0.27s @ 2266 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2640.07,
+   "t_start": 2639.91,
+   "t_end": 2640.24,
+   "confidence": 0.506,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 3828.0,
+    "peak_hz_std": 310.0,
+    "tonality": 36.1,
+    "level_db": -56.0
+   },
+   "notes": "referee whistle 0.33s @ 3828 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2641.16,
+   "t_start": 2641.04,
+   "t_end": 2641.29,
+   "confidence": 0.559,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3109.0,
+    "peak_hz_std": 149.0,
+    "tonality": 30.1,
+    "level_db": -62.5
+   },
+   "notes": "referee whistle 0.25s @ 3109 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2680.31,
+   "t_start": 2680.12,
+   "t_end": 2680.5,
+   "confidence": 0.629,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.38,
+    "peak_hz": 3125.0,
+    "peak_hz_std": 112.0,
+    "tonality": 22.5,
+    "level_db": -48.0
+   },
+   "notes": "referee whistle 0.38s @ 3125 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2695.07,
+   "t_start": 2694.89,
+   "t_end": 2695.26,
+   "confidence": 0.634,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.37,
+    "peak_hz": 4336.0,
+    "peak_hz_std": 287.0,
+    "tonality": 25.2,
+    "level_db": -48.2
+   },
+   "notes": "referee whistle 0.37s @ 4336 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2730.3,
+   "t_start": 2729.97,
+   "t_end": 2730.62,
+   "confidence": 0.921,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.65,
+    "peak_hz": 2844.0,
+    "peak_hz_std": 276.0,
+    "tonality": 44.2,
+    "level_db": -65.1
+   },
+   "notes": "referee whistle 0.65s @ 2844 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2733.34,
+   "t_start": 2733.15,
+   "t_end": 2733.53,
+   "confidence": 0.588,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.38,
+    "peak_hz": 3516.0,
+    "peak_hz_std": 611.0,
+    "tonality": 44.2,
+    "level_db": -64.4
+   },
+   "notes": "referee whistle 0.38s @ 3516 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2734.07,
+   "t_start": 2733.86,
+   "t_end": 2734.27,
+   "confidence": 0.565,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.41,
+    "peak_hz": 3469.0,
+    "peak_hz_std": 429.0,
+    "tonality": 34.7,
+    "level_db": -65.8
+   },
+   "notes": "referee whistle 0.41s @ 3469 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2736.85,
+   "t_start": 2736.47,
+   "t_end": 2737.23,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.76,
+    "peak_hz": 3016.0,
+    "peak_hz_std": 18.0,
+    "tonality": 76.5,
+    "level_db": -54.7
+   },
+   "notes": "referee whistle 0.76s @ 3016 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2737.0,
+   "t_start": 2735.0,
+   "t_end": 2740.0,
+   "confidence": 0.532,
+   "signals": {
+    "z300_speech_s5_peak": 1.9,
+    "z300_rms_peak": 1.99,
+    "rms_db_peak": -56.3,
+    "duration_s": 5.0,
+    "onset_density_mean": 2.6,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     2733.3,
+     2734.1,
+     2736.8,
+     2739.1,
+     2740.3
+    ],
+    "panns_cheering_max": 0.006,
+    "panns_applause_max": 0.004,
+    "panns_crowd_max": 0.088,
+    "panns_shout_max": 0.005,
+    "panns_speech_max": 0.883,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.008
+   },
+   "notes": "sustained speech-band level 1.9 sd above 5-min baseline for 5s; referee whistle within 5 s; PANNs cheer/shout p=0.04"
+  },
+  {
+   "type": "other",
+   "t": 2739.14,
+   "t_start": 2738.87,
+   "t_end": 2739.4,
+   "confidence": 0.683,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.53,
+    "peak_hz": 3312.0,
+    "peak_hz_std": 542.0,
+    "tonality": 38.2,
+    "level_db": -66.0
+   },
+   "notes": "referee whistle 0.53s @ 3312 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2740.28,
+   "t_start": 2740.15,
+   "t_end": 2740.4,
+   "confidence": 0.385,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2609.0,
+    "peak_hz_std": 343.0,
+    "tonality": 25.4,
+    "level_db": -66.5
+   },
+   "notes": "referee whistle 0.25s @ 2609 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2803.0,
+   "t_start": 2800.0,
+   "t_end": 2806.0,
+   "confidence": 0.46,
+   "signals": {
+    "z300_speech_s5_peak": 1.5,
+    "z300_rms_peak": 1.43,
+    "rms_db_peak": -60.3,
+    "duration_s": 6.0,
+    "onset_density_mean": 0.5,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.037,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.774,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.129
+   },
+   "notes": "sustained speech-band level 1.5 sd above 5-min baseline for 6s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 2862.38,
+   "t_start": 2862.15,
+   "t_end": 2862.61,
+   "confidence": 0.733,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.46,
+    "peak_hz": 3547.0,
+    "peak_hz_std": 423.0,
+    "tonality": 95.8,
+    "level_db": -51.2
+   },
+   "notes": "referee whistle 0.46s @ 3547 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2863.61,
+   "t_start": 2863.41,
+   "t_end": 2863.81,
+   "confidence": 0.58,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.4,
+    "peak_hz": 3742.0,
+    "peak_hz_std": 320.0,
+    "tonality": 39.4,
+    "level_db": -55.9
+   },
+   "notes": "referee whistle 0.4s @ 3742 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2874.53,
+   "t_start": 2874.28,
+   "t_end": 2874.79,
+   "confidence": 0.925,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.51,
+    "peak_hz": 3484.0,
+    "peak_hz_std": 69.0,
+    "tonality": 65.5,
+    "level_db": -69.4
+   },
+   "notes": "referee whistle 0.51s @ 3484 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2894.15,
+   "t_start": 2893.98,
+   "t_end": 2894.33,
+   "confidence": 0.745,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.35,
+    "peak_hz": 3070.0,
+    "peak_hz_std": 76.0,
+    "tonality": 50.6,
+    "level_db": -64.8
+   },
+   "notes": "referee whistle 0.35s @ 3070 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 2934.0,
+   "t_start": 2932.0,
+   "t_end": 2939.0,
+   "confidence": 0.571,
+   "signals": {
+    "z300_speech_s5_peak": 1.75,
+    "z300_rms_peak": 0.11,
+    "rms_db_peak": -60.6,
+    "duration_s": 7.0,
+    "onset_density_mean": 1.29,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     2937.0
+    ],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.011,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.747,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.01
+   },
+   "notes": "sustained speech-band level 1.8 sd above 5-min baseline for 7s; referee whistle within 5 s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 2937.02,
+   "t_start": 2936.52,
+   "t_end": 2937.52,
+   "confidence": 0.909,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.0,
+    "peak_hz": 2570.0,
+    "peak_hz_std": 201.0,
+    "tonality": 41.9,
+    "level_db": -57.6
+   },
+   "notes": "referee whistle 1.0s @ 2570 Hz"
+  },
+  {
+   "type": "other",
+   "t": 2965.89,
+   "t_start": 2965.74,
+   "t_end": 2966.03,
+   "confidence": 0.742,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3609.0,
+    "peak_hz_std": 103.0,
+    "tonality": 66.7,
+    "level_db": -64.1
+   },
+   "notes": "referee whistle 0.29s @ 3609 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3017.0,
+   "t_start": 3010.0,
+   "t_end": 3020.0,
+   "confidence": 0.546,
+   "signals": {
+    "z300_speech_s5_peak": 1.69,
+    "z300_rms_peak": 2.1,
+    "rms_db_peak": -55.6,
+    "duration_s": 10.0,
+    "onset_density_mean": 0.9,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.008,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.745,
+    "panns_whistle_max": 0.002,
+    "panns_wind_max": 0.349
+   },
+   "notes": "sustained speech-band level 1.7 sd above 5-min baseline for 10s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 3024.26,
+   "t_start": 3023.96,
+   "t_end": 3024.55,
+   "confidence": 0.992,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.59,
+    "peak_hz": 2984.0,
+    "peak_hz_std": 0.0,
+    "tonality": 97.6,
+    "level_db": -65.9
+   },
+   "notes": "referee whistle 0.59s @ 2984 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3025.17,
+   "t_start": 3024.75,
+   "t_end": 3025.59,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.84,
+    "peak_hz": 2984.0,
+    "peak_hz_std": 0.0,
+    "tonality": 88.7,
+    "level_db": -63.5
+   },
+   "notes": "referee whistle 0.84s @ 2984 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3028.99,
+   "t_start": 3028.85,
+   "t_end": 3029.13,
+   "confidence": 0.733,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 2984.0,
+    "peak_hz_std": 0.0,
+    "tonality": 98.7,
+    "level_db": -72.3
+   },
+   "notes": "referee whistle 0.28s @ 2984 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3056.67,
+   "t_start": 3056.3,
+   "t_end": 3057.04,
+   "confidence": 0.998,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.74,
+    "peak_hz": 3516.0,
+    "peak_hz_std": 246.0,
+    "tonality": 59.6,
+    "level_db": -55.5
+   },
+   "notes": "referee whistle 0.74s @ 3516 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3057.0,
+   "t_start": 3054.0,
+   "t_end": 3063.0,
+   "confidence": 0.632,
+   "signals": {
+    "z300_speech_s5_peak": 1.97,
+    "z300_rms_peak": 0.03,
+    "rms_db_peak": -57.5,
+    "duration_s": 9.0,
+    "onset_density_mean": 0.78,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     3056.7
+    ],
+    "panns_cheering_max": 0.005,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.06,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.888,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.005
+   },
+   "notes": "sustained speech-band level 2.0 sd above 5-min baseline for 9s; referee whistle within 5 s; PANNs cheer/shout p=0.03"
+  },
+  {
+   "type": "other",
+   "t": 3062.06,
+   "t_start": 3061.73,
+   "t_end": 3062.39,
+   "confidence": 0.913,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.66,
+    "peak_hz": 3719.0,
+    "peak_hz_std": 233.0,
+    "tonality": 42.6,
+    "level_db": -59.8
+   },
+   "notes": "referee whistle 0.66s @ 3719 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3079.78,
+   "t_start": 3079.4,
+   "t_end": 3080.17,
+   "confidence": 0.73,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.77,
+    "peak_hz": 2859.0,
+    "peak_hz_std": 360.0,
+    "tonality": 36.0,
+    "level_db": -61.6
+   },
+   "notes": "referee whistle 0.77s @ 2859 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3100.42,
+   "t_start": 3100.22,
+   "t_end": 3100.62,
+   "confidence": 0.833,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.4,
+    "peak_hz": 2922.0,
+    "peak_hz_std": 231.0,
+    "tonality": 63.5,
+    "level_db": -67.1
+   },
+   "notes": "referee whistle 0.4s @ 2922 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3108.24,
+   "t_start": 3108.1,
+   "t_end": 3108.39,
+   "confidence": 0.408,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3055.0,
+    "peak_hz_std": 465.0,
+    "tonality": 23.3,
+    "level_db": -61.8
+   },
+   "notes": "referee whistle 0.29s @ 3055 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3132.95,
+   "t_start": 3132.82,
+   "t_end": 3133.07,
+   "confidence": 0.533,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3672.0,
+    "peak_hz_std": 95.0,
+    "tonality": 24.9,
+    "level_db": -65.6
+   },
+   "notes": "referee whistle 0.25s @ 3672 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3190.0,
+   "t_start": 3188.0,
+   "t_end": 3194.0,
+   "confidence": 0.46,
+   "signals": {
+    "z300_speech_s5_peak": 1.51,
+    "z300_rms_peak": 2.43,
+    "rms_db_peak": -54.2,
+    "duration_s": 6.0,
+    "onset_density_mean": 0.17,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.0,
+    "panns_crowd_max": 0.002,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.717,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.37
+   },
+   "notes": "sustained speech-band level 1.5 sd above 5-min baseline for 6s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "excitement",
+   "t": 3214.0,
+   "t_start": 3200.0,
+   "t_end": 3224.0,
+   "confidence": 0.571,
+   "signals": {
+    "z300_speech_s5_peak": 1.91,
+    "z300_rms_peak": 2.11,
+    "rms_db_peak": -54.3,
+    "duration_s": 24.0,
+    "onset_density_mean": 0.42,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.003,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.762,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.329
+   },
+   "notes": "sustained speech-band level 1.9 sd above 5-min baseline for 24s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 3364.78,
+   "t_start": 3364.65,
+   "t_end": 3364.9,
+   "confidence": 0.597,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2531.0,
+    "peak_hz_std": 264.0,
+    "tonality": 37.7,
+    "level_db": -60.6
+   },
+   "notes": "referee whistle 0.25s @ 2531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3397.45,
+   "t_start": 3397.32,
+   "t_end": 3397.57,
+   "confidence": 0.536,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2359.0,
+    "peak_hz_std": 34.0,
+    "tonality": 25.6,
+    "level_db": -59.3
+   },
+   "notes": "referee whistle 0.25s @ 2359 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3444.0,
+   "t_start": 3442.0,
+   "t_end": 3448.0,
+   "confidence": 0.569,
+   "signals": {
+    "z300_speech_s5_peak": 2.4,
+    "z300_rms_peak": 3.02,
+    "rms_db_peak": -52.8,
+    "duration_s": 6.0,
+    "onset_density_mean": 1.67,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.035,
+    "panns_applause_max": 0.007,
+    "panns_crowd_max": 0.168,
+    "panns_shout_max": 0.007,
+    "panns_speech_max": 0.862,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.004
+   },
+   "notes": "sustained speech-band level 2.4 sd above 5-min baseline for 6s; PANNs cheer/shout p=0.07"
+  },
+  {
+   "type": "other",
+   "t": 3466.2,
+   "t_start": 3466.05,
+   "t_end": 3466.36,
+   "confidence": 0.654,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.31,
+    "peak_hz": 3438.0,
+    "peak_hz_std": 163.0,
+    "tonality": 39.2,
+    "level_db": -59.3
+   },
+   "notes": "referee whistle 0.31s @ 3438 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3486.72,
+   "t_start": 3486.6,
+   "t_end": 3486.85,
+   "confidence": 0.565,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3031.0,
+    "peak_hz_std": 197.0,
+    "tonality": 31.4,
+    "level_db": -67.5
+   },
+   "notes": "referee whistle 0.25s @ 3031 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3523.55,
+   "t_start": 3523.33,
+   "t_end": 3523.76,
+   "confidence": 0.611,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.43,
+    "peak_hz": 2391.0,
+    "peak_hz_std": 493.0,
+    "tonality": 40.5,
+    "level_db": -56.6
+   },
+   "notes": "referee whistle 0.43s @ 2391 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3524.0,
+   "t_start": 3522.0,
+   "t_end": 3532.0,
+   "confidence": 0.616,
+   "signals": {
+    "z300_speech_s5_peak": 1.84,
+    "z300_rms_peak": 1.77,
+    "rms_db_peak": -57.6,
+    "duration_s": 10.0,
+    "onset_density_mean": 2.0,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     3523.5
+    ],
+    "panns_cheering_max": 0.003,
+    "panns_applause_max": 0.004,
+    "panns_crowd_max": 0.088,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.829,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.046
+   },
+   "notes": "sustained speech-band level 1.8 sd above 5-min baseline for 10s; referee whistle within 5 s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 3535.61,
+   "t_start": 3535.42,
+   "t_end": 3535.81,
+   "confidence": 0.675,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.39,
+    "peak_hz": 2547.0,
+    "peak_hz_std": 898.0,
+    "tonality": 61.9,
+    "level_db": -69.9
+   },
+   "notes": "referee whistle 0.39s @ 2547 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3605.62,
+   "t_start": 3605.49,
+   "t_end": 3605.75,
+   "confidence": 0.417,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.26,
+    "peak_hz": 3531.0,
+    "peak_hz_std": 737.0,
+    "tonality": 30.0,
+    "level_db": -63.3
+   },
+   "notes": "referee whistle 0.26s @ 3531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3634.97,
+   "t_start": 3634.73,
+   "t_end": 3635.21,
+   "confidence": 0.585,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.48,
+    "peak_hz": 3422.0,
+    "peak_hz_std": 476.0,
+    "tonality": 27.0,
+    "level_db": -63.0
+   },
+   "notes": "referee whistle 0.48s @ 3422 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3646.54,
+   "t_start": 3646.2,
+   "t_end": 3646.88,
+   "confidence": 0.946,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.68,
+    "peak_hz": 3578.0,
+    "peak_hz_std": 119.0,
+    "tonality": 49.3,
+    "level_db": -61.5
+   },
+   "notes": "referee whistle 0.68s @ 3578 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3648.55,
+   "t_start": 3648.43,
+   "t_end": 3648.68,
+   "confidence": 0.614,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3805.0,
+    "peak_hz_std": 133.0,
+    "tonality": 41.2,
+    "level_db": -72.9
+   },
+   "notes": "referee whistle 0.25s @ 3805 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3649.01,
+   "t_start": 3648.88,
+   "t_end": 3649.14,
+   "confidence": 0.563,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.26,
+    "peak_hz": 3328.0,
+    "peak_hz_std": 129.0,
+    "tonality": 29.3,
+    "level_db": -73.2
+   },
+   "notes": "referee whistle 0.26s @ 3328 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3657.75,
+   "t_start": 3657.52,
+   "t_end": 3657.98,
+   "confidence": 0.789,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.46,
+    "peak_hz": 3234.0,
+    "peak_hz_std": 263.0,
+    "tonality": 41.1,
+    "level_db": -70.2
+   },
+   "notes": "referee whistle 0.46s @ 3234 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3669.0,
+   "t_start": 3667.0,
+   "t_end": 3673.0,
+   "confidence": 0.469,
+   "signals": {
+    "z300_speech_s5_peak": 1.56,
+    "z300_rms_peak": 0.58,
+    "rms_db_peak": -66.3,
+    "duration_s": 6.0,
+    "onset_density_mean": 0.83,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.054,
+    "panns_shout_max": 0.005,
+    "panns_speech_max": 0.889,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.041
+   },
+   "notes": "sustained speech-band level 1.6 sd above 5-min baseline for 6s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "excitement",
+   "t": 3693.0,
+   "t_start": 3691.0,
+   "t_end": 3696.0,
+   "confidence": 0.506,
+   "signals": {
+    "z300_speech_s5_peak": 1.69,
+    "z300_rms_peak": 2.33,
+    "rms_db_peak": -58.7,
+    "duration_s": 5.0,
+    "onset_density_mean": 3.0,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     3693.2,
+     3695.1
+    ],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.015,
+    "panns_crowd_max": 0.031,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.83,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.016
+   },
+   "notes": "sustained speech-band level 1.7 sd above 5-min baseline for 5s; referee whistle within 5 s; PANNs cheer/shout p=0.03"
+  },
+  {
+   "type": "other",
+   "t": 3693.18,
+   "t_start": 3692.91,
+   "t_end": 3693.45,
+   "confidence": 0.674,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.54,
+    "peak_hz": 3844.0,
+    "peak_hz_std": 553.0,
+    "tonality": 34.8,
+    "level_db": -48.5
+   },
+   "notes": "referee whistle 0.54s @ 3844 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3695.11,
+   "t_start": 3694.99,
+   "t_end": 3695.24,
+   "confidence": 0.381,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2891.0,
+    "peak_hz_std": 467.0,
+    "tonality": 24.6,
+    "level_db": -64.3
+   },
+   "notes": "referee whistle 0.25s @ 2891 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3726.0,
+   "t_start": 3723.0,
+   "t_end": 3735.0,
+   "confidence": 0.533,
+   "signals": {
+    "z300_speech_s5_peak": 1.59,
+    "z300_rms_peak": 3.75,
+    "rms_db_peak": -53.2,
+    "duration_s": 12.0,
+    "onset_density_mean": 0.67,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.004,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.748,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.347
+   },
+   "notes": "sustained speech-band level 1.6 sd above 5-min baseline for 12s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 3801.72,
+   "t_start": 3801.53,
+   "t_end": 3801.91,
+   "confidence": 0.73,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.38,
+    "peak_hz": 3359.0,
+    "peak_hz_std": 286.0,
+    "tonality": 42.6,
+    "level_db": -68.5
+   },
+   "notes": "referee whistle 0.38s @ 3359 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3915.61,
+   "t_start": 3915.46,
+   "t_end": 3915.75,
+   "confidence": 0.425,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 2797.0,
+    "peak_hz_std": 646.0,
+    "tonality": 26.7,
+    "level_db": -63.5
+   },
+   "notes": "referee whistle 0.29s @ 2797 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3943.03,
+   "t_start": 3942.75,
+   "t_end": 3943.3,
+   "confidence": 0.844,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.55,
+    "peak_hz": 3594.0,
+    "peak_hz_std": 47.0,
+    "tonality": 37.1,
+    "level_db": -61.1
+   },
+   "notes": "referee whistle 0.55s @ 3594 Hz"
+  },
+  {
+   "type": "other",
+   "t": 3953.36,
+   "t_start": 3953.2,
+   "t_end": 3953.53,
+   "confidence": 0.643,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 4469.0,
+    "peak_hz_std": 269.0,
+    "tonality": 33.5,
+    "level_db": -49.2
+   },
+   "notes": "referee whistle 0.33s @ 4469 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3955.0,
+   "t_start": 3953.0,
+   "t_end": 3958.0,
+   "confidence": 0.491,
+   "signals": {
+    "z300_speech_s5_peak": 1.59,
+    "z300_rms_peak": 0.51,
+    "rms_db_peak": -57.6,
+    "duration_s": 5.0,
+    "onset_density_mean": 0.8,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     3953.4
+    ],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.046,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.875,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.006
+   },
+   "notes": "sustained speech-band level 1.6 sd above 5-min baseline for 5s; referee whistle within 5 s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 3989.55,
+   "t_start": 3989.39,
+   "t_end": 3989.71,
+   "confidence": 0.492,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 2617.0,
+    "peak_hz_std": 431.0,
+    "tonality": 35.0,
+    "level_db": -60.4
+   },
+   "notes": "referee whistle 0.32s @ 2617 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 3997.0,
+   "t_start": 3995.0,
+   "t_end": 4003.0,
+   "confidence": 0.587,
+   "signals": {
+    "z300_speech_s5_peak": 1.61,
+    "z300_rms_peak": 2.46,
+    "rms_db_peak": -57.7,
+    "duration_s": 8.0,
+    "onset_density_mean": 1.0,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     3997.6,
+     4001.2
+    ],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.044,
+    "panns_shout_max": 0.004,
+    "panns_speech_max": 0.873,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.042
+   },
+   "notes": "sustained speech-band level 1.6 sd above 5-min baseline for 8s; referee whistle within 5 s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 3997.6,
+   "t_start": 3997.11,
+   "t_end": 3998.09,
+   "confidence": 0.771,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.98,
+    "peak_hz": 3625.0,
+    "peak_hz_std": 433.0,
+    "tonality": 44.2,
+    "level_db": -49.7
+   },
+   "notes": "referee whistle 0.98s @ 3625 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4001.23,
+   "t_start": 4001.1,
+   "t_end": 4001.37,
+   "confidence": 0.539,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 2219.0,
+    "peak_hz_std": 28.0,
+    "tonality": 22.8,
+    "level_db": -64.4
+   },
+   "notes": "referee whistle 0.27s @ 2219 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4025.4,
+   "t_start": 4025.15,
+   "t_end": 4025.66,
+   "confidence": 0.809,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.51,
+    "peak_hz": 3562.0,
+    "peak_hz_std": 189.0,
+    "tonality": 36.8,
+    "level_db": -66.6
+   },
+   "notes": "referee whistle 0.51s @ 3562 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4034.9,
+   "t_start": 4034.76,
+   "t_end": 4035.03,
+   "confidence": 0.705,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3539.0,
+    "peak_hz_std": 62.0,
+    "tonality": 56.0,
+    "level_db": -64.9
+   },
+   "notes": "referee whistle 0.27s @ 3539 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4038.69,
+   "t_start": 4038.17,
+   "t_end": 4039.21,
+   "confidence": 0.785,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.04,
+    "peak_hz": 3719.0,
+    "peak_hz_std": 340.0,
+    "tonality": 47.0,
+    "level_db": -56.9
+   },
+   "notes": "referee whistle 1.04s @ 3719 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4066.0,
+   "t_start": 4063.0,
+   "t_end": 4072.0,
+   "confidence": 0.601,
+   "signals": {
+    "z300_speech_s5_peak": 2.16,
+    "z300_rms_peak": 2.39,
+    "rms_db_peak": -56.6,
+    "duration_s": 9.0,
+    "onset_density_mean": 2.67,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.003,
+    "panns_applause_max": 0.004,
+    "panns_crowd_max": 0.056,
+    "panns_shout_max": 0.003,
+    "panns_speech_max": 0.807,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.105
+   },
+   "notes": "sustained speech-band level 2.2 sd above 5-min baseline for 9s; PANNs cheer/shout p=0.03"
+  },
+  {
+   "type": "other",
+   "t": 4095.48,
+   "t_start": 4095.18,
+   "t_end": 4095.78,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.6,
+    "peak_hz": 3430.0,
+    "peak_hz_std": 131.0,
+    "tonality": 92.8,
+    "level_db": -62.8
+   },
+   "notes": "referee whistle 0.6s @ 3430 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4141.79,
+   "t_start": 4141.65,
+   "t_end": 4141.93,
+   "confidence": 0.589,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 3578.0,
+    "peak_hz_std": 81.0,
+    "tonality": 31.1,
+    "level_db": -68.8
+   },
+   "notes": "referee whistle 0.28s @ 3578 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4171.0,
+   "t_start": 4169.0,
+   "t_end": 4173.0,
+   "confidence": 0.449,
+   "signals": {
+    "z300_speech_s5_peak": 1.93,
+    "z300_rms_peak": 1.7,
+    "rms_db_peak": -61.4,
+    "duration_s": 4.0,
+    "onset_density_mean": 1.25,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.022,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.883,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.005
+   },
+   "notes": "sustained speech-band level 1.9 sd above 5-min baseline for 4s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 4185.64,
+   "t_start": 4185.49,
+   "t_end": 4185.78,
+   "confidence": 0.613,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3375.0,
+    "peak_hz_std": 177.0,
+    "tonality": 34.3,
+    "level_db": -71.8
+   },
+   "notes": "referee whistle 0.29s @ 3375 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4235.96,
+   "t_start": 4235.72,
+   "t_end": 4236.2,
+   "confidence": 0.9,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.48,
+    "peak_hz": 2352.0,
+    "peak_hz_std": 75.0,
+    "tonality": 75.2,
+    "level_db": -63.8
+   },
+   "notes": "referee whistle 0.48s @ 2352 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4237.93,
+   "t_start": 4237.8,
+   "t_end": 4238.07,
+   "confidence": 0.718,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 2312.0,
+    "peak_hz_std": 42.0,
+    "tonality": 58.7,
+    "level_db": -67.8
+   },
+   "notes": "referee whistle 0.27s @ 2312 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4315.0,
+   "t_start": 4312.0,
+   "t_end": 4319.0,
+   "confidence": 0.516,
+   "signals": {
+    "z300_speech_s5_peak": 1.69,
+    "z300_rms_peak": 1.7,
+    "rms_db_peak": -61.5,
+    "duration_s": 7.0,
+    "onset_density_mean": 2.57,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.029,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.862,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.075
+   },
+   "notes": "sustained speech-band level 1.7 sd above 5-min baseline for 7s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 4374.39,
+   "t_start": 4373.82,
+   "t_end": 4374.96,
+   "confidence": 0.823,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.14,
+    "peak_hz": 3156.0,
+    "peak_hz_std": 550.0,
+    "tonality": 54.6,
+    "level_db": -62.2
+   },
+   "notes": "referee whistle 1.14s @ 3156 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4387.43,
+   "t_start": 4387.19,
+   "t_end": 4387.68,
+   "confidence": 0.908,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.49,
+    "peak_hz": 2453.0,
+    "peak_hz_std": 73.0,
+    "tonality": 72.0,
+    "level_db": -66.7
+   },
+   "notes": "referee whistle 0.49s @ 2453 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4390.16,
+   "t_start": 4390.04,
+   "t_end": 4390.29,
+   "confidence": 0.505,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2289.0,
+    "peak_hz_std": 29.0,
+    "tonality": 19.4,
+    "level_db": -69.9
+   },
+   "notes": "referee whistle 0.25s @ 2289 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4416.0,
+   "t_start": 4414.0,
+   "t_end": 4424.0,
+   "confidence": 0.609,
+   "signals": {
+    "z300_speech_s5_peak": 2.28,
+    "z300_rms_peak": 3.3,
+    "rms_db_peak": -53.7,
+    "duration_s": 10.0,
+    "onset_density_mean": 0.6,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.0,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.011,
+    "panns_shout_max": 0.0,
+    "panns_speech_max": 0.685,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.403
+   },
+   "notes": "sustained speech-band level 2.3 sd above 5-min baseline for 10s; PANNs cheer/shout p=0.00"
+  },
+  {
+   "type": "other",
+   "t": 4431.02,
+   "t_start": 4430.81,
+   "t_end": 4431.22,
+   "confidence": 0.531,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.41,
+    "peak_hz": 4188.0,
+    "peak_hz_std": 926.0,
+    "tonality": 27.9,
+    "level_db": -56.1
+   },
+   "notes": "referee whistle 0.41s @ 4188 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4460.02,
+   "t_start": 4459.67,
+   "t_end": 4460.37,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.7,
+    "peak_hz": 3031.0,
+    "peak_hz_std": 392.0,
+    "tonality": 77.6,
+    "level_db": -59.8
+   },
+   "notes": "referee whistle 0.7s @ 3031 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4461.88,
+   "t_start": 4461.65,
+   "t_end": 4462.1,
+   "confidence": 0.594,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.45,
+    "peak_hz": 2562.0,
+    "peak_hz_std": 311.0,
+    "tonality": 33.7,
+    "level_db": -68.5
+   },
+   "notes": "referee whistle 0.45s @ 2562 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4463.3,
+   "t_start": 4463.15,
+   "t_end": 4463.45,
+   "confidence": 0.583,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.3,
+    "peak_hz": 2711.0,
+    "peak_hz_std": 52.0,
+    "tonality": 26.5,
+    "level_db": -60.9
+   },
+   "notes": "referee whistle 0.3s @ 2711 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4468.28,
+   "t_start": 4468.04,
+   "t_end": 4468.52,
+   "confidence": 0.9,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.48,
+    "peak_hz": 2438.0,
+    "peak_hz_std": 90.0,
+    "tonality": 65.4,
+    "level_db": -59.7
+   },
+   "notes": "referee whistle 0.48s @ 2438 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4477.01,
+   "t_start": 4476.86,
+   "t_end": 4477.17,
+   "confidence": 0.758,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.31,
+    "peak_hz": 2203.0,
+    "peak_hz_std": 69.0,
+    "tonality": 89.1,
+    "level_db": -65.6
+   },
+   "notes": "referee whistle 0.31s @ 2203 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4499.35,
+   "t_start": 4498.96,
+   "t_end": 4499.75,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.79,
+    "peak_hz": 2500.0,
+    "peak_hz_std": 632.0,
+    "tonality": 77.1,
+    "level_db": -61.2
+   },
+   "notes": "referee whistle 0.79s @ 2500 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4503.21,
+   "t_start": 4502.9,
+   "t_end": 4503.52,
+   "confidence": 0.736,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.62,
+    "peak_hz": 3023.0,
+    "peak_hz_std": 424.0,
+    "tonality": 37.2,
+    "level_db": -65.2
+   },
+   "notes": "referee whistle 0.62s @ 3023 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4504.93,
+   "t_start": 4504.66,
+   "t_end": 4505.2,
+   "confidence": 0.836,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.54,
+    "peak_hz": 2297.0,
+    "peak_hz_std": 129.0,
+    "tonality": 37.2,
+    "level_db": -66.6
+   },
+   "notes": "referee whistle 0.54s @ 2297 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4517.48,
+   "t_start": 4517.3,
+   "t_end": 4517.66,
+   "confidence": 0.526,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.36,
+    "peak_hz": 4328.0,
+    "peak_hz_std": 578.0,
+    "tonality": 35.1,
+    "level_db": -62.4
+   },
+   "notes": "referee whistle 0.36s @ 4328 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4519.94,
+   "t_start": 4519.65,
+   "t_end": 4520.23,
+   "confidence": 0.858,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.58,
+    "peak_hz": 3516.0,
+    "peak_hz_std": 141.0,
+    "tonality": 35.0,
+    "level_db": -62.0
+   },
+   "notes": "referee whistle 0.58s @ 3516 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4524.23,
+   "t_start": 4524.11,
+   "t_end": 4524.36,
+   "confidence": 0.641,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2344.0,
+    "peak_hz_std": 45.0,
+    "tonality": 46.5,
+    "level_db": -68.0
+   },
+   "notes": "referee whistle 0.25s @ 2344 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4539.27,
+   "t_start": 4539.11,
+   "t_end": 4539.44,
+   "confidence": 0.625,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 2711.0,
+    "peak_hz_std": 496.0,
+    "tonality": 63.0,
+    "level_db": -68.4
+   },
+   "notes": "referee whistle 0.33s @ 2711 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4549.57,
+   "t_start": 4549.3,
+   "t_end": 4549.84,
+   "confidence": 0.812,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.54,
+    "peak_hz": 4469.0,
+    "peak_hz_std": 145.0,
+    "tonality": 32.5,
+    "level_db": -50.2
+   },
+   "notes": "referee whistle 0.54s @ 4469 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4550.0,
+   "t_start": 4546.0,
+   "t_end": 4553.0,
+   "confidence": 0.621,
+   "signals": {
+    "z300_speech_s5_peak": 2.19,
+    "z300_rms_peak": 0.99,
+    "rms_db_peak": -57.9,
+    "duration_s": 7.0,
+    "onset_density_mean": 1.43,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     4549.6
+    ],
+    "panns_cheering_max": 0.002,
+    "panns_applause_max": 0.001,
+    "panns_crowd_max": 0.02,
+    "panns_shout_max": 0.001,
+    "panns_speech_max": 0.864,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.019
+   },
+   "notes": "sustained speech-band level 2.2 sd above 5-min baseline for 7s; referee whistle within 5 s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 4572.16,
+   "t_start": 4572.0,
+   "t_end": 4572.32,
+   "confidence": 0.767,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 3453.0,
+    "peak_hz_std": 85.0,
+    "tonality": 81.4,
+    "level_db": -63.5
+   },
+   "notes": "referee whistle 0.32s @ 3453 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4573.66,
+   "t_start": 4573.54,
+   "t_end": 4573.79,
+   "confidence": 0.52,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3750.0,
+    "peak_hz_std": 336.0,
+    "tonality": 52.3,
+    "level_db": -58.5
+   },
+   "notes": "referee whistle 0.25s @ 3750 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4575.2,
+   "t_start": 4574.93,
+   "t_end": 4575.47,
+   "confidence": 0.8,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.54,
+    "peak_hz": 3469.0,
+    "peak_hz_std": 638.0,
+    "tonality": 71.7,
+    "level_db": -64.5
+   },
+   "notes": "referee whistle 0.54s @ 3469 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4582.34,
+   "t_start": 4582.08,
+   "t_end": 4582.6,
+   "confidence": 0.704,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.52,
+    "peak_hz": 3344.0,
+    "peak_hz_std": 456.0,
+    "tonality": 44.1,
+    "level_db": -68.3
+   },
+   "notes": "referee whistle 0.52s @ 3344 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4603.09,
+   "t_start": 4602.95,
+   "t_end": 4603.24,
+   "confidence": 0.614,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 2219.0,
+    "peak_hz_std": 274.0,
+    "tonality": 34.5,
+    "level_db": -67.9
+   },
+   "notes": "referee whistle 0.29s @ 2219 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4616.88,
+   "t_start": 4616.66,
+   "t_end": 4617.1,
+   "confidence": 0.701,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.44,
+    "peak_hz": 4281.0,
+    "peak_hz_std": 521.0,
+    "tonality": 56.9,
+    "level_db": -66.3
+   },
+   "notes": "referee whistle 0.44s @ 4281 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4641.82,
+   "t_start": 4641.67,
+   "t_end": 4641.96,
+   "confidence": 0.436,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 2594.0,
+    "peak_hz_std": 509.0,
+    "tonality": 28.8,
+    "level_db": -66.5
+   },
+   "notes": "referee whistle 0.29s @ 2594 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4687.72,
+   "t_start": 4687.57,
+   "t_end": 4687.86,
+   "confidence": 0.444,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 4250.0,
+    "peak_hz_std": 369.0,
+    "tonality": 30.4,
+    "level_db": -67.9
+   },
+   "notes": "referee whistle 0.29s @ 4250 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4691.19,
+   "t_start": 4691.06,
+   "t_end": 4691.31,
+   "confidence": 0.621,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2297.0,
+    "peak_hz_std": 97.0,
+    "tonality": 42.5,
+    "level_db": -70.0
+   },
+   "notes": "referee whistle 0.25s @ 2297 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4695.25,
+   "t_start": 4695.12,
+   "t_end": 4695.38,
+   "confidence": 0.583,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.26,
+    "peak_hz": 2594.0,
+    "peak_hz_std": 167.0,
+    "tonality": 33.2,
+    "level_db": -74.4
+   },
+   "notes": "referee whistle 0.26s @ 2594 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4710.02,
+   "t_start": 4709.86,
+   "t_end": 4710.19,
+   "confidence": 0.498,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 2688.0,
+    "peak_hz_std": 505.0,
+    "tonality": 34.6,
+    "level_db": -64.9
+   },
+   "notes": "referee whistle 0.33s @ 2688 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4718.97,
+   "t_start": 4718.6,
+   "t_end": 4719.33,
+   "confidence": 0.924,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.73,
+    "peak_hz": 2469.0,
+    "peak_hz_std": 156.0,
+    "tonality": 44.9,
+    "level_db": -62.2
+   },
+   "notes": "referee whistle 0.73s @ 2469 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4728.17,
+   "t_start": 4728.0,
+   "t_end": 4728.34,
+   "confidence": 0.502,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 3078.0,
+    "peak_hz_std": 302.0,
+    "tonality": 33.8,
+    "level_db": -69.0
+   },
+   "notes": "referee whistle 0.34s @ 3078 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4730.64,
+   "t_start": 4730.47,
+   "t_end": 4730.8,
+   "confidence": 0.598,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 3828.0,
+    "peak_hz_std": 633.0,
+    "tonality": 54.5,
+    "level_db": -67.5
+   },
+   "notes": "referee whistle 0.33s @ 3828 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4732.49,
+   "t_start": 4731.93,
+   "t_end": 4733.05,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.12,
+    "peak_hz": 3578.0,
+    "peak_hz_std": 264.0,
+    "tonality": 64.5,
+    "level_db": -61.3
+   },
+   "notes": "referee whistle 1.12s @ 3578 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4735.1,
+   "t_start": 4734.92,
+   "t_end": 4735.28,
+   "confidence": 0.65,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.36,
+    "peak_hz": 3016.0,
+    "peak_hz_std": 547.0,
+    "tonality": 75.3,
+    "level_db": -56.3
+   },
+   "notes": "referee whistle 0.36s @ 3016 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4736.93,
+   "t_start": 4736.7,
+   "t_end": 4737.17,
+   "confidence": 0.742,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.47,
+    "peak_hz": 2281.0,
+    "peak_hz_std": 563.0,
+    "tonality": 64.7,
+    "level_db": -55.9
+   },
+   "notes": "referee whistle 0.47s @ 2281 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4739.82,
+   "t_start": 4739.7,
+   "t_end": 4739.95,
+   "confidence": 0.541,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3672.0,
+    "peak_hz_std": 284.0,
+    "tonality": 26.6,
+    "level_db": -67.4
+   },
+   "notes": "referee whistle 0.25s @ 3672 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4745.45,
+   "t_start": 4745.33,
+   "t_end": 4745.58,
+   "confidence": 0.708,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 2266.0,
+    "peak_hz_std": 294.0,
+    "tonality": 70.4,
+    "level_db": -68.9
+   },
+   "notes": "referee whistle 0.25s @ 2266 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4747.0,
+   "t_start": 4732.0,
+   "t_end": 4752.0,
+   "confidence": 0.648,
+   "signals": {
+    "z300_speech_s5_peak": 2.15,
+    "z300_rms_peak": 2.22,
+    "rms_db_peak": -58.6,
+    "duration_s": 20.0,
+    "onset_density_mean": 0.95,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     4745.5
+    ],
+    "panns_cheering_max": 0.006,
+    "panns_applause_max": 0.003,
+    "panns_crowd_max": 0.041,
+    "panns_shout_max": 0.005,
+    "panns_speech_max": 0.895,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.043
+   },
+   "notes": "sustained speech-band level 2.1 sd above 5-min baseline for 20s; referee whistle within 5 s; PANNs cheer/shout p=0.02"
+  },
+  {
+   "type": "other",
+   "t": 4762.37,
+   "t_start": 4761.61,
+   "t_end": 4763.13,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.52,
+    "peak_hz": 2438.0,
+    "peak_hz_std": 117.0,
+    "tonality": 72.5,
+    "level_db": -57.9
+   },
+   "notes": "referee whistle 1.52s @ 2438 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4763.9,
+   "t_start": 4763.59,
+   "t_end": 4764.2,
+   "confidence": 0.78,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.61,
+    "peak_hz": 2602.0,
+    "peak_hz_std": 769.0,
+    "tonality": 46.1,
+    "level_db": -67.5
+   },
+   "notes": "referee whistle 0.61s @ 2602 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4771.88,
+   "t_start": 4771.65,
+   "t_end": 4772.1,
+   "confidence": 0.708,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.45,
+    "peak_hz": 3688.0,
+    "peak_hz_std": 355.0,
+    "tonality": 56.6,
+    "level_db": -64.9
+   },
+   "notes": "referee whistle 0.45s @ 3688 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4803.43,
+   "t_start": 4803.26,
+   "t_end": 4803.61,
+   "confidence": 0.61,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.35,
+    "peak_hz": 3547.0,
+    "peak_hz_std": 306.0,
+    "tonality": 53.7,
+    "level_db": -67.5
+   },
+   "notes": "referee whistle 0.35s @ 3547 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4813.49,
+   "t_start": 4813.26,
+   "t_end": 4813.72,
+   "confidence": 0.733,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.46,
+    "peak_hz": 2266.0,
+    "peak_hz_std": 318.0,
+    "tonality": 72.7,
+    "level_db": -74.0
+   },
+   "notes": "referee whistle 0.46s @ 2266 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4815.11,
+   "t_start": 4814.81,
+   "t_end": 4815.41,
+   "confidence": 0.762,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.6,
+    "peak_hz": 2641.0,
+    "peak_hz_std": 505.0,
+    "tonality": 42.4,
+    "level_db": -69.6
+   },
+   "notes": "referee whistle 0.6s @ 2641 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4818.6,
+   "t_start": 4818.42,
+   "t_end": 4818.77,
+   "confidence": 0.617,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.35,
+    "peak_hz": 2562.0,
+    "peak_hz_std": 755.0,
+    "tonality": 55.0,
+    "level_db": -71.3
+   },
+   "notes": "referee whistle 0.35s @ 2562 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4820.28,
+   "t_start": 4820.06,
+   "t_end": 4820.51,
+   "confidence": 0.839,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.45,
+    "peak_hz": 2484.0,
+    "peak_hz_std": 36.0,
+    "tonality": 52.7,
+    "level_db": -66.3
+   },
+   "notes": "referee whistle 0.45s @ 2484 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4840.32,
+   "t_start": 4840.18,
+   "t_end": 4840.46,
+   "confidence": 0.598,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 2281.0,
+    "peak_hz_std": 32.0,
+    "tonality": 32.9,
+    "level_db": -70.2
+   },
+   "notes": "referee whistle 0.28s @ 2281 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4880.73,
+   "t_start": 4880.52,
+   "t_end": 4880.94,
+   "confidence": 0.792,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.42,
+    "peak_hz": 2328.0,
+    "peak_hz_std": 67.0,
+    "tonality": 48.5,
+    "level_db": -68.7
+   },
+   "notes": "referee whistle 0.42s @ 2328 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4925.73,
+   "t_start": 4925.37,
+   "t_end": 4926.08,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.71,
+    "peak_hz": 2406.0,
+    "peak_hz_std": 324.0,
+    "tonality": 77.7,
+    "level_db": -63.2
+   },
+   "notes": "referee whistle 0.71s @ 2406 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4929.61,
+   "t_start": 4929.18,
+   "t_end": 4930.05,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.87,
+    "peak_hz": 3359.0,
+    "peak_hz_std": 564.0,
+    "tonality": 73.5,
+    "level_db": -70.3
+   },
+   "notes": "referee whistle 0.87s @ 3359 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4930.86,
+   "t_start": 4930.56,
+   "t_end": 4931.16,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.6,
+    "peak_hz": 3516.0,
+    "peak_hz_std": 307.0,
+    "tonality": 77.4,
+    "level_db": -65.0
+   },
+   "notes": "referee whistle 0.6s @ 3516 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4932.13,
+   "t_start": 4931.39,
+   "t_end": 4932.87,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.48,
+    "peak_hz": 3562.0,
+    "peak_hz_std": 429.0,
+    "tonality": 62.6,
+    "level_db": -61.7
+   },
+   "notes": "referee whistle 1.48s @ 3562 Hz"
+  },
+  {
+   "type": "other",
+   "t": 4966.74,
+   "t_start": 4966.52,
+   "t_end": 4966.95,
+   "confidence": 0.833,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.43,
+    "peak_hz": 3359.0,
+    "peak_hz_std": 87.0,
+    "tonality": 55.0,
+    "level_db": -62.5
+   },
+   "notes": "referee whistle 0.43s @ 3359 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4967.0,
+   "t_start": 4964.0,
+   "t_end": 4973.0,
+   "confidence": 0.575,
+   "signals": {
+    "z300_speech_s5_peak": 1.52,
+    "z300_rms_peak": 1.61,
+    "rms_db_peak": -57.2,
+    "duration_s": 9.0,
+    "onset_density_mean": 2.44,
+    "whistle_within_5s": true,
+    "whistle_times": [
+     4966.7
+    ],
+    "panns_cheering_max": 0.007,
+    "panns_applause_max": 0.012,
+    "panns_crowd_max": 0.035,
+    "panns_shout_max": 0.002,
+    "panns_speech_max": 0.854,
+    "panns_whistle_max": 0.001,
+    "panns_wind_max": 0.006
+   },
+   "notes": "sustained speech-band level 1.5 sd above 5-min baseline for 9s; referee whistle within 5 s; PANNs cheer/shout p=0.01"
+  },
+  {
+   "type": "other",
+   "t": 4977.21,
+   "t_start": 4976.93,
+   "t_end": 4977.49,
+   "confidence": 0.967,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.56,
+    "peak_hz": 2219.0,
+    "peak_hz_std": 27.0,
+    "tonality": 66.0,
+    "level_db": -62.1
+   },
+   "notes": "referee whistle 0.56s @ 2219 Hz"
+  },
+  {
+   "type": "excitement",
+   "t": 4992.0,
+   "t_start": 4989.0,
+   "t_end": 5001.0,
+   "confidence": 0.553,
+   "signals": {
+    "z300_speech_s5_peak": 1.72,
+    "z300_rms_peak": 0.94,
+    "rms_db_peak": -63.9,
+    "duration_s": 12.0,
+    "onset_density_mean": 1.0,
+    "whistle_within_5s": false,
+    "whistle_times": [],
+    "panns_cheering_max": 0.001,
+    "panns_applause_max": 0.002,
+    "panns_crowd_max": 0.041,
+    "panns_shout_max": 0.004,
+    "panns_speech_max": 0.928,
+    "panns_whistle_max": 0.0,
+    "panns_wind_max": 0.016
+   },
+   "notes": "sustained speech-band level 1.7 sd above 5-min baseline for 12s; PANNs cheer/shout p=0.03"
+  },
+  {
+   "type": "other",
+   "t": 5011.33,
+   "t_start": 5011.17,
+   "t_end": 5011.49,
+   "confidence": 0.489,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 2484.0,
+    "peak_hz_std": 665.0,
+    "tonality": 34.5,
+    "level_db": -64.3
+   },
+   "notes": "referee whistle 0.32s @ 2484 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5015.92,
+   "t_start": 5015.72,
+   "t_end": 5016.12,
+   "confidence": 0.638,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.4,
+    "peak_hz": 2891.0,
+    "peak_hz_std": 775.0,
+    "tonality": 50.9,
+    "level_db": -67.4
+   },
+   "notes": "referee whistle 0.4s @ 2891 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5017.55,
+   "t_start": 5017.37,
+   "t_end": 5017.72,
+   "confidence": 0.642,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.35,
+    "peak_hz": 2922.0,
+    "peak_hz_std": 338.0,
+    "tonality": 67.7,
+    "level_db": -70.9
+   },
+   "notes": "referee whistle 0.35s @ 2922 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5058.52,
+   "t_start": 5058.39,
+   "t_end": 5058.65,
+   "confidence": 0.523,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.26,
+    "peak_hz": 2508.0,
+    "peak_hz_std": 55.0,
+    "tonality": 21.2,
+    "level_db": -66.4
+   },
+   "notes": "referee whistle 0.26s @ 2508 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5067.84,
+   "t_start": 5067.58,
+   "t_end": 5068.11,
+   "confidence": 0.624,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.53,
+    "peak_hz": 2438.0,
+    "peak_hz_std": 711.0,
+    "tonality": 26.4,
+    "level_db": -71.2
+   },
+   "notes": "referee whistle 0.53s @ 2438 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5080.01,
+   "t_start": 5079.87,
+   "t_end": 5080.15,
+   "confidence": 0.589,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.28,
+    "peak_hz": 2375.0,
+    "peak_hz_std": 105.0,
+    "tonality": 31.2,
+    "level_db": -58.6
+   },
+   "notes": "referee whistle 0.28s @ 2375 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5080.73,
+   "t_start": 5080.56,
+   "t_end": 5080.9,
+   "confidence": 0.604,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 2359.0,
+    "peak_hz_std": 184.0,
+    "tonality": 24.2,
+    "level_db": -68.7
+   },
+   "notes": "referee whistle 0.34s @ 2359 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5087.05,
+   "t_start": 5086.71,
+   "t_end": 5087.39,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.68,
+    "peak_hz": 4219.0,
+    "peak_hz_std": 149.0,
+    "tonality": 82.3,
+    "level_db": -66.3
+   },
+   "notes": "referee whistle 0.68s @ 4219 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5091.74,
+   "t_start": 5091.55,
+   "t_end": 5091.93,
+   "confidence": 0.647,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.38,
+    "peak_hz": 2531.0,
+    "peak_hz_std": 561.0,
+    "tonality": 56.1,
+    "level_db": -70.5
+   },
+   "notes": "referee whistle 0.38s @ 2531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5128.41,
+   "t_start": 5128.25,
+   "t_end": 5128.58,
+   "confidence": 0.775,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 2312.0,
+    "peak_hz_std": 60.0,
+    "tonality": 62.0,
+    "level_db": -65.9
+   },
+   "notes": "referee whistle 0.33s @ 2312 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5128.88,
+   "t_start": 5128.74,
+   "t_end": 5129.01,
+   "confidence": 0.401,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 2281.0,
+    "peak_hz_std": 409.0,
+    "tonality": 25.2,
+    "level_db": -69.4
+   },
+   "notes": "referee whistle 0.27s @ 2281 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5133.51,
+   "t_start": 5133.11,
+   "t_end": 5133.92,
+   "confidence": 0.821,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.81,
+    "peak_hz": 2633.0,
+    "peak_hz_std": 302.0,
+    "tonality": 54.2,
+    "level_db": -59.5
+   },
+   "notes": "referee whistle 0.81s @ 2633 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5136.06,
+   "t_start": 5135.74,
+   "t_end": 5136.37,
+   "confidence": 0.858,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.63,
+    "peak_hz": 2531.0,
+    "peak_hz_std": 255.0,
+    "tonality": 31.6,
+    "level_db": -61.3
+   },
+   "notes": "referee whistle 0.63s @ 2531 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5137.51,
+   "t_start": 5137.38,
+   "t_end": 5137.65,
+   "confidence": 0.583,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3180.0,
+    "peak_hz_std": 141.0,
+    "tonality": 31.6,
+    "level_db": -64.7
+   },
+   "notes": "referee whistle 0.27s @ 3180 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5143.02,
+   "t_start": 5142.85,
+   "t_end": 5143.2,
+   "confidence": 0.642,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.35,
+    "peak_hz": 2312.0,
+    "peak_hz_std": 361.0,
+    "tonality": 95.2,
+    "level_db": -64.1
+   },
+   "notes": "referee whistle 0.35s @ 2312 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5145.26,
+   "t_start": 5144.89,
+   "t_end": 5145.62,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.73,
+    "peak_hz": 2250.0,
+    "peak_hz_std": 44.0,
+    "tonality": 101.9,
+    "level_db": -62.9
+   },
+   "notes": "referee whistle 0.73s @ 2250 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5149.0,
+   "t_start": 5148.82,
+   "t_end": 5149.18,
+   "confidence": 0.542,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.36,
+    "peak_hz": 4297.0,
+    "peak_hz_std": 579.0,
+    "tonality": 38.5,
+    "level_db": -64.5
+   },
+   "notes": "referee whistle 0.36s @ 4297 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5160.31,
+   "t_start": 5160.14,
+   "t_end": 5160.47,
+   "confidence": 0.633,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.33,
+    "peak_hz": 2500.0,
+    "peak_hz_std": 201.0,
+    "tonality": 31.5,
+    "level_db": -68.2
+   },
+   "notes": "referee whistle 0.33s @ 2500 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5178.47,
+   "t_start": 5178.13,
+   "t_end": 5178.81,
+   "confidence": 0.745,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.68,
+    "peak_hz": 2375.0,
+    "peak_hz_std": 797.0,
+    "tonality": 39.0,
+    "level_db": -61.8
+   },
+   "notes": "referee whistle 0.68s @ 2375 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5194.33,
+   "t_start": 5194.08,
+   "t_end": 5194.58,
+   "confidence": 0.833,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.5,
+    "peak_hz": 3305.0,
+    "peak_hz_std": 234.0,
+    "tonality": 43.3,
+    "level_db": -60.3
+   },
+   "notes": "referee whistle 0.5s @ 3305 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5195.57,
+   "t_start": 5195.21,
+   "t_end": 5195.94,
+   "confidence": 0.769,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.73,
+    "peak_hz": 2844.0,
+    "peak_hz_std": 403.0,
+    "tonality": 43.8,
+    "level_db": -62.4
+   },
+   "notes": "referee whistle 0.73s @ 2844 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5207.44,
+   "t_start": 5206.82,
+   "t_end": 5208.07,
+   "confidence": 0.85,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 1.25,
+    "peak_hz": 3359.0,
+    "peak_hz_std": 424.0,
+    "tonality": 61.6,
+    "level_db": -58.7
+   },
+   "notes": "referee whistle 1.25s @ 3359 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5223.26,
+   "t_start": 5223.13,
+   "t_end": 5223.38,
+   "confidence": 0.605,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.25,
+    "peak_hz": 3156.0,
+    "peak_hz_std": 117.0,
+    "tonality": 39.4,
+    "level_db": -67.2
+   },
+   "notes": "referee whistle 0.25s @ 3156 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5225.44,
+   "t_start": 5225.31,
+   "t_end": 5225.57,
+   "confidence": 0.375,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.26,
+    "peak_hz": 3172.0,
+    "peak_hz_std": 314.0,
+    "tonality": 21.7,
+    "level_db": -69.9
+   },
+   "notes": "referee whistle 0.26s @ 3172 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5241.73,
+   "t_start": 5241.56,
+   "t_end": 5241.9,
+   "confidence": 0.439,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 2703.0,
+    "peak_hz_std": 796.0,
+    "tonality": 21.1,
+    "level_db": -76.2
+   },
+   "notes": "referee whistle 0.34s @ 2703 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5244.23,
+   "t_start": 5244.08,
+   "t_end": 5244.37,
+   "confidence": 0.444,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.29,
+    "peak_hz": 3141.0,
+    "peak_hz_std": 538.0,
+    "tonality": 30.4,
+    "level_db": -65.6
+   },
+   "notes": "referee whistle 0.29s @ 3141 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5268.12,
+   "t_start": 5267.96,
+   "t_end": 5268.28,
+   "confidence": 0.767,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.32,
+    "peak_hz": 2328.0,
+    "peak_hz_std": 57.0,
+    "tonality": 65.1,
+    "level_db": -72.8
+   },
+   "notes": "referee whistle 0.32s @ 2328 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5286.23,
+   "t_start": 5286.03,
+   "t_end": 5286.43,
+   "confidence": 0.833,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.4,
+    "peak_hz": 2227.0,
+    "peak_hz_std": 297.0,
+    "tonality": 87.4,
+    "level_db": -66.3
+   },
+   "notes": "referee whistle 0.4s @ 2227 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5289.7,
+   "t_start": 5289.48,
+   "t_end": 5289.92,
+   "confidence": 0.781,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.44,
+    "peak_hz": 4234.0,
+    "peak_hz_std": 263.0,
+    "tonality": 42.9,
+    "level_db": -62.2
+   },
+   "notes": "referee whistle 0.44s @ 4234 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5304.73,
+   "t_start": 5304.59,
+   "t_end": 5304.86,
+   "confidence": 0.544,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.27,
+    "peak_hz": 3609.0,
+    "peak_hz_std": 353.0,
+    "tonality": 53.9,
+    "level_db": -63.7
+   },
+   "notes": "referee whistle 0.27s @ 3609 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5313.76,
+   "t_start": 5313.6,
+   "t_end": 5313.91,
+   "confidence": 0.606,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.31,
+    "peak_hz": 2281.0,
+    "peak_hz_std": 193.0,
+    "tonality": 29.5,
+    "level_db": -67.8
+   },
+   "notes": "referee whistle 0.31s @ 2281 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5318.19,
+   "t_start": 5317.97,
+   "t_end": 5318.42,
+   "confidence": 0.69,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.45,
+    "peak_hz": 2453.0,
+    "peak_hz_std": 530.0,
+    "tonality": 53.0,
+    "level_db": -64.7
+   },
+   "notes": "referee whistle 0.45s @ 2453 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5319.94,
+   "t_start": 5319.59,
+   "t_end": 5320.29,
+   "confidence": 1.0,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.7,
+    "peak_hz": 2469.0,
+    "peak_hz_std": 176.0,
+    "tonality": 78.0,
+    "level_db": -70.0
+   },
+   "notes": "referee whistle 0.7s @ 2469 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5324.98,
+   "t_start": 5324.75,
+   "t_end": 5325.21,
+   "confidence": 0.539,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.46,
+    "peak_hz": 2250.0,
+    "peak_hz_std": 755.0,
+    "tonality": 21.1,
+    "level_db": -65.4
+   },
+   "notes": "referee whistle 0.46s @ 2250 Hz"
+  },
+  {
+   "type": "other",
+   "t": 5327.56,
+   "t_start": 5327.39,
+   "t_end": 5327.73,
+   "confidence": 0.765,
+   "signals": {
+    "kind": "whistle",
+    "warmup": false,
+    "duration_s": 0.34,
+    "peak_hz": 4297.0,
+    "peak_hz_std": 152.0,
+    "tonality": 56.4,
+    "level_db": -62.8
+   },
+   "notes": "referee whistle 0.34s @ 4297 Hz"
+  }
+ ],
+ "notes": "audio track: grassroots match, tiny crowd; excitement = sustained speech-band elevation vs rolling 300 s baseline. No >=2 min low-activity stretch found (half-time likely cut from the video).",
+ "half_time_gap": null,
+ "match_start_s": 1020.0
+}

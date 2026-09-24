@@ -1,0 +1,1805 @@
+{
+ "source": "audio",
+ "whistles": [
+  {
+   "t_start": 46.37,
+   "t_end": 46.78,
+   "duration_s": 0.41,
+   "peak_hz": 4406.0,
+   "peak_hz_std": 866.0,
+   "tonality": 26.8,
+   "level_db": -65.9
+  },
+  {
+   "t_start": 178.64,
+   "t_end": 178.92,
+   "duration_s": 0.28,
+   "peak_hz": 3062.0,
+   "peak_hz_std": 78.0,
+   "tonality": 49.9,
+   "level_db": -63.4
+  },
+  {
+   "t_start": 180.44,
+   "t_end": 183.09,
+   "duration_s": 2.65,
+   "peak_hz": 2906.0,
+   "peak_hz_std": 152.0,
+   "tonality": 60.6,
+   "level_db": -60.4
+  },
+  {
+   "t_start": 183.25,
+   "t_end": 187.67,
+   "duration_s": 4.42,
+   "peak_hz": 2938.0,
+   "peak_hz_std": 159.0,
+   "tonality": 80.7,
+   "level_db": -61.9
+  },
+  {
+   "t_start": 188.26,
+   "t_end": 188.72,
+   "duration_s": 0.46,
+   "peak_hz": 2906.0,
+   "peak_hz_std": 149.0,
+   "tonality": 56.6,
+   "level_db": -67.3
+  },
+  {
+   "t_start": 188.89,
+   "t_end": 191.21,
+   "duration_s": 2.32,
+   "peak_hz": 2938.0,
+   "peak_hz_std": 147.0,
+   "tonality": 66.2,
+   "level_db": -59.7
+  },
+  {
+   "t_start": 353.26,
+   "t_end": 353.52,
+   "duration_s": 0.26,
+   "peak_hz": 3406.0,
+   "peak_hz_std": 7.0,
+   "tonality": 91.2,
+   "level_db": -77.3
+  },
+  {
+   "t_start": 652.21,
+   "t_end": 653.12,
+   "duration_s": 0.91,
+   "peak_hz": 3234.0,
+   "peak_hz_std": 309.0,
+   "tonality": 65.4,
+   "level_db": -48.6
+  },
+  {
+   "t_start": 667.92,
+   "t_end": 668.22,
+   "duration_s": 0.3,
+   "peak_hz": 2734.0,
+   "peak_hz_std": 398.0,
+   "tonality": 44.4,
+   "level_db": -62.5
+  },
+  {
+   "t_start": 683.08,
+   "t_end": 683.33,
+   "duration_s": 0.25,
+   "peak_hz": 2625.0,
+   "peak_hz_std": 498.0,
+   "tonality": 23.3,
+   "level_db": -63.7
+  },
+  {
+   "t_start": 683.51,
+   "t_end": 683.76,
+   "duration_s": 0.25,
+   "peak_hz": 3422.0,
+   "peak_hz_std": 367.0,
+   "tonality": 35.6,
+   "level_db": -66.7
+  },
+  {
+   "t_start": 691.45,
+   "t_end": 691.93,
+   "duration_s": 0.48,
+   "peak_hz": 3297.0,
+   "peak_hz_std": 432.0,
+   "tonality": 44.3,
+   "level_db": -66.1
+  },
+  {
+   "t_start": 692.39,
+   "t_end": 692.79,
+   "duration_s": 0.4,
+   "peak_hz": 2805.0,
+   "peak_hz_std": 563.0,
+   "tonality": 35.6,
+   "level_db": -61.4
+  },
+  {
+   "t_start": 693.2,
+   "t_end": 693.49,
+   "duration_s": 0.29,
+   "peak_hz": 3469.0,
+   "peak_hz_std": 78.0,
+   "tonality": 38.8,
+   "level_db": -62.5
+  },
+  {
+   "t_start": 1017.47,
+   "t_end": 1017.79,
+   "duration_s": 0.32,
+   "peak_hz": 3469.0,
+   "peak_hz_std": 359.0,
+   "tonality": 25.2,
+   "level_db": -65.1
+  },
+  {
+   "t_start": 1164.1,
+   "t_end": 1164.37,
+   "duration_s": 0.27,
+   "peak_hz": 3766.0,
+   "peak_hz_std": 48.0,
+   "tonality": 38.5,
+   "level_db": -67.7
+  },
+  {
+   "t_start": 1296.23,
+   "t_end": 1296.66,
+   "duration_s": 0.43,
+   "peak_hz": 2688.0,
+   "peak_hz_std": 668.0,
+   "tonality": 32.8,
+   "level_db": -67.3
+  },
+  {
+   "t_start": 1350.34,
+   "t_end": 1350.63,
+   "duration_s": 0.29,
+   "peak_hz": 2859.0,
+   "peak_hz_std": 486.0,
+   "tonality": 28.1,
+   "level_db": -62.5
+  },
+  {
+   "t_start": 1353.02,
+   "t_end": 1353.42,
+   "duration_s": 0.4,
+   "peak_hz": 3781.0,
+   "peak_hz_std": 95.0,
+   "tonality": 35.5,
+   "level_db": -53.5
+  },
+  {
+   "t_start": 1358.83,
+   "t_end": 1359.44,
+   "duration_s": 0.61,
+   "peak_hz": 3688.0,
+   "peak_hz_std": 257.0,
+   "tonality": 72.9,
+   "level_db": -65.3
+  },
+  {
+   "t_start": 1373.98,
+   "t_end": 1374.29,
+   "duration_s": 0.31,
+   "peak_hz": 3250.0,
+   "peak_hz_std": 328.0,
+   "tonality": 67.9,
+   "level_db": -61.5
+  },
+  {
+   "t_start": 1462.42,
+   "t_end": 1463.39,
+   "duration_s": 0.97,
+   "peak_hz": 2406.0,
+   "peak_hz_std": 357.0,
+   "tonality": 47.3,
+   "level_db": -64.8
+  },
+  {
+   "t_start": 1499.82,
+   "t_end": 1500.33,
+   "duration_s": 0.51,
+   "peak_hz": 2266.0,
+   "peak_hz_std": 248.0,
+   "tonality": 68.2,
+   "level_db": -68.3
+  },
+  {
+   "t_start": 1615.28,
+   "t_end": 1615.87,
+   "duration_s": 0.59,
+   "peak_hz": 2672.0,
+   "peak_hz_std": 152.0,
+   "tonality": 42.4,
+   "level_db": -60.8
+  },
+  {
+   "t_start": 1661.16,
+   "t_end": 1661.6,
+   "duration_s": 0.44,
+   "peak_hz": 2703.0,
+   "peak_hz_std": 215.0,
+   "tonality": 70.8,
+   "level_db": -73.2
+  },
+  {
+   "t_start": 1668.89,
+   "t_end": 1669.3,
+   "duration_s": 0.41,
+   "peak_hz": 3367.0,
+   "peak_hz_std": 727.0,
+   "tonality": 61.8,
+   "level_db": -58.5
+  },
+  {
+   "t_start": 1707.77,
+   "t_end": 1708.05,
+   "duration_s": 0.28,
+   "peak_hz": 2297.0,
+   "peak_hz_std": 8.0,
+   "tonality": 85.8,
+   "level_db": -62.6
+  },
+  {
+   "t_start": 1715.28,
+   "t_end": 1715.62,
+   "duration_s": 0.34,
+   "peak_hz": 3625.0,
+   "peak_hz_std": 100.0,
+   "tonality": 28.3,
+   "level_db": -68.8
+  },
+  {
+   "t_start": 1767.19,
+   "t_end": 1767.44,
+   "duration_s": 0.25,
+   "peak_hz": 2781.0,
+   "peak_hz_std": 194.0,
+   "tonality": 49.7,
+   "level_db": -70.4
+  },
+  {
+   "t_start": 1790.7,
+   "t_end": 1791.51,
+   "duration_s": 0.81,
+   "peak_hz": 2938.0,
+   "peak_hz_std": 199.0,
+   "tonality": 48.5,
+   "level_db": -59.2
+  },
+  {
+   "t_start": 1848.68,
+   "t_end": 1848.95,
+   "duration_s": 0.27,
+   "peak_hz": 3438.0,
+   "peak_hz_std": 395.0,
+   "tonality": 23.7,
+   "level_db": -65.9
+  },
+  {
+   "t_start": 1874.64,
+   "t_end": 1875.23,
+   "duration_s": 0.59,
+   "peak_hz": 3000.0,
+   "peak_hz_std": 54.0,
+   "tonality": 64.4,
+   "level_db": -61.9
+  },
+  {
+   "t_start": 1894.08,
+   "t_end": 1894.39,
+   "duration_s": 0.31,
+   "peak_hz": 2422.0,
+   "peak_hz_std": 317.0,
+   "tonality": 47.7,
+   "level_db": -72.7
+  },
+  {
+   "t_start": 1925.8,
+   "t_end": 1926.05,
+   "duration_s": 0.25,
+   "peak_hz": 2438.0,
+   "peak_hz_std": 476.0,
+   "tonality": 71.5,
+   "level_db": -67.9
+  },
+  {
+   "t_start": 2022.56,
+   "t_end": 2022.88,
+   "duration_s": 0.32,
+   "peak_hz": 3250.0,
+   "peak_hz_std": 186.0,
+   "tonality": 21.8,
+   "level_db": -70.3
+  },
+  {
+   "t_start": 2048.59,
+   "t_end": 2048.96,
+   "duration_s": 0.37,
+   "peak_hz": 3609.0,
+   "peak_hz_std": 58.0,
+   "tonality": 87.4,
+   "level_db": -67.3
+  },
+  {
+   "t_start": 2061.17,
+   "t_end": 2061.49,
+   "duration_s": 0.32,
+   "peak_hz": 3078.0,
+   "peak_hz_std": 237.0,
+   "tonality": 41.5,
+   "level_db": -61.8
+  },
+  {
+   "t_start": 2108.61,
+   "t_end": 2109.0,
+   "duration_s": 0.39,
+   "peak_hz": 3625.0,
+   "peak_hz_std": 502.0,
+   "tonality": 33.7,
+   "level_db": -64.4
+  },
+  {
+   "t_start": 2161.1,
+   "t_end": 2161.87,
+   "duration_s": 0.77,
+   "peak_hz": 3547.0,
+   "peak_hz_std": 769.0,
+   "tonality": 48.5,
+   "level_db": -62.4
+  },
+  {
+   "t_start": 2163.06,
+   "t_end": 2163.79,
+   "duration_s": 0.73,
+   "peak_hz": 3391.0,
+   "peak_hz_std": 488.0,
+   "tonality": 80.3,
+   "level_db": -61.2
+  },
+  {
+   "t_start": 2243.47,
+   "t_end": 2243.81,
+   "duration_s": 0.34,
+   "peak_hz": 2688.0,
+   "peak_hz_std": 314.0,
+   "tonality": 19.6,
+   "level_db": -61.8
+  },
+  {
+   "t_start": 2244.3,
+   "t_end": 2244.71,
+   "duration_s": 0.41,
+   "peak_hz": 3500.0,
+   "peak_hz_std": 210.0,
+   "tonality": 73.9,
+   "level_db": -59.4
+  },
+  {
+   "t_start": 2245.08,
+   "t_end": 2245.4,
+   "duration_s": 0.32,
+   "peak_hz": 3211.0,
+   "peak_hz_std": 218.0,
+   "tonality": 54.0,
+   "level_db": -64.2
+  },
+  {
+   "t_start": 2248.86,
+   "t_end": 2249.45,
+   "duration_s": 0.59,
+   "peak_hz": 3531.0,
+   "peak_hz_std": 532.0,
+   "tonality": 20.8,
+   "level_db": -63.5
+  },
+  {
+   "t_start": 2252.15,
+   "t_end": 2252.53,
+   "duration_s": 0.38,
+   "peak_hz": 3156.0,
+   "peak_hz_std": 407.0,
+   "tonality": 39.0,
+   "level_db": -63.5
+  },
+  {
+   "t_start": 2357.26,
+   "t_end": 2357.51,
+   "duration_s": 0.25,
+   "peak_hz": 3734.0,
+   "peak_hz_std": 352.0,
+   "tonality": 35.6,
+   "level_db": -68.4
+  },
+  {
+   "t_start": 2365.69,
+   "t_end": 2366.14,
+   "duration_s": 0.45,
+   "peak_hz": 3266.0,
+   "peak_hz_std": 105.0,
+   "tonality": 36.3,
+   "level_db": -61.0
+  },
+  {
+   "t_start": 2450.82,
+   "t_end": 2451.1,
+   "duration_s": 0.28,
+   "peak_hz": 2359.0,
+   "peak_hz_std": 33.0,
+   "tonality": 52.5,
+   "level_db": -63.4
+  },
+  {
+   "t_start": 2473.48,
+   "t_end": 2473.75,
+   "duration_s": 0.27,
+   "peak_hz": 3062.0,
+   "peak_hz_std": 379.0,
+   "tonality": 63.5,
+   "level_db": -63.8
+  },
+  {
+   "t_start": 2485.79,
+   "t_end": 2486.11,
+   "duration_s": 0.32,
+   "peak_hz": 2930.0,
+   "peak_hz_std": 271.0,
+   "tonality": 35.5,
+   "level_db": -57.4
+  },
+  {
+   "t_start": 2511.13,
+   "t_end": 2511.55,
+   "duration_s": 0.42,
+   "peak_hz": 3273.0,
+   "peak_hz_std": 437.0,
+   "tonality": 58.8,
+   "level_db": -57.0
+  },
+  {
+   "t_start": 2511.82,
+   "t_end": 2512.35,
+   "duration_s": 0.53,
+   "peak_hz": 3531.0,
+   "peak_hz_std": 303.0,
+   "tonality": 62.9,
+   "level_db": -60.6
+  },
+  {
+   "t_start": 2584.99,
+   "t_end": 2585.58,
+   "duration_s": 0.59,
+   "peak_hz": 3375.0,
+   "peak_hz_std": 321.0,
+   "tonality": 46.8,
+   "level_db": -65.8
+  },
+  {
+   "t_start": 2585.8,
+   "t_end": 2586.63,
+   "duration_s": 0.83,
+   "peak_hz": 2656.0,
+   "peak_hz_std": 172.0,
+   "tonality": 51.0,
+   "level_db": -60.0
+  },
+  {
+   "t_start": 2591.93,
+   "t_end": 2592.61,
+   "duration_s": 0.68,
+   "peak_hz": 3445.0,
+   "peak_hz_std": 505.0,
+   "tonality": 67.8,
+   "level_db": -64.5
+  },
+  {
+   "t_start": 2597.04,
+   "t_end": 2597.33,
+   "duration_s": 0.29,
+   "peak_hz": 3312.0,
+   "peak_hz_std": 546.0,
+   "tonality": 55.3,
+   "level_db": -67.4
+  },
+  {
+   "t_start": 2597.79,
+   "t_end": 2598.32,
+   "duration_s": 0.53,
+   "peak_hz": 3344.0,
+   "peak_hz_std": 600.0,
+   "tonality": 42.1,
+   "level_db": -69.8
+  },
+  {
+   "t_start": 2600.11,
+   "t_end": 2600.4,
+   "duration_s": 0.29,
+   "peak_hz": 3375.0,
+   "peak_hz_std": 291.0,
+   "tonality": 40.6,
+   "level_db": -63.1
+  },
+  {
+   "t_start": 2616.74,
+   "t_end": 2617.01,
+   "duration_s": 0.27,
+   "peak_hz": 2266.0,
+   "peak_hz_std": 105.0,
+   "tonality": 61.1,
+   "level_db": -58.9
+  },
+  {
+   "t_start": 2639.91,
+   "t_end": 2640.24,
+   "duration_s": 0.33,
+   "peak_hz": 3828.0,
+   "peak_hz_std": 310.0,
+   "tonality": 36.1,
+   "level_db": -56.0
+  },
+  {
+   "t_start": 2641.04,
+   "t_end": 2641.29,
+   "duration_s": 0.25,
+   "peak_hz": 3109.0,
+   "peak_hz_std": 149.0,
+   "tonality": 30.1,
+   "level_db": -62.5
+  },
+  {
+   "t_start": 2680.12,
+   "t_end": 2680.5,
+   "duration_s": 0.38,
+   "peak_hz": 3125.0,
+   "peak_hz_std": 112.0,
+   "tonality": 22.5,
+   "level_db": -48.0
+  },
+  {
+   "t_start": 2694.89,
+   "t_end": 2695.26,
+   "duration_s": 0.37,
+   "peak_hz": 4336.0,
+   "peak_hz_std": 287.0,
+   "tonality": 25.2,
+   "level_db": -48.2
+  },
+  {
+   "t_start": 2729.97,
+   "t_end": 2730.62,
+   "duration_s": 0.65,
+   "peak_hz": 2844.0,
+   "peak_hz_std": 276.0,
+   "tonality": 44.2,
+   "level_db": -65.1
+  },
+  {
+   "t_start": 2733.15,
+   "t_end": 2733.53,
+   "duration_s": 0.38,
+   "peak_hz": 3516.0,
+   "peak_hz_std": 611.0,
+   "tonality": 44.2,
+   "level_db": -64.4
+  },
+  {
+   "t_start": 2733.86,
+   "t_end": 2734.27,
+   "duration_s": 0.41,
+   "peak_hz": 3469.0,
+   "peak_hz_std": 429.0,
+   "tonality": 34.7,
+   "level_db": -65.8
+  },
+  {
+   "t_start": 2736.47,
+   "t_end": 2737.23,
+   "duration_s": 0.76,
+   "peak_hz": 3016.0,
+   "peak_hz_std": 18.0,
+   "tonality": 76.5,
+   "level_db": -54.7
+  },
+  {
+   "t_start": 2738.87,
+   "t_end": 2739.4,
+   "duration_s": 0.53,
+   "peak_hz": 3312.0,
+   "peak_hz_std": 542.0,
+   "tonality": 38.2,
+   "level_db": -66.0
+  },
+  {
+   "t_start": 2740.15,
+   "t_end": 2740.4,
+   "duration_s": 0.25,
+   "peak_hz": 2609.0,
+   "peak_hz_std": 343.0,
+   "tonality": 25.4,
+   "level_db": -66.5
+  },
+  {
+   "t_start": 2862.15,
+   "t_end": 2862.61,
+   "duration_s": 0.46,
+   "peak_hz": 3547.0,
+   "peak_hz_std": 423.0,
+   "tonality": 95.8,
+   "level_db": -51.2
+  },
+  {
+   "t_start": 2863.41,
+   "t_end": 2863.81,
+   "duration_s": 0.4,
+   "peak_hz": 3742.0,
+   "peak_hz_std": 320.0,
+   "tonality": 39.4,
+   "level_db": -55.9
+  },
+  {
+   "t_start": 2874.28,
+   "t_end": 2874.79,
+   "duration_s": 0.51,
+   "peak_hz": 3484.0,
+   "peak_hz_std": 69.0,
+   "tonality": 65.5,
+   "level_db": -69.4
+  },
+  {
+   "t_start": 2893.98,
+   "t_end": 2894.33,
+   "duration_s": 0.35,
+   "peak_hz": 3070.0,
+   "peak_hz_std": 76.0,
+   "tonality": 50.6,
+   "level_db": -64.8
+  },
+  {
+   "t_start": 2936.52,
+   "t_end": 2937.52,
+   "duration_s": 1.0,
+   "peak_hz": 2570.0,
+   "peak_hz_std": 201.0,
+   "tonality": 41.9,
+   "level_db": -57.6
+  },
+  {
+   "t_start": 2965.74,
+   "t_end": 2966.03,
+   "duration_s": 0.29,
+   "peak_hz": 3609.0,
+   "peak_hz_std": 103.0,
+   "tonality": 66.7,
+   "level_db": -64.1
+  },
+  {
+   "t_start": 3023.96,
+   "t_end": 3024.55,
+   "duration_s": 0.59,
+   "peak_hz": 2984.0,
+   "peak_hz_std": 0.0,
+   "tonality": 97.6,
+   "level_db": -65.9
+  },
+  {
+   "t_start": 3024.75,
+   "t_end": 3025.59,
+   "duration_s": 0.84,
+   "peak_hz": 2984.0,
+   "peak_hz_std": 0.0,
+   "tonality": 88.7,
+   "level_db": -63.5
+  },
+  {
+   "t_start": 3028.85,
+   "t_end": 3029.13,
+   "duration_s": 0.28,
+   "peak_hz": 2984.0,
+   "peak_hz_std": 0.0,
+   "tonality": 98.7,
+   "level_db": -72.3
+  },
+  {
+   "t_start": 3056.3,
+   "t_end": 3057.04,
+   "duration_s": 0.74,
+   "peak_hz": 3516.0,
+   "peak_hz_std": 246.0,
+   "tonality": 59.6,
+   "level_db": -55.5
+  },
+  {
+   "t_start": 3061.73,
+   "t_end": 3062.39,
+   "duration_s": 0.66,
+   "peak_hz": 3719.0,
+   "peak_hz_std": 233.0,
+   "tonality": 42.6,
+   "level_db": -59.8
+  },
+  {
+   "t_start": 3079.4,
+   "t_end": 3080.17,
+   "duration_s": 0.77,
+   "peak_hz": 2859.0,
+   "peak_hz_std": 360.0,
+   "tonality": 36.0,
+   "level_db": -61.6
+  },
+  {
+   "t_start": 3100.22,
+   "t_end": 3100.62,
+   "duration_s": 0.4,
+   "peak_hz": 2922.0,
+   "peak_hz_std": 231.0,
+   "tonality": 63.5,
+   "level_db": -67.1
+  },
+  {
+   "t_start": 3108.1,
+   "t_end": 3108.39,
+   "duration_s": 0.29,
+   "peak_hz": 3055.0,
+   "peak_hz_std": 465.0,
+   "tonality": 23.3,
+   "level_db": -61.8
+  },
+  {
+   "t_start": 3132.82,
+   "t_end": 3133.07,
+   "duration_s": 0.25,
+   "peak_hz": 3672.0,
+   "peak_hz_std": 95.0,
+   "tonality": 24.9,
+   "level_db": -65.6
+  },
+  {
+   "t_start": 3364.65,
+   "t_end": 3364.9,
+   "duration_s": 0.25,
+   "peak_hz": 2531.0,
+   "peak_hz_std": 264.0,
+   "tonality": 37.7,
+   "level_db": -60.6
+  },
+  {
+   "t_start": 3397.32,
+   "t_end": 3397.57,
+   "duration_s": 0.25,
+   "peak_hz": 2359.0,
+   "peak_hz_std": 34.0,
+   "tonality": 25.6,
+   "level_db": -59.3
+  },
+  {
+   "t_start": 3466.05,
+   "t_end": 3466.36,
+   "duration_s": 0.31,
+   "peak_hz": 3438.0,
+   "peak_hz_std": 163.0,
+   "tonality": 39.2,
+   "level_db": -59.3
+  },
+  {
+   "t_start": 3486.6,
+   "t_end": 3486.85,
+   "duration_s": 0.25,
+   "peak_hz": 3031.0,
+   "peak_hz_std": 197.0,
+   "tonality": 31.4,
+   "level_db": -67.5
+  },
+  {
+   "t_start": 3523.33,
+   "t_end": 3523.76,
+   "duration_s": 0.43,
+   "peak_hz": 2391.0,
+   "peak_hz_std": 493.0,
+   "tonality": 40.5,
+   "level_db": -56.6
+  },
+  {
+   "t_start": 3535.42,
+   "t_end": 3535.81,
+   "duration_s": 0.39,
+   "peak_hz": 2547.0,
+   "peak_hz_std": 898.0,
+   "tonality": 61.9,
+   "level_db": -69.9
+  },
+  {
+   "t_start": 3605.49,
+   "t_end": 3605.75,
+   "duration_s": 0.26,
+   "peak_hz": 3531.0,
+   "peak_hz_std": 737.0,
+   "tonality": 30.0,
+   "level_db": -63.3
+  },
+  {
+   "t_start": 3634.73,
+   "t_end": 3635.21,
+   "duration_s": 0.48,
+   "peak_hz": 3422.0,
+   "peak_hz_std": 476.0,
+   "tonality": 27.0,
+   "level_db": -63.0
+  },
+  {
+   "t_start": 3646.2,
+   "t_end": 3646.88,
+   "duration_s": 0.68,
+   "peak_hz": 3578.0,
+   "peak_hz_std": 119.0,
+   "tonality": 49.3,
+   "level_db": -61.5
+  },
+  {
+   "t_start": 3648.43,
+   "t_end": 3648.68,
+   "duration_s": 0.25,
+   "peak_hz": 3805.0,
+   "peak_hz_std": 133.0,
+   "tonality": 41.2,
+   "level_db": -72.9
+  },
+  {
+   "t_start": 3648.88,
+   "t_end": 3649.14,
+   "duration_s": 0.26,
+   "peak_hz": 3328.0,
+   "peak_hz_std": 129.0,
+   "tonality": 29.3,
+   "level_db": -73.2
+  },
+  {
+   "t_start": 3657.52,
+   "t_end": 3657.98,
+   "duration_s": 0.46,
+   "peak_hz": 3234.0,
+   "peak_hz_std": 263.0,
+   "tonality": 41.1,
+   "level_db": -70.2
+  },
+  {
+   "t_start": 3692.91,
+   "t_end": 3693.45,
+   "duration_s": 0.54,
+   "peak_hz": 3844.0,
+   "peak_hz_std": 553.0,
+   "tonality": 34.8,
+   "level_db": -48.5
+  },
+  {
+   "t_start": 3694.99,
+   "t_end": 3695.24,
+   "duration_s": 0.25,
+   "peak_hz": 2891.0,
+   "peak_hz_std": 467.0,
+   "tonality": 24.6,
+   "level_db": -64.3
+  },
+  {
+   "t_start": 3801.53,
+   "t_end": 3801.91,
+   "duration_s": 0.38,
+   "peak_hz": 3359.0,
+   "peak_hz_std": 286.0,
+   "tonality": 42.6,
+   "level_db": -68.5
+  },
+  {
+   "t_start": 3915.46,
+   "t_end": 3915.75,
+   "duration_s": 0.29,
+   "peak_hz": 2797.0,
+   "peak_hz_std": 646.0,
+   "tonality": 26.7,
+   "level_db": -63.5
+  },
+  {
+   "t_start": 3942.75,
+   "t_end": 3943.3,
+   "duration_s": 0.55,
+   "peak_hz": 3594.0,
+   "peak_hz_std": 47.0,
+   "tonality": 37.1,
+   "level_db": -61.1
+  },
+  {
+   "t_start": 3953.2,
+   "t_end": 3953.53,
+   "duration_s": 0.33,
+   "peak_hz": 4469.0,
+   "peak_hz_std": 269.0,
+   "tonality": 33.5,
+   "level_db": -49.2
+  },
+  {
+   "t_start": 3989.39,
+   "t_end": 3989.71,
+   "duration_s": 0.32,
+   "peak_hz": 2617.0,
+   "peak_hz_std": 431.0,
+   "tonality": 35.0,
+   "level_db": -60.4
+  },
+  {
+   "t_start": 3997.11,
+   "t_end": 3998.09,
+   "duration_s": 0.98,
+   "peak_hz": 3625.0,
+   "peak_hz_std": 433.0,
+   "tonality": 44.2,
+   "level_db": -49.7
+  },
+  {
+   "t_start": 4001.1,
+   "t_end": 4001.37,
+   "duration_s": 0.27,
+   "peak_hz": 2219.0,
+   "peak_hz_std": 28.0,
+   "tonality": 22.8,
+   "level_db": -64.4
+  },
+  {
+   "t_start": 4025.15,
+   "t_end": 4025.66,
+   "duration_s": 0.51,
+   "peak_hz": 3562.0,
+   "peak_hz_std": 189.0,
+   "tonality": 36.8,
+   "level_db": -66.6
+  },
+  {
+   "t_start": 4034.76,
+   "t_end": 4035.03,
+   "duration_s": 0.27,
+   "peak_hz": 3539.0,
+   "peak_hz_std": 62.0,
+   "tonality": 56.0,
+   "level_db": -64.9
+  },
+  {
+   "t_start": 4038.17,
+   "t_end": 4039.21,
+   "duration_s": 1.04,
+   "peak_hz": 3719.0,
+   "peak_hz_std": 340.0,
+   "tonality": 47.0,
+   "level_db": -56.9
+  },
+  {
+   "t_start": 4095.18,
+   "t_end": 4095.78,
+   "duration_s": 0.6,
+   "peak_hz": 3430.0,
+   "peak_hz_std": 131.0,
+   "tonality": 92.8,
+   "level_db": -62.8
+  },
+  {
+   "t_start": 4141.65,
+   "t_end": 4141.93,
+   "duration_s": 0.28,
+   "peak_hz": 3578.0,
+   "peak_hz_std": 81.0,
+   "tonality": 31.1,
+   "level_db": -68.8
+  },
+  {
+   "t_start": 4185.49,
+   "t_end": 4185.78,
+   "duration_s": 0.29,
+   "peak_hz": 3375.0,
+   "peak_hz_std": 177.0,
+   "tonality": 34.3,
+   "level_db": -71.8
+  },
+  {
+   "t_start": 4235.72,
+   "t_end": 4236.2,
+   "duration_s": 0.48,
+   "peak_hz": 2352.0,
+   "peak_hz_std": 75.0,
+   "tonality": 75.2,
+   "level_db": -63.8
+  },
+  {
+   "t_start": 4237.8,
+   "t_end": 4238.07,
+   "duration_s": 0.27,
+   "peak_hz": 2312.0,
+   "peak_hz_std": 42.0,
+   "tonality": 58.7,
+   "level_db": -67.8
+  },
+  {
+   "t_start": 4373.82,
+   "t_end": 4374.96,
+   "duration_s": 1.14,
+   "peak_hz": 3156.0,
+   "peak_hz_std": 550.0,
+   "tonality": 54.6,
+   "level_db": -62.2
+  },
+  {
+   "t_start": 4387.19,
+   "t_end": 4387.68,
+   "duration_s": 0.49,
+   "peak_hz": 2453.0,
+   "peak_hz_std": 73.0,
+   "tonality": 72.0,
+   "level_db": -66.7
+  },
+  {
+   "t_start": 4390.04,
+   "t_end": 4390.29,
+   "duration_s": 0.25,
+   "peak_hz": 2289.0,
+   "peak_hz_std": 29.0,
+   "tonality": 19.4,
+   "level_db": -69.9
+  },
+  {
+   "t_start": 4430.81,
+   "t_end": 4431.22,
+   "duration_s": 0.41,
+   "peak_hz": 4188.0,
+   "peak_hz_std": 926.0,
+   "tonality": 27.9,
+   "level_db": -56.1
+  },
+  {
+   "t_start": 4459.67,
+   "t_end": 4460.37,
+   "duration_s": 0.7,
+   "peak_hz": 3031.0,
+   "peak_hz_std": 392.0,
+   "tonality": 77.6,
+   "level_db": -59.8
+  },
+  {
+   "t_start": 4461.65,
+   "t_end": 4462.1,
+   "duration_s": 0.45,
+   "peak_hz": 2562.0,
+   "peak_hz_std": 311.0,
+   "tonality": 33.7,
+   "level_db": -68.5
+  },
+  {
+   "t_start": 4463.15,
+   "t_end": 4463.45,
+   "duration_s": 0.3,
+   "peak_hz": 2711.0,
+   "peak_hz_std": 52.0,
+   "tonality": 26.5,
+   "level_db": -60.9
+  },
+  {
+   "t_start": 4468.04,
+   "t_end": 4468.52,
+   "duration_s": 0.48,
+   "peak_hz": 2438.0,
+   "peak_hz_std": 90.0,
+   "tonality": 65.4,
+   "level_db": -59.7
+  },
+  {
+   "t_start": 4476.86,
+   "t_end": 4477.17,
+   "duration_s": 0.31,
+   "peak_hz": 2203.0,
+   "peak_hz_std": 69.0,
+   "tonality": 89.1,
+   "level_db": -65.6
+  },
+  {
+   "t_start": 4498.96,
+   "t_end": 4499.75,
+   "duration_s": 0.79,
+   "peak_hz": 2500.0,
+   "peak_hz_std": 632.0,
+   "tonality": 77.1,
+   "level_db": -61.2
+  },
+  {
+   "t_start": 4502.9,
+   "t_end": 4503.52,
+   "duration_s": 0.62,
+   "peak_hz": 3023.0,
+   "peak_hz_std": 424.0,
+   "tonality": 37.2,
+   "level_db": -65.2
+  },
+  {
+   "t_start": 4504.66,
+   "t_end": 4505.2,
+   "duration_s": 0.54,
+   "peak_hz": 2297.0,
+   "peak_hz_std": 129.0,
+   "tonality": 37.2,
+   "level_db": -66.6
+  },
+  {
+   "t_start": 4517.3,
+   "t_end": 4517.66,
+   "duration_s": 0.36,
+   "peak_hz": 4328.0,
+   "peak_hz_std": 578.0,
+   "tonality": 35.1,
+   "level_db": -62.4
+  },
+  {
+   "t_start": 4519.65,
+   "t_end": 4520.23,
+   "duration_s": 0.58,
+   "peak_hz": 3516.0,
+   "peak_hz_std": 141.0,
+   "tonality": 35.0,
+   "level_db": -62.0
+  },
+  {
+   "t_start": 4524.11,
+   "t_end": 4524.36,
+   "duration_s": 0.25,
+   "peak_hz": 2344.0,
+   "peak_hz_std": 45.0,
+   "tonality": 46.5,
+   "level_db": -68.0
+  },
+  {
+   "t_start": 4539.11,
+   "t_end": 4539.44,
+   "duration_s": 0.33,
+   "peak_hz": 2711.0,
+   "peak_hz_std": 496.0,
+   "tonality": 63.0,
+   "level_db": -68.4
+  },
+  {
+   "t_start": 4549.3,
+   "t_end": 4549.84,
+   "duration_s": 0.54,
+   "peak_hz": 4469.0,
+   "peak_hz_std": 145.0,
+   "tonality": 32.5,
+   "level_db": -50.2
+  },
+  {
+   "t_start": 4572.0,
+   "t_end": 4572.32,
+   "duration_s": 0.32,
+   "peak_hz": 3453.0,
+   "peak_hz_std": 85.0,
+   "tonality": 81.4,
+   "level_db": -63.5
+  },
+  {
+   "t_start": 4573.54,
+   "t_end": 4573.79,
+   "duration_s": 0.25,
+   "peak_hz": 3750.0,
+   "peak_hz_std": 336.0,
+   "tonality": 52.3,
+   "level_db": -58.5
+  },
+  {
+   "t_start": 4574.93,
+   "t_end": 4575.47,
+   "duration_s": 0.54,
+   "peak_hz": 3469.0,
+   "peak_hz_std": 638.0,
+   "tonality": 71.7,
+   "level_db": -64.5
+  },
+  {
+   "t_start": 4582.08,
+   "t_end": 4582.6,
+   "duration_s": 0.52,
+   "peak_hz": 3344.0,
+   "peak_hz_std": 456.0,
+   "tonality": 44.1,
+   "level_db": -68.3
+  },
+  {
+   "t_start": 4602.95,
+   "t_end": 4603.24,
+   "duration_s": 0.29,
+   "peak_hz": 2219.0,
+   "peak_hz_std": 274.0,
+   "tonality": 34.5,
+   "level_db": -67.9
+  },
+  {
+   "t_start": 4616.66,
+   "t_end": 4617.1,
+   "duration_s": 0.44,
+   "peak_hz": 4281.0,
+   "peak_hz_std": 521.0,
+   "tonality": 56.9,
+   "level_db": -66.3
+  },
+  {
+   "t_start": 4641.67,
+   "t_end": 4641.96,
+   "duration_s": 0.29,
+   "peak_hz": 2594.0,
+   "peak_hz_std": 509.0,
+   "tonality": 28.8,
+   "level_db": -66.5
+  },
+  {
+   "t_start": 4687.57,
+   "t_end": 4687.86,
+   "duration_s": 0.29,
+   "peak_hz": 4250.0,
+   "peak_hz_std": 369.0,
+   "tonality": 30.4,
+   "level_db": -67.9
+  },
+  {
+   "t_start": 4691.06,
+   "t_end": 4691.31,
+   "duration_s": 0.25,
+   "peak_hz": 2297.0,
+   "peak_hz_std": 97.0,
+   "tonality": 42.5,
+   "level_db": -70.0
+  },
+  {
+   "t_start": 4695.12,
+   "t_end": 4695.38,
+   "duration_s": 0.26,
+   "peak_hz": 2594.0,
+   "peak_hz_std": 167.0,
+   "tonality": 33.2,
+   "level_db": -74.4
+  },
+  {
+   "t_start": 4709.86,
+   "t_end": 4710.19,
+   "duration_s": 0.33,
+   "peak_hz": 2688.0,
+   "peak_hz_std": 505.0,
+   "tonality": 34.6,
+   "level_db": -64.9
+  },
+  {
+   "t_start": 4718.6,
+   "t_end": 4719.33,
+   "duration_s": 0.73,
+   "peak_hz": 2469.0,
+   "peak_hz_std": 156.0,
+   "tonality": 44.9,
+   "level_db": -62.2
+  },
+  {
+   "t_start": 4728.0,
+   "t_end": 4728.34,
+   "duration_s": 0.34,
+   "peak_hz": 3078.0,
+   "peak_hz_std": 302.0,
+   "tonality": 33.8,
+   "level_db": -69.0
+  },
+  {
+   "t_start": 4730.47,
+   "t_end": 4730.8,
+   "duration_s": 0.33,
+   "peak_hz": 3828.0,
+   "peak_hz_std": 633.0,
+   "tonality": 54.5,
+   "level_db": -67.5
+  },
+  {
+   "t_start": 4731.93,
+   "t_end": 4733.05,
+   "duration_s": 1.12,
+   "peak_hz": 3578.0,
+   "peak_hz_std": 264.0,
+   "tonality": 64.5,
+   "level_db": -61.3
+  },
+  {
+   "t_start": 4734.92,
+   "t_end": 4735.28,
+   "duration_s": 0.36,
+   "peak_hz": 3016.0,
+   "peak_hz_std": 547.0,
+   "tonality": 75.3,
+   "level_db": -56.3
+  },
+  {
+   "t_start": 4736.7,
+   "t_end": 4737.17,
+   "duration_s": 0.47,
+   "peak_hz": 2281.0,
+   "peak_hz_std": 563.0,
+   "tonality": 64.7,
+   "level_db": -55.9
+  },
+  {
+   "t_start": 4739.7,
+   "t_end": 4739.95,
+   "duration_s": 0.25,
+   "peak_hz": 3672.0,
+   "peak_hz_std": 284.0,
+   "tonality": 26.6,
+   "level_db": -67.4
+  },
+  {
+   "t_start": 4745.33,
+   "t_end": 4745.58,
+   "duration_s": 0.25,
+   "peak_hz": 2266.0,
+   "peak_hz_std": 294.0,
+   "tonality": 70.4,
+   "level_db": -68.9
+  },
+  {
+   "t_start": 4761.61,
+   "t_end": 4763.13,
+   "duration_s": 1.52,
+   "peak_hz": 2438.0,
+   "peak_hz_std": 117.0,
+   "tonality": 72.5,
+   "level_db": -57.9
+  },
+  {
+   "t_start": 4763.59,
+   "t_end": 4764.2,
+   "duration_s": 0.61,
+   "peak_hz": 2602.0,
+   "peak_hz_std": 769.0,
+   "tonality": 46.1,
+   "level_db": -67.5
+  },
+  {
+   "t_start": 4771.65,
+   "t_end": 4772.1,
+   "duration_s": 0.45,
+   "peak_hz": 3688.0,
+   "peak_hz_std": 355.0,
+   "tonality": 56.6,
+   "level_db": -64.9
+  },
+  {
+   "t_start": 4803.26,
+   "t_end": 4803.61,
+   "duration_s": 0.35,
+   "peak_hz": 3547.0,
+   "peak_hz_std": 306.0,
+   "tonality": 53.7,
+   "level_db": -67.5
+  },
+  {
+   "t_start": 4813.26,
+   "t_end": 4813.72,
+   "duration_s": 0.46,
+   "peak_hz": 2266.0,
+   "peak_hz_std": 318.0,
+   "tonality": 72.7,
+   "level_db": -74.0
+  },
+  {
+   "t_start": 4814.81,
+   "t_end": 4815.41,
+   "duration_s": 0.6,
+   "peak_hz": 2641.0,
+   "peak_hz_std": 505.0,
+   "tonality": 42.4,
+   "level_db": -69.6
+  },
+  {
+   "t_start": 4818.42,
+   "t_end": 4818.77,
+   "duration_s": 0.35,
+   "peak_hz": 2562.0,
+   "peak_hz_std": 755.0,
+   "tonality": 55.0,
+   "level_db": -71.3
+  },
+  {
+   "t_start": 4820.06,
+   "t_end": 4820.51,
+   "duration_s": 0.45,
+   "peak_hz": 2484.0,
+   "peak_hz_std": 36.0,
+   "tonality": 52.7,
+   "level_db": -66.3
+  },
+  {
+   "t_start": 4840.18,
+   "t_end": 4840.46,
+   "duration_s": 0.28,
+   "peak_hz": 2281.0,
+   "peak_hz_std": 32.0,
+   "tonality": 32.9,
+   "level_db": -70.2
+  },
+  {
+   "t_start": 4880.52,
+   "t_end": 4880.94,
+   "duration_s": 0.42,
+   "peak_hz": 2328.0,
+   "peak_hz_std": 67.0,
+   "tonality": 48.5,
+   "level_db": -68.7
+  },
+  {
+   "t_start": 4925.37,
+   "t_end": 4926.08,
+   "duration_s": 0.71,
+   "peak_hz": 2406.0,
+   "peak_hz_std": 324.0,
+   "tonality": 77.7,
+   "level_db": -63.2
+  },
+  {
+   "t_start": 4929.18,
+   "t_end": 4930.05,
+   "duration_s": 0.87,
+   "peak_hz": 3359.0,
+   "peak_hz_std": 564.0,
+   "tonality": 73.5,
+   "level_db": -70.3
+  },
+  {
+   "t_start": 4930.56,
+   "t_end": 4931.16,
+   "duration_s": 0.6,
+   "peak_hz": 3516.0,
+   "peak_hz_std": 307.0,
+   "tonality": 77.4,
+   "level_db": -65.0
+  },
+  {
+   "t_start": 4931.39,
+   "t_end": 4932.87,
+   "duration_s": 1.48,
+   "peak_hz": 3562.0,
+   "peak_hz_std": 429.0,
+   "tonality": 62.6,
+   "level_db": -61.7
+  },
+  {
+   "t_start": 4966.52,
+   "t_end": 4966.95,
+   "duration_s": 0.43,
+   "peak_hz": 3359.0,
+   "peak_hz_std": 87.0,
+   "tonality": 55.0,
+   "level_db": -62.5
+  },
+  {
+   "t_start": 4976.93,
+   "t_end": 4977.49,
+   "duration_s": 0.56,
+   "peak_hz": 2219.0,
+   "peak_hz_std": 27.0,
+   "tonality": 66.0,
+   "level_db": -62.1
+  },
+  {
+   "t_start": 5011.17,
+   "t_end": 5011.49,
+   "duration_s": 0.32,
+   "peak_hz": 2484.0,
+   "peak_hz_std": 665.0,
+   "tonality": 34.5,
+   "level_db": -64.3
+  },
+  {
+   "t_start": 5015.72,
+   "t_end": 5016.12,
+   "duration_s": 0.4,
+   "peak_hz": 2891.0,
+   "peak_hz_std": 775.0,
+   "tonality": 50.9,
+   "level_db": -67.4
+  },
+  {
+   "t_start": 5017.37,
+   "t_end": 5017.72,
+   "duration_s": 0.35,
+   "peak_hz": 2922.0,
+   "peak_hz_std": 338.0,
+   "tonality": 67.7,
+   "level_db": -70.9
+  },
+  {
+   "t_start": 5058.39,
+   "t_end": 5058.65,
+   "duration_s": 0.26,
+   "peak_hz": 2508.0,
+   "peak_hz_std": 55.0,
+   "tonality": 21.2,
+   "level_db": -66.4
+  },
+  {
+   "t_start": 5067.58,
+   "t_end": 5068.11,
+   "duration_s": 0.53,
+   "peak_hz": 2438.0,
+   "peak_hz_std": 711.0,
+   "tonality": 26.4,
+   "level_db": -71.2
+  },
+  {
+   "t_start": 5079.87,
+   "t_end": 5080.15,
+   "duration_s": 0.28,
+   "peak_hz": 2375.0,
+   "peak_hz_std": 105.0,
+   "tonality": 31.2,
+   "level_db": -58.6
+  },
+  {
+   "t_start": 5080.56,
+   "t_end": 5080.9,
+   "duration_s": 0.34,
+   "peak_hz": 2359.0,
+   "peak_hz_std": 184.0,
+   "tonality": 24.2,
+   "level_db": -68.7
+  },
+  {
+   "t_start": 5086.71,
+   "t_end": 5087.39,
+   "duration_s": 0.68,
+   "peak_hz": 4219.0,
+   "peak_hz_std": 149.0,
+   "tonality": 82.3,
+   "level_db": -66.3
+  },
+  {
+   "t_start": 5091.55,
+   "t_end": 5091.93,
+   "duration_s": 0.38,
+   "peak_hz": 2531.0,
+   "peak_hz_std": 561.0,
+   "tonality": 56.1,
+   "level_db": -70.5
+  },
+  {
+   "t_start": 5128.25,
+   "t_end": 5128.58,
+   "duration_s": 0.33,
+   "peak_hz": 2312.0,
+   "peak_hz_std": 60.0,
+   "tonality": 62.0,
+   "level_db": -65.9
+  },
+  {
+   "t_start": 5128.74,
+   "t_end": 5129.01,
+   "duration_s": 0.27,
+   "peak_hz": 2281.0,
+   "peak_hz_std": 409.0,
+   "tonality": 25.2,
+   "level_db": -69.4
+  },
+  {
+   "t_start": 5133.11,
+   "t_end": 5133.92,
+   "duration_s": 0.81,
+   "peak_hz": 2633.0,
+   "peak_hz_std": 302.0,
+   "tonality": 54.2,
+   "level_db": -59.5
+  },
+  {
+   "t_start": 5135.74,
+   "t_end": 5136.37,
+   "duration_s": 0.63,
+   "peak_hz": 2531.0,
+   "peak_hz_std": 255.0,
+   "tonality": 31.6,
+   "level_db": -61.3
+  },
+  {
+   "t_start": 5137.38,
+   "t_end": 5137.65,
+   "duration_s": 0.27,
+   "peak_hz": 3180.0,
+   "peak_hz_std": 141.0,
+   "tonality": 31.6,
+   "level_db": -64.7
+  },
+  {
+   "t_start": 5142.85,
+   "t_end": 5143.2,
+   "duration_s": 0.35,
+   "peak_hz": 2312.0,
+   "peak_hz_std": 361.0,
+   "tonality": 95.2,
+   "level_db": -64.1
+  },
+  {
+   "t_start": 5144.89,
+   "t_end": 5145.62,
+   "duration_s": 0.73,
+   "peak_hz": 2250.0,
+   "peak_hz_std": 44.0,
+   "tonality": 101.9,
+   "level_db": -62.9
+  },
+  {
+   "t_start": 5148.82,
+   "t_end": 5149.18,
+   "duration_s": 0.36,
+   "peak_hz": 4297.0,
+   "peak_hz_std": 579.0,
+   "tonality": 38.5,
+   "level_db": -64.5
+  },
+  {
+   "t_start": 5160.14,
+   "t_end": 5160.47,
+   "duration_s": 0.33,
+   "peak_hz": 2500.0,
+   "peak_hz_std": 201.0,
+   "tonality": 31.5,
+   "level_db": -68.2
+  },
+  {
+   "t_start": 5178.13,
+   "t_end": 5178.81,
+   "duration_s": 0.68,
+   "peak_hz": 2375.0,
+   "peak_hz_std": 797.0,
+   "tonality": 39.0,
+   "level_db": -61.8
+  },
+  {
+   "t_start": 5194.08,
+   "t_end": 5194.58,
+   "duration_s": 0.5,
+   "peak_hz": 3305.0,
+   "peak_hz_std": 234.0,
+   "tonality": 43.3,
+   "level_db": -60.3
+  },
+  {
+   "t_start": 5195.21,
+   "t_end": 5195.94,
+   "duration_s": 0.73,
+   "peak_hz": 2844.0,
+   "peak_hz_std": 403.0,
+   "tonality": 43.8,
+   "level_db": -62.4
+  },
+  {
+   "t_start": 5206.82,
+   "t_end": 5208.07,
+   "duration_s": 1.25,
+   "peak_hz": 3359.0,
+   "peak_hz_std": 424.0,
+   "tonality": 61.6,
+   "level_db": -58.7
+  },
+  {
+   "t_start": 5223.13,
+   "t_end": 5223.38,
+   "duration_s": 0.25,
+   "peak_hz": 3156.0,
+   "peak_hz_std": 117.0,
+   "tonality": 39.4,
+   "level_db": -67.2
+  },
+  {
+   "t_start": 5225.31,
+   "t_end": 5225.57,
+   "duration_s": 0.26,
+   "peak_hz": 3172.0,
+   "peak_hz_std": 314.0,
+   "tonality": 21.7,
+   "level_db": -69.9
+  },
+  {
+   "t_start": 5241.56,
+   "t_end": 5241.9,
+   "duration_s": 0.34,
+   "peak_hz": 2703.0,
+   "peak_hz_std": 796.0,
+   "tonality": 21.1,
+   "level_db": -76.2
+  },
+  {
+   "t_start": 5244.08,
+   "t_end": 5244.37,
+   "duration_s": 0.29,
+   "peak_hz": 3141.0,
+   "peak_hz_std": 538.0,
+   "tonality": 30.4,
+   "level_db": -65.6
+  },
+  {
+   "t_start": 5267.96,
+   "t_end": 5268.28,
+   "duration_s": 0.32,
+   "peak_hz": 2328.0,
+   "peak_hz_std": 57.0,
+   "tonality": 65.1,
+   "level_db": -72.8
+  },
+  {
+   "t_start": 5286.03,
+   "t_end": 5286.43,
+   "duration_s": 0.4,
+   "peak_hz": 2227.0,
+   "peak_hz_std": 297.0,
+   "tonality": 87.4,
+   "level_db": -66.3
+  },
+  {
+   "t_start": 5289.48,
+   "t_end": 5289.92,
+   "duration_s": 0.44,
+   "peak_hz": 4234.0,
+   "peak_hz_std": 263.0,
+   "tonality": 42.9,
+   "level_db": -62.2
+  },
+  {
+   "t_start": 5304.59,
+   "t_end": 5304.86,
+   "duration_s": 0.27,
+   "peak_hz": 3609.0,
+   "peak_hz_std": 353.0,
+   "tonality": 53.9,
+   "level_db": -63.7
+  },
+  {
+   "t_start": 5313.6,
+   "t_end": 5313.91,
+   "duration_s": 0.31,
+   "peak_hz": 2281.0,
+   "peak_hz_std": 193.0,
+   "tonality": 29.5,
+   "level_db": -67.8
+  },
+  {
+   "t_start": 5317.97,
+   "t_end": 5318.42,
+   "duration_s": 0.45,
+   "peak_hz": 2453.0,
+   "peak_hz_std": 530.0,
+   "tonality": 53.0,
+   "level_db": -64.7
+  },
+  {
+   "t_start": 5319.59,
+   "t_end": 5320.29,
+   "duration_s": 0.7,
+   "peak_hz": 2469.0,
+   "peak_hz_std": 176.0,
+   "tonality": 78.0,
+   "level_db": -70.0
+  },
+  {
+   "t_start": 5324.75,
+   "t_end": 5325.21,
+   "duration_s": 0.46,
+   "peak_hz": 2250.0,
+   "peak_hz_std": 755.0,
+   "tonality": 21.1,
+   "level_db": -65.4
+  },
+  {
+   "t_start": 5327.39,
+   "t_end": 5327.73,
+   "duration_s": 0.34,
+   "peak_hz": 4297.0,
+   "peak_hz_std": 152.0,
+   "tonality": 56.4,
+   "level_db": -62.8
+  }
+ ]
+}
