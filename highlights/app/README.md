@@ -80,10 +80,19 @@ Outputs: `out/clips/*.mp4`, `out/reel.mp4`, `out/stats.json`, `out/manifest.json
 
 ## Runtime
 
-- CPU: TODO(runtime)
-- ffmpeg: TODO(runtime) (developed against 4.4)
-- Python: TODO(runtime) (developed against 3.10)
-- Node: TODO(runtime) (developed against 20)
+Measured on an 8-core CPU box (no GPU), ffmpeg 4.4.2, Python 3.10, Node 20:
+
+- CLI on the real 89-min match (1280x576@30fps, 850 MB) with the 12-event
+  `sample/candidates.json`: 11 clips (78 s total) + `reel.mp4`, overlay on
+  (720p re-encode): **8.7 s wall** (`user 31.8 s`).
+- Same on the 120 s synthetic sample, 4 clips: 1.8 s.
+- UI render job, 3 goal clips (30 s) with overlay: ~26 s including job polling.
+- Thumbnail (single ffmpeg frame seek into the 89-min file): well under 1 s each.
+- Low-res proxy (360p/15 fps) of the full match: several minutes; it is
+  optional — the player streams the source with HTTP range requests until the
+  proxy is ready.
+
+Outputs of the real-match CLI run (stats + manifest) are in `outputs/`.
 
 ## Known limitations
 
