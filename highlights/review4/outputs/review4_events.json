@@ -1,0 +1,183 @@
+{
+  "source": "review4",
+  "video_duration_s": 5337.154,
+  "segment": {"t_start": 4050.0, "t_end": 5337.154},
+  "camera_note": "Fixed ground-level camera at the corner beside the NEAR goal (right third of frame). 'right' = near goal (defended by lime/yellow keeper, attacked by orange). 'left' = far goal (tiny, top-left of frame; attacked by lime).",
+  "events": [
+    {
+      "type": "chance",
+      "t": 4089.0,
+      "t_start": 4064.0,
+      "t_end": 4096.0,
+      "confidence": 0.45,
+      "signals": {
+        "observed": "Sustained orange attack on near goal (ball in the air over box at ~4064, cluster in six-yard area 4066-4067, orange attacker close to camera 4085-4089). Ball ends up behind the near goal line at bottom-right of frame at 4090; lime keeper walks out, retrieves it 4092-4094 and takes a goal kick at ~4095.",
+        "attacking_goal": "right",
+        "evidence": ["ball dead behind goal line at 4090", "goal kick by keeper ~4095", "ball not seen being struck"]
+      },
+      "notes": "Probably a shot/cross off target (ball ended behind the goal, goal kick followed). Strike moment not seen."
+    },
+    {
+      "type": "chance",
+      "t": 4240.0,
+      "t_start": 4236.0,
+      "t_end": 4251.0,
+      "confidence": 0.3,
+      "signals": {
+        "observed": "Orange cluster in near goal area 4239-4241; then lime keeper sprints out to the left with the ball at his feet 4245-4247 and kicks it upfield at ~4251.",
+        "attacking_goal": "right",
+        "evidence": ["players bunched in goal area", "keeper collects and clears immediately after"],
+        "restart": "keeper distribution ~4251"
+      },
+      "notes": "Ambiguous: blocked/saved attempt or just a cleared cross. Ball not visible."
+    },
+    {
+      "type": "chance",
+      "t": 4297.5,
+      "t_start": 4292.0,
+      "t_end": 4302.0,
+      "confidence": 0.35,
+      "signals": {
+        "observed": "Ball in the air arriving into the near box at ~4297 (visible above the cluster, top-left), orange and lime bunched in front of goal 4298, then cleared/dispersed 4299-4301.",
+        "attacking_goal": "right",
+        "evidence": ["ball airborne into box", "cluster in six-yard area", "no keeper action visible"]
+      },
+      "notes": "Cross/header situation; probably cleared. Could not see a shot."
+    },
+    {
+      "type": "chance",
+      "t": 4314.0,
+      "t_start": 4310.0,
+      "t_end": 4320.0,
+      "confidence": 0.35,
+      "signals": {
+        "observed": "Orange attacker very close to camera / near goal 4313-4316, keeper set in goal at 4316, orange player then walks back past camera at bottom-right 4316-4318.",
+        "attacking_goal": "right",
+        "evidence": ["attacker at goal line", "player walking back from behind goal-line area"]
+      },
+      "notes": "Something happened at the near post (shot wide / retrieval?). Ball not seen."
+    },
+    {
+      "type": "shot",
+      "t": 4396.0,
+      "t_start": 4386.0,
+      "t_end": 4406.0,
+      "confidence": 0.3,
+      "signals": {
+        "observed": "All players at far end 4370-4394 (lime attacking far goal), near keeper idle. At 4396 a ball rolls slowly into the near goal area from up-field; keeper picks it up at 4397, walks out and kicks long at ~4405.",
+        "attacking_goal": "right",
+        "evidence": ["ball visible rolling to keeper", "keeper pick-up"]
+      },
+      "notes": "Most likely a long clearance/back-pass or a very weak long-range shot; recorded as low-confidence shot for completeness."
+    },
+    {
+      "type": "shot",
+      "t": 4548.0,
+      "t_start": 4544.0,
+      "t_end": 4556.0,
+      "confidence": 0.7,
+      "signals": {
+        "observed": "Orange attacker (dark top) drives into near box at 4546; keeper (dark, lime bib) comes out and dives at his feet 4546.5-4547; attacker gets past with the ball to the right post area 4547.5-4548.5 while keeper is on the ground; lime defenders back on the goal line block; ball ends at a lime player's feet in the goal area at 4550-4551 and is cleared; the attacker walks away toward camera looking back 4552-4553. Play resumes immediately (all players up-field by 4556-4562; orange attacking again by 4564).",
+        "attacking_goal": "right",
+        "evidence": ["1-v-1 with keeper", "keeper dive", "attacker at goal mouth with ball", "defenders blocking on line", "no pause/celebration/kickoff afterwards"],
+        "goal_probability": 0.15
+      },
+      "notes": "Big chance: rounded the keeper, shot/attempt blocked by covering defenders on the line (or dragged wide and kept in). Best single moment of the segment. Not a goal in my judgement: no stoppage, no walk back to centre, keeper back in goal within ~15 s."
+    },
+    {
+      "type": "chance",
+      "t": 4741.0,
+      "t_start": 4734.0,
+      "t_end": 4748.0,
+      "confidence": 0.4,
+      "signals": {
+        "observed": "Orange break toward near goal 4735-4739, cluster of orange in the box 4739-4741 with an orange player at the right post; then a large orange player walks to the corner next to the camera 4744-4746 (corner-kick position).",
+        "attacking_goal": "right",
+        "evidence": ["attack ends with corner to orange ~4747", "ball must have gone out over goal line off a defender/keeper"],
+        "restart": "corner kick ~4747"
+      },
+      "notes": "Blocked shot/cross out for a corner; strike not seen."
+    },
+    {
+      "type": "shot",
+      "t": 4790.5,
+      "t_start": 4785.0,
+      "t_end": 4794.0,
+      "confidence": 0.4,
+      "signals": {
+        "observed": "Orange player stationed on the near goal line by the right post 4785-4789; ball arrives through the air at 4790 (visible top-centre) toward the goal, lands next to the lime keeper at the right of goal 4791; keeper gathers and clears at ~4793.",
+        "attacking_goal": "right",
+        "evidence": ["ball airborne toward goal", "keeper collects", "keeper clearance ~4793"]
+      },
+      "notes": "Lofted shot/cross held or gathered by the keeper. Could be a cross rather than a shot."
+    },
+    {
+      "type": "chance",
+      "t": 4885.0,
+      "t_start": 4880.0,
+      "t_end": 4888.0,
+      "confidence": 0.3,
+      "signals": {
+        "observed": "Orange attack; orange player at right of goal 4882, several orange bunched in the near box 4884-4887, keeper on his line. No keeper dive or dead ball seen.",
+        "attacking_goal": "right",
+        "evidence": ["box occupancy only"]
+      },
+      "notes": "Pressure only; no visible attempt."
+    },
+    {
+      "type": "chance",
+      "t": 4666.0,
+      "t_start": 4650.0,
+      "t_end": 4730.0,
+      "confidence": 0.2,
+      "signals": {
+        "observed": "Long spell of lime pressure at the FAR goal (players ~20 px tall). Orange and lime bunched in the far goal mouth 4664-4670 and 4700-4712; far keeper (orange) active. No celebration or kickoff formation seen afterwards.",
+        "attacking_goal": "left",
+        "evidence": ["far-goal-mouth crowding", "resolution too low to see the ball"]
+      },
+      "notes": "Far-end pressure; probable attempts but nothing verifiable at this resolution."
+    },
+    {
+      "type": "shot",
+      "t": 4979.5,
+      "t_start": 4975.0,
+      "t_end": 4985.0,
+      "confidence": 0.6,
+      "signals": {
+        "observed": "Orange attacker in front of near goal at 4978-4979; lime keeper dives full-stretch to his right (toward camera / right post) at 4979.25-4980 and is on the ground 4980-4981; an orange player walks to the far right beyond the goal 4983-4984 (ball behind goal). Players then stop; both teams gather at the near goal 4986-5000 and walk off — final whistle.",
+        "attacking_goal": "right",
+        "evidence": ["keeper dive", "ball behind goal afterwards", "play does not resume"],
+        "goal_probability": 0.2
+      },
+      "notes": "Shot forcing a diving save / going wide; immediately followed by the end of the match, so no restart to disambiguate. Not a clear goal (no celebration seen)."
+    },
+    {
+      "type": "other",
+      "t": 4986.0,
+      "t_start": 4984.0,
+      "t_end": 5050.0,
+      "confidence": 0.85,
+      "signals": {
+        "kind": "match_end",
+        "observed": "Play stops ~4985-4988; players of both teams congregate around the near goal / right post 4988-5010, shake hands, take bibs off (players in plain shirts by 5028), pitch empty from ~5050; only one person near the near goal until the camera is picked up at ~5326.",
+        "attacking_goal": "n/a",
+        "evidence": ["no further play observed 4988-5337", "bibs removed", "empty pitch"]
+      },
+      "notes": "End of match (full-time whistle)."
+    },
+    {
+      "type": "other",
+      "t": 5326.0,
+      "t_start": 5326.0,
+      "t_end": 5337.154,
+      "confidence": 0.9,
+      "signals": {
+        "kind": "camera_pickup",
+        "observed": "Camera is picked up / view swings (5326-5336), recording ends.",
+        "attacking_goal": "n/a",
+        "evidence": ["frame content changes to ground/sky"]
+      },
+      "notes": "End of recording."
+    }
+  ]
+}
