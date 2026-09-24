@@ -66,6 +66,19 @@ def pid_alive(pid: int | None) -> bool:
         return True
 
 
+def _status_alive(status: dict) -> bool:
+    """True if a queued/running status should block a new spawn or survive reconcile.
+
+    A None pid is the tiny pre-Popen window in spawn() — treat as alive for a
+    short grace period based on the status timestamp.
+    """
+    pid = status.get("pid")
+    if pid is None:
+        last = status.get("updated_at") or status.get("started_at") or 0
+        return time.time() - last < 15
+    return pid_alive(pid)
+
+
 def spawn(
     p: ProjectStore,
     *,
@@ -76,7 +89,7 @@ def spawn(
     cookies: str | None = None,
 ) -> dict:
     status = read_status(p)
-    if status and status.get("state") in ("queued", "running") and pid_alive(status.get("pid")):
+    if status and status.get("state") in ("queued", "running") and _status_alive(status):
         raise PipelineBusy("pipeline already running for this project")
 
     argv = runner_cmd() + ["--project-dir", str(p.root)]
@@ -93,17 +106,8 @@ def spawn(
         argv += ["--cookies", ck]
 
     p.pipeline_dir.mkdir(exist_ok=True)
-    log = open(p.log_path, "ab")  # noqa: SIM115
-    try:
-        proc = subprocess.Popen(
-            argv, cwd=REPO_ROOT,
-            stdout=log, stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL, start_new_session=True,
-        )
-    finally:
-        log.close()
-    _procs[proc.pid] = proc
-
+    # write queued BEFORE Popen so a fast runner's running/done status is
+    # never clobbered back to queued; pid is filled in just after spawn
     now = time.time()
     status = {
         "state": "queued",
@@ -115,13 +119,33 @@ def spawn(
         "started_at": now,
         "updated_at": now,
         "finished_at": None,
-        "pid": proc.pid,
+        "pid": None,
         "video_path": None,
         "video": None,
         "download": None,
     }
     write_status(p, status)
     p.set_pipeline_state("queued")
+
+    log = open(p.log_path, "ab")  # noqa: SIM115
+    try:
+        proc = subprocess.Popen(
+            argv, cwd=REPO_ROOT,
+            stdout=log, stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL, start_new_session=True,
+        )
+    finally:
+        log.close()
+    _procs[proc.pid] = proc
+
+    # fill in the pid only if the runner hasn't already written its own status
+    cur = read_status(p)
+    if cur and cur.get("pid") is None:
+        cur["pid"] = proc.pid
+        write_status(p, cur)
+        status = cur
+    elif cur:
+        status = cur
     return status
 
 
@@ -171,7 +195,7 @@ def cancel(p: ProjectStore) -> dict:
 def reconcile(p: ProjectStore) -> dict | None:
     """Fail queued/running statuses whose pid is gone."""
     status = read_status(p)
-    if status and status.get("state") in ("queued", "running") and not pid_alive(status.get("pid")):
+    if status and status.get("state") in ("queued", "running") and not _status_alive(status):
         status["state"] = "failed"
         status["message"] = "interrupted; click Re-run to resume"
         status["error"] = status["message"]
