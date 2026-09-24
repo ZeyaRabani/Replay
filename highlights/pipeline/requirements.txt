@@ -1,0 +1,11 @@
+yt-dlp
+joblib
+scikit-learn
+pandas
+pyarrow
+librosa
+soundfile
+scipy
+opencv-python-headless
+numpy
+matplotlib
