@@ -61,3 +61,33 @@ def test_detect_match_window_short_video(tmp_path):
     assert (lo, hi) == (0.0, 300.0)
     assert halves == []
     assert warning
+
+
+def test_detect_match_window_motion_first(tmp_path):
+    """quiet 0-600, active 600-3000, quiet 3000-3900, active 3900-6300, quiet."""
+    n = 6600
+    rng = np.random.default_rng(3)
+    motion = np.full(n, 10.0)  # quiet baseline
+    for a, b in ((600, 3000), (3900, 6300)):
+        motion[a:b] = 100.0
+    motion += rng.normal(0, 2, n)
+    motion_j = tmp_path / "motion.json"
+    motion_j.write_text(json.dumps({
+        "source": "x", "step_s": 1.0, "video_duration_s": float(n),
+        "columns": ["t", "motion_total"],
+        "rows": [[float(t), float(motion[t])] for t in range(n)]}))
+    audio_j = tmp_path / "audio.json"
+    audio_j.write_text(json.dumps(_table(
+        ["rms_db", "z60_rms", "z300_rms", "z300_speech",
+         "onset_density", "whistle_frac"], n, seed=4)))
+    whistles_j = tmp_path / "whistles.json"
+    whistles_j.write_text(json.dumps({"whistles": []}))
+
+    lo, hi, halves, warning = detect_match_window(
+        audio_j, whistles_j, float(n), motion_j)
+    assert warning is None
+    # rolling mean blurs edges by ~150 s; allow that margin
+    assert 450 <= lo <= 750
+    assert 6150 <= hi <= 6450
+    assert len(halves) == 2
+    assert 2850 <= halves[0]["end"] <= 3150

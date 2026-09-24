@@ -97,19 +97,93 @@ def _whistle_mids(whistles_json: str | Path | None, min_dur: float = 0.4) -> lis
                   if s.get("duration_s", 0) >= min_dur)
 
 
+def _strong_whistle_mids(whistles_json: str | Path | None) -> list[float]:
+    """Mids of the top 20% of whistles by duration (all when <10 segments)."""
+    if not whistles_json or not Path(whistles_json).exists():
+        return []
+    with open(whistles_json) as f:
+        segs = json.load(f).get("whistles", [])
+    if len(segs) >= 10:
+        cutoff = np.percentile([s.get("duration_s", 0) for s in segs], 80)
+        segs = [s for s in segs if s.get("duration_s", 0) >= cutoff]
+    return sorted((s["t_start"] + s["t_end"]) / 2 for s in segs)
+
+
+def _runs(mask: np.ndarray, t: np.ndarray, min_len: float) -> list[tuple[float, float]]:
+    """Contiguous True runs of a per-second boolean mask, as (t_start, t_end)."""
+    runs = []
+    i = 0
+    while i < len(mask):
+        if mask[i]:
+            j = i
+            while j < len(mask) and mask[j]:
+                j += 1
+            if t[j - 1] - t[i] >= min_len:
+                runs.append((float(t[i]), float(t[j - 1])))
+            i = j
+        else:
+            i += 1
+    return runs
+
+
+def _nearest(mids: list[float], x: float, within: float = 120.0) -> float | None:
+    best = min(mids, key=lambda m: abs(m - x), default=None)
+    return best if best is not None and abs(best - x) <= within else None
+
+
 def detect_match_window(audio_json: str | Path, whistles_json: str | Path | None,
-                        duration: float):
-    """Heuristic kickoff/full-time window.
+                        duration: float, motion_json: str | Path | None = None):
+    """Motion-first kickoff/full-time window.
+
+    act = 300 s centred rolling mean of far-region motion (motion_far when
+    present, else motion_total): on fixed wide-angle footage, warmups happen
+    camera-side and inflate motion_total, while real play uses the far side
+    of the pitch. Active stretches are those above 0.3 x the 90th
+    percentile. Kickoff/full-time are the edges of the first/last active
+    stretch >= 600 s, refined to the nearest strong whistle mid within
+    120 s. Halftime comes from the audio gap inside the window, else the
+    longest inactive stretch in the window's middle.
 
     Returns (lo, hi, halves, warning|None). lo/hi include a 30 s margin.
-    Falls back to the full video for short clips or when the detected
-    window covers <30% of the video.
+    Falls back to the full video for short clips, missing motion data, or a
+    detected window covering <30% of the video.
     """
     fallback = (0.0, float(duration), [], "match window not detected; using full video")
     duration = float(duration)
     if duration < 600:
         return fallback
 
+    # motion-first: sustained activity stretches
+    if not motion_json or not Path(motion_json).exists():
+        return fallback
+    mdf = load(motion_json, ["motion_far", "motion_total"])
+    col = "motion_far" if "motion_far" in mdf.columns else "motion_total"
+    mt = mdf[col].astype(float)
+    idx = np.arange(math.ceil(duration))
+    act_s = mt.reindex(idx).fillna(0.0)
+    act = act_s.rolling(300, center=True, min_periods=1).mean().to_numpy()
+    thr = 0.3 * float(np.percentile(act, 90))
+    runs = _runs(act > thr, idx.astype(float), min_len=600)
+    if not runs:
+        return fallback
+    kickoff, fulltime = runs[0][0], runs[-1][1]
+
+    # refine edges to the nearest strong whistle within 120 s
+    mids = _strong_whistle_mids(whistles_json)
+    near_k, near_f = _nearest(mids, kickoff), _nearest(mids, fulltime)
+    if near_k is not None:
+        kickoff = near_k
+    # fulltime: accept a whistle snap only inward — play often trails the
+    # final whistle, so the detected activity end is the better edge
+    if near_f is not None and near_f <= fulltime:
+        fulltime = near_f
+
+    if fulltime - kickoff < 0.3 * duration:
+        return fallback
+
+    # halves: audio half-time gap inside the window, else the longest
+    # low-activity stretch centred in the window's middle 30-70%
+    gap = None
     with open(audio_json) as f:
         d = json.load(f)
     cols = d["columns"]
@@ -117,21 +191,27 @@ def detect_match_window(audio_json: str | Path, whistles_json: str | Path | None
     t = M[:, cols.index("t")]
     rms_db = M[:, cols.index("rms_db")]
     onset_density = M[:, cols.index("onset_density")]
+    sel = (t >= kickoff) & (t <= fulltime)
+    if sel.sum() >= 300:
+        gap = half_time_gap(t[sel], rms_db[sel], onset_density[sel])
+    if gap is None and (fulltime - kickoff) > 60 * 60:
+        # halftime needn't cross the global activity threshold (players mill
+        # about camera-side); use a window-relative quiet level instead
+        sel_act = act[(idx >= kickoff) & (idx <= fulltime)]
+        q_thr = float(np.percentile(sel_act, 45))
+        quiet = _runs(act <= q_thr, idx.astype(float), min_len=240)
 
-    mids = _whistle_mids(whistles_json)
-    first40 = [m for m in mids if m < 0.4 * duration]
-    last40 = [m for m in mids if m > 0.6 * duration]
-    kickoff = first40[0] if first40 else 0.0
-    fulltime = last40[-1] if last40 else duration
+        def centre(r: tuple[float, float]) -> float:
+            return (r[0] + r[1]) / 2
 
-    halves: list[dict] = []
-    gap = half_time_gap(t, rms_db, onset_density)
-    if gap is not None:
-        halves = [{"start": kickoff, "end": gap[0]},
-                  {"start": gap[1], "end": fulltime}]
+        span = fulltime - kickoff
+        quiet = [r for r in quiet
+                 if kickoff + 0.3 * span <= centre(r) <= kickoff + 0.7 * span]
+        if quiet:
+            gap = max(quiet, key=lambda r: r[1] - r[0])
 
-    if fulltime - kickoff < 0.3 * duration:
-        return fallback
+    halves = ([{"start": kickoff, "end": gap[0]},
+               {"start": gap[1], "end": fulltime}] if gap is not None else [])
     lo = max(0.0, kickoff - 30)
     hi = min(duration, fulltime + 30)
     return lo, hi, halves, None

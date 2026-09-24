@@ -3,8 +3,8 @@
 Peaks: greedy argmax over the 3-s smoothed learned probability, 12 s NMS,
 top 60, restricted to in-match seconds. Type heuristic: "shot" when the
 robust z of motion_goal_roi at the peak exceeds 2 (strong motion in the
-goal ROI), else "chance". Confidence = min(0.9, learned prob) so the
-pipeline never claims the certainty of the reviewed fusion candidates.
+goal ROI), else "chance". Confidence = 0.9 * (0.5*prob + 0.5*rank decay)
+so candidates are spread and monotonic rather than saturated at 0.9.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def make_candidates(df: pd.DataFrame, learned: np.ndarray, rule: np.ndarray,
         peak_t = float(t[i])
         prob = float(learned[i])
         etype = "shot" if roi_z[i] > SHOT_Z else "chance"
-        conf = min(0.9, prob)
+        conf = 0.9 * (0.5 * prob + 0.5 * (1 - (rank - 1) / max(1, len(peak_idx))))
         zrow = z.iloc[i].to_numpy() if zcols else np.zeros(0)
         sig = {
             "learned_prob": round(prob, 4),

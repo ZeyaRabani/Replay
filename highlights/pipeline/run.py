@@ -171,7 +171,8 @@ def stage_features(ctx: Ctx) -> None:
     audio_json = ctx.pipe / "audio" / "features_1s.json"
     motion_json = ctx.pipe / "motion" / "features_1s.json"
     whistles_json = ctx.pipe / "audio" / "whistles.json"
-    lo, hi, halves, warning = detect_match_window(audio_json, whistles_json, ctx.duration)
+    lo, hi, halves, warning = detect_match_window(audio_json, whistles_json, ctx.duration,
+                                                  motion_json)
     ctx.match_window, ctx.halves, ctx.mw_warning = (lo, hi), halves, warning
     if warning:
         ctx.log(f"features: {warning}")
