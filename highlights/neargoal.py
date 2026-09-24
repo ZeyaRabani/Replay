@@ -80,44 +80,36 @@ def _observations(chunks: list[dict], max_blob_area: float = 100.0,
 
 def link_tracks(obs: list[tuple[int, float, float, str]], max_jump: float = 120.0,
                 min_len: int = 4, max_gap: int = 6) -> list[list[tuple]]:
-    """Greedy constant-velocity multi-track linker (vectorized assignment)."""
+    """Greedy constant-velocity multi-track linker."""
     by_frame: dict[int, list] = {}
     for o in obs:
         by_frame.setdefault(o[0], []).append(o)
     tracks: list[list[tuple]] = []
     active: list[dict] = []
     for fi in sorted(by_frame):
-        obs_frame = by_frame[fi]
-        live = [tr for tr in active if fi - tr["last_fi"] <= max_gap]
-        matched_obs: set[int] = set()
-        if live and obs_frame:
-            gaps = np.array([fi - tr["last_fi"] for tr in live], float)
-            pred = np.stack([tr["pos"] + tr["vel"] * g
-                             for tr, g in zip(live, gaps)])
-            xy = np.array([[o[1], o[2]] for o in obs_frame])
-            cost = np.hypot(xy[:, None, 0] - pred[None, :, 0],
-                            xy[:, None, 1] - pred[None, :, 1]) / gaps[None, :]
-            while True:
-                flat = int(np.argmin(cost))
-                if cost.flat[flat] > max_jump:
-                    break
-                oi, ti = np.unravel_index(flat, cost.shape)
-                o = obs_frame[oi]
-                tr = live[ti]
-                g = fi - tr["last_fi"]
-                tr["vel"] = (np.array([o[1], o[2]]) - tr["pos"]) / g
+        remaining = list(by_frame[fi])
+        for tr in active:
+            gap = fi - tr["last_fi"]
+            if gap > max_gap:
+                continue
+            pred = tr["pos"] + tr["vel"] * gap
+            if not remaining:
+                break
+            d = [np.hypot(o[1] - pred[0], o[2] - pred[1]) for o in remaining]
+            j = int(np.argmin(d))
+            if d[j] <= max_jump * gap:
+                o = remaining.pop(j)
+                tr["vel"] = (np.array([o[1], o[2]]) - tr["pos"]) / gap
                 tr["pos"] = np.array([o[1], o[2]])
                 tr["obs"].append(o)
                 tr["last_fi"] = fi
-                matched_obs.add(oi)
-                cost[oi, :] = np.inf
-                cost[:, ti] = np.inf
-        for oi, o in enumerate(obs_frame):
-            if oi not in matched_obs:
-                active.append({"pos": np.array([o[1], o[2]]), "vel": np.zeros(2),
-                               "obs": [o], "last_fi": fi})
-        still = [tr for tr in active if fi - tr["last_fi"] <= max_gap]
-        tracks.extend(tr for tr in active if fi - tr["last_fi"] > max_gap)
+        for o in remaining:
+            active.append({"pos": np.array([o[1], o[2]]), "vel": np.zeros(2),
+                           "obs": [o], "last_fi": fi})
+        # retire stale tracks
+        still = []
+        for tr in active:
+            (still if fi - tr["last_fi"] <= max_gap else tracks).append(tr)
         active = still
     tracks.extend(active)
     return [t["obs"] for t in tracks if len(t["obs"]) >= min_len]
