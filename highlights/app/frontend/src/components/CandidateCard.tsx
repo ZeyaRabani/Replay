@@ -1,5 +1,6 @@
 import { Check, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useProjectApi } from "../api";
 import type { Candidate } from "../types";
 import { TYPE_COLORS } from "./Timeline";
 
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function CandidateCard(props: Props) {
+  const api = useProjectApi();
   const { c } = props;
   const [inStr, setInStr] = useState(String(c.clip_start));
   const [outStr, setOutStr] = useState(String(c.clip_end));
@@ -81,7 +83,7 @@ export default function CandidateCard(props: Props) {
           </div>
         ) : (
           <img
-            src={`/api/candidates/${c.id}/thumb.jpg?v=${props.thumbV}`}
+            src={api.thumbUrl(c.id, props.thumbV)}
             alt=""
             className="w-24 aspect-video rounded bg-zinc-800 object-cover"
             loading="lazy"

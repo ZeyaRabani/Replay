@@ -1,6 +1,6 @@
 import { Download, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { useProjectApi } from "../api";
 import type { Candidate, RenderJob } from "../types";
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 export default function RenderBar(props: Props) {
+  const api = useProjectApi();
   const [overlay, setOverlay] = useState(true);
   const [job, setJob] = useState<RenderJob | null>(null);
   const timer = useRef<number | null>(null);
@@ -106,7 +107,7 @@ export default function RenderBar(props: Props) {
           </div>
         )}
         <span className="flex-1" />
-        <a className="text-xs text-zinc-400 hover:text-amber-400 hover:underline" href="/api/stats" target="_blank">
+        <a className="text-xs text-zinc-400 hover:text-amber-400 hover:underline" href={api.statsUrl} target="_blank">
           Export stats
         </a>
       </div>
