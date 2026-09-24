@@ -5,6 +5,8 @@ import type { Candidate, RenderJob } from "../types";
 
 interface Props {
   candidates: Candidate[];
+  /** changes on new video / candidates reload -> drop the old job display */
+  resetKey: string;
   onError: (msg: string) => void;
 }
 
@@ -44,6 +46,14 @@ export default function RenderBar(props: Props) {
       props.onError(e instanceof Error ? e.message : String(e));
     }
   };
+
+  const lastReset = useRef(props.resetKey);
+  useEffect(() => {
+    if (lastReset.current !== props.resetKey) {
+      lastReset.current = props.resetKey;
+      setJob(null);
+    }
+  }, [props.resetKey]);
 
   const running = job && (job.state === "queued" || job.state === "running");
 

@@ -21,7 +21,7 @@ const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).p
 interface Props {
   c: Candidate;
   selected: boolean;
-  thumbV: number | undefined;
+  thumbV: string | undefined;
   onSelect: (c: Candidate) => void;
   onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
   onReset: (id: string) => void;
@@ -31,6 +31,10 @@ export default function CandidateCard(props: Props) {
   const { c } = props;
   const [inStr, setInStr] = useState(String(c.clip_start));
   const [outStr, setOutStr] = useState(String(c.clip_end));
+  const [thumbErr, setThumbErr] = useState(false);
+
+  // a new thumb key (new video / candidates reload) gets a fresh try
+  useEffect(() => setThumbErr(false), [props.thumbV]);
 
   // keep local drafts in sync when the server value changes
   useEffect(() => setInStr(String(c.clip_start)), [c.clip_start]);
@@ -71,12 +75,19 @@ export default function CandidateCard(props: Props) {
       }`}
     >
       <div className="flex gap-2.5">
-        <img
-          src={`/api/candidates/${c.id}/thumb.jpg${props.thumbV !== undefined ? `?v=${props.thumbV}` : ""}`}
-          alt=""
-          className="w-24 rounded bg-zinc-800 object-cover"
-          loading="lazy"
-        />
+        {props.thumbV === undefined || thumbErr ? (
+          <div className="w-24 aspect-video rounded bg-zinc-800 flex items-center justify-center text-[9px] text-zinc-600">
+            no frame
+          </div>
+        ) : (
+          <img
+            src={`/api/candidates/${c.id}/thumb.jpg?v=${props.thumbV}`}
+            alt=""
+            className="w-24 aspect-video rounded bg-zinc-800 object-cover"
+            loading="lazy"
+            onError={() => setThumbErr(true)}
+          />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
             <span className="bg-zinc-700 rounded px-1.5 py-0.5 font-mono">#{c.rank}</span>

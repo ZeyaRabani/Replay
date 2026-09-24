@@ -4,6 +4,8 @@ import type { Candidate } from "../types";
 
 interface Props {
   src: string;
+  /** changes when a different video is registered (vs a source->proxy swap) */
+  resetKey: number | undefined;
   selected: Candidate | null;
   onTime: (t: number) => void;
   onSetIn: (t: number) => void;
@@ -38,23 +40,34 @@ const VideoPlayer = forwardRef<HTMLVideoElement, Props>(function VideoPlayer(pro
     else if (ref) ref.current = el;
   };
 
-  // preserve the playhead across src switches (e.g. source -> proxy)
+  // On src change: reload explicitly. Preserve the playhead only for a
+  // source->proxy swap of the same video; a new video (resetKey changed)
+  // restarts at 0.
   const lastSrc = useRef<string | null>(null);
+  const lastReset = useRef<number | undefined>(undefined);
   useEffect(() => {
     const v = vref.current;
     if (!v) return;
-    if (lastSrc.current !== null && lastSrc.current !== props.src) {
-      const t = time;
-      const resume = !v.paused;
-      const onMeta = () => {
-        v.currentTime = Math.min(t, v.duration || t);
-        if (resume) void v.play();
-      };
-      v.addEventListener("loadedmetadata", onMeta, { once: true });
+    const srcChanged = lastSrc.current !== null && lastSrc.current !== props.src;
+    const videoChanged = lastReset.current !== props.resetKey;
+    if (srcChanged) {
+      if (videoChanged) {
+        v.load();
+      } else {
+        const t = time;
+        const resume = !v.paused;
+        const onMeta = () => {
+          v.currentTime = Math.min(t, v.duration || t);
+          if (resume) void v.play();
+        };
+        v.addEventListener("loadedmetadata", onMeta, { once: true });
+        v.load();
+      }
     }
     lastSrc.current = props.src;
+    lastReset.current = props.resetKey;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.src]);
+  }, [props.src, props.resetKey]);
 
   const btn =
     "flex items-center gap-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 rounded px-2 py-1 text-xs";

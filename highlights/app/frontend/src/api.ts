@@ -30,11 +30,13 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
-    }),
+    }).then(() => undefined),
   loadCandidatesFile: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return req<Candidate[]>("/api/candidates/load", { method: "POST", body: fd });
+    return req<Candidate[]>("/api/candidates/load", { method: "POST", body: fd }).then(
+      () => undefined,
+    );
   },
   listCandidates: (sort: "confidence" | "time") => req<Candidate[]>(`/api/candidates?sort=${sort}`),
   patchCandidate: (id: string, patch: Partial<Candidate>) =>
@@ -51,4 +53,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
   renderJob: (id: string) => req<RenderJob>(`/api/render/${id}`),
+  project: () =>
+    req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean }>(
+      "/api/project",
+    ),
 };

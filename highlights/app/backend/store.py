@@ -64,6 +64,7 @@ class ProjectStore:
         self.candidates: list[Candidate] = []
         self.proxy_complete: bool = False
         self.proxy_source: str = ""
+        self.candidates_version: int = 0
         self._load()
 
     def _load(self) -> None:
@@ -77,6 +78,7 @@ class ProjectStore:
             self.candidates = [Candidate(**c) for c in data.get("candidates", [])]
             self.proxy_complete = bool(data.get("proxy_complete", False))
             self.proxy_source = data.get("proxy_source", "")
+            self.candidates_version = int(data.get("candidates_version", 0))
         except Exception:
             # corrupt state -> start fresh rather than crash
             self.video = None
@@ -93,6 +95,7 @@ class ProjectStore:
                         "candidates": [c.model_dump() for c in self.candidates],
                         "proxy_complete": self.proxy_complete,
                         "proxy_source": self.proxy_source,
+                        "candidates_version": self.candidates_version,
                     },
                     indent=2,
                 )
@@ -109,6 +112,7 @@ class ProjectStore:
             duration = self.video.duration_s if self.video else cf.video_duration_s
             self.source = cf.source
             self.candidates = make_candidates(cf, duration)
+            self.candidates_version += 1
             self.save()
             return sorted(self.candidates, key=lambda c: -c.confidence)
 

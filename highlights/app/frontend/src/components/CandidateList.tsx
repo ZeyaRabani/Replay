@@ -5,7 +5,7 @@ import CandidateCard from "./CandidateCard";
 interface Props {
   candidates: Candidate[];
   selectedId: string | null;
-  thumbV: number | undefined;
+  thumbV: string | undefined;
   sort: "confidence" | "time";
   onSort: (s: "confidence" | "time") => void;
   onSelect: (c: Candidate) => void;

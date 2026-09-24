@@ -170,3 +170,30 @@ def test_register_new_video_invalidates(client, sample_video, tmp_path):
     assert not m.STORE.proxy_complete
     assert not (td / "c001_20.0.jpg").exists()  # thumbs cleared
     assert client.get("/api/video").json()["proxy_ready"] is False
+
+
+def test_thumb_clamp_and_404(client, sample_video, monkeypatch):
+    cands = _setup(client, sample_video)
+    goal = next(c for c in cands if c["type"] == "goal")
+
+    # t beyond duration is clamped to duration-0.1, not a 500
+    r = client.get(f"/api/candidates/{goal['id']}/thumb.jpg?t=99999")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/jpeg"
+
+    # ffmpeg failure / no output -> 404, not 500
+    import highlights.app.backend.main as m
+
+    def _boom(src, t, out):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(m.fx, "thumbnail", _boom)
+    r = client.get(f"/api/candidates/{goal['id']}/thumb.jpg?t=1.5")
+    assert r.status_code == 404
+
+    def _nofile(src, t, out):
+        return None
+
+    monkeypatch.setattr(m.fx, "thumbnail", _nofile)
+    r = client.get(f"/api/candidates/{goal['id']}/thumb.jpg?t=2.5")
+    assert r.status_code == 404

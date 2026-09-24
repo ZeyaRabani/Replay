@@ -228,14 +228,28 @@ def thumb(cand_id: str, t: float | None = None) -> FileResponse:
     c = STORE.get(cand_id)
     if c is None:
         raise HTTPException(404, "candidate not found")
+    duration = STORE.video.duration_s if STORE.video else 0.0
     tval = c.t if t is None else t
+    if duration > 0:
+        tval = min(max(0.0, tval), max(0.0, duration - 0.1))
     out = STORE.thumb_dir() / f"{cand_id}_{tval:.1f}.jpg"
     if not out.exists():
         try:
             fx.thumbnail(_video_path(), tval, out)
         except RuntimeError as e:
-            raise HTTPException(500, str(e)) from e
+            raise HTTPException(404, f"thumbnail failed: {e}") from e
+    if not out.is_file() or out.stat().st_size == 0:
+        raise HTTPException(404, "thumbnail produced no frame")
     return FileResponse(out, media_type="image/jpeg")
+
+
+@app.get("/api/project")
+def project() -> dict:
+    return {
+        "video": STORE.video.model_dump() if STORE.video else None,
+        "candidates_version": STORE.candidates_version,
+        "proxy_ready": _proxy_ready(),
+    }
 
 
 # ---------- render ----------

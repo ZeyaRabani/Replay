@@ -17,6 +17,7 @@ export default function App() {
   const [proxyProgress, setProxyProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [candVersion, setCandVersion] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const proxyTimer = useRef<number | null>(null);
 
@@ -39,11 +40,12 @@ export default function App() {
   useEffect(() => {
     void run(async () => {
       try {
-        const v = await api.getVideo();
-        setVideo(v);
-        setProxyReady(v.proxy_ready);
+        const p = await api.project();
+        setVideo(p.video);
+        setProxyReady(p.proxy_ready);
+        setCandVersion(p.candidates_version);
       } catch {
-        /* no video yet */
+        /* not ready yet */
       }
       try {
         setCandidates(await api.listCandidates("confidence"));
@@ -101,7 +103,9 @@ export default function App() {
       }, 1000);
     });
 
-  const videoSrc = video ? (proxyReady ? "/api/video/proxy.mp4" : "/api/video/source.mp4") : undefined;
+  const videoSrc = video
+    ? `${proxyReady ? "/api/video/proxy.mp4" : "/api/video/source.mp4"}?v=${video.registered_at}`
+    : undefined;
 
   return (
     <div className="flex flex-col h-screen">
@@ -113,17 +117,22 @@ export default function App() {
             const v = await api.registerVideo(p);
             setVideo(v);
             setProxyReady(v.proxy_ready);
+            setProxyProgress(null);
           })
         }
         onLoadCandidatesPath={async (p) =>
           run(async () => {
             await api.loadCandidatesPath(p);
+            const proj = await api.project();
+            setCandVersion(proj.candidates_version);
             setCandidates(await api.listCandidates(sort));
           })
         }
         onLoadCandidatesFile={async (f) =>
           run(async () => {
             await api.loadCandidatesFile(f);
+            const proj = await api.project();
+            setCandVersion(proj.candidates_version);
             setCandidates(await api.listCandidates(sort));
           })
         }
@@ -138,6 +147,7 @@ export default function App() {
             <VideoPlayer
               ref={videoRef}
               src={videoSrc}
+              resetKey={video.registered_at}
               selected={selected}
               onTime={setPlayhead}
               onSetIn={(t) => selected && patch(selected.id, { clip_start: t })}
@@ -164,7 +174,7 @@ export default function App() {
           <CandidateList
             candidates={candidates}
             selectedId={selected?.id ?? null}
-            thumbV={video?.registered_at}
+            thumbV={video ? `${video.registered_at}-${candVersion}` : undefined}
             sort={sort}
             onSort={setSort}
             onSelect={(c) => {
@@ -184,7 +194,11 @@ export default function App() {
           />
         </div>
       </div>
-      <RenderBar candidates={candidates} onError={showError} />
+      <RenderBar
+        candidates={candidates}
+        onError={showError}
+        resetKey={video ? `${video.registered_at}-${candVersion}` : ""}
+      />
     </div>
   );
 }
