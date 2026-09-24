@@ -1,7 +1,7 @@
-import { Film, Link2, Loader2, Plus, Trash2, Upload, Youtube } from "lucide-react";
+import { Film, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { mediaUrl, projectsApi } from "../api";
+import { configApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
 import type { ProjectSummary } from "../types";
@@ -34,7 +34,24 @@ function SourceBadge({ p }: { p: ProjectSummary }) {
   );
 }
 
-function ProjectCard({ p, onDelete }: { p: ProjectSummary; onDelete: (p: ProjectSummary) => void }) {
+const isBotBlock = (msg?: string | null) =>
+  !!msg && /bot check|sign in/i.test(msg);
+
+function ProjectCard({
+  p,
+  onDelete,
+  cookiesSaved,
+  onRetry,
+  onSetupCookies,
+  onUploadInstead,
+}: {
+  p: ProjectSummary;
+  onDelete: (p: ProjectSummary) => void;
+  cookiesSaved: boolean;
+  onRetry: (p: ProjectSummary) => void;
+  onSetupCookies: () => void;
+  onUploadInstead: () => void;
+}) {
   const [thumbErr, setThumbErr] = useState(false);
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 hover:border-zinc-700 transition-colors flex gap-3 p-3">
@@ -90,9 +107,38 @@ function ProjectCard({ p, onDelete }: { p: ProjectSummary; onDelete: (p: Project
             </div>
           </div>
         ) : p.pipeline_state === "failed" ? (
-          <div className="text-[11px] text-red-300 truncate" title={p.message ?? ""}>
-            {p.message}
-          </div>
+          isBotBlock(p.message) ? (
+            <div className="text-[11px]" title={p.message ?? ""}>
+              <span className="text-red-300">YouTube blocked this server&apos;s download.</span>
+              <span className="flex gap-3 mt-1">
+                {cookiesSaved ? (
+                  <button
+                    className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200"
+                    onClick={() => onRetry(p)}
+                  >
+                    <RotateCcw size={11} /> Retry
+                  </button>
+                ) : (
+                  <button
+                    className="text-amber-300 hover:text-amber-200"
+                    onClick={onSetupCookies}
+                  >
+                    Set up YouTube cookies
+                  </button>
+                )}
+                <button
+                  className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"
+                  onClick={onUploadInstead}
+                >
+                  <Upload size={11} /> Upload the file instead
+                </button>
+              </span>
+            </div>
+          ) : (
+            <div className="text-[11px] text-red-300 truncate" title={p.message ?? ""}>
+              {p.message}
+            </div>
+          )
         ) : (
           <div className="text-xs text-zinc-400">
             <b className="text-zinc-200">{p.n_candidates}</b> candidates ·{" "}
@@ -110,28 +156,138 @@ function ProjectCard({ p, onDelete }: { p: ProjectSummary; onDelete: (p: Project
   );
 }
 
-function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => void; onError: (m: string) => void }) {
-  const [tab, setTab] = useState<"youtube" | "upload">("youtube");
+function YouTubeAccess({ saved, onChanged, onError, innerRef }: {
+  saved: boolean;
+  onChanged: () => void;
+  onError: (m: string) => void;
+  innerRef: React.Ref<HTMLDivElement>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const input =
+    "bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 w-full";
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await meApi.saveCookies(text);
+      setText("");
+      setOpen(false);
+      onChanged();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    try {
+      await meApi.deleteCookies();
+      onChanged();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <div ref={innerRef} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-semibold text-sm flex items-center gap-2">
+          <Youtube size={15} className="text-red-400" /> YouTube access
+        </div>
+        {saved ? (
+          <span className="text-xs text-zinc-400">
+            Cookies saved ✓{" "}
+            <button className="text-zinc-500 hover:text-red-300 underline" onClick={() => void remove()}>
+              Remove
+            </button>
+          </span>
+        ) : (
+          <button
+            className="text-xs text-amber-300 hover:text-amber-200 underline"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? "Close" : "Not set — Set up"}
+          </button>
+        )}
+      </div>
+      {open && !saved && (
+        <div className="mt-3 text-xs text-zinc-300 flex flex-col gap-2">
+          <ol className="list-decimal pl-4 text-zinc-400 space-y-1">
+            <li>
+              Install the Chrome extension{" "}
+              <a
+                href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-300 underline"
+              >
+                Get cookies.txt LOCALLY
+              </a>
+            </li>
+            <li>Open youtube.com while signed in, click the extension, then Copy.</li>
+            <li>Paste below and Save.</li>
+          </ol>
+          <textarea
+            className={`${input} font-mono text-[11px] h-24`}
+            placeholder="# Netscape HTTP Cookie File — paste cookies.txt contents here"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button
+            disabled={busy || !text.trim()}
+            onClick={() => void save()}
+            className="self-start bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 disabled:opacity-40"
+          >
+            {busy ? <Loader2 size={13} className="animate-spin" /> : "Save"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NewProject({ onCreated, onError, tab, setTab }: {
+  onCreated: (p: ProjectSummary) => void;
+  onError: (m: string) => void;
+  tab: "youtube" | "upload";
+  setTab: (t: "youtube" | "upload") => void;
+}) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [cookies, setCookies] = useState("");
-  const [showCookies, setShowCookies] = useState(false);
+  const [uploadOrigin, setUploadOrigin] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    configApi
+      .get()
+      .then((c) => setUploadOrigin(c.upload_origin))
+      .catch(() => setUploadOrigin(null));
+  }, []);
+  const foreignUpload =
+    !!uploadOrigin && uploadOrigin.replace(/\/$/, "") !== window.location.origin.replace(/\/$/, "");
 
   const submit = async () => {
     setBusy(true);
     try {
       const p =
         tab === "youtube"
-          ? await projectsApi.createYoutube(url.trim(), title.trim(), cookies.trim() || undefined)
+          ? await projectsApi.createYoutube(url.trim(), title.trim())
           : await projectsApi.createUpload(file as File, title.trim());
       onCreated(p);
       setUrl("");
       setTitle("");
       setFile(null);
     } catch (e) {
-      onError(e instanceof Error ? e.message : String(e));
+      let m = e instanceof Error ? e.message : String(e);
+      if (m.startsWith("413")) {
+        m = `Upload failed: file too large for this link.${
+          foreignUpload ? ` Open ${uploadOrigin}/projects and upload there.` : ""
+        }`;
+      }
+      onError(m);
     } finally {
       setBusy(false);
     }
@@ -166,6 +322,16 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
+        ) : foreignUpload ? (
+          <div className="text-xs text-zinc-300 rounded border border-zinc-700 bg-zinc-800/60 p-3">
+            Large uploads must go directly to your server:
+            <a
+              href={`${uploadOrigin}/projects`}
+              className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5"
+            >
+              Open {uploadOrigin}/projects
+            </a>
+          </div>
         ) : (
           <label className="flex items-center gap-2 bg-zinc-800 border border-dashed border-zinc-600 hover:border-amber-400 rounded px-3 py-3 text-sm cursor-pointer">
             <Upload size={15} className="text-zinc-400" />
@@ -184,31 +350,6 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        {tab === "youtube" && (
-          <div className="text-xs">
-            <button
-              type="button"
-              onClick={() => setShowCookies(!showCookies)}
-              className="text-zinc-400 hover:text-zinc-200"
-            >
-              {showCookies ? "▾" : "▸"} Advanced: YouTube cookies (Netscape cookies.txt)
-            </button>
-            {showCookies && (
-              <div className="mt-1">
-                <textarea
-                  className={`${input} font-mono text-[11px] h-24`}
-                  placeholder="# Netscape HTTP Cookie File — paste cookies.txt contents here"
-                  value={cookies}
-                  onChange={(e) => setCookies(e.target.value)}
-                />
-                <p className="text-[11px] text-zinc-500 mt-1">
-                  Needed only if YouTube blocks the server (bot check). Export with a
-                  &apos;Get cookies.txt&apos; browser extension.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
         <button
           disabled={busy || !canSubmit}
           onClick={() => void submit()}
@@ -229,6 +370,9 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
 export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cookiesSaved, setCookiesSaved] = useState(false);
+  const [newTab, setNewTab] = useState<"youtube" | "upload">("youtube");
+  const cookiesPanel = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
 
   const showError = (m: string) => {
@@ -259,6 +403,37 @@ export default function Projects() {
     };
   }, [anyLive, refresh]);
 
+  const refreshCookies = useCallback(async () => {
+    try {
+      const c = await meApi.getCookies();
+      setCookiesSaved(c.saved);
+    } catch {
+      /* leave as-is */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCookies();
+  }, [refreshCookies]);
+
+  const retry = async (p: ProjectSummary) => {
+    try {
+      await projectApi(p.id).runPipeline({ force: true });
+      void refresh();
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const openCookiesPanel = () => {
+    cookiesPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const uploadInstead = () => {
+    setNewTab("upload");
+    cookiesPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const del = async (p: ProjectSummary) => {
     if (!window.confirm(`Delete "${p.title}"? This removes the downloaded video and all renders.`)) return;
     try {
@@ -288,11 +463,32 @@ export default function Projects() {
               No projects yet. Paste a YouTube link or upload a match video to get started.
             </div>
           ) : (
-            projects.map((p) => <ProjectCard key={p.id} p={p} onDelete={del} />)
+            projects.map((p) => (
+              <ProjectCard
+                key={p.id}
+                p={p}
+                onDelete={del}
+                cookiesSaved={cookiesSaved}
+                onRetry={retry}
+                onSetupCookies={openCookiesPanel}
+                onUploadInstead={uploadInstead}
+              />
+            ))
           )}
         </div>
         <div>
-          <NewProject onCreated={(p) => setProjects((ps) => [p, ...(ps ?? [])])} onError={showError} />
+          <YouTubeAccess
+            saved={cookiesSaved}
+            onChanged={() => void refreshCookies()}
+            onError={showError}
+            innerRef={cookiesPanel}
+          />
+          <NewProject
+            onCreated={(p) => setProjects((ps) => [p, ...(ps ?? [])])}
+            onError={showError}
+            tab={newTab}
+            setTab={setNewTab}
+          />
         </div>
       </div>
     </div>

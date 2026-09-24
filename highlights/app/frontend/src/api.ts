@@ -43,6 +43,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       /* keep status */
     }
+    if (r.status === 413) msg = "413: file too large";
     throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
   if (r.status === 204) return undefined as T;
@@ -60,10 +61,21 @@ export const usersApi = {
   create: (name: string) => req<User>("/api/users", json({ name })),
 };
 
+export const meApi = {
+  getCookies: () => req<{ saved: boolean; updated_at: number | null }>("/api/me/youtube-cookies"),
+  saveCookies: (cookies_text: string) =>
+    req<{ saved: boolean; updated_at: number }>("/api/me/youtube-cookies", json({ cookies_text }, "PUT")),
+  deleteCookies: () => req<void>("/api/me/youtube-cookies", { method: "DELETE" }),
+};
+
+export const configApi = {
+  get: () => req<{ upload_origin: string | null }>("/api/config"),
+};
+
 export const projectsApi = {
   list: () => req<ProjectSummary[]>("/api/projects"),
-  createYoutube: (youtube_url: string, title?: string, cookies_text?: string) =>
-    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined, cookies_text: cookies_text || undefined })),
+  createYoutube: (youtube_url: string, title?: string) =>
+    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined })),
   createPath: (path: string, title?: string) =>
     req<ProjectSummary>("/api/projects", json({ path, title: title || undefined })),
   createUpload: (file: File, title?: string) => {

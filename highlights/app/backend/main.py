@@ -594,6 +594,66 @@ def _project_cookies(p) -> str | None:
     return str(path) if path.is_file() else None
 
 
+# ---------- per-user saved YouTube cookies ----------
+
+def _user_cookies_path(user: str) -> Path:
+    return workdir() / "users" / user / "youtube_cookies.txt"
+
+
+def _save_user_cookies(user: str, text: str) -> Path:
+    """Persist the user's YouTube cookies (0600). Never logged or echoed."""
+    path = _user_cookies_path(user)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    os.chmod(path, 0o600)
+    return path
+
+
+def _user_default_cookies(p, user: str) -> str | None:
+    """Copy the user's saved cookies into the project, returning the path."""
+    src = _user_cookies_path(user)
+    if not src.is_file():
+        return None
+    dst = p.source_dir / "cookies.txt"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(src.read_bytes())
+    os.chmod(dst, 0o600)
+    return str(dst)
+
+
+class CookiesPut(BaseModel):
+    cookies_text: str
+
+
+@app.get("/api/me/youtube-cookies")
+def get_youtube_cookies(user: UserDep) -> dict:
+    path = _user_cookies_path(user)
+    return {"saved": path.is_file(),
+            "updated_at": path.stat().st_mtime if path.is_file() else None}
+
+
+@app.put("/api/me/youtube-cookies")
+def put_youtube_cookies(body: CookiesPut, user: UserDep) -> dict:
+    text = body.cookies_text or ""
+    if not text.strip():
+        raise HTTPException(422, "cookies_text is empty")
+    if "youtube.com" not in text:
+        raise HTTPException(422, "does not look like Netscape cookies for youtube.com")
+    path = _save_user_cookies(user, text)
+    return {"saved": True, "updated_at": path.stat().st_mtime}
+
+
+@app.delete("/api/me/youtube-cookies")
+def delete_youtube_cookies(user: UserDep) -> Response:
+    _user_cookies_path(user).unlink(missing_ok=True)
+    return Response(status_code=204)
+
+
+@app.get("/api/config")
+def get_config() -> dict:
+    return {"upload_origin": os.environ.get("HL_PUBLIC_URL") or None}
+
+
 @app.post("/api/projects")
 async def create_project(request: Request, user: UserDep) -> dict:
     reg = get_registry()
@@ -634,7 +694,11 @@ async def create_project(request: Request, user: UserDep) -> dict:
             title=body.title or body.youtube_url,
             source={"kind": "youtube", "url": body.youtube_url, "filename": None},
         )
-        cookies = _save_cookies(p, body.cookies_text)
+        if body.cookies_text:
+            cookies = _save_cookies(p, body.cookies_text)
+            _save_user_cookies(user, body.cookies_text)
+        else:
+            cookies = _user_default_cookies(p, user)
         try:
             pipeline.spawn(p, youtube_url=body.youtube_url, cookies=cookies)
         except pipeline.PipelineBusy as e:
@@ -693,16 +757,18 @@ def delete_project(p: ScopedP) -> Response:
 
 
 @scoped.post("/pipeline/run")
-def run_pipeline(p: ScopedP, body: Annotated[dict | None, Body()] = None) -> dict:
+def run_pipeline(p: ScopedP, body: Annotated[dict | None, Body()] = None,
+                 user: UserDep = "") -> dict:
     body = body or {}
     stages = body.get("stages")
     force = bool(body.get("force", False))
     kind = p.source_info.get("kind")
     try:
         if kind == "youtube":
+            ck = _project_cookies(p) or _user_default_cookies(p, user)
             return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
                                   stages=stages, force=force,
-                                  cookies=_project_cookies(p))
+                                  cookies=ck)
         video = p.video.path if p.video else p.source_info.get("url")
         if not video:
             files = [f for f in p.source_dir.iterdir() if f.is_file()]

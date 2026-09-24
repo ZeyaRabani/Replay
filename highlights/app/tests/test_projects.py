@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import time
+from pathlib import Path
 
 import pytest
 from conftest import new_project, scoped
@@ -145,6 +146,51 @@ def test_create_youtube_with_cookies(client):
         if "--cookies" in argv:
             break
         time.sleep(0.1)
+    assert argv[argv.index("--cookies") + 1] == str(ck)
+    _wait_done(client, pid)
+
+
+COOKIES = ("# Netscape HTTP Cookie File\n"
+           ".youtube.com\tTRUE\t/\tTRUE\t1\tSID\tabc\n")
+
+
+def test_user_cookies_roundtrip(client):
+    r = client.get("/api/me/youtube-cookies")
+    assert r.status_code == 200 and r.json() == {"saved": False, "updated_at": None}
+    r = client.put("/api/me/youtube-cookies", json={"cookies_text": COOKIES})
+    assert r.status_code == 200 and r.json()["saved"] and r.json()["updated_at"]
+    r = client.get("/api/me/youtube-cookies")
+    assert r.json()["saved"]
+    r = client.delete("/api/me/youtube-cookies")
+    assert r.status_code == 204
+    assert client.get("/api/me/youtube-cookies").json()["saved"] is False
+
+
+def test_user_cookies_validation(client):
+    r = client.put("/api/me/youtube-cookies", json={"cookies_text": "   "})
+    assert r.status_code == 422
+    r = client.put("/api/me/youtube-cookies", json={"cookies_text": "# Netscape\n.example.com\tTRUE\t/\tF\t1\ta\tb\n"})
+    assert r.status_code == 422
+
+
+def test_youtube_project_uses_saved_cookies(client, tmp_path):
+    client.put("/api/me/youtube-cookies", json={"cookies_text": COOKIES})
+    r = client.post("/api/projects", json={"youtube_url": "https://youtu.be/abc"})
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    import highlights.app.backend.main as m
+    proot = m.get_registry().get(pid).root
+    ck = proot / "source" / "cookies.txt"
+    assert ck.is_file()
+    assert ck.read_text() == COOKIES
+    ud = Path(m.workdir()) / "users" / "tester" / "youtube_cookies.txt"
+    assert ud.is_file() and ud.read_text() == COOKIES
+    for _ in range(50):
+        argv_p = proot / "pipeline" / "argv.json"
+        if argv_p.is_file():
+            break
+        time.sleep(0.1)
+    argv = json.loads(argv_p.read_text())
     assert argv[argv.index("--cookies") + 1] == str(ck)
     _wait_done(client, pid)
 

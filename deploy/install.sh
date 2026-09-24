@@ -72,6 +72,18 @@ fi
 
 # --- Run --------------------------------------------------------------------
 cd "$APP_DIR"
+
+# Public URL so the hosted frontend can send large uploads straight here.
+PUBLIC_IP="$(curl -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || true)"
+if [ -z "${PUBLIC_IP:-}" ]; then
+    PUBLIC_IP="$(curl -fsSL --max-time 5 -H 'Authorization: Bearer Oracle' \
+        http://169.254.169.254/opc/v2/vnics/ 2>/dev/null \
+        | grep -o '"publicIp":"[^"]*"' | head -1 | cut -d'"' -f4 || true)"
+fi
+if [ -n "${PUBLIC_IP:-}" ]; then
+    echo "HL_PUBLIC_URL=http://$PUBLIC_IP" > deploy/.env
+fi
+
 echo "== Building and starting the container (first build takes several minutes)"
 $DOCKER compose -f deploy/docker-compose.yml up -d --build
 
