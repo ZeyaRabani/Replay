@@ -1,0 +1,126 @@
+{
+  "source": "match_trk_epl_2024_w12",
+  "video_duration_s": 5340.0,
+  "events": [
+    {
+      "type": "excitement",
+      "t": 318.5,
+      "t_start": 312.0,
+      "t_end": 326.0,
+      "confidence": 0.41,
+      "signals": {"audio_peak_db": 4.1, "motion_z": 1.3},
+      "notes": "Crowd swell after a misplaced back-pass, no real chance.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "chance",
+      "t": 702.4,
+      "t_start": 696.0,
+      "t_end": 709.0,
+      "confidence": 0.62,
+      "signals": {"audio_peak_db": 5.8, "motion_z": 1.9, "crowd_rms": 0.44},
+      "notes": "Cut-back from the right, shot blocked at the edge of the box.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "goal",
+      "t": 1164.0,
+      "t_start": 1156.0,
+      "t_end": 1173.0,
+      "confidence": 0.94,
+      "signals": {"audio_peak_db": 9.6, "motion_z": 3.4, "crowd_rms": 0.91, "scoreboard_change": true},
+      "notes": "Header from a corner, 1-0. Scoreboard overlay confirms.",
+      "cross_validation": "confirmed"
+    },
+    {
+      "type": "shot",
+      "t": 1530.8,
+      "t_start": 1525.0,
+      "t_end": 1536.0,
+      "confidence": 0.55,
+      "signals": {"audio_peak_db": 5.0, "motion_z": 1.7},
+      "notes": "Long-range effort, comfortable save.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "chance",
+      "t": 1877.2,
+      "t_start": 1870.0,
+      "t_end": 1884.0,
+      "confidence": 0.73,
+      "signals": {"audio_peak_db": 6.9, "motion_z": 2.4, "crowd_rms": 0.58},
+      "notes": "1v1 after a through ball, keeper wins.",
+      "cross_validation": "confirmed"
+    },
+    {
+      "type": "goal",
+      "t": 2406.5,
+      "t_start": 2398.0,
+      "t_end": 2416.0,
+      "confidence": 0.89,
+      "signals": {"audio_peak_db": 8.8, "motion_z": 3.1, "crowd_rms": 0.85, "scoreboard_change": true},
+      "notes": "Counter-attack finished low at the near post, 1-1.",
+      "cross_validation": "confirmed"
+    },
+    {
+      "type": "other",
+      "t": 2622.0,
+      "t_start": 2616.0,
+      "t_end": 2628.0,
+      "confidence": 0.35,
+      "signals": {"audio_peak_db": 3.2, "motion_z": 0.9},
+      "notes": "VAR check pause, no incident found.",
+      "cross_validation": "rejected"
+    },
+    {
+      "type": "excitement",
+      "t": 2890.4,
+      "t_start": 2884.0,
+      "t_end": 2898.0,
+      "confidence": 0.66,
+      "signals": {"audio_peak_db": 7.2, "motion_z": 2.1, "crowd_rms": 0.63},
+      "notes": "Red card shown after a late tackle; sustained crowd reaction.",
+      "cross_validation": "visual_only"
+    },
+    {
+      "type": "shot",
+      "t": 3311.7,
+      "t_start": 3306.0,
+      "t_end": 3317.0,
+      "confidence": 0.58,
+      "signals": {"audio_peak_db": 5.5, "motion_z": 1.8},
+      "notes": "Free kick clipped just over the bar.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "chance",
+      "t": 3688.9,
+      "t_start": 3682.0,
+      "t_end": 3695.0,
+      "confidence": 0.71,
+      "signals": {"audio_peak_db": 6.6, "motion_z": 2.2},
+      "notes": "Far-post tap-in chance flashed wide.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "goal",
+      "t": 4450.3,
+      "t_start": 4442.0,
+      "t_end": 4460.0,
+      "confidence": 0.95,
+      "signals": {"audio_peak_db": 10.1, "motion_z": 3.6, "crowd_rms": 0.94, "scoreboard_change": true},
+      "notes": "Penalty converted, 2-1 to the home side.",
+      "cross_validation": "confirmed"
+    },
+    {
+      "type": "chance",
+      "t": 5104.6,
+      "t_start": 5098.0,
+      "t_end": 5111.0,
+      "confidence": 0.69,
+      "signals": {"audio_peak_db": 6.3, "motion_z": 2.0, "crowd_rms": 0.52},
+      "notes": "Stoppage-time scramble, cleared off the line.",
+      "cross_validation": "pipeline_only"
+    }
+  ]
+}

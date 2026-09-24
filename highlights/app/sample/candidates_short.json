@@ -1,0 +1,56 @@
+{
+  "source": "sample_testsrc_120s",
+  "video_duration_s": 120.0,
+  "events": [
+    {
+      "type": "goal",
+      "t": 20.0,
+      "t_start": 15.0,
+      "t_end": 25.0,
+      "confidence": 0.92,
+      "signals": {"audio_peak_db": 9.1, "motion_z": 3.0},
+      "notes": "Sample goal event.",
+      "cross_validation": "confirmed"
+    },
+    {
+      "type": "shot",
+      "t": 42.5,
+      "t_start": 38.0,
+      "t_end": 47.0,
+      "confidence": 0.61,
+      "signals": {"audio_peak_db": 5.4, "motion_z": 1.8},
+      "notes": "Sample shot.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "chance",
+      "t": 63.0,
+      "t_start": 58.0,
+      "t_end": 68.0,
+      "confidence": 0.74,
+      "signals": {"audio_peak_db": 6.8, "motion_z": 2.2},
+      "notes": "Sample chance.",
+      "cross_validation": "pipeline_only"
+    },
+    {
+      "type": "excitement",
+      "t": 85.5,
+      "t_start": 81.0,
+      "t_end": 90.0,
+      "confidence": 0.55,
+      "signals": {"audio_peak_db": 6.9, "motion_z": 2.0},
+      "notes": "Sample excitement.",
+      "cross_validation": "visual_only"
+    },
+    {
+      "type": "other",
+      "t": 105.0,
+      "t_start": 101.0,
+      "t_end": 109.0,
+      "confidence": 0.38,
+      "signals": {"audio_peak_db": 3.0, "motion_z": 0.8},
+      "notes": "Rejected by cross-validation.",
+      "cross_validation": "rejected"
+    }
+  ]
+}

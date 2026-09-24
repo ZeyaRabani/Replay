@@ -5,3 +5,7 @@ __pycache__/
 out*/
 *.pt
 .env
+highlights/app/frontend/node_modules/
+highlights/app/frontend/dist/
+highlights/app/workdir/
+highlights/**/*.mp4

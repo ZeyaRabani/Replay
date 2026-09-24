@@ -1,0 +1,90 @@
+[
+  {
+    "id": "c011",
+    "t": 4450.3,
+    "clip_start": 4445.3,
+    "clip_end": 4455.3,
+    "path": "/home/ubuntu/reel_out/clips/11_excitement_00318.5.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c003",
+    "t": 1164.0,
+    "clip_start": 1159.0,
+    "clip_end": 1169.0,
+    "path": "/home/ubuntu/reel_out/clips/08_chance_00702.4.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c006",
+    "t": 2406.5,
+    "clip_start": 2401.5,
+    "clip_end": 2411.5,
+    "path": "/home/ubuntu/reel_out/clips/02_goal_01164.0.mp4",
+    "duration": 10.0
+  },
+  {
+    "id": "c005",
+    "t": 1877.2,
+    "clip_start": 1874.2,
+    "clip_end": 1880.2,
+    "path": "/home/ubuntu/reel_out/clips/10_shot_01530.8.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c010",
+    "t": 3688.9,
+    "clip_start": 3685.9,
+    "clip_end": 3691.9,
+    "path": "/home/ubuntu/reel_out/clips/04_chance_01877.2.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c012",
+    "t": 5104.6,
+    "clip_start": 5101.6,
+    "clip_end": 5107.6,
+    "path": "/home/ubuntu/reel_out/clips/03_goal_02406.5.mp4",
+    "duration": 10.0
+  },
+  {
+    "id": "c008",
+    "t": 2890.4,
+    "clip_start": 2887.4,
+    "clip_end": 2893.4,
+    "path": "/home/ubuntu/reel_out/clips/07_excitement_02890.4.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c002",
+    "t": 702.4,
+    "clip_start": 699.4,
+    "clip_end": 705.4,
+    "path": "/home/ubuntu/reel_out/clips/09_shot_03311.7.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c009",
+    "t": 3311.7,
+    "clip_start": 3308.7,
+    "clip_end": 3314.7,
+    "path": "/home/ubuntu/reel_out/clips/05_chance_03688.9.mp4",
+    "duration": 6.0
+  },
+  {
+    "id": "c004",
+    "t": 1530.8,
+    "clip_start": 1527.8,
+    "clip_end": 1533.8,
+    "path": "/home/ubuntu/reel_out/clips/01_goal_04450.3.mp4",
+    "duration": 10.0
+  },
+  {
+    "id": "c001",
+    "t": 318.5,
+    "clip_start": 315.5,
+    "clip_end": 321.5,
+    "path": "/home/ubuntu/reel_out/clips/06_chance_05104.6.mp4",
+    "duration": 6.0
+  }
+]
