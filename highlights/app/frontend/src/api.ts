@@ -62,8 +62,8 @@ export const usersApi = {
 
 export const projectsApi = {
   list: () => req<ProjectSummary[]>("/api/projects"),
-  createYoutube: (youtube_url: string, title?: string) =>
-    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined })),
+  createYoutube: (youtube_url: string, title?: string, cookies_text?: string) =>
+    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined, cookies_text: cookies_text || undefined })),
   createPath: (path: string, title?: string) =>
     req<ProjectSummary>("/api/projects", json({ path, title: title || undefined })),
   createUpload: (file: File, title?: string) => {

@@ -55,6 +55,9 @@ def download(url: str, dest_dir: str | Path, status=None,
         "progress_hooks": [lambda d: _progress_hook(status, d)],
         "quiet": True,
         "no_warnings": True,
+        "retries": 10,
+        "fragment_retries": 20,
+        "concurrent_fragment_downloads": 4,
     }
     if shutil.which("node"):
         opts["js_runtimes"] = {"node": {}}
@@ -64,14 +67,28 @@ def download(url: str, dest_dir: str | Path, status=None,
     if cookiefile:
         opts["cookiefile"] = cookiefile
 
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-    except yt_dlp.utils.DownloadError as e:
-        msg = str(e)
-        if any(m in msg for m in BOT_CHECK_MARKERS):
-            raise PipelineError(BOT_CHECK_MSG) from e
-        raise PipelineError(msg) from e
+    # Real-world finding: YouTube DASH formats (271/251) can 403 mid-fetch
+    # while the HLS variants download fine. Retry once on 403 with HLS.
+    formats = [
+        opts["format"],
+        "bv*[protocol^=m3u8]+ba[protocol^=m3u8]/"
+        "bv*[protocol^=m3u8]+ba/bv*+ba/b",
+    ]
+    info = None
+    for attempt, fmt in enumerate(formats):
+        opts["format"] = fmt
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+            break
+        except yt_dlp.utils.DownloadError as e:
+            msg = str(e)
+            if any(m in msg for m in BOT_CHECK_MARKERS):
+                raise PipelineError(BOT_CHECK_MSG) from e
+            if attempt == 0 and ("403" in msg or "Forbidden" in msg):
+                log("DASH download got 403; retrying with HLS streams")
+                continue
+            raise PipelineError(msg) from e
 
     # resolve the actual output file
     out: Path | None = None

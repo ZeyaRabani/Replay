@@ -116,6 +116,39 @@ def test_create_youtube(client):
     _wait_done(client, d["id"])
 
 
+def test_create_youtube_with_cookies(client):
+    r = client.post("/api/projects", json={
+        "youtube_url": "https://youtu.be/abc",
+        "cookies_text": "# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tFALSE\t1\tc\tv\n",
+    })
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    import highlights.app.backend.main as m
+    proot = m.get_registry().get(pid).root
+    ck = proot / "source" / "cookies.txt"
+    assert ck.is_file()
+    assert ck.read_text().startswith("# Netscape HTTP Cookie File")
+    for _ in range(50):
+        argv_p = proot / "pipeline" / "argv.json"
+        if argv_p.is_file():
+            break
+        time.sleep(0.1)
+    argv = json.loads(argv_p.read_text())
+    i = argv.index("--cookies")
+    assert argv[i + 1] == str(ck)
+    _wait_done(client, pid)
+    # rerun reuses the stored cookies file
+    r = client.post(scoped(pid, "/pipeline/run"), json={})
+    assert r.status_code in (200, 409)
+    for _ in range(50):
+        argv = json.loads(argv_p.read_text())
+        if "--cookies" in argv:
+            break
+        time.sleep(0.1)
+    assert argv[argv.index("--cookies") + 1] == str(ck)
+    _wait_done(client, pid)
+
+
 def test_cancel_and_409(client, sample_video, monkeypatch):
     monkeypatch.setenv("FAKE_PIPELINE_HANG", "1")
     r = client.post("/api/projects", json={"path": str(sample_video)})

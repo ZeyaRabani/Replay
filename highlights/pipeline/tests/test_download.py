@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import pytest
 import yt_dlp
 
@@ -32,6 +34,28 @@ class _FakeYDL:
 class _BotYDL(_FakeYDL):
     def extract_info(self, url, download=True):
         raise yt_dlp.utils.DownloadError("Sign in to confirm you're not a bot")
+
+
+class _Dash403YDL(_FakeYDL):
+    """First YoutubeDL instance raises a 403; the HLS retry succeeds."""
+    calls: ClassVar[list] = []
+
+    def extract_info(self, url, download=True):
+        self.calls.append(self.opts.get("format"))
+        if len(self.calls) == 1:
+            raise yt_dlp.utils.DownloadError("HTTP Error 403: Forbidden")
+        return super().extract_info(url, download)
+
+
+def test_download_403_falls_back_to_hls(tmp_path, monkeypatch):
+    _Dash403YDL.calls = []
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _Dash403YDL)
+    logs = []
+    out = dl.download("http://x", tmp_path, status=None, log=logs.append)
+    assert out.name == "match.mp4"
+    assert len(_Dash403YDL.calls) == 2
+    assert _Dash403YDL.calls[1].startswith("bv*[protocol^=m3u8]")
+    assert any("403" in m and "HLS" in m for m in logs)
 
 
 def test_download_success(tmp_path, monkeypatch):

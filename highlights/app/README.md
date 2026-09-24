@@ -27,6 +27,10 @@ uvicorn highlights.app.backend.main:app --host 127.0.0.1 --port 8000
 cd highlights/app/frontend && npm run dev
 ```
 
+The vite dev proxy target is configurable: `BACKEND_URL=http://127.0.0.1:8010 npm run dev`
+points `/api` at a non-default backend port (default `http://127.0.0.1:8000`;
+`MOCK=1` still wins and uses the mock server on 8001).
+
 ## Environment variables
 
 | Var | Default | Purpose |

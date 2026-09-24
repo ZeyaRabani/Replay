@@ -512,6 +512,7 @@ const server = http.createServer(async (req, res) => {
           if (ct.includes("application/json")) {
             const body = JSON.parse(raw || "{}");
             title = body.title;
+            void body.cookies_text; // accepted and ignored by the mock
             if (body.youtube_url) source = { kind: "youtube", url: body.youtube_url };
             else if (body.path) source = { kind: "path", path: body.path };
             else return jerr(res, 400, "youtube_url or path required");

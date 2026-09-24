@@ -115,6 +115,8 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [cookies, setCookies] = useState("");
+  const [showCookies, setShowCookies] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -122,7 +124,7 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
     try {
       const p =
         tab === "youtube"
-          ? await projectsApi.createYoutube(url.trim(), title.trim())
+          ? await projectsApi.createYoutube(url.trim(), title.trim(), cookies.trim() || undefined)
           : await projectsApi.createUpload(file as File, title.trim());
       onCreated(p);
       setUrl("");
@@ -182,6 +184,31 @@ function NewProject({ onCreated, onError }: { onCreated: (p: ProjectSummary) => 
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        {tab === "youtube" && (
+          <div className="text-xs">
+            <button
+              type="button"
+              onClick={() => setShowCookies(!showCookies)}
+              className="text-zinc-400 hover:text-zinc-200"
+            >
+              {showCookies ? "▾" : "▸"} Advanced: YouTube cookies (Netscape cookies.txt)
+            </button>
+            {showCookies && (
+              <div className="mt-1">
+                <textarea
+                  className={`${input} font-mono text-[11px] h-24`}
+                  placeholder="# Netscape HTTP Cookie File — paste cookies.txt contents here"
+                  value={cookies}
+                  onChange={(e) => setCookies(e.target.value)}
+                />
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Needed only if YouTube blocks the server (bot check). Export with a
+                  &apos;Get cookies.txt&apos; browser extension.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         <button
           disabled={busy || !canSubmit}
           onClick={() => void submit()}

@@ -67,6 +67,7 @@ class ProjectCreate(BaseModel):
     youtube_url: str | None = None
     path: str | None = None
     run_pipeline: bool = True
+    cookies_text: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -116,7 +117,11 @@ def ensure_demo(reg: Registry) -> None:
     cands_path = REPO_ROOT / "highlights" / "fusion" / "outputs" / "candidates.json"
     if not cands_path.is_file():
         return
-    demo_video = os.environ.get("HL_DEMO_VIDEO", "/home/ubuntu/match/match.mp4")
+    demo_video = os.environ.get("HL_DEMO_VIDEO") or (
+        "/home/ubuntu/match/match_2400.mp4"
+        if Path("/home/ubuntu/match/match_2400.mp4").is_file()
+        else "/home/ubuntu/match/match.mp4"
+    )
     p = reg.create_project(
         owner="demo",
         title="Demo match (5qj_nsQSzvQ)",
@@ -567,6 +572,24 @@ def _safe_filename(name: str) -> str:
     return base or "upload.mp4"
 
 
+def _save_cookies(p, text: str | None) -> str | None:
+    """Write YouTube cookies to <project>/source/cookies.txt (0600).
+    Returns the path, or None. Content is never logged or echoed."""
+    if not text or not text.strip():
+        return None
+    path = p.source_dir / "cookies.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    os.chmod(path, 0o600)
+    return str(path)
+
+
+def _project_cookies(p) -> str | None:
+    """Path to an existing source/cookies.txt for reruns, else None."""
+    path = p.source_dir / "cookies.txt"
+    return str(path) if path.is_file() else None
+
+
 @app.post("/api/projects")
 async def create_project(request: Request, user: UserDep) -> dict:
     reg = get_registry()
@@ -577,6 +600,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
         if file is None or not hasattr(file, "read"):
             raise HTTPException(400, "missing 'file' field")
         title = (form.get("title") or "").strip() if isinstance(form.get("title"), str) else ""
+        cookies_text = form.get("cookies_text") if isinstance(form.get("cookies_text"), str) else None
         name = _safe_filename(file.filename or "upload.mp4")
         # create the project first so we have a source dir
         p = reg.create_project(
@@ -591,6 +615,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
                 if not chunk:
                     break
                 fh.write(chunk)
+        _save_cookies(p, cookies_text)
         try:
             pipeline.spawn(p, video=str(dst), stages=NO_DOWNLOAD_STAGES)
         except pipeline.PipelineBusy as e:
@@ -605,8 +630,9 @@ async def create_project(request: Request, user: UserDep) -> dict:
             title=body.title or body.youtube_url,
             source={"kind": "youtube", "url": body.youtube_url, "filename": None},
         )
+        cookies = _save_cookies(p, body.cookies_text)
         try:
-            pipeline.spawn(p, youtube_url=body.youtube_url)
+            pipeline.spawn(p, youtube_url=body.youtube_url, cookies=cookies)
         except pipeline.PipelineBusy as e:
             raise HTTPException(409, str(e)) from e
         return summary(p)
@@ -670,7 +696,9 @@ def run_pipeline(p: ScopedP, body: Annotated[dict | None, Body()] = None) -> dic
     kind = p.source_info.get("kind")
     try:
         if kind == "youtube":
-            return pipeline.spawn(p, youtube_url=p.source_info.get("url"), stages=stages, force=force)
+            return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
+                                  stages=stages, force=force,
+                                  cookies=_project_cookies(p))
         video = p.video.path if p.video else p.source_info.get("url")
         if not video:
             files = [f for f in p.source_dir.iterdir() if f.is_file()]
