@@ -39,9 +39,15 @@ fi
 # inbound traffic even when the cloud security list allows it. Open 80/443.
 open_port() {
     local port=$1
+    # Oracle images ship a REJECT-all near the end of INPUT; ACCEPTs must be
+    # inserted BEFORE it (a fixed -I INPUT 6 lands after REJECT on some images).
+    local idx
+    idx=$(sudo iptables -L INPUT --line-numbers -n \
+        | awk '$2 == "REJECT" || $2 == "DROP" {print $1; exit}')
+    idx=${idx:-6}
     if ! sudo iptables -C INPUT -m state --state NEW -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-        sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$port" -j ACCEPT
-        echo "== Opened port $port in iptables"
+        sudo iptables -I INPUT "$idx" -m state --state NEW -p tcp --dport "$port" -j ACCEPT
+        echo "== Opened port $port in iptables (rule $idx)"
     fi
 }
 open_port 80
