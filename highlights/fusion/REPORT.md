@@ -63,10 +63,20 @@ by cross-validation: 32 confirmed, 7 visual_only, 6 pipeline_only,
   — deep-in-net occupancy timeseries + raw YOLO detections.
 - `highlights/fusion/outputs/candidates.json` — canonical candidate list
   (mirrored to `highlights/app/outputs/candidates.json` for the app).
-- `highlights/fusion/outputs/rendered/clips/*.mp4` — 27 selected clips
-  (libx264 CRF 28, max width 960, AAC 96k, faststart).
-- `highlights/fusion/outputs/rendered/reel.mp4` — concatenated reel.
-- `highlights/fusion/outputs/rendered/manifest.json` — id → file map.
+- `highlights/fusion/outputs/rendered/` — the **earlier preview-quality
+  deliverable** (CRF28, max width 960, AAC 96k). Superceded for quality by:
+- `highlights/fusion/outputs/rendered_high/clips/*.mp4` — 27 selected
+  clips at **source resolution 1280×576** (libx264 CRF14 preset slow,
+  yuv420p, AAC 256k, faststart). Visually transparent; the honest maximum
+  resolution — the source is 1280×576 so it cannot be increased.
+- `rendered_high/reel.mp4` — concatenated high-quality reel (156 MB;
+  exceeds GitHub's 100 MB file limit so it is not committed — see local
+  copy at `/home/ubuntu/match/reel_high.mp4`).
+- `rendered_high/manifest.json` — `{quality, codec_settings, clips}` map.
+- `--quality max` exists for lossless archival (CRF0 veryslow + FLAC in
+  MKV, `outputs/rendered_max`); a 10 s proof clip of the confirmed goal
+  is at `/home/ubuntu/match/goal_2736_lossless.mkv` (42 MB for 10 s —
+  a full lossless reel would be many GB).
 
 ## Rerun
 
@@ -78,5 +88,6 @@ python3 highlights/fusion/labels.py
 python3 highlights/fusion/score.py
 python3 highlights/fusion/net_occupancy.py --video /home/ubuntu/match/match.mp4
 python3 highlights/fusion/fuse.py
-python3 highlights/fusion/render.py
+python3 highlights/fusion/render.py            # high quality (default)
+python3 highlights/fusion/render.py --quality max   # lossless archival MKV
 ```

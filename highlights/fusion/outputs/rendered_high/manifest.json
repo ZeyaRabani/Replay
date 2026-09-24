@@ -1,0 +1,294 @@
+{
+ "quality": "high",
+ "codec_settings": {
+  "container": "mp4",
+  "vcodec_args": [
+   "-c:v",
+   "libx264",
+   "-crf",
+   "14",
+   "-preset",
+   "slow",
+   "-pix_fmt",
+   "yuv420p"
+  ],
+  "acodec_args": [
+   "-c:a",
+   "aac",
+   "-b:a",
+   "256k"
+  ]
+ },
+ "clips": [
+  {
+   "id": "event_001",
+   "rank": 1,
+   "type": "goal",
+   "t": 2736.0,
+   "clip_start": 2731.0,
+   "clip_end": 2741.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/01_goal_2736s.mp4",
+   "duration_s": 10.0
+  },
+  {
+   "id": "event_002",
+   "rank": 2,
+   "type": "shot",
+   "t": 2253.7,
+   "clip_start": 2250.7,
+   "clip_end": 2256.7,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/02_shot_2254s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_003",
+   "rank": 3,
+   "type": "shot",
+   "t": 2562.2,
+   "clip_start": 2559.2,
+   "clip_end": 2565.2,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/03_shot_2562s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_004",
+   "rank": 4,
+   "type": "shot",
+   "t": 1788.7,
+   "clip_start": 1785.7,
+   "clip_end": 1791.7,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/04_shot_1789s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_005",
+   "rank": 5,
+   "type": "shot",
+   "t": 2299.5,
+   "clip_start": 2296.5,
+   "clip_end": 2302.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/05_shot_2300s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_006",
+   "rank": 6,
+   "type": "shot",
+   "t": 3949.5,
+   "clip_start": 3946.5,
+   "clip_end": 3952.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/06_shot_3950s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_007",
+   "rank": 7,
+   "type": "shot",
+   "t": 3415.3,
+   "clip_start": 3412.3,
+   "clip_end": 3418.3,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/07_shot_3415s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_008",
+   "rank": 8,
+   "type": "shot",
+   "t": 3443.4,
+   "clip_start": 3440.4,
+   "clip_end": 3446.4,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/08_shot_3443s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_009",
+   "rank": 9,
+   "type": "shot",
+   "t": 1486.2,
+   "clip_start": 1483.2,
+   "clip_end": 1489.2,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/09_shot_1486s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_010",
+   "rank": 10,
+   "type": "shot",
+   "t": 2063.4,
+   "clip_start": 2060.4,
+   "clip_end": 2066.4,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/10_shot_2063s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_011",
+   "rank": 11,
+   "type": "shot",
+   "t": 1669.2,
+   "clip_start": 1666.2,
+   "clip_end": 1672.2,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/11_shot_1669s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_012",
+   "rank": 12,
+   "type": "shot",
+   "t": 2694.7,
+   "clip_start": 2691.7,
+   "clip_end": 2697.7,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/12_shot_2695s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_013",
+   "rank": 13,
+   "type": "shot",
+   "t": 1547.0,
+   "clip_start": 1544.0,
+   "clip_end": 1550.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/13_shot_1547s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_014",
+   "rank": 14,
+   "type": "shot",
+   "t": 2081.6,
+   "clip_start": 2078.6,
+   "clip_end": 2084.6,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/14_shot_2082s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_015",
+   "rank": 15,
+   "type": "shot",
+   "t": 1766.5,
+   "clip_start": 1763.5,
+   "clip_end": 1769.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/15_shot_1766s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_016",
+   "rank": 16,
+   "type": "shot",
+   "t": 2833.5,
+   "clip_start": 2830.5,
+   "clip_end": 2836.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/16_shot_2834s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_017",
+   "rank": 17,
+   "type": "shot",
+   "t": 3841.3,
+   "clip_start": 3838.3,
+   "clip_end": 3844.3,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/17_shot_3841s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_018",
+   "rank": 18,
+   "type": "shot",
+   "t": 2891.5,
+   "clip_start": 2888.5,
+   "clip_end": 2894.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/18_shot_2892s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_019",
+   "rank": 19,
+   "type": "shot",
+   "t": 1699.2,
+   "clip_start": 1696.2,
+   "clip_end": 1702.2,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/19_shot_1699s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_020",
+   "rank": 20,
+   "type": "chance",
+   "t": 1715.0,
+   "clip_start": 1712.0,
+   "clip_end": 1718.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/20_chance_1715s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_021",
+   "rank": 21,
+   "type": "shot",
+   "t": 3522.5,
+   "clip_start": 3519.5,
+   "clip_end": 3525.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/21_shot_3522s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_022",
+   "rank": 22,
+   "type": "shot",
+   "t": 4548.0,
+   "clip_start": 4545.0,
+   "clip_end": 4551.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/22_shot_4548s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_023",
+   "rank": 23,
+   "type": "shot",
+   "t": 3996.0,
+   "clip_start": 3993.0,
+   "clip_end": 3999.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/23_shot_3996s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_024",
+   "rank": 24,
+   "type": "shot",
+   "t": 1585.1,
+   "clip_start": 1582.1,
+   "clip_end": 1588.1,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/24_shot_1585s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_028",
+   "rank": 28,
+   "type": "shot",
+   "t": 4979.5,
+   "clip_start": 4976.5,
+   "clip_end": 4982.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/28_shot_4980s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_029",
+   "rank": 29,
+   "type": "shot",
+   "t": 1724.5,
+   "clip_start": 1721.5,
+   "clip_end": 1727.5,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/29_shot_1724s.mp4",
+   "duration_s": 6.0
+  },
+  {
+   "id": "event_037",
+   "rank": 37,
+   "type": "shot",
+   "t": 2407.0,
+   "clip_start": 2404.0,
+   "clip_end": 2410.0,
+   "path": "/home/ubuntu/repos/Replay/highlights/fusion/outputs/rendered_high/clips/37_shot_2407s.mp4",
+   "duration_s": 6.0
+  }
+ ]
+}

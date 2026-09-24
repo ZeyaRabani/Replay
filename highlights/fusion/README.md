@@ -12,7 +12,7 @@ highlight clips. CPU-only, local execution.
 | `score.py` | (a) rule score = mean of clipped robust-z of six near-goal signals, 3 s smoothing, 12 s NMS → top 60; (b) learned = LogisticRegression on [mean,max] windowed features, temporal 2-fold held-out CV → top 60; prints precision/recall@K + AUROC → `peaks_{rule,learned}.json` |
 | `net_occupancy.py` | 2 fps YOLOv8s person detection on the near-goal crop; deep-in-net = bbox bottom-centre in the net polygon, x_center≥1070, y_bottom≥290; emits `net_occupancy_1s.json`, raw `net_detections.json`, and occupancy runs |
 | `fuse.py` | canonical candidate list: deduped reviewer events (+ authored 2736 goal correction), nearest peaks attached, confidence formula, pipeline-only learned peaks, rejected tracking goals → `outputs/candidates.json` + `app/outputs/candidates.json` |
-| `render.py` | renders `selected` candidates to `outputs/rendered/clips/*.mp4` (x264 CRF 28, w≤960, AAC 96k, faststart) + `reel.mp4` (concat, stream copy) + `manifest.json` |
+| `render.py` | renders `selected` candidates to clips + `reel` + `manifest.json` in a quality-specific dir. `--quality preview` = legacy output (`outputs/rendered`, CRF28/w960/AAC96, 120MB fallback). `--quality high` (default) = source resolution, CRF14/slow, yuv420p, AAC 256k MP4 → `outputs/rendered_high` (app/browser-safe). `--quality max` = lossless CRF0/veryslow + FLAC in MKV → `outputs/rendered_max`, archival only. Size fallback applies to preview only; high/max never degrade. |
 
 ## Dependencies
 
@@ -29,7 +29,9 @@ python3 highlights/fusion/labels.py
 python3 highlights/fusion/score.py
 python3 highlights/fusion/net_occupancy.py
 python3 highlights/fusion/fuse.py
-python3 highlights/fusion/render.py
+python3 highlights/fusion/render.py                      # high by default
+python3 highlights/fusion/render.py --quality preview   # legacy small files
+python3 highlights/fusion/render.py --quality max       # lossless MKV (archival)
 python3 -m pytest highlights/fusion/test_fuse.py -q
 ```
 
