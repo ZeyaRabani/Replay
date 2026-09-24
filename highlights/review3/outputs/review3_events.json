@@ -1,0 +1,123 @@
+{
+  "source": "review3",
+  "video_duration_s": 5337.154,
+  "events": [
+    {
+      "type": "chance",
+      "t": 2736.0,
+      "t_start": 2733.0,
+      "t_end": 2743.0,
+      "confidence": 0.58,
+      "signals": {"observed": "Crowded scramble directly in front of the near goal; the ball is contested at close range and then rolls clear.", "attacking_goal": "right", "evidence": ["evidence/event_2736_chance.png"]},
+      "notes": "Big-chance shape, but the exact final touch is hidden by players."
+    },
+    {
+      "type": "shot",
+      "t": 2833.5,
+      "t_start": 2831.0,
+      "t_end": 2838.0,
+      "confidence": 0.82,
+      "signals": {"observed": "An orange attacker sends the ball past the near goal; an orange player retrieves it from beside/behind the goal.", "attacking_goal": "right", "evidence": ["evidence/event_2833_shot.png"]},
+      "notes": "Near-goal shot off target."
+    },
+    {
+      "type": "shot",
+      "t": 2851.8,
+      "t_start": 2849.0,
+      "t_end": 2855.0,
+      "confidence": 0.55,
+      "signals": {"observed": "Far-goal attack ends with the nearest orange player putting both hands on his head while players turn away from goal.", "attacking_goal": "left", "evidence": ["evidence/event_2852_far_shot.png"]},
+      "notes": "Probable far-goal missed shot; ball/strike itself is too small to resolve."
+    },
+    {
+      "type": "shot",
+      "t": 2891.5,
+      "t_start": 2889.0,
+      "t_end": 2894.0,
+      "confidence": 0.88,
+      "signals": {"observed": "The ball is struck from the near-goal area and travels rapidly out toward the camera, wide of goal.", "attacking_goal": "right", "evidence": ["evidence/event_2892_shot.png"]},
+      "notes": "Near-goal shot off target."
+    },
+    {
+      "type": "chance",
+      "t": 3008.8,
+      "t_start": 3005.0,
+      "t_end": 3012.0,
+      "confidence": 0.52,
+      "signals": {"observed": "Orange attack reaches the near goalmouth; a defender slides/falls during a close-range challenge and the ball is cleared left.", "attacking_goal": "right", "evidence": ["evidence/event_3009_chance.png"]},
+      "notes": "Dangerous goalmouth action; no unobstructed shot contact visible."
+    },
+    {
+      "type": "other",
+      "t": 3026.0,
+      "t_start": 3026.0,
+      "t_end": 3198.0,
+      "confidence": 0.99,
+      "signals": {"observed": "Player remains down and play stops for prolonged treatment; players and children gather on the pitch.", "attacking_goal": "left", "evidence": ["evidence/event_3026_injury.png"], "kind": "injury_stoppage"},
+      "notes": "Long injury stoppage, not a highlight."
+    },
+    {
+      "type": "other",
+      "t": 3214.0,
+      "t_start": 3204.0,
+      "t_end": 3220.0,
+      "confidence": 0.92,
+      "signals": {"observed": "Players reform and active play resumes after the long injury stoppage.", "attacking_goal": "left", "evidence": ["evidence/event_3214_restart.png"], "kind": "restart"},
+      "notes": "Restart/alignment marker."
+    },
+    {
+      "type": "shot",
+      "t": 3415.3,
+      "t_start": 3413.0,
+      "t_end": 3419.0,
+      "confidence": 0.91,
+      "signals": {"observed": "Ball passes across the face of the near goal and continues out toward the camera; keeper watches without collecting.", "attacking_goal": "right", "evidence": ["evidence/event_3415_shot.png"]},
+      "notes": "Near-goal shot/cross-shot wide."
+    },
+    {
+      "type": "shot",
+      "t": 3443.4,
+      "t_start": 3441.0,
+      "t_end": 3453.0,
+      "confidence": 0.94,
+      "signals": {"observed": "Orange shoots in a crowded near-goal attack; keeper dives low and the ball deflects/rolls out toward the camera. An orange attacker remains down after the collision.", "attacking_goal": "right", "evidence": ["evidence/event_3443_shot.png"]},
+      "notes": "Shot stopped or deflected; followed by brief injury pause."
+    },
+    {
+      "type": "shot",
+      "t": 3522.5,
+      "t_start": 3519.0,
+      "t_end": 3528.0,
+      "confidence": 0.83,
+      "signals": {"observed": "Close-range near-goal attack makes the keeper dive into the goalmouth; no celebration or centre restart follows.", "attacking_goal": "right", "evidence": ["evidence/event_3523_shot.png"]},
+      "notes": "Probable save/blocked shot; ball is intermittently occluded."
+    },
+    {
+      "type": "shot",
+      "t": 3841.3,
+      "t_start": 3839.0,
+      "t_end": 3851.0,
+      "confidence": 0.91,
+      "signals": {"observed": "Orange shoots toward the near goal; the keeper raises an arm and the ball later returns from outside the goal/camera side for the restart.", "attacking_goal": "right", "evidence": ["evidence/event_3841_shot.png"]},
+      "notes": "Shot high/wide, not a goal."
+    },
+    {
+      "type": "shot",
+      "t": 3949.5,
+      "t_start": 3947.0,
+      "t_end": 3955.0,
+      "confidence": 0.95,
+      "signals": {"observed": "Orange attacker shoots from close range at the near goal; keeper dives low and ends on the ground, with play moving away and no celebration.", "attacking_goal": "right", "evidence": ["evidence/event_3950_shot.png"]},
+      "notes": "Clear close-range shot, apparently saved or blocked."
+    },
+    {
+      "type": "shot",
+      "t": 3996.0,
+      "t_start": 3993.0,
+      "t_end": 3999.0,
+      "confidence": 0.68,
+      "signals": {"observed": "A high ball travels over/across the near goal while the keeper and defenders watch; play pauses for the ball out.", "attacking_goal": "right", "evidence": ["evidence/event_3996_shot.png"]},
+      "notes": "Likely high shot or goal-bound cross; no goal."
+    }
+  ]
+}
