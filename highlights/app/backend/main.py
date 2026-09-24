@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -54,6 +55,21 @@ def _video_path() -> Path:
     return Path(STORE.video.path)
 
 
+def _proxy_ready() -> bool:
+    """True only when a completed proxy exists for the current video.
+
+    A proxy.mp4 without the proxy_complete flag (or for another source) is a
+    stale/partial build -> delete it.
+    """
+    dst = _wd() / "proxy.mp4"
+    if STORE.proxy_complete and STORE.video and STORE.proxy_source == STORE.video.path and dst.exists():
+        return True
+    running = _proxy_job is not None and not _proxy_job.done and _proxy_job.error is None
+    if not running:
+        dst.unlink(missing_ok=True)
+    return False
+
+
 def _stats() -> dict:
     cands = STORE.candidates
     counts: dict[str, dict] = {}
@@ -90,9 +106,13 @@ def register_video(req: VideoRegisterRequest) -> VideoInfo:
     p = Path(req.path)
     if not p.is_file():
         raise HTTPException(404, f"file not found: {p}")
+    resolved = str(p.resolve())
+    if STORE.video is None or STORE.video.path != resolved:
+        STORE.invalidate_video()
     info = fx.probe(p)
-    vi = VideoInfo(path=str(p.resolve()), proxy_ready=(_wd() / "proxy.mp4").exists(), **info)
+    vi = VideoInfo(path=resolved, registered_at=time.time(), **info)
     STORE.set_video(vi)
+    vi.proxy_ready = _proxy_ready()
     return vi
 
 
@@ -100,7 +120,7 @@ def register_video(req: VideoRegisterRequest) -> VideoInfo:
 def get_video() -> VideoInfo:
     if STORE.video is None:
         raise HTTPException(404, "no video registered")
-    STORE.video.proxy_ready = (_wd() / "proxy.mp4").exists()
+    STORE.video.proxy_ready = _proxy_ready()
     return STORE.video
 
 
@@ -115,17 +135,22 @@ def _serve(path: Path) -> FileResponse:
 def build_proxy() -> dict:
     global _proxy_job
     src = _video_path()
-    dst = _wd() / "proxy.mp4"
-    if dst.exists():
+    if _proxy_ready():
         return {"status": "ready"}
-    _proxy_job = fx.ProxyJob(src, dst, STORE.video.duration_s)
+    if _proxy_job is not None and not _proxy_job.done and _proxy_job.error is None:
+        return {"status": "started"}
+    src_str = str(src)
+    _proxy_job = fx.ProxyJob(
+        src, _wd() / "proxy.mp4", STORE.video.duration_s,
+        on_success=lambda: STORE.set_proxy_complete(src_str),
+    )
     _proxy_job.start()
     return {"status": "started"}
 
 
 @app.get("/api/video/proxy/status")
 def proxy_status() -> dict:
-    if (_wd() / "proxy.mp4").exists():
+    if _proxy_ready():
         return {"ready": True, "progress": 1.0}
     if _proxy_job is None:
         return {"ready": False, "progress": 0.0}
@@ -204,7 +229,7 @@ def thumb(cand_id: str, t: float | None = None) -> FileResponse:
     if c is None:
         raise HTTPException(404, "candidate not found")
     tval = c.t if t is None else t
-    out = _wd() / "thumbs" / f"{cand_id}_{tval:.1f}.jpg"
+    out = STORE.thumb_dir() / f"{cand_id}_{tval:.1f}.jpg"
     if not out.exists():
         try:
             fx.thumbnail(_video_path(), tval, out)

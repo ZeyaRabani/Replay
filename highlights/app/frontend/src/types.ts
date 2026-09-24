@@ -25,6 +25,7 @@ export interface VideoInfo {
   height: number;
   fps: number;
   proxy_ready: boolean;
+  registered_at: number;
 }
 
 export interface RenderJob {

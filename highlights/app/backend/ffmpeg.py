@@ -152,29 +152,35 @@ def concat_reel(clips: list[str | Path], out: str | Path) -> Path:
 class ProxyJob:
     """Background low-res proxy build with progress parsing."""
 
-    def __init__(self, src: str | Path, dst: str | Path, duration_s: float) -> None:
+    def __init__(
+        self,
+        src: str | Path,
+        dst: str | Path,
+        duration_s: float,
+        on_success: Callable[[], None] | None = None,
+    ) -> None:
         self.src, self.dst, self.duration = Path(src), Path(dst), duration_s
+        # write to a .part file and rename on success so proxy.mp4 is never partial
+        self.part = self.dst.with_name(self.dst.stem + ".part.mp4")
+        self.on_success = on_success
         self.progress = 0.0
-        self.done = dst.exists() if hasattr(dst, "exists") else False
+        self.done = False
         self.error: str | None = None
         self.thread: threading.Thread | None = None
 
     def start(self) -> None:
-        self.done = Path(self.dst).exists()
-        if self.done:
-            self.progress = 1.0
-            return
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
     def _run(self) -> None:
+        self.part.unlink(missing_ok=True)
         cmd = [
             "ffmpeg", "-y", "-i", str(self.src),
             "-vf", "scale=-2:360", "-r", "15",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
             "-c:a", "aac", "-b:a", "64k",
             "-movflags", "+faststart",
-            "-progress", "pipe:1", "-nostats", str(self.dst),
+            "-progress", "pipe:1", "-nostats", str(self.part),
         ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         assert proc.stdout is not None
@@ -187,10 +193,14 @@ class ProxyJob:
                 except ValueError:
                     pass
         proc.wait()
-        if proc.returncode == 0 and Path(self.dst).exists():
+        if proc.returncode == 0 and self.part.exists():
+            self.part.replace(self.dst)
             self.progress = 1.0
             self.done = True
+            if self.on_success:
+                self.on_success()
         else:
+            self.part.unlink(missing_ok=True)
             self.error = f"proxy ffmpeg exited {proc.returncode}"
 
 

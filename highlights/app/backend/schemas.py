@@ -63,6 +63,7 @@ class VideoInfo(BaseModel):
     height: int = 0
     fps: float = 0.0
     proxy_ready: bool = False
+    registered_at: float = 0.0
 
 
 class VideoRegisterRequest(BaseModel):

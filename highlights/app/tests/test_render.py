@@ -124,3 +124,49 @@ def test_api_render_job(client, sample_video):
 def test_video_404(client):
     r = client.post("/api/video", json={"path": "/nonexistent.mp4"})
     assert r.status_code == 404
+
+
+def test_load_returns_confidence_order(client, sample_video):
+    cands = _setup(client, sample_video)
+    confs = [c["confidence"] for c in cands]
+    assert confs == sorted(confs, reverse=True)
+    assert cands[0]["rank"] == 1
+
+
+def test_proxy_file_without_flag_not_ready(client, sample_video, tmp_path):
+    _setup(client, sample_video)
+    wd = tmp_path / "wd"
+    (wd / "proxy.mp4").write_bytes(b"partial")  # stale/partial file, no flag
+    r = client.get("/api/video").json()
+    assert r["proxy_ready"] is False
+    assert not (wd / "proxy.mp4").exists()  # stale file deleted
+    s = client.get("/api/video/proxy/status").json()
+    assert s["ready"] is False
+    # also works via proxy endpoint: should start a build, not claim ready
+    r = client.post("/api/video/proxy")
+    assert r.json()["status"] == "started"
+
+
+def test_register_new_video_invalidates(client, sample_video, tmp_path):
+    _setup(client, sample_video)
+    import highlights.app.backend.main as m
+
+    wd = tmp_path / "wd"
+    # simulate completed proxy + cached thumbs
+    (wd / "proxy.mp4").write_bytes(b"done")
+    (wd / "proxy.part.mp4").write_bytes(b"part")
+    m.STORE.set_proxy_complete(str(sample_video.resolve()))
+    td = m.STORE.thumb_dir()
+    (td / "c001_20.0.jpg").write_bytes(b"jpg")
+    assert client.get("/api/video").json()["proxy_ready"] is True
+
+    # register a *different* video
+    other = tmp_path / "other.mp4"
+    other.write_bytes(sample_video.read_bytes())
+    r = client.post("/api/video", json={"path": str(other)})
+    assert r.status_code == 200
+    assert not (wd / "proxy.mp4").exists()
+    assert not (wd / "proxy.part.mp4").exists()
+    assert not m.STORE.proxy_complete
+    assert not (td / "c001_20.0.jpg").exists()  # thumbs cleared
+    assert client.get("/api/video").json()["proxy_ready"] is False

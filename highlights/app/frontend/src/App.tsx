@@ -65,13 +65,15 @@ export default function App() {
     setPlayhead(t);
   };
 
-  const patch = async (id: string, p: Partial<Candidate>) => {
+  const patch = async (id: string, p: Partial<Candidate>): Promise<boolean> => {
     try {
       const updated = await api.patchCandidate(id, p);
       setCandidates((cs) => cs.map((c) => (c.id === id ? updated : c)));
       if (selected?.id === id) setSelected(updated);
+      return true;
     } catch (e) {
       showError(e instanceof Error ? e.message : String(e));
+      return false;
     }
   };
 
@@ -115,12 +117,14 @@ export default function App() {
         }
         onLoadCandidatesPath={async (p) =>
           run(async () => {
-            setCandidates(await api.loadCandidatesPath(p));
+            await api.loadCandidatesPath(p);
+            setCandidates(await api.listCandidates(sort));
           })
         }
         onLoadCandidatesFile={async (f) =>
           run(async () => {
-            setCandidates(await api.loadCandidatesFile(f));
+            await api.loadCandidatesFile(f);
+            setCandidates(await api.listCandidates(sort));
           })
         }
         onBuildProxy={buildProxy}
@@ -160,6 +164,7 @@ export default function App() {
           <CandidateList
             candidates={candidates}
             selectedId={selected?.id ?? null}
+            thumbV={video?.registered_at}
             sort={sort}
             onSort={setSort}
             onSelect={(c) => {

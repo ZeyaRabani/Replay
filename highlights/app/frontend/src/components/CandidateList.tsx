@@ -5,10 +5,11 @@ import CandidateCard from "./CandidateCard";
 interface Props {
   candidates: Candidate[];
   selectedId: string | null;
+  thumbV: number | undefined;
   sort: "confidence" | "time";
   onSort: (s: "confidence" | "time") => void;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => void;
+  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 
@@ -43,6 +44,7 @@ export default function CandidateList(props: Props) {
             key={c.id}
             c={c}
             selected={c.id === props.selectedId}
+            thumbV={props.thumbV}
             onSelect={props.onSelect}
             onPatch={props.onPatch}
             onReset={props.onReset}

@@ -1,4 +1,5 @@
 import { Check, RotateCcw, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Candidate } from "../types";
 import { TYPE_COLORS } from "./Timeline";
 
@@ -20,15 +21,47 @@ const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).p
 interface Props {
   c: Candidate;
   selected: boolean;
+  thumbV: number | undefined;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => void;
+  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 
 export default function CandidateCard(props: Props) {
   const { c } = props;
-  const num =
-    "w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-xs font-mono";
+  const [inStr, setInStr] = useState(String(c.clip_start));
+  const [outStr, setOutStr] = useState(String(c.clip_end));
+
+  // keep local drafts in sync when the server value changes
+  useEffect(() => setInStr(String(c.clip_start)), [c.clip_start]);
+  useEffect(() => setOutStr(String(c.clip_end)), [c.clip_end]);
+
+  const num = "w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-xs font-mono";
+
+  const commit = async (field: "clip_start" | "clip_end", raw: string, serverVal: number) => {
+    const v = parseFloat(raw);
+    if (raw.trim() === "" || v === serverVal) {
+      // unchanged or empty -> revert display
+      if (field === "clip_start") setInStr(String(serverVal));
+      else setOutStr(String(serverVal));
+      return;
+    }
+    if (Number.isNaN(v)) {
+      if (field === "clip_start") setInStr(String(serverVal));
+      else setOutStr(String(serverVal));
+      return;
+    }
+    const ok = await props.onPatch(c.id, { [field]: v });
+    if (!ok) {
+      // rejected by server (e.g. 422): revert to the server value
+      if (field === "clip_start") setInStr(String(serverVal));
+      else setOutStr(String(serverVal));
+    }
+  };
+
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+  };
 
   return (
     <div
@@ -39,7 +72,7 @@ export default function CandidateCard(props: Props) {
     >
       <div className="flex gap-2.5">
         <img
-          src={`/api/candidates/${c.id}/thumb.jpg`}
+          src={`/api/candidates/${c.id}/thumb.jpg${props.thumbV !== undefined ? `?v=${props.thumbV}` : ""}`}
           alt=""
           className="w-24 rounded bg-zinc-800 object-cover"
           loading="lazy"
@@ -78,16 +111,20 @@ export default function CandidateCard(props: Props) {
           className={num}
           type="number"
           step={0.1}
-          value={c.clip_start}
-          onChange={(e) => props.onPatch(c.id, { clip_start: parseFloat(e.target.value) })}
+          value={inStr}
+          onChange={(e) => setInStr(e.target.value)}
+          onBlur={(e) => void commit("clip_start", e.target.value, c.clip_start)}
+          onKeyDown={onKey}
         />
         <span>OUT</span>
         <input
           className={num}
           type="number"
           step={0.1}
-          value={c.clip_end}
-          onChange={(e) => props.onPatch(c.id, { clip_end: parseFloat(e.target.value) })}
+          value={outStr}
+          onChange={(e) => setOutStr(e.target.value)}
+          onBlur={(e) => void commit("clip_end", e.target.value, c.clip_end)}
+          onKeyDown={onKey}
         />
         <button
           className="p-1 rounded hover:bg-zinc-700"

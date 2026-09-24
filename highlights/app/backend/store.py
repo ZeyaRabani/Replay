@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import threading
 from pathlib import Path
 
@@ -60,6 +62,8 @@ class ProjectStore:
         self.video: VideoInfo | None = None
         self.source: str = ""
         self.candidates: list[Candidate] = []
+        self.proxy_complete: bool = False
+        self.proxy_source: str = ""
         self._load()
 
     def _load(self) -> None:
@@ -71,6 +75,8 @@ class ProjectStore:
                 self.video = VideoInfo(**data["video"])
             self.source = data.get("source", "")
             self.candidates = [Candidate(**c) for c in data.get("candidates", [])]
+            self.proxy_complete = bool(data.get("proxy_complete", False))
+            self.proxy_source = data.get("proxy_source", "")
         except Exception:
             # corrupt state -> start fresh rather than crash
             self.video = None
@@ -85,6 +91,8 @@ class ProjectStore:
                         "video": self.video.model_dump() if self.video else None,
                         "source": self.source,
                         "candidates": [c.model_dump() for c in self.candidates],
+                        "proxy_complete": self.proxy_complete,
+                        "proxy_source": self.proxy_source,
                     },
                     indent=2,
                 )
@@ -102,7 +110,38 @@ class ProjectStore:
             self.source = cf.source
             self.candidates = make_candidates(cf, duration)
             self.save()
-            return self.candidates
+            return sorted(self.candidates, key=lambda c: -c.confidence)
+
+    def set_proxy_complete(self, source: str) -> None:
+        with self.lock:
+            self.proxy_complete = True
+            self.proxy_source = source
+            self.save()
+
+    def invalidate_video(self) -> None:
+        """Drop proxy artifacts + thumbnail cache for a previous video."""
+        with self.lock:
+            for name in ("proxy.mp4", "proxy.part.mp4"):
+                (self.root / name).unlink(missing_ok=True)
+            shutil.rmtree(self.root / "thumbs", ignore_errors=True)
+            (self.root / "thumbs").mkdir(exist_ok=True)
+            self.proxy_complete = False
+            self.proxy_source = ""
+            self.save()
+
+    def thumb_dir(self) -> Path:
+        """Thumbnail cache dir keyed by video path + mtime (never stale)."""
+        key = "none"
+        if self.video is not None:
+            p = Path(self.video.path)
+            try:
+                mtime = p.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            key = hashlib.md5(f"{self.video.path}|{mtime}".encode()).hexdigest()[:10]
+        d = self.root / "thumbs" / key
+        d.mkdir(parents=True, exist_ok=True)
+        return d
 
     def get(self, cand_id: str) -> Candidate | None:
         with self.lock:
