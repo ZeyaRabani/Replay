@@ -1,4 +1,4 @@
-import { Clapperboard, FileUp, Loader2, Upload, Video } from "lucide-react";
+import { FileUp, Loader2, Upload, Video } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
@@ -21,9 +21,7 @@ export default function Navbar(props: Props) {
 
   return (
     <nav className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
-      <span className="flex items-center gap-2 font-semibold text-sm mr-2">
-        <Clapperboard size={18} className="text-amber-400" /> Replay Highlights
-      </span>
+      <span className="text-xs text-zinc-500 mr-1">Advanced</span>
       <input
         className={input}
         placeholder="/abs/path/match.mp4"
