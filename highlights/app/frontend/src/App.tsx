@@ -118,6 +118,9 @@ export default function App() {
             setVideo(v);
             setProxyReady(v.proxy_ready);
             setProxyProgress(null);
+            const cs = await api.listCandidates(sort);
+            setCandidates(cs);
+            if (selected) setSelected(cs.find((c) => c.id === selected.id) ?? null);
           })
         }
         onLoadCandidatesPath={async (p) =>
