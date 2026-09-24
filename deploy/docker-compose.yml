@@ -1,0 +1,19 @@
+services:
+  replay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "80:8000"
+    volumes:
+      - replay_data:/data
+    environment:
+      HL_WORKDIR: /data
+      # If YouTube blocks the server with a bot check, export cookies from your
+      # browser ("Get cookies.txt" extension) and either paste them into the
+      # project's "Advanced: YouTube cookies" box in the UI, or provide the file:
+      # HL_YT_COOKIES: /data/cookies.txt
+    restart: unless-stopped
+
+volumes:
+  replay_data:
