@@ -62,6 +62,15 @@ def find_font() -> str | None:
     return None
 
 
+def validate_clip_window(start: float, end: float, duration: float) -> str | None:
+    """Return an error string if [start,end) is invalid, else None."""
+    if not (start >= 0 and end > start):
+        return f"invalid clip window {start}..{end}"
+    if duration > 0 and end > duration:
+        return f"clip end {end} beyond video duration {duration}"
+    return None
+
+
 def mmss(t: float) -> str:
     t = max(0.0, t)
     return f"{int(t // 60):02d}:{int(t % 60):02d}"
@@ -90,7 +99,7 @@ def _overlay_filter(label: str) -> str | None:
         return None
     text = label.replace("\\", "\\\\").replace(":", "\\:").replace("'", "")
     return (
-        f"drawtext=fontfile={font}:text='{text}':fontsize=28:fontcolor=white:"
+        f"drawtext=fontfile={font}:text='{text}':fontsize=h/20:fontcolor=white:"
         "x=24:y=h-th-24:box=1:boxcolor=black@0.5:boxborderw=10"
     )
 
@@ -110,12 +119,14 @@ def cut_clip(
     if overlay_label and vf is None:
         print("warning: drawtext/font unavailable, skipping overlay")
     if vf or reencode:
-        filters = f"scale=-2:720,{vf}" if vf else "scale=-2:720"
-        cmd = [
-            "ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{dur:.3f}",
-            "-vf", filters,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(out),
+        # high quality: preserve source resolution/fps, only drawtext overlay
+        cmd = ["ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{dur:.3f}"]
+        if vf:
+            cmd += ["-vf", vf]
+        cmd += [
+            "-c:v", "libx264", "-preset", "slow", "-crf", "14",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out),
         ]
     else:
         cmd = [
@@ -140,8 +151,9 @@ def concat_reel(clips: list[str | Path], out: str | Path) -> Path:
         r = _run(
             [
                 "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listfile),
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(out),
+                "-c:v", "libx264", "-preset", "slow", "-crf", "14",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out),
             ]
         )
         if r.returncode != 0:
@@ -221,6 +233,10 @@ def render_reel(
     clips_dir = out_dir / "clips"
     clips_dir.mkdir(parents=True, exist_ok=True)
     items = sorted(items, key=lambda c: c["clip_start"])
+    try:
+        duration = probe(src)["duration_s"]
+    except Exception:
+        duration = 0.0
     n = len(items)
     results = []
     for i, c in enumerate(items):
@@ -232,7 +248,10 @@ def render_reel(
         name = c.get("name") or f"{i + 1:02d}_{c['type']}_{c['t']:07.1f}.mp4"
         path = clips_dir / name
         label = f"{str(c['type']).upper()}  {mmss(c['t'])}" if overlay else None
-        dur = max(0.1, c["clip_end"] - c["clip_start"])
+        err = validate_clip_window(c["clip_start"], c["clip_end"], duration)
+        if err:
+            raise ValueError(f"candidate {c.get('id')}: {err}")
+        dur = c["clip_end"] - c["clip_start"]
         cut_clip(src, c["clip_start"], dur, path, overlay_label=label, reencode=reencode)
         results.append({"id": c["id"], "path": str(path), "duration": dur})
         report((i + 1) / (n + 1), f"clip {i + 1}/{n}")

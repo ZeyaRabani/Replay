@@ -105,7 +105,28 @@ class ProjectStore:
     def set_video(self, info: VideoInfo) -> None:
         with self.lock:
             self.video = info
+            self.revalidate_windows(info.duration_s)
             self.save()
+
+    def revalidate_windows(self, duration: float) -> None:
+        """Reset candidate clip windows that are invalid for `duration`.
+
+        Candidates whose event t lies beyond the new duration get a short
+        valid window at the end of the video (t itself is preserved).
+        """
+        if duration <= 0:
+            return
+        for c in self.candidates:
+            ok = 0 <= c.clip_start < c.clip_end <= duration
+            if ok:
+                continue
+            if c.t <= duration:
+                c.clip_start, c.clip_end = default_clip_window(
+                    c.t, c.type, duration)
+            else:
+                pad = PAD_GOAL if c.type == "goal" else PAD_DEFAULT
+                c.clip_end = duration
+                c.clip_start = max(0.0, duration - 2 * pad)
 
     def load_candidates(self, cf: CandidatesFile) -> list[Candidate]:
         with self.lock:

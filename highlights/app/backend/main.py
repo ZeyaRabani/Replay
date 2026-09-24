@@ -204,13 +204,14 @@ def patch_candidate(cand_id: str, patch: CandidatePatch) -> dict:
     if c is None:
         raise HTTPException(404, "candidate not found")
     data = patch.model_dump(exclude_none=True)
+    updated = c.model_copy(update=data)
+    duration = STORE.video.duration_s if STORE.video else 0.0
+    err = fx.validate_clip_window(updated.clip_start, updated.clip_end,
+                                  duration)
+    if err:
+        raise HTTPException(422, err)
     for k, v in data.items():
         setattr(c, k, v)
-    duration = STORE.video.duration_s if STORE.video else 0.0
-    if c.clip_start >= c.clip_end:
-        raise HTTPException(422, "clip_start must be < clip_end")
-    if c.clip_start < 0 or (duration and c.clip_end > duration):
-        raise HTTPException(422, "clip window outside video duration")
     STORE.update(c)
     return c.model_dump()
 
@@ -305,14 +306,17 @@ def start_render(req: RenderRequest) -> dict:
             cands = [c for c in STORE.candidates if c.status != "rejected"]
     if not cands:
         raise HTTPException(400, "no candidates selected for render")
-    items = [
-        {
+    duration = STORE.video.duration_s if STORE.video else 0.0
+    items = []
+    for c in cands:
+        err = fx.validate_clip_window(c.clip_start, c.clip_end, duration)
+        if err:
+            raise HTTPException(422, f"candidate {c.id}: {err}")
+        items.append({
             "id": c.id, "t": c.t, "type": c.type,
             "clip_start": c.clip_start, "clip_end": c.clip_end,
             "name": f"{c.rank:02d}_{c.type}_{c.t:07.1f}.mp4",
-        }
-        for c in cands
-    ]
+        })
     job_id = uuid.uuid4().hex[:8]
     _jobs[job_id] = RenderJob(job_id=job_id)
     threading.Thread(target=_run_render, args=(job_id, req, items), daemon=True).start()
