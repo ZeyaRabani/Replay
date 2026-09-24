@@ -413,110 +413,6 @@ def cmd_recombine(args) -> int:
     return 0
 
 
-def cmd_neargoal(args) -> int:
-    """Near-goal pipeline: detect_neargoal ranges -> tracks -> candidates -> clips."""
-    from pitchworld.sync import probe
-
-    from .audio import audio_envelope, audio_spikes
-    from .chunks import extract_clip
-    from .modal_app import app, extract_clips_remote, probe_remote
-    from .neargoal import neargoal_candidates
-    from .report import write_review_html
-
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    cfg = Config.load(Path(args.config) if args.config else None)
-    video, remote = _parse_source(args.video, cfg)
-    t_start = (args.start_minutes if args.start_minutes is not None else 20.0) * 60.0
-
-    det_dir = out / "neargoal"
-    det_dir.mkdir(exist_ok=True)
-
-    def _work() -> tuple:
-        info = probe_remote.remote(video) if remote else probe(Path(video))
-        t_end = min(info["duration"], t_start + args.max_minutes * 60.0) if args.max_minutes else info["duration"]
-        t = t_start
-        ranges = []
-        while t < t_end - 0.05:
-            ranges.append((t, min(cfg.chunk_s, t_end - t)))
-            t += cfg.chunk_s
-        det_paths = [det_dir / f"chunk_{i:03d}.json" for i in range(len(ranges))]
-        todo = [(r, p) for r, p in zip(ranges, det_paths) if not (args.reuse and p.exists())]
-        if todo:
-            if remote:
-                from .modal_app import detect_neargoal, detect_neargoal_cpu
-
-                fn = detect_neargoal if cfg.gpu else detect_neargoal_cpu
-                results = fn.map([video] * len(todo), [r[0] for r, _ in todo],
-                                 [r[1] for r, _ in todo], [cfg.to_dict()] * len(todo))
-            else:
-                from .modal_app import _detect_neargoal
-
-                results = [_detect_neargoal(video, r[0], r[1], cfg.to_dict(), None) for r, _ in todo]
-            for (_, p), res in zip(todo, results):
-                p.write_text(json.dumps(res))
-        return info, t_start, t_end, det_paths
-
-    if remote:
-        with app.run():
-            info, t_start, t_end, det_paths = _work()
-    else:
-        info, t_start, t_end, det_paths = _work()
-
-    chunks = [json.loads(p.read_text()) for p in det_paths]
-
-    env_path = out / "audio_env.json"
-    if env_path.exists():
-        env = json.loads(env_path.read_text())
-        t_a, db = np.array(env["t"]), np.array(env["rms_db"])
-    elif remote:
-        from .modal_app import audio_envelope_remote
-
-        with app.run():
-            env = audio_envelope_remote.remote(video, cfg.audio_hop_s)
-        t_a, db = np.array(env["t"]), np.array(env["rms_db"])
-        env_path.write_text(json.dumps({"hop_s": cfg.audio_hop_s, "t": env["t"], "rms_db": env["rms_db"]}))
-    else:
-        t_a, db = audio_envelope(Path(video), cfg.audio_hop_s)
-        env_path.write_text(json.dumps({"hop_s": cfg.audio_hop_s, "t": t_a.tolist(), "rms_db": db.tolist()}))
-    audio_bins = audio_spikes(t_a, db, cfg.bin_s, cfg.audio_baseline_win_s,
-                              cfg.audio_thresh_db, cfg.audio_min_dur_s)
-
-    cands = neargoal_candidates(chunks, audio_bins, cfg.bin_s, cfg, 0.0, info["duration"])
-    if not args.no_clips and cands:
-        (out / "clips").mkdir(exist_ok=True)
-        clips = [{"id": c.id, "start": c.start, "end": min(c.end, info["duration"])} for c in cands]
-        if remote:
-            with app.run():
-                blob = extract_clips_remote.remote(video, clips)
-            for c in cands:
-                mm, ss = int(c.t_event // 60), int(c.t_event % 60)
-                name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
-                (out / "clips" / name).write_bytes(blob[c.id])
-                c.clip = name
-        else:
-            for c in cands:
-                mm, ss = int(c.t_event // 60), int(c.t_event % 60)
-                name = f"{c.id}_{c.type}_{mm}m{ss:02d}s.mp4"
-                extract_clip(Path(video), c.start, min(c.end, info["duration"]), out / "clips" / name)
-                c.clip = name
-
-    write_review_html(out, cands, [])
-    payload = {"video": args.video, "duration_s": info["duration"], "window": [t_start, t_end],
-               "pipeline": "neargoal", "config": cfg.to_dict(),
-               "zones": {"roi": list(cfg.roi), "net_poly": [list(p) for p in cfg.net_poly],
-                         "mouth_poly": [list(p) for p in cfg.mouth_poly],
-                         "goal_line_x": cfg.goal_line_x},
-               "candidates": [c.to_dict() for c in cands]}
-    (out / "candidates.json").write_text(json.dumps(payload, indent=2))
-    print(f"{len(cands)} candidates -> {out}/candidates.json")
-    for c in cands:
-        mm, ss = int(c.t_event // 60), int(c.t_event % 60)
-        print(f"{c.rank:<5}{c.type:<8}{c.confidence:<7.2f}{mm}:{ss:02d}    "
-              + " ".join(f"{k}={v:.2f}" for k, v in c.signals.items()))
-    return 0
-
-
 def cmd_reel(args) -> int:
     """Concatenate chosen clips chronologically into out/reel.mp4."""
     import subprocess
@@ -624,16 +520,6 @@ def main() -> int:
                    help="recompute signals from cached detections + audio_env.json (no detection calls)")
     p.add_argument("--no-clips", action="store_true")
     p.set_defaults(f=cmd_recombine)
-
-    p = sub.add_parser("neargoal", help="near-goal ROI pipeline (MOG2 blobs + ball + net motion)")
-    p.add_argument("video")
-    p.add_argument("--out", required=True)
-    p.add_argument("--config")
-    p.add_argument("--start-minutes", type=float, default=20.0)
-    p.add_argument("--max-minutes", type=float, default=63.0)
-    p.add_argument("--reuse", action="store_true")
-    p.add_argument("--no-clips", action="store_true")
-    p.set_defaults(f=cmd_neargoal)
 
     p = sub.add_parser("reel", help="concatenate selected clips into out/reel.mp4")
     p.add_argument("--out", required=True)
