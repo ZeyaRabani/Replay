@@ -757,15 +757,15 @@ def delete_project(p: ScopedP) -> Response:
 
 
 @scoped.post("/pipeline/run")
-def run_pipeline(p: ScopedP, body: Annotated[dict | None, Body()] = None,
-                 user: UserDep = "") -> dict:
+def run_pipeline(p: ScopedP, user: UserDep,
+                 body: Annotated[dict | None, Body()] = None) -> dict:
     body = body or {}
     stages = body.get("stages")
     force = bool(body.get("force", False))
     kind = p.source_info.get("kind")
     try:
         if kind == "youtube":
-            ck = _project_cookies(p) or _user_default_cookies(p, user)
+            ck = _user_default_cookies(p, user) or _project_cookies(p)
             return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
                                   stages=stages, force=force,
                                   cookies=ck)

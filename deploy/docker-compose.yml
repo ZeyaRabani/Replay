@@ -14,7 +14,7 @@ services:
       HL_PUBLIC_URL: ${HL_PUBLIC_URL:-}
       # If YouTube blocks the server with a bot check, export cookies from your
       # browser ("Get cookies.txt" extension) and either paste them into the
-      # project's "Advanced: YouTube cookies" box in the UI, or provide the file:
+      # "YouTube access" panel in the UI (saved per profile), or provide the file:
       # HL_YT_COOKIES: /data/cookies.txt
     restart: unless-stopped
 
