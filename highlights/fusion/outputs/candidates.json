@@ -1,0 +1,5857 @@
+{
+ "source": "fusion",
+ "source_video": "https://youtu.be/5qj_nsQSzvQ",
+ "local_video_filename": "match.mp4",
+ "video_duration_s": 5337.153,
+ "match_window": [
+  1050,
+  4990
+ ],
+ "summary": {
+  "n_candidates": 47,
+  "by_type": {
+   "goal": 3,
+   "shot": 28,
+   "chance": 16
+  },
+  "by_cross_validation": {
+   "confirmed": 32,
+   "visual_only": 7,
+   "pipeline_only": 6,
+   "rejected": 2
+  },
+  "n_selected": 27
+ },
+ "candidates": [
+  {
+   "id": "event_001",
+   "rank": 1,
+   "type": "goal",
+   "t": 2736.0,
+   "timestamp": "00:45:36.000",
+   "confidence": 0.99,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.99,
+     "notes": "Direct visual re-check: the ball is visible in the near net and the keeper enters the net to retrieve it."
+    },
+    "learned_fusion": {
+     "score": 0.7840427968189664,
+     "rank": 55,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.9935186229684052,
+     "rank": 15,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": true,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2733.34,
+      "confidence": 0.588
+     },
+     {
+      "kind": "whistle",
+      "t": 2734.07,
+      "confidence": 0.565
+     },
+     {
+      "kind": "whistle",
+      "t": 2736.85,
+      "confidence": 1.0
+     },
+     {
+      "kind": null,
+      "t": 2737.0,
+      "confidence": 0.532
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 3.17615379909387,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 0.2272624739212667,
+     "net_disturbance": 0.04809459413050548,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": -0.8093050781271262,
+     "p_ball_out_of_play": 2.221578483974986,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "p_ball_out_of_play",
+    "net_retrieval"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Direct visual re-check: the ball is visible in the near net and the keeper enters the net to retrieve it.",
+   "clip_start": 2731.0,
+   "clip_end": 2741.0,
+   "selected": true,
+   "t_start": 2733.0,
+   "t_end": 2743.0
+  },
+  {
+   "id": "event_002",
+   "rank": 2,
+   "type": "shot",
+   "t": 2253.7,
+   "timestamp": "00:37:33.700",
+   "confidence": 0.979,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.97,
+     "notes": "Clear shot off target, not a goal."
+    },
+    "learned_fusion": {
+     "score": 0.9650427540764476,
+     "rank": 23,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.4983736993925216,
+     "rank": 42,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2252.34,
+      "confidence": 0.562
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.6479929770070343,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.5456430771160717,
+     "net_disturbance": 0.03378696002721217,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.3534138807722694,
+     "p_ball_out_of_play": 0.08954092782697733,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target, not a goal.",
+   "clip_start": 2250.7,
+   "clip_end": 2256.7,
+   "selected": true,
+   "t_start": 2252.0,
+   "t_end": 2257.0
+  },
+  {
+   "id": "event_003",
+   "rank": 3,
+   "type": "shot",
+   "t": 2562.2,
+   "timestamp": "00:42:42.200",
+   "confidence": 0.958,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.94,
+     "notes": "Clear shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9912943183459038,
+     "rank": 17,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.026152690957978,
+     "rank": 14,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.589207943066411,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 2.6459413324752115,
+     "net_disturbance": 0.40408886378033104,
+     "n_near_box": 3.099972510785818,
+     "rush_near_3s": 1.5663360385613148,
+     "p_ball_out_of_play": -0.413856828485747,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "n_near_box",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target.",
+   "clip_start": 2559.2,
+   "clip_end": 2565.2,
+   "selected": true,
+   "t_start": 2560.0,
+   "t_end": 2565.0
+  },
+  {
+   "id": "event_004",
+   "rank": 4,
+   "type": "shot",
+   "t": 1788.7,
+   "timestamp": "00:29:48.700",
+   "confidence": 0.9510000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.93,
+     "notes": "Shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9998588219248733,
+     "rank": 6,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.0265146916488774,
+     "rank": 13,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 1790.0,
+      "confidence": 0.587
+     },
+     {
+      "kind": "whistle",
+      "t": 1791.11,
+      "confidence": 0.942
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.7774509362782873,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.12940257878156766,
+     "net_disturbance": 0.17572798035692747,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": -0.1946377071064105,
+     "p_ball_out_of_play": 2.3400250148720976,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "n_near_box",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot off target.",
+   "clip_start": 1785.7,
+   "clip_end": 1791.7,
+   "selected": true,
+   "t_start": 1786.0,
+   "t_end": 1791.0
+  },
+  {
+   "id": "event_005",
+   "rank": 5,
+   "type": "shot",
+   "t": 2299.5,
+   "timestamp": "00:38:19.500",
+   "confidence": 0.937,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Close-range save or block."
+    },
+    "learned_fusion": {
+     "score": 0.8993939499141174,
+     "rank": 39,
+     "top_signals": [
+      "n_near_box",
+      "rush_near_3s",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3784499246196342,
+     "rank": 49,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.1646854671468074,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.14512849298470443,
+     "net_disturbance": -0.39704489590817027,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 1.3484670279953337,
+     "p_ball_out_of_play": 1.9698796058186239,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Close-range save or block.",
+   "clip_start": 2296.5,
+   "clip_end": 2302.5,
+   "selected": true,
+   "t_start": 2297.0,
+   "t_end": 2302.0
+  },
+  {
+   "id": "event_006",
+   "rank": 6,
+   "type": "shot",
+   "t": 3949.5,
+   "timestamp": "01:05:49.500",
+   "confidence": 0.8649999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear close-range shot, apparently saved or blocked."
+    },
+    "learned_fusion": {
+     "score": 0.9996350333184911,
+     "rank": 8,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.4511407129118896,
+     "rank": 2,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.5268413273777732,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.08025004648399332,
+     "net_disturbance": -0.1874769852877466,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.42125973666681654,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear close-range shot, apparently saved or blocked.",
+   "clip_start": 3946.5,
+   "clip_end": 3952.5,
+   "selected": true,
+   "t_start": 3947.0,
+   "t_end": 3955.0
+  },
+  {
+   "id": "event_007",
+   "rank": 7,
+   "type": "shot",
+   "t": 3415.3,
+   "timestamp": "00:56:55.300",
+   "confidence": 0.8570000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.91,
+     "notes": "Near-goal shot/cross-shot wide."
+    },
+    "learned_fusion": {
+     "score": 0.9998954530743028,
+     "rank": 5,
+     "top_signals": [
+      "z300_rms",
+      "rush_near_3s",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.9448184516834952,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.26828438125494963,
+     "net_disturbance": -0.2607431708784385,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": 1.0379151887099982,
+     "p_ball_out_of_play": -0.6359440739178314,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "z300_rms",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot/cross-shot wide.",
+   "clip_start": 3412.3,
+   "clip_end": 3418.3,
+   "selected": true,
+   "t_start": 3413.0,
+   "t_end": 3419.0
+  },
+  {
+   "id": "event_008",
+   "rank": 8,
+   "type": "shot",
+   "t": 3443.4,
+   "timestamp": "00:57:23.400",
+   "confidence": 0.838,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.94,
+     "notes": "Shot stopped or deflected; followed by brief injury pause."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.4830440071514124,
+     "rank": 43,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3444.0,
+      "confidence": 0.569
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.6107242873197625,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.9691211056379735,
+     "net_disturbance": -0.02713214853613848,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": -0.6982787728904,
+     "p_ball_out_of_play": -0.5619149921071366,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -1.003069710654104,
+     "p_shots_off_target": -0.8927794878967354
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot stopped or deflected; followed by brief injury pause.",
+   "clip_start": 3440.4,
+   "clip_end": 3446.4,
+   "selected": true,
+   "t_start": 3441.0,
+   "t_end": 3453.0
+  },
+  {
+   "id": "event_009",
+   "rank": 9,
+   "type": "shot",
+   "t": 1486.2,
+   "timestamp": "00:24:46.200",
+   "confidence": 0.835,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear near-goal shot saved."
+    },
+    "learned_fusion": {
+     "score": 0.9999533162805847,
+     "rank": 3,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.19639031005421517,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3492174142625591,
+     "net_disturbance": -0.39456490114067305,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 4.626156647809987,
+     "p_ball_out_of_play": 34.8610006543103,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 1.415354283214489,
+     "p_shots_off_target": 2.400646554546587
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear near-goal shot saved.",
+   "clip_start": 1483.2,
+   "clip_end": 1489.2,
+   "selected": true,
+   "t_start": 1483.0,
+   "t_end": 1488.0
+  },
+  {
+   "id": "event_010",
+   "rank": 10,
+   "type": "shot",
+   "t": 2063.4,
+   "timestamp": "00:34:23.400",
+   "confidence": 0.83,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.9,
+     "notes": "Shot or overhit attacking ball off target."
+    },
+    "learned_fusion": {
+     "score": 0.893491168338648,
+     "rank": 40,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6505594486539161,
+     "rank": 30,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2061.33,
+      "confidence": 0.674
+     },
+     {
+      "kind": null,
+      "t": 2063.0,
+      "confidence": 0.592
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.1395067204894698,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.1350841578537593,
+     "net_disturbance": -0.026409998418842402,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 1.0221462352126083,
+     "p_ball_out_of_play": 1.1629626140820513,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 2.22149561450402,
+     "p_shots_off_target": 2.400646554546587
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot or overhit attacking ball off target.",
+   "clip_start": 2060.4,
+   "clip_end": 2066.4,
+   "selected": true,
+   "t_start": 2061.0,
+   "t_end": 2066.0
+  },
+  {
+   "id": "event_011",
+   "rank": 11,
+   "type": "shot",
+   "t": 1669.2,
+   "timestamp": "00:27:49.200",
+   "confidence": 0.828,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.94,
+     "notes": "Clear near-goal save."
+    },
+    "learned_fusion": {
+     "score": 0.9674252444840129,
+     "rank": 20,
+     "top_signals": [
+      "z300_rms",
+      "p_ball_out_of_play",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1669.1,
+      "confidence": 0.692
+     },
+     {
+      "kind": null,
+      "t": 1670.0,
+      "confidence": 0.57
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.836536198278259,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": -0.19913885669587053,
+     "net_disturbance": -0.28555313458930115,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 1.0169971891726441,
+     "p_ball_out_of_play": 0.23759909144836683,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "z300_rms",
+    "whistle"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear near-goal save.",
+   "clip_start": 1666.2,
+   "clip_end": 1672.2,
+   "selected": true,
+   "t_start": 1667.0,
+   "t_end": 1672.0
+  },
+  {
+   "id": "event_012",
+   "rank": 12,
+   "type": "shot",
+   "t": 2694.7,
+   "timestamp": "00:44:54.700",
+   "confidence": 0.8180000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.74,
+     "notes": "Probable save; bodies obscure the exact contact."
+    },
+    "learned_fusion": {
+     "score": 0.9945187577304468,
+     "rank": 15,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6802330284301612,
+     "rank": 28,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2695.07,
+      "confidence": 0.634
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.4412359201352989,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 5.610428982229905,
+     "net_disturbance": 2.755954323797899,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": 0.6150497826779456,
+     "p_ball_out_of_play": -0.05111432761334275,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.609212951924958,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "motion_goal_roi",
+    "net_disturbance",
+    "n_near_box",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probable save; bodies obscure the exact contact.",
+   "clip_start": 2691.7,
+   "clip_end": 2697.7,
+   "selected": true,
+   "t_start": 2690.0,
+   "t_end": 2697.0
+  },
+  {
+   "id": "event_013",
+   "rank": 13,
+   "type": "shot",
+   "t": 1547.0,
+   "timestamp": "00:25:47.000",
+   "confidence": 0.807,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Near-goal save; ball briefly obscured by players."
+    },
+    "learned_fusion": {
+     "score": 0.8287489717707377,
+     "rank": 47,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.3416602804511863,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.43170639838537456,
+     "net_disturbance": -0.7572709832135113,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 2.9066970858394723,
+     "p_ball_out_of_play": 7.3888083943614795,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 1.415354283214489,
+     "p_shots_off_target": 2.1948074268938793
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal save; ball briefly obscured by players.",
+   "clip_start": 1544.0,
+   "clip_end": 1550.0,
+   "selected": true,
+   "t_start": 1545.0,
+   "t_end": 1550.0
+  },
+  {
+   "id": "event_014",
+   "rank": 14,
+   "type": "shot",
+   "t": 2081.6,
+   "timestamp": "00:34:41.600",
+   "confidence": 0.804,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.72,
+     "notes": "Likely shot off target; flight is visible but endpoint is partly out of frame."
+    },
+    "learned_fusion": {
+     "score": 0.7910666232236702,
+     "rank": 54,
+     "top_signals": [
+      "n_near_box",
+      "p_ball_out_of_play",
+      "motion_goal_roi"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3727663077044665,
+     "rank": 51,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.4929752223631243,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.42135558803476764,
+     "net_disturbance": -0.23498008119234728,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 1.8392354786794125,
+     "p_ball_out_of_play": 0.43007470415617305,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Likely shot off target; flight is visible but endpoint is partly out of frame.",
+   "clip_start": 2078.6,
+   "clip_end": 2084.6,
+   "selected": true,
+   "t_start": 2079.0,
+   "t_end": 2084.0
+  },
+  {
+   "id": "event_015",
+   "rank": 15,
+   "type": "shot",
+   "t": 1766.5,
+   "timestamp": "00:29:26.500",
+   "confidence": 0.7949999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear shot off target."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.586864222960056,
+     "rank": 36,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1767.32,
+      "confidence": 0.657
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.09381238977661163,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.7436024940006906,
+     "net_disturbance": 0.4135610714131442,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 0.75580266412323,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "n_near_box",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target.",
+   "clip_start": 1763.5,
+   "clip_end": 1769.5,
+   "selected": true,
+   "t_start": 1764.0,
+   "t_end": 1769.0
+  },
+  {
+   "id": "event_016",
+   "rank": 16,
+   "type": "shot",
+   "t": 2833.5,
+   "timestamp": "00:47:13.500",
+   "confidence": 0.7739999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.82,
+     "notes": "Near-goal shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9971393514475849,
+     "rank": 14,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3413793188501648,
+     "rank": 59,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.3134388428723724,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.013389920631131855,
+     "net_disturbance": -0.33546256794050155,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 1.9328650649132764,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot off target.",
+   "clip_start": 2830.5,
+   "clip_end": 2836.5,
+   "selected": true,
+   "t_start": 2831.0,
+   "t_end": 2838.0
+  },
+  {
+   "id": "event_017",
+   "rank": 17,
+   "type": "shot",
+   "t": 3841.3,
+   "timestamp": "01:04:01.300",
+   "confidence": 0.767,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.91,
+     "notes": "Shot high/wide, not a goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6961057286910455,
+     "rank": 27,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.37782813392084474,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.6538524046735804,
+     "net_disturbance": -0.2591309776010425,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": -1.1533257166722282,
+     "p_ball_out_of_play": 1.9106563403700685,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot high/wide, not a goal.",
+   "clip_start": 3838.3,
+   "clip_end": 3844.3,
+   "selected": true,
+   "t_start": 3839.0,
+   "t_end": 3851.0
+  },
+  {
+   "id": "event_018",
+   "rank": 18,
+   "type": "shot",
+   "t": 2891.5,
+   "timestamp": "00:48:11.500",
+   "confidence": 0.746,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.88,
+     "notes": "Near-goal shot off target."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.7617795492824886,
+     "rank": 24,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2894.15,
+      "confidence": 0.745
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.5534793061800126,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.40358002529438386,
+     "net_disturbance": -0.2558104613830116,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 2.0088321826207305,
+     "p_ball_out_of_play": 3.4060437929461016,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.34225527801951044
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot off target.",
+   "clip_start": 2888.5,
+   "clip_end": 2894.5,
+   "selected": true,
+   "t_start": 2889.0,
+   "t_end": 2894.0
+  },
+  {
+   "id": "event_019",
+   "rank": 19,
+   "type": "shot",
+   "t": 1699.2,
+   "timestamp": "00:28:19.200",
+   "confidence": 0.7370000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Saved or deflected wide; no goal celebration or centre restart."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.1798970221538276,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4676333462036978,
+     "net_disturbance": 0.09324528135386471,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.7334778415971203,
+     "p_ball_out_of_play": 0.40046307143189536,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.20614228628019243,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "z300_rms",
+    "motion_goal_roi",
+    "p_goal"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Saved or deflected wide; no goal celebration or centre restart.",
+   "clip_start": 1696.2,
+   "clip_end": 1702.2,
+   "selected": true,
+   "t_start": 1697.0,
+   "t_end": 1702.0
+  },
+  {
+   "id": "event_020",
+   "rank": 20,
+   "type": "chance",
+   "t": 1715.0,
+   "timestamp": "00:28:35.000",
+   "confidence": 0.7240000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.72,
+     "notes": "Could be a floated shot or cross; classified as chance."
+    },
+    "learned_fusion": {
+     "score": 0.9294193944033979,
+     "rank": 35,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1715.45,
+      "confidence": 0.625
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.014352030068887503,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 0.657954457613669,
+     "net_disturbance": -0.5474746341309134,
+     "n_near_box": 0.9744818536645604,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.43606555302895544,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "whistle",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Could be a floated shot or cross; classified as chance.",
+   "clip_start": 1712.0,
+   "clip_end": 1718.0,
+   "selected": true,
+   "t_start": 1713.0,
+   "t_end": 1718.0
+  },
+  {
+   "id": "event_021",
+   "rank": 21,
+   "type": "shot",
+   "t": 3522.5,
+   "timestamp": "00:58:42.500",
+   "confidence": 0.711,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.83,
+     "notes": "Probable save/blocked shot; ball is intermittently occluded."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1382978732043014,
+     "rank": 9,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 3523.55,
+      "confidence": 0.611
+     },
+     {
+      "kind": null,
+      "t": 3524.0,
+      "confidence": 0.616
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.3548703150625458,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.1511909611339735,
+     "net_disturbance": 0.316670966448681,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 2.4394211577127294,
+     "p_ball_out_of_play": 1.022307358641731,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 3.6322429442606987,
+     "p_shots_off_target": 3.4298421928101255
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probable save/blocked shot; ball is intermittently occluded.",
+   "clip_start": 3519.5,
+   "clip_end": 3525.5,
+   "selected": true,
+   "t_start": 3519.0,
+   "t_end": 3528.0
+  },
+  {
+   "id": "event_022",
+   "rank": 22,
+   "type": "shot",
+   "t": 4548.0,
+   "timestamp": "01:15:48.000",
+   "confidence": 0.67,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.7,
+     "notes": "Big chance: rounded the keeper, shot/attempt blocked by covering defenders on the line (or dragged wide and kept in). Best single moment of the segment. Not a goal in my judgement: no stoppage, no walk back to centre, keeper back in goal within ~15 s."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1827186297830217,
+     "rank": 8,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4549.57,
+      "confidence": 0.812
+     },
+     {
+      "kind": null,
+      "t": 4550.0,
+      "confidence": 0.621
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.982306548774145,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 8.312856744156873,
+     "net_disturbance": 1.8679884288378548,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 0.966793990282994,
+     "p_ball_out_of_play": 1.1777684304441902,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -1.003069710654104,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "net_disturbance",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Big chance: rounded the keeper, shot/attempt blocked by covering defenders on the line (or dragged wide and kept in). Best single moment of the segment. Not a goal in my judgement: no stoppage, no walk back to centre, keeper back in goal within ~15 s.",
+   "clip_start": 4545.0,
+   "clip_end": 4551.0,
+   "selected": true,
+   "t_start": 4544.0,
+   "t_end": 4556.0
+  },
+  {
+   "id": "event_023",
+   "rank": 23,
+   "type": "shot",
+   "t": 3996.0,
+   "timestamp": "01:06:36.000",
+   "confidence": 0.656,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.68,
+     "notes": "Likely high shot or goal-bound cross; no goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.250538177916997,
+     "rank": 5,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "z300_rms",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3997.0,
+      "confidence": 0.587
+     },
+     {
+      "kind": "whistle",
+      "t": 3997.6,
+      "confidence": 0.771
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.7577763707090162,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.6251144590760634,
+     "net_disturbance": -0.21160494800941754,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 2.285915222646299,
+     "p_ball_out_of_play": 2.3400250148720976,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Likely high shot or goal-bound cross; no goal.",
+   "clip_start": 3993.0,
+   "clip_end": 3999.0,
+   "selected": true,
+   "t_start": 3993.0,
+   "t_end": 3999.0
+  },
+  {
+   "id": "event_024",
+   "rank": 24,
+   "type": "shot",
+   "t": 1585.1,
+   "timestamp": "00:26:25.100",
+   "confidence": 0.616,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.88,
+     "notes": "Shot saved at the near goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.13746329194196577,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.11886592416137878,
+     "net_disturbance": -0.5755610435018936,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 1.148156797719912,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Shot saved at the near goal.",
+   "clip_start": 1582.1,
+   "clip_end": 1588.1,
+   "selected": true,
+   "t_start": 1583.0,
+   "t_end": 1588.0
+  },
+  {
+   "id": "event_025",
+   "rank": 25,
+   "type": "chance",
+   "t": 4741.0,
+   "timestamp": "01:19:01.000",
+   "confidence": 0.5800000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.4,
+     "notes": "Blocked shot/cross out for a corner; strike not seen."
+    },
+    "learned_fusion": {
+     "score": 0.9989118575570485,
+     "rank": 11,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.193897789787959,
+     "rank": 7,
+     "top_signals": [
+      "motion_goal_roi",
+      "z300_rms",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4739.82,
+      "confidence": 0.541
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 3.7932225370760198,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.9035354086303505,
+     "net_disturbance": -0.15916749148104922,
+     "n_near_box": 0.9744818536645604,
+     "rush_near_3s": 3.081764651198252,
+     "p_ball_out_of_play": 0.1561671014566026,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Blocked shot/cross out for a corner; strike not seen.",
+   "clip_start": 4738.0,
+   "clip_end": 4744.0,
+   "selected": false,
+   "t_start": 4734.0,
+   "t_end": 4748.0
+  },
+  {
+   "id": "event_026",
+   "rank": 26,
+   "type": "shot",
+   "t": 4790.5,
+   "timestamp": "01:19:50.500",
+   "confidence": 0.5800000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.4,
+     "notes": "Lofted shot/cross held or gathered by the keeper. Could be a cross rather than a shot."
+    },
+    "learned_fusion": {
+     "score": 0.7943793903921456,
+     "rank": 53,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.8044468783479324,
+     "rank": 22,
+     "top_signals": [
+      "z300_rms",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 3.991072828187066,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.541687541016887,
+     "net_disturbance": 0.14656808261095253,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 1.4308517646347592,
+     "p_ball_out_of_play": 0.11174965237018575,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Lofted shot/cross held or gathered by the keeper. Could be a cross rather than a shot.",
+   "clip_start": 4787.5,
+   "clip_end": 4793.5,
+   "selected": false,
+   "t_start": 4785.0,
+   "t_end": 4794.0
+  },
+  {
+   "id": "event_027",
+   "rank": 27,
+   "type": "chance",
+   "t": 1779.0,
+   "timestamp": "00:29:39.000",
+   "confidence": 0.5760000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.58,
+     "notes": "Ball obscured; probable blocked attempt rather than a clean shot."
+    },
+    "learned_fusion": {
+     "score": 0.9665604849533813,
+     "rank": 21,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.18469917327955496,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4808589306829489,
+     "net_disturbance": -0.3250478816821263,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 2.1845639430696386,
+     "p_goal": 3.3433998595621253,
+     "p_shots_on_target": 1.8184249488592545,
+     "p_shots_off_target": 1.1656117886303412
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "motion_goal_roi",
+    "n_near_box",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Ball obscured; probable blocked attempt rather than a clean shot.",
+   "clip_start": 1776.0,
+   "clip_end": 1782.0,
+   "selected": false,
+   "t_start": 1776.0,
+   "t_end": 1781.0
+  },
+  {
+   "id": "event_028",
+   "rank": 28,
+   "type": "shot",
+   "t": 4979.5,
+   "timestamp": "01:22:59.500",
+   "confidence": 0.55,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.6,
+     "notes": "Shot forcing a diving save / going wide; immediately followed by the end of the match, so no restart to disambiguate. Not a clear goal (no celebration seen)."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1117873287111757,
+     "rank": 11,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4977.21,
+      "confidence": 0.967
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.036168602381587575,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.0274221224244047,
+     "net_disturbance": 0.6281620825602299,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.322197789154987,
+     "p_ball_out_of_play": 0.3190310814401311,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": 0.5480944056722181
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot forcing a diving save / going wide; immediately followed by the end of the match, so no restart to disambiguate. Not a clear goal (no celebration seen).",
+   "clip_start": 4976.5,
+   "clip_end": 4982.5,
+   "selected": true,
+   "t_start": 4975.0,
+   "t_end": 4985.0
+  },
+  {
+   "id": "event_029",
+   "rank": 29,
+   "type": "shot",
+   "t": 1724.5,
+   "timestamp": "00:28:44.500",
+   "confidence": 0.49799999999999994,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.64,
+     "notes": "Likely blocked shot; ball path partly hidden."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.5361483972175949,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.2653597012269168,
+     "net_disturbance": -0.7172579396501995,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": -0.8784953842891438,
+     "p_ball_out_of_play": -0.17696376669152383,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "n_near_box"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Likely blocked shot; ball path partly hidden.",
+   "clip_start": 1721.5,
+   "clip_end": 1727.5,
+   "selected": true,
+   "t_start": 1723.0,
+   "t_end": 1728.0
+  },
+  {
+   "id": "event_030",
+   "rank": 30,
+   "type": "chance",
+   "t": 3693.0,
+   "timestamp": "01:01:33.000",
+   "confidence": 0.4899998204467587,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9999992518614949,
+     "rank": 2,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.490051161795978,
+     "rank": 1,
+     "top_signals": [
+      "net_disturbance",
+      "rush_near_3s",
+      "motion_goal_roi"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3693.0,
+      "confidence": 0.506
+     },
+     {
+      "kind": "whistle",
+      "t": 3693.18,
+      "confidence": 0.674
+     },
+     {
+      "kind": "whistle",
+      "t": 3695.11,
+      "confidence": 0.381
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.3613348460204575,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 5.999605361166584,
+     "net_disturbance": 2.867806953784374,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.9333251910232272,
+     "p_ball_out_of_play": 4.871819612797858,
+     "p_goal": 2.7452393872184873,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "motion_goal_roi",
+    "net_disturbance",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 3690.0,
+   "clip_end": 3696.0,
+   "selected": false,
+   "t_start": 3690.0,
+   "t_end": 3696.0
+  },
+  {
+   "id": "event_031",
+   "rank": 31,
+   "type": "chance",
+   "t": 4461.0,
+   "timestamp": "01:14:21.000",
+   "confidence": 0.4899531928833589,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9998049703473287,
+     "rank": 7,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4460.02,
+      "confidence": 0.85
+     },
+     {
+      "kind": "whistle",
+      "t": 4461.88,
+      "confidence": 0.594
+     },
+     {
+      "kind": "whistle",
+      "t": 4463.3,
+      "confidence": 0.583
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.6415462035890772,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": -0.42934889669566845,
+     "net_disturbance": -0.636034942305126,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.5676217296263107,
+     "p_ball_out_of_play": 0.20058455054301944,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "whistle"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 4458.0,
+   "clip_end": 4464.0,
+   "selected": false,
+   "t_start": 4458.0,
+   "t_end": 4464.0
+  },
+  {
+   "id": "event_032",
+   "rank": 32,
+   "type": "chance",
+   "t": 2646.0,
+   "timestamp": "00:44:06.000",
+   "confidence": 0.4898269871093752,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.99927911295573,
+     "rank": 9,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.7010247787476547,
+     "rank": 26,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.7285945832603575,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 5.33872691249128,
+     "net_disturbance": 1.609514630959094,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.13994922578617644,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2643.0,
+   "clip_end": 2649.0,
+   "selected": false,
+   "t_start": 2643.0,
+   "t_end": 2649.0
+  },
+  {
+   "id": "event_033",
+   "rank": 33,
+   "type": "chance",
+   "t": 2382.0,
+   "timestamp": "00:39:42.000",
+   "confidence": 0.4897847138433463,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9991029743472764,
+     "rank": 10,
+     "top_signals": [
+      "n_near_box",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6039135712855521,
+     "rank": 34,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.36912152019972133,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3993379001857102,
+     "net_disturbance": 0.1373563890364583,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.6803615230042482,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "n_near_box"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2379.0,
+   "clip_end": 2385.0,
+   "selected": false,
+   "t_start": 2379.0,
+   "t_end": 2385.0
+  },
+  {
+   "id": "event_034",
+   "rank": 34,
+   "type": "chance",
+   "t": 2801.0,
+   "timestamp": "00:46:41.000",
+   "confidence": 0.4851633747870491,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.979847394946038,
+     "rank": 18,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.617617024392028,
+     "rank": 33,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 2803.0,
+      "confidence": 0.46
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.8955810499502455,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4686942219640655,
+     "net_disturbance": -0.49713978027838196,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.041775402794976,
+     "p_ball_out_of_play": 7.277764771645438,
+     "p_goal": 3.9415603319057633,
+     "p_shots_on_target": 1.8184249488592545,
+     "p_shots_off_target": 2.1948074268938793
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2798.0,
+   "clip_end": 2804.0,
+   "selected": false,
+   "t_start": 2798.0,
+   "t_end": 2804.0
+  },
+  {
+   "id": "event_035",
+   "rank": 35,
+   "type": "chance",
+   "t": 3008.8,
+   "timestamp": "00:50:08.800",
+   "confidence": 0.484,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.52,
+     "notes": "Dangerous goalmouth action; no unobstructed shot contact visible."
+    },
+    "learned_fusion": {
+     "score": 0.9978608345777049,
+     "rank": 13,
+     "top_signals": [
+      "z300_rms",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.37882889411867504,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3538145425574859,
+     "net_disturbance": -0.007715462002518006,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 4.227766601044814,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Dangerous goalmouth action; no unobstructed shot contact visible.",
+   "clip_start": 3005.8,
+   "clip_end": 3011.8,
+   "selected": false,
+   "t_start": 3005.0,
+   "t_end": 3012.0
+  },
+  {
+   "id": "event_036",
+   "rank": 36,
+   "type": "chance",
+   "t": 2934.0,
+   "timestamp": "00:48:54.000",
+   "confidence": 0.4836501890008695,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9735424541702895,
+     "rank": 19,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 2934.0,
+      "confidence": 0.571
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.14264948743072922,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.7082871186888936,
+     "net_disturbance": -0.5010467262922459,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.3762627725746101,
+     "p_ball_out_of_play": -0.37684228758039967,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.8927794878967354
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2931.0,
+   "clip_end": 2937.0,
+   "selected": false,
+   "t_start": 2931.0,
+   "t_end": 2937.0
+  },
+  {
+   "id": "event_037",
+   "rank": 37,
+   "type": "shot",
+   "t": 2407.0,
+   "timestamp": "00:40:07.000",
+   "confidence": 0.48299999999999993,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.69,
+     "notes": "Probable far-goal save; ball too small to follow continuously."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -1.1701477400830302,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.40204902712887214,
+     "net_disturbance": -0.3869401118705356,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.028902787695065726,
+     "p_ball_out_of_play": -0.413856828485747,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": 0.20614228628019243,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Probable far-goal save; ball too small to follow continuously.",
+   "clip_start": 2404.0,
+   "clip_end": 2410.0,
+   "selected": true,
+   "t_start": 2404.0,
+   "t_end": 2410.0
+  },
+  {
+   "id": "event_038",
+   "rank": 38,
+   "type": "chance",
+   "t": 4240.0,
+   "timestamp": "01:10:40.000",
+   "confidence": 0.45999999999999996,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Ambiguous: blocked/saved attempt or just a cleared cross. Ball not visible."
+    },
+    "learned_fusion": {
+     "score": 0.9985757155537993,
+     "rank": 12,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.4040682114673517,
+     "rank": 4,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4237.93,
+      "confidence": 0.718
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.6068020671844125,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 3.515364380621913,
+     "net_disturbance": 1.9579957567521615,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 2.307476852938649,
+     "p_ball_out_of_play": 0.8816521032014112,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Ambiguous: blocked/saved attempt or just a cleared cross. Ball not visible.",
+   "clip_start": 4237.0,
+   "clip_end": 4243.0,
+   "selected": false,
+   "t_start": 4236.0,
+   "t_end": 4251.0
+  },
+  {
+   "id": "event_039",
+   "rank": 39,
+   "type": "chance",
+   "t": 4089.0,
+   "timestamp": "01:08:09.000",
+   "confidence": 0.445,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.45,
+     "notes": "Probably a shot/cross off target (ball ended behind the goal, goal kick followed). Strike moment not seen."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6443394063095358,
+     "rank": 32,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.20629783601273496,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.082681962031115,
+     "net_disturbance": 0.7660500441585927,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": -0.12930918547436587,
+     "p_ball_out_of_play": 0.6669677659503964,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probably a shot/cross off target (ball ended behind the goal, goal kick followed). Strike moment not seen.",
+   "clip_start": 4086.0,
+   "clip_end": 4092.0,
+   "selected": false,
+   "t_start": 4064.0,
+   "t_end": 4096.0
+  },
+  {
+   "id": "event_040",
+   "rank": 40,
+   "type": "shot",
+   "t": 2851.8,
+   "timestamp": "00:47:31.800",
+   "confidence": 0.435,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.55,
+     "notes": "Probable far-goal missed shot; ball/strike itself is too small to resolve."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.3022707389846587,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.18935522468359034,
+     "net_disturbance": -0.34831037391841224,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": -1.7091008736108544,
+     "p_ball_out_of_play": -0.6507498902799702,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "n_near_box"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Probable far-goal missed shot; ball/strike itself is too small to resolve.",
+   "clip_start": 2848.8,
+   "clip_end": 2854.8,
+   "selected": false,
+   "t_start": 2849.0,
+   "t_end": 2855.0
+  },
+  {
+   "id": "event_041",
+   "rank": 41,
+   "type": "chance",
+   "t": 4314.0,
+   "timestamp": "01:11:54.000",
+   "confidence": 0.42499999999999993,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.35,
+     "notes": "Something happened at the near post (shot wide / retrieval?). Ball not seen."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.7873195309841101,
+     "rank": 23,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 4315.0,
+      "confidence": 0.516
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.7282539448730228,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.7910640697539955,
+     "net_disturbance": 0.3979264885939332,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 0.6675056892100802,
+     "p_ball_out_of_play": 0.08954092782697733,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Something happened at the near post (shot wide / retrieval?). Ball not seen.",
+   "clip_start": 4311.0,
+   "clip_end": 4317.0,
+   "selected": false,
+   "t_start": 4310.0,
+   "t_end": 4320.0
+  },
+  {
+   "id": "event_042",
+   "rank": 42,
+   "type": "chance",
+   "t": 4297.5,
+   "timestamp": "01:11:37.500",
+   "confidence": 0.37499999999999994,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.35,
+     "notes": "Cross/header situation; probably cleared. Could not see a shot."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6799223838843127,
+     "rank": 29,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.6332221364071319,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.08569449745441708,
+     "net_disturbance": 0.4920775416105275,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.10304151707901459,
+     "p_ball_out_of_play": 0.5115066941479373,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "net_disturbance"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Cross/header situation; probably cleared. Could not see a shot.",
+   "clip_start": 4294.5,
+   "clip_end": 4300.5,
+   "selected": false,
+   "t_start": 4292.0,
+   "t_end": 4302.0
+  },
+  {
+   "id": "event_043",
+   "rank": 43,
+   "type": "chance",
+   "t": 4885.0,
+   "timestamp": "01:21:25.000",
+   "confidence": 0.33999999999999997,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Pressure only; no visible attempt."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.4747170245588601,
+     "rank": 44,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.4688973119234001,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.023998678234809178,
+     "net_disturbance": 0.14578841009602792,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.2810054208352741,
+     "p_ball_out_of_play": -0.3324248384939828,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Pressure only; no visible attempt.",
+   "clip_start": 4882.0,
+   "clip_end": 4888.0,
+   "selected": false,
+   "t_start": 4880.0,
+   "t_end": 4888.0
+  },
+  {
+   "id": "event_044",
+   "rank": 44,
+   "type": "shot",
+   "t": 4396.0,
+   "timestamp": "01:13:16.000",
+   "confidence": 0.26,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Most likely a long clearance/back-pass or a very weak long-range shot; recorded as low-confidence shot for completeness."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.43717321365218026,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3717787054330462,
+     "net_disturbance": 0.39632615673115995,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 1.710187512302812,
+     "p_ball_out_of_play": -0.21397830759687125,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rush_near_3s"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Most likely a long clearance/back-pass or a very weak long-range shot; recorded as low-confidence shot for completeness.",
+   "clip_start": 4393.0,
+   "clip_end": 4399.0,
+   "selected": false,
+   "t_start": 4386.0,
+   "t_end": 4406.0
+  },
+  {
+   "id": "event_045",
+   "rank": 45,
+   "type": "goal",
+   "t": 3610.0,
+   "timestamp": "01:00:10.000",
+   "confidence": 0.25,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": {
+     "t": 3610.0,
+     "type": "goal",
+     "confidence": 0.555,
+     "signals": {
+      "goal_end": "near",
+      "rush_max_m_3s": 7.35,
+      "box_players_max": 4.5,
+      "n_players_mean": 8.32,
+      "spread_min_m": 10.84,
+      "mean_speed_max": 4.47,
+      "keeper_x_min_m": -0.94,
+      "kickoff_t_start": 3676.0,
+      "kickoff_t_end": 3678.0,
+      "kickoff_delay_s": 66.0,
+      "kickoff_centre_players_max": 4.5
+     },
+     "notes": "near-goal attack followed after 66 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+    },
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.6344408061844821,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.4358791763761543,
+     "net_disturbance": -0.4588029719189104,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 1.9811560601559233,
+     "p_ball_out_of_play": 1.3998556758762744,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.34225527801951044
+    }
+   },
+   "contributing_signals": [
+    "n_near_box",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "rejected",
+   "status": "rejected",
+   "notes": "Rejected as a goal: tracking's attack-to-centre heuristic is too noisy and direct visual review found no goal.",
+   "clip_start": 3605.0,
+   "clip_end": 3615.0,
+   "selected": false,
+   "t_start": 3601.0,
+   "t_end": 3678.0
+  },
+  {
+   "id": "event_046",
+   "rank": 46,
+   "type": "goal",
+   "t": 3644.0,
+   "timestamp": "01:00:44.000",
+   "confidence": 0.25,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": {
+     "t": 3644.0,
+     "type": "goal",
+     "confidence": 0.375,
+     "signals": {
+      "goal_end": "far",
+      "rush_max_m_3s": 6.09,
+      "box_players_max": 2.5,
+      "n_players_mean": 8.23,
+      "spread_min_m": 9.81,
+      "mean_speed_max": 5.95,
+      "keeper_x_min_m": 8.07,
+      "kickoff_t_start": 3676.0,
+      "kickoff_t_end": 3678.0,
+      "kickoff_delay_s": 32.0,
+      "kickoff_centre_players_max": 4.5
+     },
+     "notes": "far-goal attack followed after 32 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+    },
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 3646.54,
+      "confidence": 0.946
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.6216310756522546,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.44207940582008126,
+     "net_disturbance": -0.25561710939807414,
+     "n_near_box": -1.1510088034566968,
+     "rush_near_3s": -0.13510186226932547,
+     "p_ball_out_of_play": -0.31021611395077436,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [],
+   "cross_validation": "rejected",
+   "status": "rejected",
+   "notes": "Rejected as a goal: tracking's attack-to-centre heuristic is too noisy and direct visual review found no goal.",
+   "clip_start": 3639.0,
+   "clip_end": 3649.0,
+   "selected": false,
+   "t_start": 3637.0,
+   "t_end": 3678.0
+  },
+  {
+   "id": "event_047",
+   "rank": 47,
+   "type": "chance",
+   "t": 4666.0,
+   "timestamp": "01:17:46.000",
+   "confidence": 0.13999999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.2,
+     "notes": "Far-end pressure; probable attempts but nothing verifiable at this resolution."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.4202781238488025,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.44233873100594895,
+     "net_disturbance": -0.5462505652793911,
+     "n_near_box": -1.1510088034566968,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.05111432761334275,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Far-end pressure; probable attempts but nothing verifiable at this resolution.",
+   "clip_start": 4663.0,
+   "clip_end": 4669.0,
+   "selected": false,
+   "t_start": 4650.0,
+   "t_end": 4730.0
+  }
+ ],
+ "events": [
+  {
+   "id": "event_001",
+   "rank": 1,
+   "type": "goal",
+   "t": 2736.0,
+   "timestamp": "00:45:36.000",
+   "confidence": 0.99,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.99,
+     "notes": "Direct visual re-check: the ball is visible in the near net and the keeper enters the net to retrieve it."
+    },
+    "learned_fusion": {
+     "score": 0.7840427968189664,
+     "rank": 55,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.9935186229684052,
+     "rank": 15,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": true,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2733.34,
+      "confidence": 0.588
+     },
+     {
+      "kind": "whistle",
+      "t": 2734.07,
+      "confidence": 0.565
+     },
+     {
+      "kind": "whistle",
+      "t": 2736.85,
+      "confidence": 1.0
+     },
+     {
+      "kind": null,
+      "t": 2737.0,
+      "confidence": 0.532
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 3.17615379909387,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 0.2272624739212667,
+     "net_disturbance": 0.04809459413050548,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": -0.8093050781271262,
+     "p_ball_out_of_play": 2.221578483974986,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "p_ball_out_of_play",
+    "net_retrieval"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Direct visual re-check: the ball is visible in the near net and the keeper enters the net to retrieve it.",
+   "clip_start": 2731.0,
+   "clip_end": 2741.0,
+   "selected": true,
+   "t_start": 2733.0,
+   "t_end": 2743.0
+  },
+  {
+   "id": "event_002",
+   "rank": 2,
+   "type": "shot",
+   "t": 2253.7,
+   "timestamp": "00:37:33.700",
+   "confidence": 0.979,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.97,
+     "notes": "Clear shot off target, not a goal."
+    },
+    "learned_fusion": {
+     "score": 0.9650427540764476,
+     "rank": 23,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.4983736993925216,
+     "rank": 42,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2252.34,
+      "confidence": 0.562
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.6479929770070343,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.5456430771160717,
+     "net_disturbance": 0.03378696002721217,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.3534138807722694,
+     "p_ball_out_of_play": 0.08954092782697733,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target, not a goal.",
+   "clip_start": 2250.7,
+   "clip_end": 2256.7,
+   "selected": true,
+   "t_start": 2252.0,
+   "t_end": 2257.0
+  },
+  {
+   "id": "event_003",
+   "rank": 3,
+   "type": "shot",
+   "t": 2562.2,
+   "timestamp": "00:42:42.200",
+   "confidence": 0.958,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.94,
+     "notes": "Clear shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9912943183459038,
+     "rank": 17,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.026152690957978,
+     "rank": 14,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.589207943066411,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 2.6459413324752115,
+     "net_disturbance": 0.40408886378033104,
+     "n_near_box": 3.099972510785818,
+     "rush_near_3s": 1.5663360385613148,
+     "p_ball_out_of_play": -0.413856828485747,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "n_near_box",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target.",
+   "clip_start": 2559.2,
+   "clip_end": 2565.2,
+   "selected": true,
+   "t_start": 2560.0,
+   "t_end": 2565.0
+  },
+  {
+   "id": "event_004",
+   "rank": 4,
+   "type": "shot",
+   "t": 1788.7,
+   "timestamp": "00:29:48.700",
+   "confidence": 0.9510000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.93,
+     "notes": "Shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9998588219248733,
+     "rank": 6,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.0265146916488774,
+     "rank": 13,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 1790.0,
+      "confidence": 0.587
+     },
+     {
+      "kind": "whistle",
+      "t": 1791.11,
+      "confidence": 0.942
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.7774509362782873,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.12940257878156766,
+     "net_disturbance": 0.17572798035692747,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": -0.1946377071064105,
+     "p_ball_out_of_play": 2.3400250148720976,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "n_near_box",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot off target.",
+   "clip_start": 1785.7,
+   "clip_end": 1791.7,
+   "selected": true,
+   "t_start": 1786.0,
+   "t_end": 1791.0
+  },
+  {
+   "id": "event_005",
+   "rank": 5,
+   "type": "shot",
+   "t": 2299.5,
+   "timestamp": "00:38:19.500",
+   "confidence": 0.937,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Close-range save or block."
+    },
+    "learned_fusion": {
+     "score": 0.8993939499141174,
+     "rank": 39,
+     "top_signals": [
+      "n_near_box",
+      "rush_near_3s",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3784499246196342,
+     "rank": 49,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.1646854671468074,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.14512849298470443,
+     "net_disturbance": -0.39704489590817027,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 1.3484670279953337,
+     "p_ball_out_of_play": 1.9698796058186239,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Close-range save or block.",
+   "clip_start": 2296.5,
+   "clip_end": 2302.5,
+   "selected": true,
+   "t_start": 2297.0,
+   "t_end": 2302.0
+  },
+  {
+   "id": "event_006",
+   "rank": 6,
+   "type": "shot",
+   "t": 3949.5,
+   "timestamp": "01:05:49.500",
+   "confidence": 0.8649999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear close-range shot, apparently saved or blocked."
+    },
+    "learned_fusion": {
+     "score": 0.9996350333184911,
+     "rank": 8,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.4511407129118896,
+     "rank": 2,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.5268413273777732,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.08025004648399332,
+     "net_disturbance": -0.1874769852877466,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.42125973666681654,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear close-range shot, apparently saved or blocked.",
+   "clip_start": 3946.5,
+   "clip_end": 3952.5,
+   "selected": true,
+   "t_start": 3947.0,
+   "t_end": 3955.0
+  },
+  {
+   "id": "event_007",
+   "rank": 7,
+   "type": "shot",
+   "t": 3415.3,
+   "timestamp": "00:56:55.300",
+   "confidence": 0.8570000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.91,
+     "notes": "Near-goal shot/cross-shot wide."
+    },
+    "learned_fusion": {
+     "score": 0.9998954530743028,
+     "rank": 5,
+     "top_signals": [
+      "z300_rms",
+      "rush_near_3s",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.9448184516834952,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.26828438125494963,
+     "net_disturbance": -0.2607431708784385,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": 1.0379151887099982,
+     "p_ball_out_of_play": -0.6359440739178314,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "z300_rms",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot/cross-shot wide.",
+   "clip_start": 3412.3,
+   "clip_end": 3418.3,
+   "selected": true,
+   "t_start": 3413.0,
+   "t_end": 3419.0
+  },
+  {
+   "id": "event_008",
+   "rank": 8,
+   "type": "shot",
+   "t": 3443.4,
+   "timestamp": "00:57:23.400",
+   "confidence": 0.838,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.94,
+     "notes": "Shot stopped or deflected; followed by brief injury pause."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.4830440071514124,
+     "rank": 43,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3444.0,
+      "confidence": 0.569
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.6107242873197625,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.9691211056379735,
+     "net_disturbance": -0.02713214853613848,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": -0.6982787728904,
+     "p_ball_out_of_play": -0.5619149921071366,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -1.003069710654104,
+     "p_shots_off_target": -0.8927794878967354
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot stopped or deflected; followed by brief injury pause.",
+   "clip_start": 3440.4,
+   "clip_end": 3446.4,
+   "selected": true,
+   "t_start": 3441.0,
+   "t_end": 3453.0
+  },
+  {
+   "id": "event_009",
+   "rank": 9,
+   "type": "shot",
+   "t": 1486.2,
+   "timestamp": "00:24:46.200",
+   "confidence": 0.835,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear near-goal shot saved."
+    },
+    "learned_fusion": {
+     "score": 0.9999533162805847,
+     "rank": 3,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.19639031005421517,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3492174142625591,
+     "net_disturbance": -0.39456490114067305,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 4.626156647809987,
+     "p_ball_out_of_play": 34.8610006543103,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 1.415354283214489,
+     "p_shots_off_target": 2.400646554546587
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear near-goal shot saved.",
+   "clip_start": 1483.2,
+   "clip_end": 1489.2,
+   "selected": true,
+   "t_start": 1483.0,
+   "t_end": 1488.0
+  },
+  {
+   "id": "event_010",
+   "rank": 10,
+   "type": "shot",
+   "t": 2063.4,
+   "timestamp": "00:34:23.400",
+   "confidence": 0.83,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.9,
+     "notes": "Shot or overhit attacking ball off target."
+    },
+    "learned_fusion": {
+     "score": 0.893491168338648,
+     "rank": 40,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6505594486539161,
+     "rank": 30,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2061.33,
+      "confidence": 0.674
+     },
+     {
+      "kind": null,
+      "t": 2063.0,
+      "confidence": 0.592
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.1395067204894698,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.1350841578537593,
+     "net_disturbance": -0.026409998418842402,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 1.0221462352126083,
+     "p_ball_out_of_play": 1.1629626140820513,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 2.22149561450402,
+     "p_shots_off_target": 2.400646554546587
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot or overhit attacking ball off target.",
+   "clip_start": 2060.4,
+   "clip_end": 2066.4,
+   "selected": true,
+   "t_start": 2061.0,
+   "t_end": 2066.0
+  },
+  {
+   "id": "event_011",
+   "rank": 11,
+   "type": "shot",
+   "t": 1669.2,
+   "timestamp": "00:27:49.200",
+   "confidence": 0.828,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.94,
+     "notes": "Clear near-goal save."
+    },
+    "learned_fusion": {
+     "score": 0.9674252444840129,
+     "rank": 20,
+     "top_signals": [
+      "z300_rms",
+      "p_ball_out_of_play",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1669.1,
+      "confidence": 0.692
+     },
+     {
+      "kind": null,
+      "t": 1670.0,
+      "confidence": 0.57
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.836536198278259,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": -0.19913885669587053,
+     "net_disturbance": -0.28555313458930115,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 1.0169971891726441,
+     "p_ball_out_of_play": 0.23759909144836683,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "z300_rms",
+    "whistle"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear near-goal save.",
+   "clip_start": 1666.2,
+   "clip_end": 1672.2,
+   "selected": true,
+   "t_start": 1667.0,
+   "t_end": 1672.0
+  },
+  {
+   "id": "event_012",
+   "rank": 12,
+   "type": "shot",
+   "t": 2694.7,
+   "timestamp": "00:44:54.700",
+   "confidence": 0.8180000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.74,
+     "notes": "Probable save; bodies obscure the exact contact."
+    },
+    "learned_fusion": {
+     "score": 0.9945187577304468,
+     "rank": 15,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6802330284301612,
+     "rank": 28,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2695.07,
+      "confidence": 0.634
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.4412359201352989,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 5.610428982229905,
+     "net_disturbance": 2.755954323797899,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": 0.6150497826779456,
+     "p_ball_out_of_play": -0.05111432761334275,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.609212951924958,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "motion_goal_roi",
+    "net_disturbance",
+    "n_near_box",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probable save; bodies obscure the exact contact.",
+   "clip_start": 2691.7,
+   "clip_end": 2697.7,
+   "selected": true,
+   "t_start": 2690.0,
+   "t_end": 2697.0
+  },
+  {
+   "id": "event_013",
+   "rank": 13,
+   "type": "shot",
+   "t": 1547.0,
+   "timestamp": "00:25:47.000",
+   "confidence": 0.807,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Near-goal save; ball briefly obscured by players."
+    },
+    "learned_fusion": {
+     "score": 0.8287489717707377,
+     "rank": 47,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.3416602804511863,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.43170639838537456,
+     "net_disturbance": -0.7572709832135113,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 2.9066970858394723,
+     "p_ball_out_of_play": 7.3888083943614795,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 1.415354283214489,
+     "p_shots_off_target": 2.1948074268938793
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal save; ball briefly obscured by players.",
+   "clip_start": 1544.0,
+   "clip_end": 1550.0,
+   "selected": true,
+   "t_start": 1545.0,
+   "t_end": 1550.0
+  },
+  {
+   "id": "event_014",
+   "rank": 14,
+   "type": "shot",
+   "t": 2081.6,
+   "timestamp": "00:34:41.600",
+   "confidence": 0.804,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.72,
+     "notes": "Likely shot off target; flight is visible but endpoint is partly out of frame."
+    },
+    "learned_fusion": {
+     "score": 0.7910666232236702,
+     "rank": 54,
+     "top_signals": [
+      "n_near_box",
+      "p_ball_out_of_play",
+      "motion_goal_roi"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3727663077044665,
+     "rank": 51,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.4929752223631243,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.42135558803476764,
+     "net_disturbance": -0.23498008119234728,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 1.8392354786794125,
+     "p_ball_out_of_play": 0.43007470415617305,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Likely shot off target; flight is visible but endpoint is partly out of frame.",
+   "clip_start": 2078.6,
+   "clip_end": 2084.6,
+   "selected": true,
+   "t_start": 2079.0,
+   "t_end": 2084.0
+  },
+  {
+   "id": "event_015",
+   "rank": 15,
+   "type": "shot",
+   "t": 1766.5,
+   "timestamp": "00:29:26.500",
+   "confidence": 0.7949999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.95,
+     "notes": "Clear shot off target."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.586864222960056,
+     "rank": 36,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1767.32,
+      "confidence": 0.657
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.09381238977661163,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.7436024940006906,
+     "net_disturbance": 0.4135610714131442,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 0.75580266412323,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "n_near_box",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Clear shot off target.",
+   "clip_start": 1763.5,
+   "clip_end": 1769.5,
+   "selected": true,
+   "t_start": 1764.0,
+   "t_end": 1769.0
+  },
+  {
+   "id": "event_016",
+   "rank": 16,
+   "type": "shot",
+   "t": 2833.5,
+   "timestamp": "00:47:13.500",
+   "confidence": 0.7739999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.82,
+     "notes": "Near-goal shot off target."
+    },
+    "learned_fusion": {
+     "score": 0.9971393514475849,
+     "rank": 14,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.3413793188501648,
+     "rank": 59,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 1.3134388428723724,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.013389920631131855,
+     "net_disturbance": -0.33546256794050155,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 1.9328650649132764,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot off target.",
+   "clip_start": 2830.5,
+   "clip_end": 2836.5,
+   "selected": true,
+   "t_start": 2831.0,
+   "t_end": 2838.0
+  },
+  {
+   "id": "event_017",
+   "rank": 17,
+   "type": "shot",
+   "t": 3841.3,
+   "timestamp": "01:04:01.300",
+   "confidence": 0.767,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.91,
+     "notes": "Shot high/wide, not a goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6961057286910455,
+     "rank": 27,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.37782813392084474,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.6538524046735804,
+     "net_disturbance": -0.2591309776010425,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": -1.1533257166722282,
+     "p_ball_out_of_play": 1.9106563403700685,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot high/wide, not a goal.",
+   "clip_start": 3838.3,
+   "clip_end": 3844.3,
+   "selected": true,
+   "t_start": 3839.0,
+   "t_end": 3851.0
+  },
+  {
+   "id": "event_018",
+   "rank": 18,
+   "type": "shot",
+   "t": 2891.5,
+   "timestamp": "00:48:11.500",
+   "confidence": 0.746,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.88,
+     "notes": "Near-goal shot off target."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.7617795492824886,
+     "rank": 24,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 2894.15,
+      "confidence": 0.745
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.5534793061800126,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.40358002529438386,
+     "net_disturbance": -0.2558104613830116,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 2.0088321826207305,
+     "p_ball_out_of_play": 3.4060437929461016,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.34225527801951044
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Near-goal shot off target.",
+   "clip_start": 2888.5,
+   "clip_end": 2894.5,
+   "selected": true,
+   "t_start": 2889.0,
+   "t_end": 2894.0
+  },
+  {
+   "id": "event_019",
+   "rank": 19,
+   "type": "shot",
+   "t": 1699.2,
+   "timestamp": "00:28:19.200",
+   "confidence": 0.7370000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.91,
+     "notes": "Saved or deflected wide; no goal celebration or centre restart."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 2.1798970221538276,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4676333462036978,
+     "net_disturbance": 0.09324528135386471,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.7334778415971203,
+     "p_ball_out_of_play": 0.40046307143189536,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.20614228628019243,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "z300_rms",
+    "motion_goal_roi",
+    "p_goal"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Saved or deflected wide; no goal celebration or centre restart.",
+   "clip_start": 1696.2,
+   "clip_end": 1702.2,
+   "selected": true,
+   "t_start": 1697.0,
+   "t_end": 1702.0
+  },
+  {
+   "id": "event_020",
+   "rank": 20,
+   "type": "chance",
+   "t": 1715.0,
+   "timestamp": "00:28:35.000",
+   "confidence": 0.7240000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.72,
+     "notes": "Could be a floated shot or cross; classified as chance."
+    },
+    "learned_fusion": {
+     "score": 0.9294193944033979,
+     "rank": 35,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 1715.45,
+      "confidence": 0.625
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.014352030068887503,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 0.657954457613669,
+     "net_disturbance": -0.5474746341309134,
+     "n_near_box": 0.9744818536645604,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.43606555302895544,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "whistle",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Could be a floated shot or cross; classified as chance.",
+   "clip_start": 1712.0,
+   "clip_end": 1718.0,
+   "selected": true,
+   "t_start": 1713.0,
+   "t_end": 1718.0
+  },
+  {
+   "id": "event_021",
+   "rank": 21,
+   "type": "shot",
+   "t": 3522.5,
+   "timestamp": "00:58:42.500",
+   "confidence": 0.711,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.83,
+     "notes": "Probable save/blocked shot; ball is intermittently occluded."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1382978732043014,
+     "rank": 9,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 3523.55,
+      "confidence": 0.611
+     },
+     {
+      "kind": null,
+      "t": 3524.0,
+      "confidence": 0.616
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.3548703150625458,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.1511909611339735,
+     "net_disturbance": 0.316670966448681,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 2.4394211577127294,
+     "p_ball_out_of_play": 1.022307358641731,
+     "p_goal": 2.147078914874849,
+     "p_shots_on_target": 3.6322429442606987,
+     "p_shots_off_target": 3.4298421928101255
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probable save/blocked shot; ball is intermittently occluded.",
+   "clip_start": 3519.5,
+   "clip_end": 3525.5,
+   "selected": true,
+   "t_start": 3519.0,
+   "t_end": 3528.0
+  },
+  {
+   "id": "event_022",
+   "rank": 22,
+   "type": "shot",
+   "t": 4548.0,
+   "timestamp": "01:15:48.000",
+   "confidence": 0.67,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.7,
+     "notes": "Big chance: rounded the keeper, shot/attempt blocked by covering defenders on the line (or dragged wide and kept in). Best single moment of the segment. Not a goal in my judgement: no stoppage, no walk back to centre, keeper back in goal within ~15 s."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1827186297830217,
+     "rank": 8,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4549.57,
+      "confidence": 0.812
+     },
+     {
+      "kind": null,
+      "t": 4550.0,
+      "confidence": 0.621
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.982306548774145,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 8.312856744156873,
+     "net_disturbance": 1.8679884288378548,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 0.966793990282994,
+     "p_ball_out_of_play": 1.1777684304441902,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -1.003069710654104,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "net_disturbance",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Big chance: rounded the keeper, shot/attempt blocked by covering defenders on the line (or dragged wide and kept in). Best single moment of the segment. Not a goal in my judgement: no stoppage, no walk back to centre, keeper back in goal within ~15 s.",
+   "clip_start": 4545.0,
+   "clip_end": 4551.0,
+   "selected": true,
+   "t_start": 4544.0,
+   "t_end": 4556.0
+  },
+  {
+   "id": "event_023",
+   "rank": 23,
+   "type": "shot",
+   "t": 3996.0,
+   "timestamp": "01:06:36.000",
+   "confidence": 0.656,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.68,
+     "notes": "Likely high shot or goal-bound cross; no goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.250538177916997,
+     "rank": 5,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "z300_rms",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3997.0,
+      "confidence": 0.587
+     },
+     {
+      "kind": "whistle",
+      "t": 3997.6,
+      "confidence": 0.771
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.7577763707090162,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.6251144590760634,
+     "net_disturbance": -0.21160494800941754,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": 2.285915222646299,
+     "p_ball_out_of_play": 2.3400250148720976,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Likely high shot or goal-bound cross; no goal.",
+   "clip_start": 3993.0,
+   "clip_end": 3999.0,
+   "selected": true,
+   "t_start": 3993.0,
+   "t_end": 3999.0
+  },
+  {
+   "id": "event_024",
+   "rank": 24,
+   "type": "shot",
+   "t": 1585.1,
+   "timestamp": "00:26:25.100",
+   "confidence": 0.616,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.88,
+     "notes": "Shot saved at the near goal."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.13746329194196577,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.11886592416137878,
+     "net_disturbance": -0.5755610435018936,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 1.148156797719912,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Shot saved at the near goal.",
+   "clip_start": 1582.1,
+   "clip_end": 1588.1,
+   "selected": true,
+   "t_start": 1583.0,
+   "t_end": 1588.0
+  },
+  {
+   "id": "event_025",
+   "rank": 25,
+   "type": "chance",
+   "t": 4741.0,
+   "timestamp": "01:19:01.000",
+   "confidence": 0.5800000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.4,
+     "notes": "Blocked shot/cross out for a corner; strike not seen."
+    },
+    "learned_fusion": {
+     "score": 0.9989118575570485,
+     "rank": 11,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.193897789787959,
+     "rank": 7,
+     "top_signals": [
+      "motion_goal_roi",
+      "z300_rms",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4739.82,
+      "confidence": 0.541
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 3.7932225370760198,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.9035354086303505,
+     "net_disturbance": -0.15916749148104922,
+     "n_near_box": 0.9744818536645604,
+     "rush_near_3s": 3.081764651198252,
+     "p_ball_out_of_play": 0.1561671014566026,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Blocked shot/cross out for a corner; strike not seen.",
+   "clip_start": 4738.0,
+   "clip_end": 4744.0,
+   "selected": false,
+   "t_start": 4734.0,
+   "t_end": 4748.0
+  },
+  {
+   "id": "event_026",
+   "rank": 26,
+   "type": "shot",
+   "t": 4790.5,
+   "timestamp": "01:19:50.500",
+   "confidence": 0.5800000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.4,
+     "notes": "Lofted shot/cross held or gathered by the keeper. Could be a cross rather than a shot."
+    },
+    "learned_fusion": {
+     "score": 0.7943793903921456,
+     "rank": 53,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "p_ball_out_of_play"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.8044468783479324,
+     "rank": 22,
+     "top_signals": [
+      "z300_rms",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 3.991072828187066,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.541687541016887,
+     "net_disturbance": 0.14656808261095253,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": 1.4308517646347592,
+     "p_ball_out_of_play": 0.11174965237018575,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "rush_near_3s"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Lofted shot/cross held or gathered by the keeper. Could be a cross rather than a shot.",
+   "clip_start": 4787.5,
+   "clip_end": 4793.5,
+   "selected": false,
+   "t_start": 4785.0,
+   "t_end": 4794.0
+  },
+  {
+   "id": "event_027",
+   "rank": 27,
+   "type": "chance",
+   "t": 1779.0,
+   "timestamp": "00:29:39.000",
+   "confidence": 0.5760000000000001,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.58,
+     "notes": "Ball obscured; probable blocked attempt rather than a clean shot."
+    },
+    "learned_fusion": {
+     "score": 0.9665604849533813,
+     "rank": 21,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.18469917327955496,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4808589306829489,
+     "net_disturbance": -0.3250478816821263,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 2.1845639430696386,
+     "p_goal": 3.3433998595621253,
+     "p_shots_on_target": 1.8184249488592545,
+     "p_shots_off_target": 1.1656117886303412
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "motion_goal_roi",
+    "n_near_box",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Ball obscured; probable blocked attempt rather than a clean shot.",
+   "clip_start": 1776.0,
+   "clip_end": 1782.0,
+   "selected": false,
+   "t_start": 1776.0,
+   "t_end": 1781.0
+  },
+  {
+   "id": "event_028",
+   "rank": 28,
+   "type": "shot",
+   "t": 4979.5,
+   "timestamp": "01:22:59.500",
+   "confidence": 0.55,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.6,
+     "notes": "Shot forcing a diving save / going wide; immediately followed by the end of the match, so no restart to disambiguate. Not a clear goal (no celebration seen)."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 2.1117873287111757,
+     "rank": 11,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4977.21,
+      "confidence": 0.967
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.036168602381587575,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.0274221224244047,
+     "net_disturbance": 0.6281620825602299,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.322197789154987,
+     "p_ball_out_of_play": 0.3190310814401311,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": 0.5480944056722181
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Shot forcing a diving save / going wide; immediately followed by the end of the match, so no restart to disambiguate. Not a clear goal (no celebration seen).",
+   "clip_start": 4976.5,
+   "clip_end": 4982.5,
+   "selected": true,
+   "t_start": 4975.0,
+   "t_end": 4985.0
+  },
+  {
+   "id": "event_029",
+   "rank": 29,
+   "type": "shot",
+   "t": 1724.5,
+   "timestamp": "00:28:44.500",
+   "confidence": 0.49799999999999994,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.64,
+     "notes": "Likely blocked shot; ball path partly hidden."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.5361483972175949,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.2653597012269168,
+     "net_disturbance": -0.7172579396501995,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": -0.8784953842891438,
+     "p_ball_out_of_play": -0.17696376669152383,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "n_near_box"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Likely blocked shot; ball path partly hidden.",
+   "clip_start": 1721.5,
+   "clip_end": 1727.5,
+   "selected": true,
+   "t_start": 1723.0,
+   "t_end": 1728.0
+  },
+  {
+   "id": "event_030",
+   "rank": 30,
+   "type": "chance",
+   "t": 3693.0,
+   "timestamp": "01:01:33.000",
+   "confidence": 0.4899998204467587,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9999992518614949,
+     "rank": 2,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.490051161795978,
+     "rank": 1,
+     "top_signals": [
+      "net_disturbance",
+      "rush_near_3s",
+      "motion_goal_roi"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 3693.0,
+      "confidence": 0.506
+     },
+     {
+      "kind": "whistle",
+      "t": 3693.18,
+      "confidence": 0.674
+     },
+     {
+      "kind": "whistle",
+      "t": 3695.11,
+      "confidence": 0.381
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 2.3613348460204575,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": 5.999605361166584,
+     "net_disturbance": 2.867806953784374,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.9333251910232272,
+     "p_ball_out_of_play": 4.871819612797858,
+     "p_goal": 2.7452393872184873,
+     "p_shots_on_target": 0.004606953457809574,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "whistle",
+    "motion_goal_roi",
+    "net_disturbance",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 3690.0,
+   "clip_end": 3696.0,
+   "selected": false,
+   "t_start": 3690.0,
+   "t_end": 3696.0
+  },
+  {
+   "id": "event_031",
+   "rank": 31,
+   "type": "chance",
+   "t": 4461.0,
+   "timestamp": "01:14:21.000",
+   "confidence": 0.4899531928833589,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9998049703473287,
+     "rank": 7,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "n_near_box",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4460.02,
+      "confidence": 0.85
+     },
+     {
+      "kind": "whistle",
+      "t": 4461.88,
+      "confidence": 0.594
+     },
+     {
+      "kind": "whistle",
+      "t": 4463.3,
+      "confidence": 0.583
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.6415462035890772,
+     "whistle": 4.2025024089130625,
+     "motion_goal_roi": -0.42934889669566845,
+     "net_disturbance": -0.636034942305126,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.5676217296263107,
+     "p_ball_out_of_play": 0.20058455054301944,
+     "p_goal": 0.3525974978439354,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "whistle"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 4458.0,
+   "clip_end": 4464.0,
+   "selected": false,
+   "t_start": 4458.0,
+   "t_end": 4464.0
+  },
+  {
+   "id": "event_032",
+   "rank": 32,
+   "type": "chance",
+   "t": 2646.0,
+   "timestamp": "00:44:06.000",
+   "confidence": 0.4898269871093752,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.99927911295573,
+     "rank": 9,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.7010247787476547,
+     "rank": 26,
+     "top_signals": [
+      "motion_goal_roi",
+      "p_ball_out_of_play",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.7285945832603575,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 5.33872691249128,
+     "net_disturbance": 1.609514630959094,
+     "n_near_box": -0.7967603606031539,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.13994922578617644,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.19692837936457305,
+     "p_shots_off_target": -0.2752621049386125
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2643.0,
+   "clip_end": 2649.0,
+   "selected": false,
+   "t_start": 2643.0,
+   "t_end": 2649.0
+  },
+  {
+   "id": "event_033",
+   "rank": 33,
+   "type": "chance",
+   "t": 2382.0,
+   "timestamp": "00:39:42.000",
+   "confidence": 0.4897847138433463,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9991029743472764,
+     "rank": 10,
+     "top_signals": [
+      "n_near_box",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.6039135712855521,
+     "rank": 34,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "n_near_box"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.36912152019972133,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3993379001857102,
+     "net_disturbance": 0.1373563890364583,
+     "n_near_box": 2.3914756250787317,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.6803615230042482,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "n_near_box"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2379.0,
+   "clip_end": 2385.0,
+   "selected": false,
+   "t_start": 2379.0,
+   "t_end": 2385.0
+  },
+  {
+   "id": "event_034",
+   "rank": 34,
+   "type": "chance",
+   "t": 2801.0,
+   "timestamp": "00:46:41.000",
+   "confidence": 0.4851633747870491,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.979847394946038,
+     "rank": 18,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 1.617617024392028,
+     "rank": 33,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 2803.0,
+      "confidence": 0.46
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.8955810499502455,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.4686942219640655,
+     "net_disturbance": -0.49713978027838196,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.041775402794976,
+     "p_ball_out_of_play": 7.277764771645438,
+     "p_goal": 3.9415603319057633,
+     "p_shots_on_target": 1.8184249488592545,
+     "p_shots_off_target": 2.1948074268938793
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi",
+    "p_ball_out_of_play",
+    "p_goal",
+    "p_shots_on_target",
+    "p_shots_off_target"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2798.0,
+   "clip_end": 2804.0,
+   "selected": false,
+   "t_start": 2798.0,
+   "t_end": 2804.0
+  },
+  {
+   "id": "event_035",
+   "rank": 35,
+   "type": "chance",
+   "t": 3008.8,
+   "timestamp": "00:50:08.800",
+   "confidence": 0.484,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.52,
+     "notes": "Dangerous goalmouth action; no unobstructed shot contact visible."
+    },
+    "learned_fusion": {
+     "score": 0.9978608345777049,
+     "rank": 13,
+     "top_signals": [
+      "z300_rms",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.37882889411867504,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3538145425574859,
+     "net_disturbance": -0.007715462002518006,
+     "n_near_box": -0.08826347489606817,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": 4.227766601044814,
+     "p_goal": 0.9507579701875736,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Dangerous goalmouth action; no unobstructed shot contact visible.",
+   "clip_start": 3005.8,
+   "clip_end": 3011.8,
+   "selected": false,
+   "t_start": 3005.0,
+   "t_end": 3012.0
+  },
+  {
+   "id": "event_036",
+   "rank": 36,
+   "type": "chance",
+   "t": 2934.0,
+   "timestamp": "00:48:54.000",
+   "confidence": 0.4836501890008695,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": {
+     "score": 0.9735424541702895,
+     "rank": 19,
+     "top_signals": [
+      "motion_goal_roi",
+      "n_near_box",
+      "rush_near_3s"
+     ]
+    },
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 2934.0,
+      "confidence": 0.571
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.14264948743072922,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.7082871186888936,
+     "net_disturbance": -0.5010467262922459,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.3762627725746101,
+     "p_ball_out_of_play": -0.37684228758039967,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.8927794878967354
+    }
+   },
+   "contributing_signals": [
+    "learned_fusion",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "notes": "Held-out learned fusion peak without an independently observed event.",
+   "clip_start": 2931.0,
+   "clip_end": 2937.0,
+   "selected": false,
+   "t_start": 2931.0,
+   "t_end": 2937.0
+  },
+  {
+   "id": "event_037",
+   "rank": 37,
+   "type": "shot",
+   "t": 2407.0,
+   "timestamp": "00:40:07.000",
+   "confidence": 0.48299999999999993,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review2"
+     ],
+     "confidence": 0.69,
+     "notes": "Probable far-goal save; ball too small to follow continuously."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -1.1701477400830302,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.40204902712887214,
+     "net_disturbance": -0.3869401118705356,
+     "n_near_box": 0.26598496795747467,
+     "rush_near_3s": -0.028902787695065726,
+     "p_ball_out_of_play": -0.413856828485747,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": 0.20614228628019243,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Probable far-goal save; ball too small to follow continuously.",
+   "clip_start": 2404.0,
+   "clip_end": 2410.0,
+   "selected": true,
+   "t_start": 2404.0,
+   "t_end": 2410.0
+  },
+  {
+   "id": "event_038",
+   "rank": 38,
+   "type": "chance",
+   "t": 4240.0,
+   "timestamp": "01:10:40.000",
+   "confidence": 0.45999999999999996,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Ambiguous: blocked/saved attempt or just a cleared cross. Ball not visible."
+    },
+    "learned_fusion": {
+     "score": 0.9985757155537993,
+     "rank": 12,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "z300_rms"
+     ]
+    },
+    "rule_fusion": {
+     "score": 2.4040682114673517,
+     "rank": 4,
+     "top_signals": [
+      "net_disturbance",
+      "motion_goal_roi",
+      "rush_near_3s"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 4237.93,
+      "confidence": 0.718
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 0.6068020671844125,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 3.515364380621913,
+     "net_disturbance": 1.9579957567521615,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 2.307476852938649,
+     "p_ball_out_of_play": 0.8816521032014112,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "learned_fusion",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance",
+    "rush_near_3s",
+    "p_ball_out_of_play"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Ambiguous: blocked/saved attempt or just a cleared cross. Ball not visible.",
+   "clip_start": 4237.0,
+   "clip_end": 4243.0,
+   "selected": false,
+   "t_start": 4236.0,
+   "t_end": 4251.0
+  },
+  {
+   "id": "event_039",
+   "rank": 39,
+   "type": "chance",
+   "t": 4089.0,
+   "timestamp": "01:08:09.000",
+   "confidence": 0.445,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.45,
+     "notes": "Probably a shot/cross off target (ball ended behind the goal, goal kick followed). Strike moment not seen."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6443394063095358,
+     "rank": 32,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.20629783601273496,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.082681962031115,
+     "net_disturbance": 0.7660500441585927,
+     "n_near_box": 0.6202334108110176,
+     "rush_near_3s": -0.12930918547436587,
+     "p_ball_out_of_play": 0.6669677659503964,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "motion_goal_roi",
+    "net_disturbance"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Probably a shot/cross off target (ball ended behind the goal, goal kick followed). Strike moment not seen.",
+   "clip_start": 4086.0,
+   "clip_end": 4092.0,
+   "selected": false,
+   "t_start": 4064.0,
+   "t_end": 4096.0
+  },
+  {
+   "id": "event_040",
+   "rank": 40,
+   "type": "shot",
+   "t": 2851.8,
+   "timestamp": "00:47:31.800",
+   "confidence": 0.435,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review3"
+     ],
+     "confidence": 0.55,
+     "notes": "Probable far-goal missed shot; ball/strike itself is too small to resolve."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.3022707389846587,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.18935522468359034,
+     "net_disturbance": -0.34831037391841224,
+     "n_near_box": 1.6829787393716462,
+     "rush_near_3s": -1.7091008736108544,
+     "p_ball_out_of_play": -0.6507498902799702,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "n_near_box"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Probable far-goal missed shot; ball/strike itself is too small to resolve.",
+   "clip_start": 2848.8,
+   "clip_end": 2854.8,
+   "selected": false,
+   "t_start": 2849.0,
+   "t_end": 2855.0
+  },
+  {
+   "id": "event_041",
+   "rank": 41,
+   "type": "chance",
+   "t": 4314.0,
+   "timestamp": "01:11:54.000",
+   "confidence": 0.42499999999999993,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.35,
+     "notes": "Something happened at the near post (shot wide / retrieval?). Ball not seen."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.7873195309841101,
+     "rank": 23,
+     "top_signals": [
+      "motion_goal_roi",
+      "rush_near_3s",
+      "z300_rms"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [
+     {
+      "kind": null,
+      "t": 4315.0,
+      "confidence": 0.516
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": 1.7282539448730228,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 1.7910640697539955,
+     "net_disturbance": 0.3979264885939332,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 0.6675056892100802,
+     "p_ball_out_of_play": 0.08954092782697733,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.6869403602440278
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "z300_rms",
+    "motion_goal_roi"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Something happened at the near post (shot wide / retrieval?). Ball not seen.",
+   "clip_start": 4311.0,
+   "clip_end": 4317.0,
+   "selected": false,
+   "t_start": 4310.0,
+   "t_end": 4320.0
+  },
+  {
+   "id": "event_042",
+   "rank": 42,
+   "type": "chance",
+   "t": 4297.5,
+   "timestamp": "01:11:37.500",
+   "confidence": 0.37499999999999994,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.35,
+     "notes": "Cross/header situation; probably cleared. Could not see a shot."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.6799223838843127,
+     "rank": 29,
+     "top_signals": [
+      "p_ball_out_of_play",
+      "motion_goal_roi",
+      "net_disturbance"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.6332221364071319,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.08569449745441708,
+     "net_disturbance": 0.4920775416105275,
+     "n_near_box": 1.3287302965181034,
+     "rush_near_3s": 0.10304151707901459,
+     "p_ball_out_of_play": 0.5115066941479373,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.8015343778317214,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "net_disturbance"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Cross/header situation; probably cleared. Could not see a shot.",
+   "clip_start": 4294.5,
+   "clip_end": 4300.5,
+   "selected": false,
+   "t_start": 4292.0,
+   "t_end": 4302.0
+  },
+  {
+   "id": "event_043",
+   "rank": 43,
+   "type": "chance",
+   "t": 4885.0,
+   "timestamp": "01:21:25.000",
+   "confidence": 0.33999999999999997,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Pressure only; no visible attempt."
+    },
+    "learned_fusion": null,
+    "rule_fusion": {
+     "score": 1.4747170245588601,
+     "rank": 44,
+     "top_signals": [
+      "motion_goal_roi",
+      "net_disturbance",
+      "p_ball_out_of_play"
+     ]
+    },
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.4688973119234001,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": 0.023998678234809178,
+     "net_disturbance": 0.14578841009602792,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 0.2810054208352741,
+     "p_ball_out_of_play": -0.3324248384939828,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rule_fusion",
+    "n_near_box"
+   ],
+   "cross_validation": "confirmed",
+   "status": "confirmed",
+   "notes": "Pressure only; no visible attempt.",
+   "clip_start": 4882.0,
+   "clip_end": 4888.0,
+   "selected": false,
+   "t_start": 4880.0,
+   "t_end": 4888.0
+  },
+  {
+   "id": "event_044",
+   "rank": 44,
+   "type": "shot",
+   "t": 4396.0,
+   "timestamp": "01:13:16.000",
+   "confidence": 0.26,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.3,
+     "notes": "Most likely a long clearance/back-pass or a very weak long-range shot; recorded as low-confidence shot for completeness."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": 0.43717321365218026,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.3717787054330462,
+     "net_disturbance": 0.39632615673115995,
+     "n_near_box": -0.4425119177496111,
+     "rush_near_3s": 1.710187512302812,
+     "p_ball_out_of_play": -0.21397830759687125,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.13641615036680269
+    }
+   },
+   "contributing_signals": [
+    "visual",
+    "rush_near_3s"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Most likely a long clearance/back-pass or a very weak long-range shot; recorded as low-confidence shot for completeness.",
+   "clip_start": 4393.0,
+   "clip_end": 4399.0,
+   "selected": false,
+   "t_start": 4386.0,
+   "t_end": 4406.0
+  },
+  {
+   "id": "event_045",
+   "rank": 45,
+   "type": "goal",
+   "t": 3610.0,
+   "timestamp": "01:00:10.000",
+   "confidence": 0.25,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": {
+     "t": 3610.0,
+     "type": "goal",
+     "confidence": 0.555,
+     "signals": {
+      "goal_end": "near",
+      "rush_max_m_3s": 7.35,
+      "box_players_max": 4.5,
+      "n_players_mean": 8.32,
+      "spread_min_m": 10.84,
+      "mean_speed_max": 4.47,
+      "keeper_x_min_m": -0.94,
+      "kickoff_t_start": 3676.0,
+      "kickoff_t_end": 3678.0,
+      "kickoff_delay_s": 66.0,
+      "kickoff_centre_players_max": 4.5
+     },
+     "notes": "near-goal attack followed after 66 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+    },
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.6344408061844821,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.4358791763761543,
+     "net_disturbance": -0.4588029719189104,
+     "n_near_box": 2.037227182225189,
+     "rush_near_3s": 1.9811560601559233,
+     "p_ball_out_of_play": 1.3998556758762744,
+     "p_goal": 1.5489184425312115,
+     "p_shots_on_target": 0.4076776191025753,
+     "p_shots_off_target": 0.34225527801951044
+    }
+   },
+   "contributing_signals": [
+    "n_near_box",
+    "rush_near_3s",
+    "p_ball_out_of_play",
+    "p_goal"
+   ],
+   "cross_validation": "rejected",
+   "status": "rejected",
+   "notes": "Rejected as a goal: tracking's attack-to-centre heuristic is too noisy and direct visual review found no goal.",
+   "clip_start": 3605.0,
+   "clip_end": 3615.0,
+   "selected": false,
+   "t_start": 3601.0,
+   "t_end": 3678.0
+  },
+  {
+   "id": "event_046",
+   "rank": 46,
+   "type": "goal",
+   "t": 3644.0,
+   "timestamp": "01:00:44.000",
+   "confidence": 0.25,
+   "signals": {
+    "visual_review": null,
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": {
+     "t": 3644.0,
+     "type": "goal",
+     "confidence": 0.375,
+     "signals": {
+      "goal_end": "far",
+      "rush_max_m_3s": 6.09,
+      "box_players_max": 2.5,
+      "n_players_mean": 8.23,
+      "spread_min_m": 9.81,
+      "mean_speed_max": 5.95,
+      "keeper_x_min_m": 8.07,
+      "kickoff_t_start": 3676.0,
+      "kickoff_t_end": 3678.0,
+      "kickoff_delay_s": 32.0,
+      "kickoff_centre_players_max": 4.5
+     },
+     "notes": "far-goal attack followed after 32 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+    },
+    "audio_events": [
+     {
+      "kind": "whistle",
+      "t": 3646.54,
+      "confidence": 0.946
+     }
+    ],
+    "features_at_t": {
+     "z300_rms": -0.6216310756522546,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.44207940582008126,
+     "net_disturbance": -0.25561710939807414,
+     "n_near_box": -1.1510088034566968,
+     "rush_near_3s": -0.13510186226932547,
+     "p_ball_out_of_play": -0.31021611395077436,
+     "p_goal": -0.8437234468433403,
+     "p_shots_on_target": -0.5999990450093386,
+     "p_shots_off_target": -0.4811012325913202
+    }
+   },
+   "contributing_signals": [],
+   "cross_validation": "rejected",
+   "status": "rejected",
+   "notes": "Rejected as a goal: tracking's attack-to-centre heuristic is too noisy and direct visual review found no goal.",
+   "clip_start": 3639.0,
+   "clip_end": 3649.0,
+   "selected": false,
+   "t_start": 3637.0,
+   "t_end": 3678.0
+  },
+  {
+   "id": "event_047",
+   "rank": 47,
+   "type": "chance",
+   "t": 4666.0,
+   "timestamp": "01:17:46.000",
+   "confidence": 0.13999999999999999,
+   "signals": {
+    "visual_review": {
+     "sources": [
+      "review4"
+     ],
+     "confidence": 0.2,
+     "notes": "Far-end pressure; probable attempts but nothing verifiable at this resolution."
+    },
+    "learned_fusion": null,
+    "rule_fusion": null,
+    "net_retrieval": false,
+    "tracking_event": null,
+    "audio_events": [],
+    "features_at_t": {
+     "z300_rms": -0.4202781238488025,
+     "whistle": -0.2379088853818559,
+     "motion_goal_roi": -0.44233873100594895,
+     "net_disturbance": -0.5462505652793911,
+     "n_near_box": -1.1510088034566968,
+     "rush_near_3s": 0.0,
+     "p_ball_out_of_play": -0.05111432761334275,
+     "p_goal": -0.24556297449970238,
+     "p_shots_on_target": -0.3984637121869558,
+     "p_shots_off_target": -0.06942297728590484
+    }
+   },
+   "contributing_signals": [
+    "visual"
+   ],
+   "cross_validation": "visual_only",
+   "status": "pending",
+   "notes": "Far-end pressure; probable attempts but nothing verifiable at this resolution.",
+   "clip_start": 4663.0,
+   "clip_end": 4669.0,
+   "selected": false,
+   "t_start": 4650.0,
+   "t_end": 4730.0
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+  "source": "review1",
+  "video_duration_s": 5337.154,
+  "events": [
+    {
+      "type": "other",
+      "t": 808.3,
+      "t_start": 804.0,
+      "t_end": 814.0,
+      "confidence": 0.93,
+      "signals": {
+        "kind": "warmup",
+        "observed": "Blue-shirted player strikes from close range; ball arcs high toward/into the near goal during a shooting drill.",
+        "attacking_goal": "right",
+        "evidence": ["evidence/warmup_0808_a.png", "evidence/warmup_0808_b.png"]
+      },
+      "notes": "Warm-up attempt, not a match event; exact outcome is partly obscured by the net and goal frame."
+    },
+    {
+      "type": "other",
+      "t": 905.6,
+      "t_start": 902.0,
+      "t_end": 912.0,
+      "confidence": 0.9,
+      "signals": {
+        "kind": "warmup",
+        "observed": "Red-shirted player runs onto a stationary ball and shoots at the near goal; players then retrieve/reset the ball.",
+        "attacking_goal": "right",
+        "evidence": ["evidence/warmup_0906_a.png", "evidence/warmup_0906_b.png"]
+      },
+      "notes": "Warm-up shooting drill, not a match event; goal/save outcome cannot be separated reliably through the net."
+    },
+    {
+      "type": "other",
+      "t": 947.0,
+      "t_start": 942.0,
+      "t_end": 952.0,
+      "confidence": 0.9,
+      "signals": {
+        "kind": "warmup",
+        "observed": "Red-shirted player takes another close-range shot at the near goal with a blue-shirted goalkeeper set inside it.",
+        "attacking_goal": "right",
+        "evidence": ["evidence/warmup_0947_a.png", "evidence/warmup_0947_b.png"]
+      },
+      "notes": "Warm-up shooting drill, not a match event; outcome is visually ambiguous."
+    },
+    {
+      "type": "other",
+      "t": 1104.8,
+      "t_start": 1098.0,
+      "t_end": 1108.0,
+      "confidence": 0.96,
+      "signals": {
+        "kind": "kickoff",
+        "observed": "Lime/yellow and orange teams are set across the pitch and begin moving from the centre-area restart.",
+        "attacking_goal": "left",
+        "evidence": ["evidence/kickoff_1105_a.png", "evidence/kickoff_1105_b.png"]
+      },
+      "notes": "Start of actual match play; no match goals, shots, or big chances were directly observed through 1350 s."
+    }
+  ]
+}

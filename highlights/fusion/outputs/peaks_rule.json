@@ -1,0 +1,602 @@
+[
+ {
+  "t": 3694.0,
+  "score": 2.490051161795978,
+  "rank": 1,
+  "top_signals": [
+   "net_disturbance",
+   "rush_near_3s",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 3954.0,
+  "score": 2.4511407129118896,
+  "rank": 2,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 4066.0,
+  "score": 2.4306291479406736,
+  "rank": 3,
+  "top_signals": [
+   "motion_goal_roi",
+   "z300_rms",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 4240.0,
+  "score": 2.4040682114673517,
+  "rank": 4,
+  "top_signals": [
+   "net_disturbance",
+   "motion_goal_roi",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 3997.0,
+  "score": 2.250538177916997,
+  "rank": 5,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "z300_rms",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 3815.0,
+  "score": 2.2079215302984574,
+  "rank": 6,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 4740.0,
+  "score": 2.193897789787959,
+  "rank": 7,
+  "top_signals": [
+   "motion_goal_roi",
+   "z300_rms",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 4548.0,
+  "score": 2.1827186297830217,
+  "rank": 8,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 3523.0,
+  "score": 2.1382978732043014,
+  "rank": 9,
+  "top_signals": [
+   "motion_goal_roi",
+   "rush_near_3s",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 3057.0,
+  "score": 2.1155551582378838,
+  "rank": 10,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 4978.0,
+  "score": 2.1117873287111757,
+  "rank": 11,
+  "top_signals": [
+   "motion_goal_roi",
+   "n_near_box",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 4566.0,
+  "score": 2.1079668310417503,
+  "rank": 12,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 1790.0,
+  "score": 2.0265146916488774,
+  "rank": 13,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2563.0,
+  "score": 2.026152690957978,
+  "rank": 14,
+  "top_signals": [
+   "net_disturbance",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 2737.0,
+  "score": 1.9935186229684052,
+  "rank": 15,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2684.0,
+  "score": 1.9266318516986654,
+  "rank": 16,
+  "top_signals": [
+   "motion_goal_roi",
+   "rush_near_3s",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 1748.0,
+  "score": 1.9072295034427689,
+  "rank": 17,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 3873.0,
+  "score": 1.8997076327342204,
+  "rank": 18,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 4219.0,
+  "score": 1.8385722055560296,
+  "rank": 19,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 1353.0,
+  "score": 1.827916360196265,
+  "rank": 20,
+  "top_signals": [
+   "z300_rms",
+   "p_ball_out_of_play",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 4173.0,
+  "score": 1.8247000417723533,
+  "rank": 21,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 4790.0,
+  "score": 1.8044468783479324,
+  "rank": 22,
+  "top_signals": [
+   "z300_rms",
+   "motion_goal_roi",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 4313.0,
+  "score": 1.7873195309841101,
+  "rank": 23,
+  "top_signals": [
+   "motion_goal_roi",
+   "rush_near_3s",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2893.0,
+  "score": 1.7617795492824886,
+  "rank": 24,
+  "top_signals": [
+   "motion_goal_roi",
+   "rush_near_3s",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 3621.0,
+  "score": 1.7513519913274718,
+  "rank": 25,
+  "top_signals": [
+   "net_disturbance",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 2641.0,
+  "score": 1.7010247787476547,
+  "rank": 26,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 3843.0,
+  "score": 1.6961057286910455,
+  "rank": 27,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 2697.0,
+  "score": 1.6802330284301612,
+  "rank": 28,
+  "top_signals": [
+   "net_disturbance",
+   "motion_goal_roi",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 4296.0,
+  "score": 1.6799223838843127,
+  "rank": 29,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 2068.0,
+  "score": 1.6505594486539161,
+  "rank": 30,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 3828.0,
+  "score": 1.6485304778465344,
+  "rank": 31,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 4090.0,
+  "score": 1.6443394063095358,
+  "rank": 32,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 2801.0,
+  "score": 1.617617024392028,
+  "rank": 33,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2378.0,
+  "score": 1.6039135712855521,
+  "rank": 34,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 4964.0,
+  "score": 1.5914119426770874,
+  "rank": 35,
+  "top_signals": [
+   "motion_goal_roi",
+   "n_near_box",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 1766.0,
+  "score": 1.586864222960056,
+  "rank": 36,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 1947.0,
+  "score": 1.574493216574209,
+  "rank": 37,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 1632.0,
+  "score": 1.555981011671377,
+  "rank": 38,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 2488.0,
+  "score": 1.5471036360946129,
+  "rank": 39,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "n_near_box",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 3888.0,
+  "score": 1.514531108658887,
+  "rank": 40,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "z300_rms",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 2927.0,
+  "score": 1.50263847892704,
+  "rank": 41,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 2253.0,
+  "score": 1.4983736993925216,
+  "rank": 42,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "rush_near_3s"
+  ]
+ },
+ {
+  "t": 3445.0,
+  "score": 1.4830440071514124,
+  "rank": 43,
+  "top_signals": [
+   "motion_goal_roi",
+   "n_near_box",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 4882.0,
+  "score": 1.4747170245588601,
+  "rank": 44,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 1072.0,
+  "score": 1.4731387544885828,
+  "rank": 45,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 1436.0,
+  "score": 1.469633758931943,
+  "rank": 46,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2270.0,
+  "score": 1.4016984020903331,
+  "rank": 47,
+  "top_signals": [
+   "motion_goal_roi",
+   "z300_rms",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 2995.0,
+  "score": 1.3864733088591454,
+  "rank": 48,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 2299.0,
+  "score": 1.3784499246196342,
+  "rank": 49,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 3209.0,
+  "score": 1.3758223822783635,
+  "rank": 50,
+  "top_signals": [
+   "motion_goal_roi",
+   "n_near_box",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 2082.0,
+  "score": 1.3727663077044665,
+  "rank": 51,
+  "top_signals": [
+   "motion_goal_roi",
+   "rush_near_3s",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 4438.0,
+  "score": 1.3678469888350422,
+  "rank": 52,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "net_disturbance"
+  ]
+ },
+ {
+  "t": 1275.0,
+  "score": 1.367172028091523,
+  "rank": 53,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "rush_near_3s",
+   "motion_goal_roi"
+  ]
+ },
+ {
+  "t": 1494.0,
+  "score": 1.363437309912292,
+  "rank": 54,
+  "top_signals": [
+   "motion_goal_roi",
+   "p_ball_out_of_play",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 1340.0,
+  "score": 1.3522773757803663,
+  "rank": 55,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "net_disturbance",
+   "z300_rms"
+  ]
+ },
+ {
+  "t": 4937.0,
+  "score": 1.3511371999819188,
+  "rank": 56,
+  "top_signals": [
+   "motion_goal_roi",
+   "net_disturbance",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 3308.0,
+  "score": 1.3462388684987936,
+  "rank": 57,
+  "top_signals": [
+   "p_ball_out_of_play",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 1594.0,
+  "score": 1.34468836063545,
+  "rank": 58,
+  "top_signals": [
+   "motion_goal_roi",
+   "n_near_box",
+   "p_ball_out_of_play"
+  ]
+ },
+ {
+  "t": 2837.0,
+  "score": 1.3413793188501648,
+  "rank": 59,
+  "top_signals": [
+   "net_disturbance",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ },
+ {
+  "t": 2461.0,
+  "score": 1.3336959756228317,
+  "rank": 60,
+  "top_signals": [
+   "z300_rms",
+   "motion_goal_roi",
+   "n_near_box"
+  ]
+ }
+]

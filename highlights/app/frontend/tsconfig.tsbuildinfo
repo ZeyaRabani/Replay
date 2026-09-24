@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/components/CandidateCard.tsx","./src/components/CandidateList.tsx","./src/components/Navbar.tsx","./src/components/RenderBar.tsx","./src/components/Timeline.tsx","./src/components/VideoPlayer.tsx"],"version":"5.9.3"}
