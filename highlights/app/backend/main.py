@@ -877,5 +877,22 @@ app.include_router(legacy)
 
 # ---------- frontend ----------
 
-if DIST.is_dir():
-    app.mount("/", StaticFiles(directory=DIST, html=True), name="frontend")
+# static assets get a real mount; the catch-all below is the SPA fallback so
+# client-side routes like /projects/<id> serve index.html
+if DIST.is_dir() and (DIST / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+
+
+@app.get("/{full_path:path}")
+def spa_fallback(full_path: str) -> FileResponse:
+    if full_path.startswith("api/"):
+        raise HTTPException(404, "not found")
+    if not DIST.is_dir():
+        raise HTTPException(404, "not found")
+    fp = (DIST / full_path).resolve()
+    if full_path and fp.is_file() and DIST.resolve() in fp.parents:
+        return FileResponse(fp)
+    index = DIST / "index.html"
+    if not index.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(index)

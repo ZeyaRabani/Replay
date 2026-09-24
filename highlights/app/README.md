@@ -18,7 +18,9 @@ npm run build
 ## Run
 
 ```bash
-# backend (serves the built frontend at / when dist/ exists)
+# backend (serves the built frontend when frontend/dist exists: /assets is
+# mounted and a catch-all SPA fallback serves index.html for client routes
+# like /projects/<id>; unknown /api/* still 404)
 uvicorn highlights.app.backend.main:app --host 127.0.0.1 --port 8000
 
 # dev frontend with HMR (proxies /api -> 127.0.0.1:8000)
@@ -140,9 +142,15 @@ Outputs: `out/clips/*.mp4`, `out/reel.mp4`, `out/stats.json`, `out/manifest.json
 
 - The pipeline is a detached `Popen` (`start_new_session`, stdout ->
   `pipeline/log.txt`); a backend restart does not kill it.
-- `pipeline/status.json` is the runner's heartbeat. On registry (re)build and
-  on each project read, a queued/running status whose pid is gone is
-  reconciled to `failed` ("interrupted; click Re-run to resume").
+- `pipeline/status.json` is the runner's heartbeat. `spawn()` writes the
+  initial `queued` status with `pid: null` *before* `Popen` and fills the pid
+  in afterwards, so a fast runner's own status is never clobbered. A
+  queued/running status with `pid: null` gets a 15 s grace window
+  (reconciliation and the busy check treat it as alive) covering the
+  pre-Popen gap.
+- On registry (re)build and on each project read, a queued/running status
+  whose pid is gone is reconciled to `failed` ("interrupted; click Re-run to
+  resume").
 - When a run finishes, the project lazily imports `video_path` (ffprobe) and
   `pipeline/candidates.json` on the next read.
 - Cancel sends SIGTERM to the runner's process group, escalating to SIGKILL

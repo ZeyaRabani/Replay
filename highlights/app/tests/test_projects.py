@@ -243,3 +243,27 @@ def test_demo_project(client, sample_video, tmp_path, monkeypatch):
     assert r.status_code == 200
     # scoped routes still enforce ownership
     assert c.get(scoped(pid, ""), headers={"X-User": "tester"}).status_code == 401
+
+
+def test_spawn_race_fast_runner(client, sample_video, monkeypatch):
+    """A runner that finishes instantly must not be clobbered to queued/failed."""
+    monkeypatch.setenv("FAKE_PIPELINE_SLEEP", "0")
+    for _ in range(3):
+        r = client.post("/api/projects", json={"path": str(sample_video)})
+        assert r.status_code == 200, r.text
+        pid = r.json()["id"]
+        d = _wait_done(client, pid)
+        assert d["pipeline_state"] == "done"
+        assert d["n_candidates"] == 2
+
+
+def test_spa_fallback(client, tmp_path, monkeypatch):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html>spa</html>")
+    import highlights.app.backend.main as m
+    monkeypatch.setattr(m, "DIST", dist)
+    r = client.get("/projects/abc")
+    assert r.status_code == 200
+    assert r.text == "<html>spa</html>"
+    assert client.get("/api/nonexistent").status_code == 404
