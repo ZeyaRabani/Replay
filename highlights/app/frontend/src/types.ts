@@ -41,7 +41,7 @@ export interface RenderJob {
 
 export interface User {
   name: string;
-  created_at: number;
+  created_at: number | string;
   n_projects?: number;
 }
 
@@ -73,7 +73,7 @@ export interface ProjectVideo {
 export interface ProjectSummary {
   id: string;
   title: string;
-  created_at: number;
+  created_at: number | string;
   source: ProjectSource;
   pipeline_state: PipelineState;
   progress: number;

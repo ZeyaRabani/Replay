@@ -88,17 +88,17 @@ export default function RenderBar(props: Props) {
             {job.state === "done" && (
               <span className="flex items-center gap-2 text-xs">
                 {job.reel_url && (
-                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={job.reel_url}>
+                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={api.fileUrl(job.reel_url)}>
                     <Download size={12} /> reel.mp4
                   </a>
                 )}
                 {job.stats_url && (
-                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={job.stats_url}>
+                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={api.fileUrl(job.stats_url)}>
                     <Download size={12} /> stats.json
                   </a>
                 )}
                 {job.clips.map((c) => (
-                  <a key={c.id} className="text-zinc-300 hover:underline" href={c.url} title={c.id}>
+                  <a key={c.id} className="text-zinc-300 hover:underline" href={api.fileUrl(c.url)} title={c.id}>
                     {c.id}.mp4
                   </a>
                 ))}

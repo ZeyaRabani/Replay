@@ -122,9 +122,7 @@ export default function ProjectReview({ seekRequest }: Props) {
       }, 1000);
     });
 
-  const videoSrc = video
-    ? `${proxyReady ? api.proxyUrl : api.sourceUrl}?v=${video.registered_at}`
-    : undefined;
+  const videoSrc = video ? api.videoUrl(proxyReady ? "proxy" : "source", String(video.registered_at)) : undefined;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">

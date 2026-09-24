@@ -18,6 +18,16 @@ export const setUser = (name: string | null) => {
   else localStorage.removeItem(USER_KEY);
 };
 
+/** <img>/<video>/<a download> cannot send X-User, so media URLs carry the user as a query param */
+export function mediaUrl(path: string, params: Record<string, string | undefined> = {}): string {
+  const q = new URLSearchParams();
+  const u = getUser();
+  if (u) q.set("user", u);
+  for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, v);
+  const s = q.toString();
+  return s ? `${path}?${s}` : path;
+}
+
 function userHeaders(): Record<string, string> {
   const u = getUser();
   return u ? { "X-User": u } : {};
@@ -81,8 +91,8 @@ export function projectApi(id: string) {
     getVideo: () => req<VideoInfo>(`${base}/video`),
     buildProxy: () => req<{ status: string }>(`${base}/video/proxy`, { method: "POST" }),
     proxyStatus: () => req<{ ready: boolean; progress: number }>(`${base}/video/proxy/status`),
-    proxyUrl: `${base}/video/proxy.mp4`,
-    sourceUrl: `${base}/video/source.mp4`,
+    videoUrl: (kind: "proxy" | "source", v: string) =>
+      mediaUrl(`${base}/video/${kind === "proxy" ? "proxy.mp4" : "source.mp4"}`, { v }),
 
     loadCandidatesPath: (path: string) =>
       req<Candidate[]>(`${base}/candidates/load`, json({ path })).then(() => undefined),
@@ -95,12 +105,13 @@ export function projectApi(id: string) {
     patchCandidate: (cid: string, patch: Partial<Candidate>) =>
       req<Candidate>(`${base}/candidates/${cid}`, json(patch, "PATCH")),
     resetCandidate: (cid: string) => req<Candidate>(`${base}/candidates/${cid}/reset`, { method: "POST" }),
-    thumbUrl: (cid: string, v?: string) => `${base}/candidates/${cid}/thumb.jpg${v ? `?v=${v}` : ""}`,
+    thumbUrl: (cid: string, v?: string) => mediaUrl(`${base}/candidates/${cid}/thumb.jpg`, { v }),
 
     startRender: (body: { ids?: string[]; overlay: boolean; reencode: boolean }) =>
       req<{ job_id: string }>(`${base}/render`, json(body)),
     renderJob: (jobId: string) => req<RenderJob>(`${base}/render/${jobId}`),
-    statsUrl: `${base}/stats`,
+    statsUrl: mediaUrl(`${base}/stats`),
+    fileUrl: (url: string) => mediaUrl(url),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean }>(`${base}/project`),

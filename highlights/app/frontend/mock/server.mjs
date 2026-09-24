@@ -493,7 +493,8 @@ const server = http.createServer(async (req, res) => {
 
     // everything below /api/projects requires X-User
     if (parts[0] === "api" && parts[1] === "projects") {
-      const user = req.headers["x-user"];
+      // <img>/<video> tags cannot set headers, so media URLs carry ?user= instead
+      const user = req.headers["x-user"] || u.searchParams.get("user");
       if (!user || !users.has(user)) return jerr(res, 401, "unknown user");
 
       if (parts.length === 2) {

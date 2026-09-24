@@ -1,13 +1,13 @@
 import { Film, Link2, Loader2, Plus, Trash2, Upload, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { projectsApi } from "../api";
+import { mediaUrl, projectsApi } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
 import type { ProjectSummary } from "../types";
 
-const fmtDate = (epoch: number) =>
-  new Date(epoch * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const fmtDate = (v: number | string) =>
+  new Date(typeof v === "number" ? v * 1000 : v).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 const isLive = (p: ProjectSummary) => p.pipeline_state === "queued" || p.pipeline_state === "running";
@@ -41,7 +41,7 @@ function ProjectCard({ p, onDelete }: { p: ProjectSummary; onDelete: (p: Project
       <Link to={`/projects/${p.id}`} className="shrink-0">
         {p.thumb_url && !thumbErr ? (
           <img
-            src={p.thumb_url}
+            src={mediaUrl(p.thumb_url)}
             alt=""
             onError={() => setThumbErr(true)}
             className="w-40 aspect-video rounded bg-zinc-800 object-cover"
