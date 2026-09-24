@@ -27,8 +27,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from highlights.app.backend.ffmpeg import probe as ffprobe
 from highlights.pipeline.errors import PipelineError
+from highlights.pipeline.probe import probe as ffprobe
 from highlights.pipeline.status import StatusWriter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -175,6 +175,7 @@ def stage_features(ctx: Ctx) -> None:
     ctx.match_window, ctx.halves, ctx.mw_warning = (lo, hi), halves, warning
     if warning:
         ctx.log(f"features: {warning}")
+        ctx.status.update(message=warning, force=True)
     else:
         ctx.log(f"features: match window {lo:.0f}-{hi:.0f}s, {len(halves)} halves")
     df = build_features(audio_json, motion_json, whistles_json, ctx.duration, (lo, hi))
@@ -364,6 +365,7 @@ def _run(ctx: Ctx, names: list[str]) -> int:
         status.update(state="running", stage=None, force=True)
         _resolve_video(ctx)
         ctx.status.update(video_path=str(ctx.video_path))
+        _load_duration(ctx)
         run_stages(ctx, names)
     except PipelineError as e:
         ctx.log(f"FAILED: {e}")
@@ -376,8 +378,15 @@ def _run(ctx: Ctx, names: list[str]) -> int:
                       finished_at=time.time(), force=True)
         return 1
 
+    warning = ctx.mw_warning
+    if warning is None:
+        mwj = ctx.pipe / "match_window.json"
+        if mwj.exists():
+            with contextlib.suppress(json.JSONDecodeError, OSError):
+                warning = json.loads(mwj.read_text()).get("warning")
+    message = "done" + (f" ({warning})" if warning else "")
     status.update(state="done", stage="done", progress=1.0, stage_progress=1.0,
-                  message="done", finished_at=time.time(), force=True)
+                  message=message, finished_at=time.time(), force=True)
     ctx.log("pipeline done")
     return 0
 
