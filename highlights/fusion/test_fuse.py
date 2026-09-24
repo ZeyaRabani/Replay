@@ -61,6 +61,11 @@ def test_ids_ranks_unique_sorted(doc):
     assert confs == sorted(confs, reverse=True)
 
 
+def test_source_video(doc):
+    assert doc["source_video"] == "https://youtu.be/5qj_nsQSzvQ"
+    assert doc["local_video_filename"] == "match.mp4"
+
+
 def test_clip_bounds(doc):
     for c in doc["candidates"]:
         pad = 5.0 if c["type"] == "goal" else 3.0

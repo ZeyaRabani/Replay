@@ -26,7 +26,7 @@ APP_OUT = os.path.join(HL, "app", "outputs", "candidates.json")
 
 MATCH_LO, MATCH_HI = 1050, 4990
 VIDEO_DUR = 5337.153
-GOAL_T = 2736.0            # user-confirmed goal (see REPORT.md)
+GOAL_T = 2736.0            # independently visually confirmed goal (see REPORT.md)
 GOAL_NOTES = ("Direct visual re-check: the ball is visible in the near net "
               "and the keeper enters the net to retrieve it.")
 REJECT_NOTES = ("Rejected as a goal: tracking's attack-to-centre heuristic "
@@ -277,7 +277,7 @@ def main():
     }
     doc = {
         "source": "fusion",
-        "source_video": "match.mp4",
+        "source_video": "https://youtu.be/5qj_nsQSzvQ",
         "local_video_filename": "match.mp4",
         "video_duration_s": VIDEO_DUR,
         "match_window": [MATCH_LO, MATCH_HI],
