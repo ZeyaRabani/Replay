@@ -133,6 +133,7 @@ class ProjectStore:
             duration = self.video.duration_s if self.video else cf.video_duration_s
             self.source = cf.source
             self.candidates = make_candidates(cf, duration)
+            self.revalidate_windows(duration)
             self.candidates_version += 1
             self.save()
             return sorted(self.candidates, key=lambda c: -c.confidence)

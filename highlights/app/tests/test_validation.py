@@ -167,3 +167,13 @@ def test_source_switch_revalidates_windows(client, sample_video, short_video):
     g = _get(client, goal["id"])
     assert g["clip_end"] == pytest.approx(dur)
     assert g["t"] == goal["t"]  # event time preserved
+
+
+def test_load_candidates_into_short_video_valid(client, short_video):
+    r = client.post("/api/video", json={"path": str(short_video)})
+    dur = r.json()["duration_s"]
+    r = client.post("/api/candidates/load",
+                    json={"path": str(SAMPLE / "candidates_short.json")})
+    assert r.status_code == 200
+    for c in r.json():
+        assert 0 <= c["clip_start"] < c["clip_end"] <= dur
