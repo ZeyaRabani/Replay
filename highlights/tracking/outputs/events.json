@@ -1,0 +1,1215 @@
+{
+ "source": "tracking",
+ "video_duration_s": 5337.154,
+ "events": [
+  {
+   "type": "other",
+   "t": 418.0,
+   "t_start": 412.0,
+   "t_end": 418.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 3.5,
+    "n_players_mean": 4.93,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 3.5 players in the near box for 7 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 490.0,
+   "t_start": 480.0,
+   "t_end": 512.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 4.0,
+    "n_players_mean": 5.95,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 4.0 players in the near box for 33 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 579.0,
+   "t_start": 540.0,
+   "t_end": 613.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 6.0,
+    "n_players_mean": 5.55,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 6.0 players in the near box for 74 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 662.0,
+   "t_start": 658.0,
+   "t_end": 698.0,
+   "confidence": 0.235,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 4.5,
+    "n_players_mean": 5.74,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 4.5 players in the near box for 41 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 731.0,
+   "t_start": 730.0,
+   "t_end": 744.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 3.5,
+    "n_players_mean": 6.33,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 3.5 players in the near box for 15 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 784.0,
+   "t_start": 772.0,
+   "t_end": 787.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 4.0,
+    "n_players_mean": 5.53,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 4.0 players in the near box for 16 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 847.0,
+   "t_start": 844.0,
+   "t_end": 848.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 4.0,
+    "n_players_mean": 8.7,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 4.0 players in the near box for 5 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 909.0,
+   "t_start": 909.0,
+   "t_end": 923.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "warmup",
+    "box_players_max": 4.0,
+    "n_players_mean": 6.87,
+    "warmup_type": "other",
+    "warmup_kind": "near_box_crowd"
+   },
+   "notes": "WARM-UP window (not a match event): 4.0 players in the near box for 15 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1022.0,
+   "t_start": 1022.0,
+   "t_end": 1026.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 3.5,
+    "n_players_mean": 7.9
+   },
+   "notes": "3.5 players in the near box for 5 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1102.0,
+   "t_start": 1089.0,
+   "t_end": 1112.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 7.98
+   },
+   "notes": "5.0 players in the near box for 24 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1111.0,
+   "t_start": 1111.0,
+   "t_end": 1117.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.0,
+    "mean_speed_min": 1.04
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 1124.0,
+   "t_start": 1124.0,
+   "t_end": 1126.0,
+   "confidence": 0.3,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.0,
+    "mean_speed_min": 1.39
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 1169.0,
+   "t_start": 1163.0,
+   "t_end": 1185.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 8.11
+   },
+   "notes": "5.0 players in the near box for 23 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1204.0,
+   "t_start": 1204.0,
+   "t_end": 1227.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.0,
+    "mean_speed_min": 0.62
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 1207.0,
+   "t_start": 1207.0,
+   "t_end": 1224.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 3.5,
+    "n_players_mean": 10.22
+   },
+   "notes": "3.5 players in the near box for 18 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1290.0,
+   "t_start": 1290.0,
+   "t_end": 1291.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 4.0,
+    "mean_speed_min": 2.04
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 1377.0,
+   "t_start": 1376.0,
+   "t_end": 1381.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 4.0,
+    "n_players_mean": 10.42
+   },
+   "notes": "4.0 players in the near box for 6 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1460.0,
+   "t_start": 1460.0,
+   "t_end": 1461.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.0,
+    "mean_speed_min": 1.09
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 1592.0,
+   "t_start": 1587.0,
+   "t_end": 1605.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 6.5,
+    "n_players_mean": 9.42
+   },
+   "notes": "6.5 players in the near box for 19 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1679.0,
+   "t_start": 1668.0,
+   "t_end": 1680.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 6.54
+   },
+   "notes": "5.0 players in the near box for 13 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1721.0,
+   "t_start": 1706.0,
+   "t_end": 1728.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 6.63
+   },
+   "notes": "5.5 players in the near box for 23 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1786.0,
+   "t_start": 1755.0,
+   "t_end": 1795.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 6.0,
+    "n_players_mean": 6.94
+   },
+   "notes": "6.0 players in the near box for 41 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 1946.0,
+   "t_start": 1942.0,
+   "t_end": 1957.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 7.62
+   },
+   "notes": "5.5 players in the near box for 16 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 2058.0,
+   "t_start": 2051.0,
+   "t_end": 2062.0,
+   "confidence": 0.264,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.69,
+    "box_players_max": 2.17,
+    "n_players_mean": 7.17,
+    "spread_min_m": 11.28,
+    "mean_speed_max": 6.15,
+    "keeper_x_min_m": -1.01
+   },
+   "notes": "far-goal attack: cluster moved 6.7 m toward the far goal in 3 s, 2.2 players in the far box"
+  },
+  {
+   "type": "goal",
+   "t": 2058.0,
+   "t_start": 2051.0,
+   "t_end": 2134.0,
+   "confidence": 0.492,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.69,
+    "box_players_max": 2.17,
+    "n_players_mean": 7.17,
+    "spread_min_m": 11.28,
+    "mean_speed_max": 6.15,
+    "keeper_x_min_m": -1.01,
+    "kickoff_t_start": 2128.0,
+    "kickoff_t_end": 2134.0,
+    "kickoff_delay_s": 70.0,
+    "kickoff_centre_players_max": 4.5
+   },
+   "notes": "far-goal attack followed after 70 s by a centre-cluster formation (7 s, 4.5 players near centre)"
+  },
+  {
+   "type": "other",
+   "t": 2180.0,
+   "t_start": 2180.0,
+   "t_end": 2186.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 6.0,
+    "mean_speed_min": 1.25
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 2262.0,
+   "t_start": 2247.0,
+   "t_end": 2280.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 7.0,
+    "n_players_mean": 9.15
+   },
+   "notes": "7.0 players in the near box for 34 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 2307.0,
+   "t_start": 2301.0,
+   "t_end": 2339.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 7.09
+   },
+   "notes": "5.5 players in the near box for 39 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 2359.0,
+   "t_start": 2351.0,
+   "t_end": 2363.0,
+   "confidence": 0.716,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 8.43,
+    "box_players_max": 5.67,
+    "n_players_mean": 8.15,
+    "spread_min_m": 11.7,
+    "mean_speed_max": 5.52,
+    "keeper_x_min_m": -1.48
+   },
+   "notes": "near-goal attack: cluster moved 8.4 m toward the near goal in 3 s, 5.7 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 2370.0,
+   "t_start": 2370.0,
+   "t_end": 2375.0,
+   "confidence": 0.2,
+   "signals": {
+    "kind": "restart_static",
+    "cx_m": 10.14,
+    "spread_min_m": 6.94
+   },
+   "notes": "players clustered and near-stationary (restart / stoppage)"
+  },
+  {
+   "type": "other",
+   "t": 2417.0,
+   "t_start": 2415.0,
+   "t_end": 2429.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 4.0,
+    "n_players_mean": 8.6
+   },
+   "notes": "4.0 players in the near box for 15 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 2461.0,
+   "t_start": 2450.0,
+   "t_end": 2462.0,
+   "confidence": 0.622,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.13,
+    "box_players_max": 4.67,
+    "n_players_mean": 7.19,
+    "spread_min_m": 6.44,
+    "mean_speed_max": 5.13,
+    "keeper_x_min_m": -1.46
+   },
+   "notes": "near-goal attack: cluster moved 6.1 m toward the near goal in 3 s, 4.7 players in the near box"
+  },
+  {
+   "type": "chance",
+   "t": 2563.0,
+   "t_start": 2555.0,
+   "t_end": 2568.0,
+   "confidence": 0.71,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.98,
+    "box_players_max": 5.67,
+    "n_players_mean": 9.0,
+    "spread_min_m": 6.14,
+    "mean_speed_max": 5.29,
+    "keeper_x_min_m": -1.39
+   },
+   "notes": "near-goal attack: cluster moved 8.0 m toward the near goal in 3 s, 5.7 players in the near box"
+  },
+  {
+   "type": "goal",
+   "t": 2563.0,
+   "t_start": 2555.0,
+   "t_end": 2624.0,
+   "confidence": 0.6,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.98,
+    "box_players_max": 5.67,
+    "n_players_mean": 9.0,
+    "spread_min_m": 6.14,
+    "mean_speed_max": 5.29,
+    "keeper_x_min_m": -1.39,
+    "kickoff_t_start": 2620.0,
+    "kickoff_t_end": 2624.0,
+    "kickoff_delay_s": 57.0,
+    "kickoff_centre_players_max": 4.0
+   },
+   "notes": "near-goal attack followed after 57 s by a centre-cluster formation (5 s, 4.0 players near centre)"
+  },
+  {
+   "type": "other",
+   "t": 2568.0,
+   "t_start": 2568.0,
+   "t_end": 2569.0,
+   "confidence": 0.2,
+   "signals": {
+    "kind": "restart_static",
+    "cx_m": 12.38,
+    "spread_min_m": 6.14
+   },
+   "notes": "players clustered and near-stationary (restart / stoppage)"
+  },
+  {
+   "type": "chance",
+   "t": 2684.0,
+   "t_start": 2680.0,
+   "t_end": 2692.0,
+   "confidence": 0.648,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.22,
+    "box_players_max": 4.83,
+    "n_players_mean": 7.42,
+    "spread_min_m": 12.94,
+    "mean_speed_max": 3.26,
+    "keeper_x_min_m": -0.86
+   },
+   "notes": "near-goal attack: cluster moved 7.2 m toward the near goal in 3 s, 4.8 players in the near box"
+  },
+  {
+   "type": "goal",
+   "t": 2684.0,
+   "t_start": 2680.0,
+   "t_end": 2757.0,
+   "confidence": 0.6,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.22,
+    "box_players_max": 4.83,
+    "n_players_mean": 7.42,
+    "spread_min_m": 12.94,
+    "mean_speed_max": 3.26,
+    "keeper_x_min_m": -0.86,
+    "kickoff_t_start": 2751.0,
+    "kickoff_t_end": 2757.0,
+    "kickoff_delay_s": 67.0,
+    "kickoff_centre_players_max": 4.5
+   },
+   "notes": "near-goal attack followed after 67 s by a centre-cluster formation (7 s, 4.5 players near centre)"
+  },
+  {
+   "type": "other",
+   "t": 2806.0,
+   "t_start": 2804.0,
+   "t_end": 2809.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 8.08
+   },
+   "notes": "5.5 players in the near box for 6 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 2849.0,
+   "t_start": 2836.0,
+   "t_end": 2853.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 7.0,
+    "n_players_mean": 7.64
+   },
+   "notes": "7.0 players in the near box for 18 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 2872.0,
+   "t_start": 2872.0,
+   "t_end": 2879.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.5,
+    "mean_speed_min": 1.54
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "chance",
+   "t": 2894.0,
+   "t_start": 2890.0,
+   "t_end": 2902.0,
+   "confidence": 0.625,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 9.03,
+    "box_players_max": 4.0,
+    "n_players_mean": 8.0,
+    "spread_min_m": 9.56,
+    "mean_speed_max": 4.75,
+    "keeper_x_min_m": -0.93
+   },
+   "notes": "near-goal attack: cluster moved 9.0 m toward the near goal in 3 s, 4.0 players in the near box"
+  },
+  {
+   "type": "goal",
+   "t": 2894.0,
+   "t_start": 2890.0,
+   "t_end": 2957.0,
+   "confidence": 0.6,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 9.03,
+    "box_players_max": 4.0,
+    "n_players_mean": 8.0,
+    "spread_min_m": 9.56,
+    "mean_speed_max": 4.75,
+    "keeper_x_min_m": -0.93,
+    "kickoff_t_start": 2952.0,
+    "kickoff_t_end": 2957.0,
+    "kickoff_delay_s": 58.0,
+    "kickoff_centre_players_max": 6.0
+   },
+   "notes": "near-goal attack followed after 58 s by a centre-cluster formation (6 s, 6.0 players near centre)"
+  },
+  {
+   "type": "chance",
+   "t": 2932.0,
+   "t_start": 2924.0,
+   "t_end": 2935.0,
+   "confidence": 0.604,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.26,
+    "box_players_max": 4.33,
+    "n_players_mean": 8.08,
+    "spread_min_m": 18.03,
+    "mean_speed_max": 4.11,
+    "keeper_x_min_m": -1.44
+   },
+   "notes": "near-goal attack: cluster moved 6.3 m toward the near goal in 3 s, 4.3 players in the near box"
+  },
+  {
+   "type": "goal",
+   "t": 2932.0,
+   "t_start": 2924.0,
+   "t_end": 2957.0,
+   "confidence": 0.6,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.26,
+    "box_players_max": 4.33,
+    "n_players_mean": 8.08,
+    "spread_min_m": 18.03,
+    "mean_speed_max": 4.11,
+    "keeper_x_min_m": -1.44,
+    "kickoff_t_start": 2952.0,
+    "kickoff_t_end": 2957.0,
+    "kickoff_delay_s": 20.0,
+    "kickoff_centre_players_max": 6.0
+   },
+   "notes": "near-goal attack followed after 20 s by a centre-cluster formation (6 s, 6.0 players near centre)"
+  },
+  {
+   "type": "other",
+   "t": 3015.0,
+   "t_start": 3013.0,
+   "t_end": 3017.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 4.0,
+    "n_players_mean": 6.2
+   },
+   "notes": "4.0 players in the near box for 5 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 3064.0,
+   "t_start": 3057.0,
+   "t_end": 3082.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 6.0,
+    "n_players_mean": 10.6
+   },
+   "notes": "6.0 players in the near box for 26 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 3071.0,
+   "t_start": 3071.0,
+   "t_end": 3078.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 6.0,
+    "mean_speed_min": 1.4
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 3173.0,
+   "t_start": 3158.0,
+   "t_end": 3194.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 8.58
+   },
+   "notes": "5.5 players in the near box for 37 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 3223.0,
+   "t_start": 3207.0,
+   "t_end": 3235.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 9.83
+   },
+   "notes": "5.0 players in the near box for 29 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 3262.0,
+   "t_start": 3262.0,
+   "t_end": 3263.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 4.0,
+    "mean_speed_min": 1.38
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 3308.0,
+   "t_start": 3307.0,
+   "t_end": 3318.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 8.0
+   },
+   "notes": "5.0 players in the near box for 12 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 3415.0,
+   "t_start": 3407.0,
+   "t_end": 3419.0,
+   "confidence": 0.634,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.27,
+    "box_players_max": 4.83,
+    "n_players_mean": 5.88,
+    "spread_min_m": 4.87,
+    "mean_speed_max": 4.42,
+    "keeper_x_min_m": -1.45
+   },
+   "notes": "near-goal attack: cluster moved 6.3 m toward the near goal in 3 s, 4.8 players in the near box"
+  },
+  {
+   "type": "chance",
+   "t": 3516.0,
+   "t_start": 3514.0,
+   "t_end": 3525.0,
+   "confidence": 0.256,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.38,
+    "box_players_max": 2.0,
+    "n_players_mean": 8.83,
+    "spread_min_m": 10.56,
+    "mean_speed_max": 7.25,
+    "keeper_x_min_m": -0.74
+   },
+   "notes": "far-goal attack: cluster moved 6.4 m toward the far goal in 3 s, 2.0 players in the far box"
+  },
+  {
+   "type": "goal",
+   "t": 3516.0,
+   "t_start": 3514.0,
+   "t_end": 3537.0,
+   "confidence": 0.428,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.38,
+    "box_players_max": 2.0,
+    "n_players_mean": 8.83,
+    "spread_min_m": 10.56,
+    "mean_speed_max": 7.25,
+    "keeper_x_min_m": -0.74,
+    "kickoff_t_start": 3533.0,
+    "kickoff_t_end": 3537.0,
+    "kickoff_delay_s": 17.0,
+    "kickoff_centre_players_max": 5.0
+   },
+   "notes": "far-goal attack followed after 17 s by a centre-cluster formation (5 s, 5.0 players near centre)"
+  },
+  {
+   "type": "chance",
+   "t": 3610.0,
+   "t_start": 3601.0,
+   "t_end": 3617.0,
+   "confidence": 0.63,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.35,
+    "box_players_max": 4.5,
+    "n_players_mean": 8.32,
+    "spread_min_m": 10.84,
+    "mean_speed_max": 4.47,
+    "keeper_x_min_m": -0.94
+   },
+   "notes": "near-goal attack: cluster moved 7.3 m toward the near goal in 3 s, 4.5 players in the near box"
+  },
+  {
+   "type": "goal",
+   "t": 3610.0,
+   "t_start": 3601.0,
+   "t_end": 3678.0,
+   "confidence": 0.555,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 7.35,
+    "box_players_max": 4.5,
+    "n_players_mean": 8.32,
+    "spread_min_m": 10.84,
+    "mean_speed_max": 4.47,
+    "keeper_x_min_m": -0.94,
+    "kickoff_t_start": 3676.0,
+    "kickoff_t_end": 3678.0,
+    "kickoff_delay_s": 66.0,
+    "kickoff_centre_players_max": 4.5
+   },
+   "notes": "near-goal attack followed after 66 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+  },
+  {
+   "type": "chance",
+   "t": 3644.0,
+   "t_start": 3637.0,
+   "t_end": 3649.0,
+   "confidence": 0.27,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.09,
+    "box_players_max": 2.5,
+    "n_players_mean": 8.23,
+    "spread_min_m": 9.81,
+    "mean_speed_max": 5.95,
+    "keeper_x_min_m": 8.07
+   },
+   "notes": "far-goal attack: cluster moved 6.1 m toward the far goal in 3 s, 2.5 players in the far box"
+  },
+  {
+   "type": "goal",
+   "t": 3644.0,
+   "t_start": 3637.0,
+   "t_end": 3678.0,
+   "confidence": 0.375,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.09,
+    "box_players_max": 2.5,
+    "n_players_mean": 8.23,
+    "spread_min_m": 9.81,
+    "mean_speed_max": 5.95,
+    "keeper_x_min_m": 8.07,
+    "kickoff_t_start": 3676.0,
+    "kickoff_t_end": 3678.0,
+    "kickoff_delay_s": 32.0,
+    "kickoff_centre_players_max": 4.5
+   },
+   "notes": "far-goal attack followed after 32 s by a centre-cluster formation (3 s, 4.5 players near centre)"
+  },
+  {
+   "type": "other",
+   "t": 3726.0,
+   "t_start": 3726.0,
+   "t_end": 3729.0,
+   "confidence": 0.35,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.5,
+    "mean_speed_min": 1.53
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 3828.0,
+   "t_start": 3828.0,
+   "t_end": 3830.0,
+   "confidence": 0.2,
+   "signals": {
+    "kind": "restart_static",
+    "cx_m": 12.4,
+    "spread_min_m": 6.89
+   },
+   "notes": "players clustered and near-stationary (restart / stoppage)"
+  },
+  {
+   "type": "other",
+   "t": 3830.0,
+   "t_start": 3817.0,
+   "t_end": 3853.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 7.54
+   },
+   "notes": "5.0 players in the near box for 37 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 3898.0,
+   "t_start": 3893.0,
+   "t_end": 3912.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 7.65
+   },
+   "notes": "5.0 players in the near box for 20 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 3953.0,
+   "t_start": 3951.0,
+   "t_end": 3962.0,
+   "confidence": 0.583,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.22,
+    "box_players_max": 4.0,
+    "n_players_mean": 8.21,
+    "spread_min_m": 8.57,
+    "mean_speed_max": 3.3,
+    "keeper_x_min_m": -1.35
+   },
+   "notes": "near-goal attack: cluster moved 6.2 m toward the near goal in 3 s, 4.0 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 3998.0,
+   "t_start": 3994.0,
+   "t_end": 4017.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 9.54
+   },
+   "notes": "5.5 players in the near box for 24 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 4041.0,
+   "t_start": 4041.0,
+   "t_end": 4059.0,
+   "confidence": 0.5,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 6.0,
+    "mean_speed_min": 1.06
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 4073.0,
+   "t_start": 4066.0,
+   "t_end": 4091.0,
+   "confidence": 0.25,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.0,
+    "n_players_mean": 8.08
+   },
+   "notes": "5.0 players in the near box for 26 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 4176.0,
+   "t_start": 4170.0,
+   "t_end": 4181.0,
+   "confidence": 0.625,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.34,
+    "box_players_max": 4.67,
+    "n_players_mean": 8.42,
+    "spread_min_m": 8.3,
+    "mean_speed_max": 6.74,
+    "keeper_x_min_m": -0.09
+   },
+   "notes": "near-goal attack: cluster moved 6.3 m toward the near goal in 3 s, 4.7 players in the near box"
+  },
+  {
+   "type": "chance",
+   "t": 4221.0,
+   "t_start": 4217.0,
+   "t_end": 4228.0,
+   "confidence": 0.606,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.42,
+    "box_players_max": 4.33,
+    "n_players_mean": 7.88,
+    "spread_min_m": 11.43,
+    "mean_speed_max": 3.98,
+    "keeper_x_min_m": -0.24
+   },
+   "notes": "near-goal attack: cluster moved 6.4 m toward the near goal in 3 s, 4.3 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 4300.0,
+   "t_start": 4299.0,
+   "t_end": 4302.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 3.5,
+    "n_players_mean": 6.88
+   },
+   "notes": "3.5 players in the near box for 4 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 4320.0,
+   "t_start": 4309.0,
+   "t_end": 4320.0,
+   "confidence": 0.586,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.38,
+    "box_players_max": 4.0,
+    "n_players_mean": 7.75,
+    "spread_min_m": 9.35,
+    "mean_speed_max": 3.54,
+    "keeper_x_min_m": -1.45
+   },
+   "notes": "near-goal attack: cluster moved 6.4 m toward the near goal in 3 s, 4.0 players in the near box"
+  },
+  {
+   "type": "chance",
+   "t": 4355.0,
+   "t_start": 4348.0,
+   "t_end": 4360.0,
+   "confidence": 0.289,
+   "signals": {
+    "goal_end": "far",
+    "rush_max_m_3s": 6.31,
+    "box_players_max": 3.0,
+    "n_players_mean": 8.35,
+    "spread_min_m": 11.02,
+    "mean_speed_max": 4.64,
+    "keeper_x_min_m": 1.33
+   },
+   "notes": "far-goal attack: cluster moved 6.3 m toward the far goal in 3 s, 3.0 players in the far box"
+  },
+  {
+   "type": "chance",
+   "t": 4459.0,
+   "t_start": 4455.0,
+   "t_end": 4468.0,
+   "confidence": 0.621,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 12.73,
+    "box_players_max": 3.0,
+    "n_players_mean": 7.25,
+    "spread_min_m": 14.17,
+    "mean_speed_max": 6.05,
+    "keeper_x_min_m": 1.25
+   },
+   "notes": "near-goal attack: cluster moved 12.7 m toward the near goal in 3 s, 3.0 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 4492.0,
+   "t_start": 4491.0,
+   "t_end": 4514.0,
+   "confidence": 0.205,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 3.5,
+    "n_players_mean": 8.48
+   },
+   "notes": "3.5 players in the near box for 24 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 4552.0,
+   "t_start": 4552.0,
+   "t_end": 4556.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 4.0,
+    "n_players_mean": 6.9
+   },
+   "notes": "4.0 players in the near box for 5 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 4572.0,
+   "t_start": 4563.0,
+   "t_end": 4575.0,
+   "confidence": 0.668,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 9.9,
+    "box_players_max": 4.5,
+    "n_players_mean": 6.77,
+    "spread_min_m": 11.34,
+    "mean_speed_max": 6.53,
+    "keeper_x_min_m": -0.48
+   },
+   "notes": "near-goal attack: cluster moved 9.9 m toward the near goal in 3 s, 4.5 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 4606.0,
+   "t_start": 4605.0,
+   "t_end": 4608.0,
+   "confidence": 0.22,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 4.0,
+    "n_players_mean": 8.25
+   },
+   "notes": "4.0 players in the near box for 4 s, no cluster rush"
+  },
+  {
+   "type": "chance",
+   "t": 4742.0,
+   "t_start": 4732.0,
+   "t_end": 4743.0,
+   "confidence": 0.556,
+   "signals": {
+    "goal_end": "near",
+    "rush_max_m_3s": 6.43,
+    "box_players_max": 3.5,
+    "n_players_mean": 7.04,
+    "spread_min_m": 14.9,
+    "mean_speed_max": 5.22,
+    "keeper_x_min_m": -1.15
+   },
+   "notes": "near-goal attack: cluster moved 6.4 m toward the near goal in 3 s, 3.5 players in the near box"
+  },
+  {
+   "type": "other",
+   "t": 4844.0,
+   "t_start": 4844.0,
+   "t_end": 4847.0,
+   "confidence": 0.35,
+   "signals": {
+    "kind": "restart_centre",
+    "centre_players_max": 5.0,
+    "mean_speed_min": 2.05
+   },
+   "notes": "centre-cluster formation without a preceding detected attack (kickoff / half start / missed far-goal attack?)"
+  },
+  {
+   "type": "other",
+   "t": 4886.0,
+   "t_start": 4883.0,
+   "t_end": 4893.0,
+   "confidence": 0.265,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 5.5,
+    "n_players_mean": 9.36
+   },
+   "notes": "5.5 players in the near box for 11 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 4967.0,
+   "t_start": 4942.0,
+   "t_end": 4997.0,
+   "confidence": 0.28,
+   "signals": {
+    "kind": "near_box_crowd",
+    "box_players_max": 7.5,
+    "n_players_mean": 8.04
+   },
+   "notes": "7.5 players in the near box for 56 s, no cluster rush"
+  },
+  {
+   "type": "other",
+   "t": 4973.0,
+   "t_start": 4973.0,
+   "t_end": 4977.0,
+   "confidence": 0.2,
+   "signals": {
+    "kind": "restart_static",
+    "cx_m": 9.31,
+    "spread_min_m": 7.92
+   },
+   "notes": "players clustered and near-stationary (restart / stoppage)"
+  }
+ ]
+}

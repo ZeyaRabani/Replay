@@ -1,0 +1,11 @@
+{
+  "fps": 2.0,
+  "imgsz": 1280,
+  "model": "yolov8s.pt",
+  "video": "match.mp4",
+  "ref_time": 600.0,
+  "runtime_s": 1139.278428554535,
+  "n_frames": 10674,
+  "n_detections": 76878,
+  "n_stab_fail": 669
+}
