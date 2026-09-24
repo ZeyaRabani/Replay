@@ -1,0 +1,2248 @@
+{
+ "source": "spotting_topk",
+ "video_duration_s": 5337.154,
+ "model": "soccer_challenge_rny008gsm_gru_rgb",
+ "note": "top-10 NMS peaks per class for ['Ball out of play', 'Corner', 'Direct free-kick', 'Goal', 'Indirect free-kick', 'Penalty', 'Shots off target', 'Shots on target']; confidences are raw and may be tiny",
+ "events": [
+  {
+   "type": "excitement",
+   "t": 1486.5,
+   "t_start": 1478.5,
+   "t_end": 1490.5,
+   "confidence": 0.4825,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.4825,
+    "top3": [
+     [
+      "Ball out of play",
+      0.4825
+     ],
+     [
+      "Corner",
+      0.0017
+     ],
+     [
+      "Foul",
+      0.0012
+     ]
+    ],
+    "background": 0.5103,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.48 at 1486.5s (2fps frame 2973)"
+  },
+  {
+   "type": "excitement",
+   "t": 1570.5,
+   "t_start": 1562.5,
+   "t_end": 1574.5,
+   "confidence": 0.289,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.289,
+    "top3": [
+     [
+      "Ball out of play",
+      0.289
+     ],
+     [
+      "Foul",
+      0.0038
+     ],
+     [
+      "Clearance",
+      0.0035
+     ]
+    ],
+    "background": 0.694,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.29 at 1570.5s (2fps frame 3141)"
+  },
+  {
+   "type": "excitement",
+   "t": 2488.5,
+   "t_start": 2480.5,
+   "t_end": 2492.5,
+   "confidence": 0.1989,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1989,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1989
+     ],
+     [
+      "Corner",
+      0.0007
+     ],
+     [
+      "Foul",
+      0.0006
+     ]
+    ],
+    "background": 0.7959,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.20 at 2488.5s (2fps frame 4977)"
+  },
+  {
+   "type": "excitement",
+   "t": 3503.5,
+   "t_start": 3495.5,
+   "t_end": 3507.5,
+   "confidence": 0.1736,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1736,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1736
+     ],
+     [
+      "Foul",
+      0.0016
+     ],
+     [
+      "Goal",
+      0.001
+     ]
+    ],
+    "background": 0.8189,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.17 at 3503.5s (2fps frame 7007)"
+  },
+  {
+   "type": "excitement",
+   "t": 1352.0,
+   "t_start": 1344.0,
+   "t_end": 1356.0,
+   "confidence": 0.1704,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1704,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1704
+     ],
+     [
+      "Foul",
+      0.0038
+     ],
+     [
+      "Corner",
+      0.0029
+     ]
+    ],
+    "background": 0.8136,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.17 at 1352.0s (2fps frame 2704)"
+  },
+  {
+   "type": "excitement",
+   "t": 3827.5,
+   "t_start": 3819.5,
+   "t_end": 3831.5,
+   "confidence": 0.1383,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1383,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1383
+     ],
+     [
+      "Throw-in",
+      0.0033
+     ],
+     [
+      "Foul",
+      0.003
+     ]
+    ],
+    "background": 0.8461,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.14 at 3827.5s (2fps frame 7655)"
+  },
+  {
+   "type": "excitement",
+   "t": 2639.0,
+   "t_start": 2631.0,
+   "t_end": 2643.0,
+   "confidence": 0.1324,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1324,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1324
+     ],
+     [
+      "Foul",
+      0.0022
+     ],
+     [
+      "Shots on target",
+      0.0011
+     ]
+    ],
+    "background": 0.8601,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.13 at 2639.0s (2fps frame 5278)"
+  },
+  {
+   "type": "excitement",
+   "t": 1242.0,
+   "t_start": 1234.0,
+   "t_end": 1246.0,
+   "confidence": 0.1139,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1139,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1139
+     ],
+     [
+      "Foul",
+      0.0023
+     ],
+     [
+      "Shots on target",
+      0.0019
+     ]
+    ],
+    "background": 0.8734,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 1242.0s (2fps frame 2484)"
+  },
+  {
+   "type": "other",
+   "t": 105.0,
+   "t_start": 97.0,
+   "t_end": 109.0,
+   "confidence": 0.1118,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1118,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1118
+     ],
+     [
+      "Foul",
+      0.0011
+     ],
+     [
+      "Shots off target",
+      0.0009
+     ]
+    ],
+    "background": 0.8836,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 105.0s (2fps frame 210)"
+  },
+  {
+   "type": "excitement",
+   "t": 1547.5,
+   "t_start": 1539.5,
+   "t_end": 1551.5,
+   "confidence": 0.1114,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1114,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1114
+     ],
+     [
+      "Foul",
+      0.0016
+     ],
+     [
+      "Corner",
+      0.0011
+     ]
+    ],
+    "background": 0.8807,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 1547.5s (2fps frame 3095)"
+  },
+  {
+   "type": "other",
+   "t": 899.5,
+   "t_start": 895.5,
+   "t_end": 905.5,
+   "confidence": 0.0792,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0792,
+    "top3": [
+     [
+      "Clearance",
+      0.0961
+     ],
+     [
+      "Indirect free-kick",
+      0.0792
+     ],
+     [
+      "Ball out of play",
+      0.0114
+     ]
+    ],
+    "background": 0.7865,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.08 at 899.5s (2fps frame 1799)"
+  },
+  {
+   "type": "other",
+   "t": 812.5,
+   "t_start": 808.5,
+   "t_end": 818.5,
+   "confidence": 0.0526,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0526,
+    "top3": [
+     [
+      "Clearance",
+      0.0833
+     ],
+     [
+      "Indirect free-kick",
+      0.0526
+     ],
+     [
+      "Ball out of play",
+      0.0055
+     ]
+    ],
+    "background": 0.8452,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.05 at 812.5s (2fps frame 1625)"
+  },
+  {
+   "type": "chance",
+   "t": 1347.0,
+   "t_start": 1343.0,
+   "t_end": 1353.0,
+   "confidence": 0.0454,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0454,
+    "top3": [
+     [
+      "Corner",
+      0.0454
+     ],
+     [
+      "Clearance",
+      0.0376
+     ],
+     [
+      "Ball out of play",
+      0.0079
+     ]
+    ],
+    "background": 0.8887,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.05 at 1347.0s (2fps frame 2694)"
+  },
+  {
+   "type": "chance",
+   "t": 2292.0,
+   "t_start": 2288.0,
+   "t_end": 2298.0,
+   "confidence": 0.0417,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0417,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0417
+     ],
+     [
+      "Throw-in",
+      0.0252
+     ],
+     [
+      "Direct free-kick",
+      0.0139
+     ]
+    ],
+    "background": 0.8941,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.04 at 2292.0s (2fps frame 4584)"
+  },
+  {
+   "type": "chance",
+   "t": 2172.0,
+   "t_start": 2168.0,
+   "t_end": 2178.0,
+   "confidence": 0.0405,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0405,
+    "top3": [
+     [
+      "Corner",
+      0.0405
+     ],
+     [
+      "Clearance",
+      0.025
+     ],
+     [
+      "Indirect free-kick",
+      0.0074
+     ]
+    ],
+    "background": 0.9025,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.04 at 2172.0s (2fps frame 4344)"
+  },
+  {
+   "type": "other",
+   "t": 347.0,
+   "t_start": 343.0,
+   "t_end": 353.0,
+   "confidence": 0.0387,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0387,
+    "top3": [
+     [
+      "Corner",
+      0.0387
+     ],
+     [
+      "Clearance",
+      0.0269
+     ],
+     [
+      "Kick-off",
+      0.0073
+     ]
+    ],
+    "background": 0.9067,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Corner p=0.04 at 347.0s (2fps frame 694)"
+  },
+  {
+   "type": "chance",
+   "t": 1297.0,
+   "t_start": 1293.0,
+   "t_end": 1303.0,
+   "confidence": 0.0381,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0381,
+    "top3": [
+     [
+      "Clearance",
+      0.0463
+     ],
+     [
+      "Corner",
+      0.0381
+     ],
+     [
+      "Ball out of play",
+      0.0089
+     ]
+    ],
+    "background": 0.8878,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.04 at 1297.0s (2fps frame 2594)"
+  },
+  {
+   "type": "other",
+   "t": 268.0,
+   "t_start": 264.0,
+   "t_end": 274.0,
+   "confidence": 0.0373,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0373,
+    "top3": [
+     [
+      "Clearance",
+      0.067
+     ],
+     [
+      "Indirect free-kick",
+      0.0373
+     ],
+     [
+      "Ball out of play",
+      0.011
+     ]
+    ],
+    "background": 0.8486,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.04 at 268.0s (2fps frame 536)"
+  },
+  {
+   "type": "chance",
+   "t": 2047.0,
+   "t_start": 2043.0,
+   "t_end": 2053.0,
+   "confidence": 0.0368,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0368,
+    "top3": [
+     [
+      "Corner",
+      0.0368
+     ],
+     [
+      "Clearance",
+      0.0148
+     ],
+     [
+      "Ball out of play",
+      0.0083
+     ]
+    ],
+    "background": 0.9171,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.04 at 2047.0s (2fps frame 4094)"
+  },
+  {
+   "type": "chance",
+   "t": 2122.0,
+   "t_start": 2118.0,
+   "t_end": 2128.0,
+   "confidence": 0.0358,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0358,
+    "top3": [
+     [
+      "Corner",
+      0.0358
+     ],
+     [
+      "Clearance",
+      0.0154
+     ],
+     [
+      "Indirect free-kick",
+      0.0076
+     ]
+    ],
+    "background": 0.9153,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.04 at 2122.0s (2fps frame 4244)"
+  },
+  {
+   "type": "chance",
+   "t": 2197.0,
+   "t_start": 2193.0,
+   "t_end": 2203.0,
+   "confidence": 0.0338,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0338,
+    "top3": [
+     [
+      "Corner",
+      0.0338
+     ],
+     [
+      "Clearance",
+      0.0134
+     ],
+     [
+      "Indirect free-kick",
+      0.012
+     ]
+    ],
+    "background": 0.9113,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.03 at 2197.0s (2fps frame 4394)"
+  },
+  {
+   "type": "chance",
+   "t": 1497.0,
+   "t_start": 1493.0,
+   "t_end": 1503.0,
+   "confidence": 0.0336,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0336,
+    "top3": [
+     [
+      "Corner",
+      0.0336
+     ],
+     [
+      "Clearance",
+      0.0209
+     ],
+     [
+      "Ball out of play",
+      0.0125
+     ]
+    ],
+    "background": 0.9108,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.03 at 1497.0s (2fps frame 2994)"
+  },
+  {
+   "type": "other",
+   "t": 696.5,
+   "t_start": 692.5,
+   "t_end": 702.5,
+   "confidence": 0.0334,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0334,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0334
+     ],
+     [
+      "Clearance",
+      0.0255
+     ],
+     [
+      "Corner",
+      0.0083
+     ]
+    ],
+    "background": 0.9062,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.03 at 696.5s (2fps frame 1393)"
+  },
+  {
+   "type": "chance",
+   "t": 1240.0,
+   "t_start": 1236.0,
+   "t_end": 1246.0,
+   "confidence": 0.0331,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0331,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0331
+     ],
+     [
+      "Clearance",
+      0.0137
+     ],
+     [
+      "Direct free-kick",
+      0.0123
+     ]
+    ],
+    "background": 0.8953,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.03 at 1240.0s (2fps frame 2480)"
+  },
+  {
+   "type": "chance",
+   "t": 1322.0,
+   "t_start": 1318.0,
+   "t_end": 1328.0,
+   "confidence": 0.0323,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0323,
+    "top3": [
+     [
+      "Clearance",
+      0.0494
+     ],
+     [
+      "Corner",
+      0.0323
+     ],
+     [
+      "Ball out of play",
+      0.0103
+     ]
+    ],
+    "background": 0.8885,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.03 at 1322.0s (2fps frame 2644)"
+  },
+  {
+   "type": "chance",
+   "t": 3502.0,
+   "t_start": 3498.0,
+   "t_end": 3508.0,
+   "confidence": 0.0321,
+   "signals": {
+    "class": "Corner",
+    "score": 0.0321,
+    "top3": [
+     [
+      "Corner",
+      0.0321
+     ],
+     [
+      "Ball out of play",
+      0.0214
+     ],
+     [
+      "Throw-in",
+      0.0152
+     ]
+    ],
+    "background": 0.9158,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Corner p=0.03 at 3502.0s (2fps frame 7004)"
+  },
+  {
+   "type": "chance",
+   "t": 4501.0,
+   "t_start": 4497.0,
+   "t_end": 4507.0,
+   "confidence": 0.0269,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0269,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0269
+     ],
+     [
+      "Direct free-kick",
+      0.0091
+     ],
+     [
+      "Clearance",
+      0.0069
+     ]
+    ],
+    "background": 0.9255,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.03 at 4501.0s (2fps frame 9002)"
+  },
+  {
+   "type": "chance",
+   "t": 3472.0,
+   "t_start": 3468.0,
+   "t_end": 3478.0,
+   "confidence": 0.0258,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0258,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0258
+     ],
+     [
+      "Kick-off",
+      0.0156
+     ],
+     [
+      "Direct free-kick",
+      0.0134
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.03 at 3472.0s (2fps frame 6944)"
+  },
+  {
+   "type": "chance",
+   "t": 3495.5,
+   "t_start": 3491.5,
+   "t_end": 3501.5,
+   "confidence": 0.0227,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.0227,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0227
+     ],
+     [
+      "Kick-off",
+      0.0161
+     ],
+     [
+      "Throw-in",
+      0.0129
+     ]
+    ],
+    "background": 0.9295,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.02 at 3495.5s (2fps frame 6991)"
+  },
+  {
+   "type": "chance",
+   "t": 2994.0,
+   "t_start": 2990.0,
+   "t_end": 3000.0,
+   "confidence": 0.022,
+   "signals": {
+    "class": "Indirect free-kick",
+    "score": 0.022,
+    "top3": [
+     [
+      "Kick-off",
+      0.029
+     ],
+     [
+      "Clearance",
+      0.0249
+     ],
+     [
+      "Indirect free-kick",
+      0.022
+     ]
+    ],
+    "background": 0.8761,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Indirect free-kick p=0.02 at 2994.0s (2fps frame 5988)"
+  },
+  {
+   "type": "chance",
+   "t": 2292.0,
+   "t_start": 2288.0,
+   "t_end": 2298.0,
+   "confidence": 0.0139,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0139,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0417
+     ],
+     [
+      "Throw-in",
+      0.0252
+     ],
+     [
+      "Direct free-kick",
+      0.0139
+     ]
+    ],
+    "background": 0.8941,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 2292.0s (2fps frame 4584)"
+  },
+  {
+   "type": "chance",
+   "t": 3472.0,
+   "t_start": 3468.0,
+   "t_end": 3478.0,
+   "confidence": 0.0134,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0134,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0258
+     ],
+     [
+      "Kick-off",
+      0.0156
+     ],
+     [
+      "Direct free-kick",
+      0.0134
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 3472.0s (2fps frame 6944)"
+  },
+  {
+   "type": "chance",
+   "t": 1240.0,
+   "t_start": 1236.0,
+   "t_end": 1246.0,
+   "confidence": 0.0123,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0123,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0331
+     ],
+     [
+      "Clearance",
+      0.0137
+     ],
+     [
+      "Direct free-kick",
+      0.0123
+     ]
+    ],
+    "background": 0.8953,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 1240.0s (2fps frame 2480)"
+  },
+  {
+   "type": "shot",
+   "t": 1484.5,
+   "t_start": 1478.5,
+   "t_end": 1488.5,
+   "confidence": 0.0098,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0098,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0225
+     ],
+     [
+      "Corner",
+      0.0213
+     ],
+     [
+      "Clearance",
+      0.0157
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 1484.5s (2fps frame 2969)"
+  },
+  {
+   "type": "shot",
+   "t": 1247.5,
+   "t_start": 1241.5,
+   "t_end": 1251.5,
+   "confidence": 0.0093,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0093,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0895
+     ],
+     [
+      "Corner",
+      0.0127
+     ],
+     [
+      "Shots off target",
+      0.0093
+     ]
+    ],
+    "background": 0.8556,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 1247.5s (2fps frame 2495)"
+  },
+  {
+   "type": "other",
+   "t": 268.0,
+   "t_start": 264.0,
+   "t_end": 274.0,
+   "confidence": 0.0092,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0092,
+    "top3": [
+     [
+      "Clearance",
+      0.067
+     ],
+     [
+      "Indirect free-kick",
+      0.0373
+     ],
+     [
+      "Ball out of play",
+      0.011
+     ]
+    ],
+    "background": 0.8486,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Penalty p=0.01 at 268.0s (2fps frame 536)"
+  },
+  {
+   "type": "chance",
+   "t": 4501.0,
+   "t_start": 4497.0,
+   "t_end": 4507.0,
+   "confidence": 0.0091,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0091,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0269
+     ],
+     [
+      "Direct free-kick",
+      0.0091
+     ],
+     [
+      "Clearance",
+      0.0069
+     ]
+    ],
+    "background": 0.9255,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 4501.0s (2fps frame 9002)"
+  },
+  {
+   "type": "shot",
+   "t": 1484.5,
+   "t_start": 1478.5,
+   "t_end": 1488.5,
+   "confidence": 0.0088,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0088,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0225
+     ],
+     [
+      "Corner",
+      0.0213
+     ],
+     [
+      "Clearance",
+      0.0157
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 1484.5s (2fps frame 2969)"
+  },
+  {
+   "type": "shot",
+   "t": 1351.0,
+   "t_start": 1345.0,
+   "t_end": 1355.0,
+   "confidence": 0.0082,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0082,
+    "top3": [
+     [
+      "Ball out of play",
+      0.044
+     ],
+     [
+      "Foul",
+      0.0179
+     ],
+     [
+      "Corner",
+      0.0144
+     ]
+    ],
+    "background": 0.8911,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 1351.0s (2fps frame 2702)"
+  },
+  {
+   "type": "shot",
+   "t": 2204.5,
+   "t_start": 2198.5,
+   "t_end": 2208.5,
+   "confidence": 0.0077,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0077,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0171
+     ],
+     [
+      "Foul",
+      0.0114
+     ],
+     [
+      "Shots off target",
+      0.0077
+     ]
+    ],
+    "background": 0.9421,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 2204.5s (2fps frame 4409)"
+  },
+  {
+   "type": "shot",
+   "t": 2636.5,
+   "t_start": 2630.5,
+   "t_end": 2640.5,
+   "confidence": 0.0077,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0077,
+    "top3": [
+     [
+      "Corner",
+      0.0275
+     ],
+     [
+      "Ball out of play",
+      0.0143
+     ],
+     [
+      "Shots on target",
+      0.0077
+     ]
+    ],
+    "background": 0.9277,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 2636.5s (2fps frame 5273)"
+  },
+  {
+   "type": "shot",
+   "t": 2204.5,
+   "t_start": 2198.5,
+   "t_end": 2208.5,
+   "confidence": 0.0073,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0073,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0171
+     ],
+     [
+      "Foul",
+      0.0114
+     ],
+     [
+      "Shots off target",
+      0.0077
+     ]
+    ],
+    "background": 0.9421,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 2204.5s (2fps frame 4409)"
+  },
+  {
+   "type": "other",
+   "t": 696.5,
+   "t_start": 692.5,
+   "t_end": 702.5,
+   "confidence": 0.0067,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0067,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0334
+     ],
+     [
+      "Clearance",
+      0.0255
+     ],
+     [
+      "Corner",
+      0.0083
+     ]
+    ],
+    "background": 0.9062,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 696.5s (2fps frame 1393)"
+  },
+  {
+   "type": "shot",
+   "t": 2677.0,
+   "t_start": 2671.0,
+   "t_end": 2681.0,
+   "confidence": 0.0065,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0065,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0191
+     ],
+     [
+      "Shots on target",
+      0.0065
+     ],
+     [
+      "Foul",
+      0.0056
+     ]
+    ],
+    "background": 0.9509,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 2677.0s (2fps frame 5354)"
+  },
+  {
+   "type": "other",
+   "t": 268.0,
+   "t_start": 262.0,
+   "t_end": 272.0,
+   "confidence": 0.0062,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0062,
+    "top3": [
+     [
+      "Clearance",
+      0.067
+     ],
+     [
+      "Indirect free-kick",
+      0.0373
+     ],
+     [
+      "Ball out of play",
+      0.011
+     ]
+    ],
+    "background": 0.8486,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 268.0s (2fps frame 536)"
+  },
+  {
+   "type": "chance",
+   "t": 2994.0,
+   "t_start": 2990.0,
+   "t_end": 3000.0,
+   "confidence": 0.0062,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0062,
+    "top3": [
+     [
+      "Kick-off",
+      0.029
+     ],
+     [
+      "Clearance",
+      0.0249
+     ],
+     [
+      "Indirect free-kick",
+      0.022
+     ]
+    ],
+    "background": 0.8761,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 2994.0s (2fps frame 5988)"
+  },
+  {
+   "type": "chance",
+   "t": 2574.0,
+   "t_start": 2570.0,
+   "t_end": 2580.0,
+   "confidence": 0.0058,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0058,
+    "top3": [
+     [
+      "Ball out of play",
+      0.009
+     ],
+     [
+      "Direct free-kick",
+      0.0058
+     ],
+     [
+      "Shots off target",
+      0.0056
+     ]
+    ],
+    "background": 0.9576,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.01 at 2574.0s (2fps frame 5148)"
+  },
+  {
+   "type": "shot",
+   "t": 2574.0,
+   "t_start": 2568.0,
+   "t_end": 2578.0,
+   "confidence": 0.0056,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0056,
+    "top3": [
+     [
+      "Ball out of play",
+      0.009
+     ],
+     [
+      "Direct free-kick",
+      0.0058
+     ],
+     [
+      "Shots off target",
+      0.0056
+     ]
+    ],
+    "background": 0.9576,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 2574.0s (2fps frame 5148)"
+  },
+  {
+   "type": "chance",
+   "t": 1240.0,
+   "t_start": 1236.0,
+   "t_end": 1246.0,
+   "confidence": 0.0055,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0055,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0331
+     ],
+     [
+      "Clearance",
+      0.0137
+     ],
+     [
+      "Direct free-kick",
+      0.0123
+     ]
+    ],
+    "background": 0.8953,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Penalty p=0.01 at 1240.0s (2fps frame 2480)"
+  },
+  {
+   "type": "shot",
+   "t": 3472.0,
+   "t_start": 3466.0,
+   "t_end": 3476.0,
+   "confidence": 0.0055,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0055,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0258
+     ],
+     [
+      "Kick-off",
+      0.0156
+     ],
+     [
+      "Direct free-kick",
+      0.0134
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 3472.0s (2fps frame 6944)"
+  },
+  {
+   "type": "shot",
+   "t": 3691.5,
+   "t_start": 3685.5,
+   "t_end": 3695.5,
+   "confidence": 0.0055,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0055,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0317
+     ],
+     [
+      "Clearance",
+      0.0077
+     ],
+     [
+      "Foul",
+      0.0071
+     ]
+    ],
+    "background": 0.9208,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 3691.5s (2fps frame 7383)"
+  },
+  {
+   "type": "shot",
+   "t": 4501.0,
+   "t_start": 4495.0,
+   "t_end": 4505.0,
+   "confidence": 0.0054,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0054,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0269
+     ],
+     [
+      "Direct free-kick",
+      0.0091
+     ],
+     [
+      "Clearance",
+      0.0069
+     ]
+    ],
+    "background": 0.9255,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 4501.0s (2fps frame 9002)"
+  },
+  {
+   "type": "shot",
+   "t": 4501.0,
+   "t_start": 4495.0,
+   "t_end": 4505.0,
+   "confidence": 0.0054,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0054,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0269
+     ],
+     [
+      "Direct free-kick",
+      0.0091
+     ],
+     [
+      "Clearance",
+      0.0069
+     ]
+    ],
+    "background": 0.9255,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 4501.0s (2fps frame 9002)"
+  },
+  {
+   "type": "shot",
+   "t": 1630.5,
+   "t_start": 1624.5,
+   "t_end": 1634.5,
+   "confidence": 0.0053,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0053,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0103
+     ],
+     [
+      "Shots on target",
+      0.0053
+     ],
+     [
+      "Shots off target",
+      0.0035
+     ]
+    ],
+    "background": 0.9665,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 1630.5s (2fps frame 3261)"
+  },
+  {
+   "type": "shot",
+   "t": 2574.0,
+   "t_start": 2568.0,
+   "t_end": 2578.0,
+   "confidence": 0.0053,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.0053,
+    "top3": [
+     [
+      "Ball out of play",
+      0.009
+     ],
+     [
+      "Direct free-kick",
+      0.0058
+     ],
+     [
+      "Shots off target",
+      0.0056
+     ]
+    ],
+    "background": 0.9576,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.01 at 2574.0s (2fps frame 5148)"
+  },
+  {
+   "type": "other",
+   "t": 899.5,
+   "t_start": 893.5,
+   "t_end": 903.5,
+   "confidence": 0.0052,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0052,
+    "top3": [
+     [
+      "Clearance",
+      0.0961
+     ],
+     [
+      "Indirect free-kick",
+      0.0792
+     ],
+     [
+      "Ball out of play",
+      0.0114
+     ]
+    ],
+    "background": 0.7865,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Shots off target p=0.01 at 899.5s (2fps frame 1799)"
+  },
+  {
+   "type": "shot",
+   "t": 1351.0,
+   "t_start": 1345.0,
+   "t_end": 1355.0,
+   "confidence": 0.005,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.005,
+    "top3": [
+     [
+      "Ball out of play",
+      0.044
+     ],
+     [
+      "Foul",
+      0.0179
+     ],
+     [
+      "Corner",
+      0.0144
+     ]
+    ],
+    "background": 0.8911,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.00 at 1351.0s (2fps frame 2702)"
+  },
+  {
+   "type": "shot",
+   "t": 1671.5,
+   "t_start": 1665.5,
+   "t_end": 1675.5,
+   "confidence": 0.005,
+   "signals": {
+    "class": "Shots on target",
+    "score": 0.005,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0073
+     ],
+     [
+      "Shots on target",
+      0.005
+     ],
+     [
+      "Corner",
+      0.0044
+     ]
+    ],
+    "background": 0.9637,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots on target p=0.00 at 1671.5s (2fps frame 3343)"
+  },
+  {
+   "type": "chance",
+   "t": 3472.0,
+   "t_start": 3468.0,
+   "t_end": 3478.0,
+   "confidence": 0.0048,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0048,
+    "top3": [
+     [
+      "Indirect free-kick",
+      0.0258
+     ],
+     [
+      "Kick-off",
+      0.0156
+     ],
+     [
+      "Direct free-kick",
+      0.0134
+     ]
+    ],
+    "background": 0.9035,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 3472.0s (2fps frame 6944)"
+  },
+  {
+   "type": "other",
+   "t": 72.0,
+   "t_start": 68.0,
+   "t_end": 78.0,
+   "confidence": 0.0047,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0047,
+    "top3": [
+     [
+      "Clearance",
+      0.0296
+     ],
+     [
+      "Corner",
+      0.0205
+     ],
+     [
+      "Ball out of play",
+      0.0101
+     ]
+    ],
+    "background": 0.9053,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 72.0s (2fps frame 144)"
+  },
+  {
+   "type": "chance",
+   "t": 2197.5,
+   "t_start": 2193.5,
+   "t_end": 2203.5,
+   "confidence": 0.0047,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0047,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0108
+     ],
+     [
+      "Throw-in",
+      0.0101
+     ],
+     [
+      "Corner",
+      0.0087
+     ]
+    ],
+    "background": 0.9388,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.00 at 2197.5s (2fps frame 4395)"
+  },
+  {
+   "type": "other",
+   "t": 899.5,
+   "t_start": 895.5,
+   "t_end": 905.5,
+   "confidence": 0.0046,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0046,
+    "top3": [
+     [
+      "Clearance",
+      0.0961
+     ],
+     [
+      "Indirect free-kick",
+      0.0792
+     ],
+     [
+      "Ball out of play",
+      0.0114
+     ]
+    ],
+    "background": 0.7865,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.00 at 899.5s (2fps frame 1799)"
+  },
+  {
+   "type": "shot",
+   "t": 5327.0,
+   "t_start": 5321.0,
+   "t_end": 5331.0,
+   "confidence": 0.0046,
+   "signals": {
+    "class": "Shots off target",
+    "score": 0.0046,
+    "top3": [
+     [
+      "Substitution",
+      0.0071
+     ],
+     [
+      "Ball out of play",
+      0.0061
+     ],
+     [
+      "Corner",
+      0.0057
+     ]
+    ],
+    "background": 0.969,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Shots off target p=0.00 at 5327.0s (2fps frame 10654)"
+  },
+  {
+   "type": "other",
+   "t": 497.0,
+   "t_start": 493.0,
+   "t_end": 503.0,
+   "confidence": 0.0044,
+   "signals": {
+    "class": "Direct free-kick",
+    "score": 0.0044,
+    "top3": [
+     [
+      "Clearance",
+      0.0254
+     ],
+     [
+      "Corner",
+      0.0155
+     ],
+     [
+      "Indirect free-kick",
+      0.0116
+     ]
+    ],
+    "background": 0.9158,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Direct free-kick p=0.00 at 497.0s (2fps frame 994)"
+  },
+  {
+   "type": "other",
+   "t": 622.0,
+   "t_start": 618.0,
+   "t_end": 628.0,
+   "confidence": 0.004,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.004,
+    "top3": [
+     [
+      "Corner",
+      0.0233
+     ],
+     [
+      "Clearance",
+      0.018
+     ],
+     [
+      "Kick-off",
+      0.0127
+     ]
+    ],
+    "background": 0.9097,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 622.0s (2fps frame 1244)"
+  },
+  {
+   "type": "other",
+   "t": 822.0,
+   "t_start": 812.0,
+   "t_end": 830.0,
+   "confidence": 0.004,
+   "signals": {
+    "class": "Goal",
+    "score": 0.004,
+    "top3": [
+     [
+      "Clearance",
+      0.0409
+     ],
+     [
+      "Corner",
+      0.0156
+     ],
+     [
+      "Ball out of play",
+      0.0138
+     ]
+    ],
+    "background": 0.9005,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 822.0s (2fps frame 1644)"
+  },
+  {
+   "type": "chance",
+   "t": 1422.0,
+   "t_start": 1418.0,
+   "t_end": 1428.0,
+   "confidence": 0.0039,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0039,
+    "top3": [
+     [
+      "Corner",
+      0.0279
+     ],
+     [
+      "Clearance",
+      0.0256
+     ],
+     [
+      "Ball out of play",
+      0.0121
+     ]
+    ],
+    "background": 0.897,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 1422.0s (2fps frame 2844)"
+  },
+  {
+   "type": "other",
+   "t": 821.5,
+   "t_start": 817.5,
+   "t_end": 827.5,
+   "confidence": 0.0038,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0038,
+    "top3": [
+     [
+      "Clearance",
+      0.1433
+     ],
+     [
+      "Indirect free-kick",
+      0.022
+     ],
+     [
+      "Ball out of play",
+      0.0079
+     ]
+    ],
+    "background": 0.8036,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 821.5s (2fps frame 1643)"
+  },
+  {
+   "type": "other",
+   "t": 947.0,
+   "t_start": 943.0,
+   "t_end": 953.0,
+   "confidence": 0.0038,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0038,
+    "top3": [
+     [
+      "Clearance",
+      0.0356
+     ],
+     [
+      "Corner",
+      0.0286
+     ],
+     [
+      "Indirect free-kick",
+      0.0124
+     ]
+    ],
+    "background": 0.9025,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 947.0s (2fps frame 1894)"
+  },
+  {
+   "type": "chance",
+   "t": 1822.0,
+   "t_start": 1818.0,
+   "t_end": 1828.0,
+   "confidence": 0.0035,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0035,
+    "top3": [
+     [
+      "Clearance",
+      0.0236
+     ],
+     [
+      "Corner",
+      0.023
+     ],
+     [
+      "Indirect free-kick",
+      0.0118
+     ]
+    ],
+    "background": 0.9064,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 1822.0s (2fps frame 3644)"
+  },
+  {
+   "type": "chance",
+   "t": 1351.0,
+   "t_start": 1347.0,
+   "t_end": 1357.0,
+   "confidence": 0.0034,
+   "signals": {
+    "class": "Penalty",
+    "score": 0.0034,
+    "top3": [
+     [
+      "Ball out of play",
+      0.044
+     ],
+     [
+      "Foul",
+      0.0179
+     ],
+     [
+      "Corner",
+      0.0144
+     ]
+    ],
+    "background": 0.8911,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Penalty p=0.00 at 1351.0s (2fps frame 2702)"
+  },
+  {
+   "type": "other",
+   "t": 268.0,
+   "t_start": 258.0,
+   "t_end": 276.0,
+   "confidence": 0.0024,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0024,
+    "top3": [
+     [
+      "Clearance",
+      0.067
+     ],
+     [
+      "Indirect free-kick",
+      0.0373
+     ],
+     [
+      "Ball out of play",
+      0.011
+     ]
+    ],
+    "background": 0.8486,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 268.0s (2fps frame 536)"
+  },
+  {
+   "type": "other",
+   "t": 244.0,
+   "t_start": 234.0,
+   "t_end": 252.0,
+   "confidence": 0.0022,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0022,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0153
+     ],
+     [
+      "Clearance",
+      0.0032
+     ],
+     [
+      "Goal",
+      0.0022
+     ]
+    ],
+    "background": 0.975,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 244.0s (2fps frame 488)"
+  },
+  {
+   "type": "goal",
+   "t": 1351.5,
+   "t_start": 1341.5,
+   "t_end": 1359.5,
+   "confidence": 0.0018,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0018,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1494
+     ],
+     [
+      "Foul",
+      0.0115
+     ],
+     [
+      "Corner",
+      0.0032
+     ]
+    ],
+    "background": 0.8205,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 1351.5s (2fps frame 2703)"
+  },
+  {
+   "type": "goal",
+   "t": 2677.5,
+   "t_start": 2667.5,
+   "t_end": 2685.5,
+   "confidence": 0.0018,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0018,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0288
+     ],
+     [
+      "Foul",
+      0.007
+     ],
+     [
+      "Corner",
+      0.0067
+     ]
+    ],
+    "background": 0.939,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 2677.5s (2fps frame 5355)"
+  },
+  {
+   "type": "goal",
+   "t": 2891.0,
+   "t_start": 2881.0,
+   "t_end": 2899.0,
+   "confidence": 0.0015,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0015,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0473
+     ],
+     [
+      "Foul",
+      0.0056
+     ],
+     [
+      "Throw-in",
+      0.004
+     ]
+    ],
+    "background": 0.9236,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 2891.0s (2fps frame 5782)"
+  },
+  {
+   "type": "other",
+   "t": 797.0,
+   "t_start": 787.0,
+   "t_end": 805.0,
+   "confidence": 0.0014,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0014,
+    "top3": [
+     [
+      "Corner",
+      0.0292
+     ],
+     [
+      "Clearance",
+      0.0273
+     ],
+     [
+      "Ball out of play",
+      0.0111
+     ]
+    ],
+    "background": 0.9118,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 797.0s (2fps frame 1594)"
+  },
+  {
+   "type": "goal",
+   "t": 3391.0,
+   "t_start": 3381.0,
+   "t_end": 3399.0,
+   "confidence": 0.0014,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0014,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0728
+     ],
+     [
+      "Throw-in",
+      0.0045
+     ],
+     [
+      "Foul",
+      0.0039
+     ]
+    ],
+    "background": 0.9052,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 3391.0s (2fps frame 6782)"
+  },
+  {
+   "type": "other",
+   "t": 749.0,
+   "t_start": 739.0,
+   "t_end": 757.0,
+   "confidence": 0.0013,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0013,
+    "top3": [
+     [
+      "Clearance",
+      0.029
+     ],
+     [
+      "Ball out of play",
+      0.0176
+     ],
+     [
+      "Corner",
+      0.0079
+     ]
+    ],
+    "background": 0.9235,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 749.0s (2fps frame 1498)"
+  },
+  {
+   "type": "goal",
+   "t": 3691.5,
+   "t_start": 3681.5,
+   "t_end": 3699.5,
+   "confidence": 0.0013,
+   "signals": {
+    "class": "Goal",
+    "score": 0.0013,
+    "top3": [
+     [
+      "Ball out of play",
+      0.0317
+     ],
+     [
+      "Clearance",
+      0.0077
+     ],
+     [
+      "Foul",
+      0.0071
+     ]
+    ],
+    "background": 0.9208,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Goal p=0.00 at 3691.5s (2fps frame 7383)"
+  }
+ ]
+}

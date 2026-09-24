@@ -1,0 +1,346 @@
+{
+ "source": "spotting",
+ "video_duration_s": 5337.154,
+ "model": "soccer_challenge_rny008gsm_gru_rgb",
+ "sample_fps": 2.0,
+ "nms_s": 10.0,
+ "threshold": 0.1,
+ "events": [
+  {
+   "type": "excitement",
+   "t": 1486.5,
+   "t_start": 1478.5,
+   "t_end": 1490.5,
+   "confidence": 0.4825,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.4825,
+    "top3": [
+     [
+      "Ball out of play",
+      0.4825
+     ],
+     [
+      "Corner",
+      0.0017
+     ],
+     [
+      "Foul",
+      0.0012
+     ]
+    ],
+    "background": 0.5103,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.48 at 1486.5s (2fps frame 2973)"
+  },
+  {
+   "type": "excitement",
+   "t": 1570.5,
+   "t_start": 1562.5,
+   "t_end": 1574.5,
+   "confidence": 0.289,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.289,
+    "top3": [
+     [
+      "Ball out of play",
+      0.289
+     ],
+     [
+      "Foul",
+      0.0038
+     ],
+     [
+      "Clearance",
+      0.0035
+     ]
+    ],
+    "background": 0.694,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.29 at 1570.5s (2fps frame 3141)"
+  },
+  {
+   "type": "excitement",
+   "t": 2488.5,
+   "t_start": 2480.5,
+   "t_end": 2492.5,
+   "confidence": 0.1989,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1989,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1989
+     ],
+     [
+      "Corner",
+      0.0007
+     ],
+     [
+      "Foul",
+      0.0006
+     ]
+    ],
+    "background": 0.7959,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.20 at 2488.5s (2fps frame 4977)"
+  },
+  {
+   "type": "excitement",
+   "t": 3503.5,
+   "t_start": 3495.5,
+   "t_end": 3507.5,
+   "confidence": 0.1736,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1736,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1736
+     ],
+     [
+      "Foul",
+      0.0016
+     ],
+     [
+      "Goal",
+      0.001
+     ]
+    ],
+    "background": 0.8189,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.17 at 3503.5s (2fps frame 7007)"
+  },
+  {
+   "type": "excitement",
+   "t": 1352.0,
+   "t_start": 1344.0,
+   "t_end": 1356.0,
+   "confidence": 0.1704,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1704,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1704
+     ],
+     [
+      "Foul",
+      0.0038
+     ],
+     [
+      "Corner",
+      0.0029
+     ]
+    ],
+    "background": 0.8136,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.17 at 1352.0s (2fps frame 2704)"
+  },
+  {
+   "type": "other",
+   "t": 821.5,
+   "t_start": 818.5,
+   "t_end": 824.5,
+   "confidence": 0.1433,
+   "signals": {
+    "class": "Clearance",
+    "score": 0.1433,
+    "top3": [
+     [
+      "Clearance",
+      0.1433
+     ],
+     [
+      "Indirect free-kick",
+      0.022
+     ],
+     [
+      "Ball out of play",
+      0.0079
+     ]
+    ],
+    "background": 0.8036,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Clearance p=0.14 at 821.5s (2fps frame 1643)"
+  },
+  {
+   "type": "excitement",
+   "t": 3827.5,
+   "t_start": 3819.5,
+   "t_end": 3831.5,
+   "confidence": 0.1383,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1383,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1383
+     ],
+     [
+      "Throw-in",
+      0.0033
+     ],
+     [
+      "Foul",
+      0.003
+     ]
+    ],
+    "background": 0.8461,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.14 at 3827.5s (2fps frame 7655)"
+  },
+  {
+   "type": "excitement",
+   "t": 2639.0,
+   "t_start": 2631.0,
+   "t_end": 2643.0,
+   "confidence": 0.1324,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1324,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1324
+     ],
+     [
+      "Foul",
+      0.0022
+     ],
+     [
+      "Shots on target",
+      0.0011
+     ]
+    ],
+    "background": 0.8601,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.13 at 2639.0s (2fps frame 5278)"
+  },
+  {
+   "type": "excitement",
+   "t": 1242.0,
+   "t_start": 1234.0,
+   "t_end": 1246.0,
+   "confidence": 0.1139,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1139,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1139
+     ],
+     [
+      "Foul",
+      0.0023
+     ],
+     [
+      "Shots on target",
+      0.0019
+     ]
+    ],
+    "background": 0.8734,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 1242.0s (2fps frame 2484)"
+  },
+  {
+   "type": "other",
+   "t": 105.0,
+   "t_start": 97.0,
+   "t_end": 109.0,
+   "confidence": 0.1118,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1118,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1118
+     ],
+     [
+      "Foul",
+      0.0011
+     ],
+     [
+      "Shots off target",
+      0.0009
+     ]
+    ],
+    "background": 0.8836,
+    "kind": "warmup"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 105.0s (2fps frame 210)"
+  },
+  {
+   "type": "excitement",
+   "t": 1547.5,
+   "t_start": 1539.5,
+   "t_end": 1551.5,
+   "confidence": 0.1114,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1114,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1114
+     ],
+     [
+      "Foul",
+      0.0016
+     ],
+     [
+      "Corner",
+      0.0011
+     ]
+    ],
+    "background": 0.8807,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 1547.5s (2fps frame 3095)"
+  },
+  {
+   "type": "excitement",
+   "t": 2801.5,
+   "t_start": 2793.5,
+   "t_end": 2805.5,
+   "confidence": 0.1099,
+   "signals": {
+    "class": "Ball out of play",
+    "score": 0.1099,
+    "top3": [
+     [
+      "Ball out of play",
+      0.1099
+     ],
+     [
+      "Foul",
+      0.0051
+     ],
+     [
+      "Clearance",
+      0.0019
+     ]
+    ],
+    "background": 0.876,
+    "kind": "match"
+   },
+   "notes": "E2E-Spot Ball out of play p=0.11 at 2801.5s (2fps frame 5603)"
+  }
+ ]
+}
