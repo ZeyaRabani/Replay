@@ -13,16 +13,19 @@ dependencies = [
   "opencv-python",
   "modal>=1.0",
   "tqdm",
+  "librosa",
+  "supervision>=0.25",
 ]
 
 [project.optional-dependencies]
-local = ["ultralytics>=8.3,<9", "lap>=0.5"]
+local = ["ultralytics>=8.3,<9", "lap>=0.5", "huggingface_hub"]
 
 [project.scripts]
 pitchworld = "pitchworld.cli:main"
+highlights = "highlights.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["pitchworld*"]
+include = ["pitchworld*", "highlights*"]
 
 [tool.ruff]
 line-length = 120
