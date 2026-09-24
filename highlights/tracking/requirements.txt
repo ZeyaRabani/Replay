@@ -1,0 +1,8 @@
+ultralytics==8.4.161
+supervision==0.30.5
+opencv-python-headless==5.0.0.93
+numpy==2.2.6
+# torch: install the CPU build, e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0
+yt-dlp==2026.8.19
