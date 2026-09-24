@@ -254,12 +254,12 @@ def _detect_neargoal(path: str, t0: float, duration: float, cfg: dict, weights_d
         in_net = np.zeros_like(fg)
         cv2.fillPoly(in_net, [net_poly_half.astype(np.int32)], 255)
         fg_net = int(((fg > 0) & (in_net > 0)).sum())
-        net_motion.append([fi, float(fg_net / n_fg) if n_fg else 0.0])
+        net_motion.append([fi, (fg_net / n_fg) if n_fg else 0.0])
         nlab, _lab, stats, cent = cv2.connectedComponentsWithStats((fg > 0).astype(np.uint8), 8)
         for j in range(1, nlab):
             area = stats[j, cv2.CC_STAT_AREA]
             if 8 <= area <= 600:
-                blobs.append([fi, float(cent[j][0]) * 2 + x0, float(cent[j][1]) * 2 + y0, int(area)])
+                blobs.append([fi, cent[j][0] * 2 + x0, cent[j][1] * 2 + y0, area])
         i += 1
     cap.release()
     if weights_dir:
