@@ -1,0 +1,236 @@
+[
+ {
+  "t": 1486.2,
+  "type": "shot",
+  "confidence": 0.95,
+  "source": "review2"
+ },
+ {
+  "t": 1547.0,
+  "type": "shot",
+  "confidence": 0.91,
+  "source": "review2"
+ },
+ {
+  "t": 1585.1,
+  "type": "shot",
+  "confidence": 0.88,
+  "source": "review2"
+ },
+ {
+  "t": 1669.2,
+  "type": "shot",
+  "confidence": 0.94,
+  "source": "review2"
+ },
+ {
+  "t": 1699.2,
+  "type": "shot",
+  "confidence": 0.91,
+  "source": "review2"
+ },
+ {
+  "t": 1715.0,
+  "type": "chance",
+  "confidence": 0.72,
+  "source": "review2"
+ },
+ {
+  "t": 1724.5,
+  "type": "shot",
+  "confidence": 0.64,
+  "source": "review2"
+ },
+ {
+  "t": 1766.5,
+  "type": "shot",
+  "confidence": 0.95,
+  "source": "review2"
+ },
+ {
+  "t": 1779.0,
+  "type": "chance",
+  "confidence": 0.58,
+  "source": "review2"
+ },
+ {
+  "t": 1788.7,
+  "type": "shot",
+  "confidence": 0.93,
+  "source": "review2"
+ },
+ {
+  "t": 2063.4,
+  "type": "shot",
+  "confidence": 0.9,
+  "source": "review2"
+ },
+ {
+  "t": 2081.6,
+  "type": "shot",
+  "confidence": 0.72,
+  "source": "review2"
+ },
+ {
+  "t": 2253.7,
+  "type": "shot",
+  "confidence": 0.97,
+  "source": "review2"
+ },
+ {
+  "t": 2299.5,
+  "type": "shot",
+  "confidence": 0.91,
+  "source": "review2"
+ },
+ {
+  "t": 2407.0,
+  "type": "shot",
+  "confidence": 0.69,
+  "source": "review2"
+ },
+ {
+  "t": 2562.2,
+  "type": "shot",
+  "confidence": 0.94,
+  "source": "review2"
+ },
+ {
+  "t": 2694.7,
+  "type": "shot",
+  "confidence": 0.74,
+  "source": "review2"
+ },
+ {
+  "t": 2736.0,
+  "type": "chance",
+  "confidence": 0.58,
+  "source": "review3"
+ },
+ {
+  "t": 2833.5,
+  "type": "shot",
+  "confidence": 0.82,
+  "source": "review3"
+ },
+ {
+  "t": 2851.8,
+  "type": "shot",
+  "confidence": 0.55,
+  "source": "review3"
+ },
+ {
+  "t": 2891.5,
+  "type": "shot",
+  "confidence": 0.88,
+  "source": "review3"
+ },
+ {
+  "t": 3008.8,
+  "type": "chance",
+  "confidence": 0.52,
+  "source": "review3"
+ },
+ {
+  "t": 3415.3,
+  "type": "shot",
+  "confidence": 0.91,
+  "source": "review3"
+ },
+ {
+  "t": 3443.4,
+  "type": "shot",
+  "confidence": 0.94,
+  "source": "review3"
+ },
+ {
+  "t": 3522.5,
+  "type": "shot",
+  "confidence": 0.83,
+  "source": "review3"
+ },
+ {
+  "t": 3841.3,
+  "type": "shot",
+  "confidence": 0.91,
+  "source": "review3"
+ },
+ {
+  "t": 3949.5,
+  "type": "shot",
+  "confidence": 0.95,
+  "source": "review3"
+ },
+ {
+  "t": 3996.0,
+  "type": "shot",
+  "confidence": 0.68,
+  "source": "review3"
+ },
+ {
+  "t": 4089.0,
+  "type": "chance",
+  "confidence": 0.45,
+  "source": "review4"
+ },
+ {
+  "t": 4240.0,
+  "type": "chance",
+  "confidence": 0.3,
+  "source": "review4"
+ },
+ {
+  "t": 4297.5,
+  "type": "chance",
+  "confidence": 0.35,
+  "source": "review4"
+ },
+ {
+  "t": 4314.0,
+  "type": "chance",
+  "confidence": 0.35,
+  "source": "review4"
+ },
+ {
+  "t": 4396.0,
+  "type": "shot",
+  "confidence": 0.3,
+  "source": "review4"
+ },
+ {
+  "t": 4548.0,
+  "type": "shot",
+  "confidence": 0.7,
+  "source": "review4"
+ },
+ {
+  "t": 4666.0,
+  "type": "chance",
+  "confidence": 0.2,
+  "source": "review4"
+ },
+ {
+  "t": 4741.0,
+  "type": "chance",
+  "confidence": 0.4,
+  "source": "review4"
+ },
+ {
+  "t": 4790.5,
+  "type": "shot",
+  "confidence": 0.4,
+  "source": "review4"
+ },
+ {
+  "t": 4885.0,
+  "type": "chance",
+  "confidence": 0.3,
+  "source": "review4"
+ },
+ {
+  "t": 4979.5,
+  "type": "shot",
+  "confidence": 0.6,
+  "source": "review4"
+ }
+]
