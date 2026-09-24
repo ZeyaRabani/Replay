@@ -71,9 +71,9 @@ class Config:
 
     # near-goal pipeline (full-frame px @2400x1080)
     roi: tuple[int, int, int, int] = (700, 0, 2400, 1000)         # x0,y0,x1,y1 crop
-    net_poly: tuple = ((1729, 314), (2203, 383), (2203, 650), (1975, 681), (1729, 604))
-    mouth_poly: tuple = ((1377, 275), (1729, 314), (1729, 604), (1377, 581))
-    goal_line_x: int = 1729
+    net_poly: tuple = ((1625, 290), (1830, 300), (2100, 590), (1850, 650), (1625, 560))
+    mouth_poly: tuple = ((1400, 270), (1625, 280), (1625, 570), (1400, 580))
+    goal_line_x: int = 1625
     neargoal_ball_model: str = "roboflow_ball.pt"                  # file on the weights volume
 
     @classmethod
