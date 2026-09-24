@@ -524,7 +524,11 @@ def summary(p: ProjectStore) -> dict:
         "pipeline_state": p.pipeline_state,
         "progress": status["progress"] if status else 0.0,
         "stage": status["stage"] if status else None,
-        "message": status["message"] if status else "",
+        "message": (
+            (status.get("error") or f"failed during {status.get('stage') or 'pipeline'}")
+            if status and status.get("state") == "failed"
+            else status["message"] if status else ""
+        ),
         "video": (
             {
                 "duration_s": p.video.duration_s,

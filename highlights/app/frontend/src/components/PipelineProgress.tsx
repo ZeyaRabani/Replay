@@ -46,7 +46,10 @@ export default function PipelineProgress({ project, status, onRerun, onCancel, b
             />
           </div>
           <div className="text-xs text-zinc-400 mb-4">
-            {Math.round((status?.progress ?? project.progress ?? 0) * 100)}% · {status?.message ?? project.message}
+            {Math.round((status?.progress ?? project.progress ?? 0) * 100)}% ·{" "}
+            {failed
+              ? (status?.error ?? project.message ?? "failed")
+              : (status?.message ?? project.message)}
           </div>
           <ol className="flex flex-col gap-1.5">
             {stages.map((s, i) => {

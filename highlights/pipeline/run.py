@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import re
 import shutil
 import signal
@@ -54,7 +55,7 @@ class Ctx:
     def log(self, msg: str) -> None:
         line = f"[{time.strftime('%H:%M:%S')}] {msg}"
         print(line, flush=True)
-        if self.log_fh:
+        if self.log_fh is not None and not _stdout_is(self.log_fh):
             self.log_fh.write(line + "\n")
             self.log_fh.flush()
 
@@ -358,6 +359,16 @@ def main(argv: list[str] | None = None) -> int:
     with open(pipe / "log.txt", "a") as log_fh:
         ctx.log_fh = log_fh
         return _run(ctx, names)
+
+
+def _stdout_is(fh) -> bool:
+    """True when stdout already points at the same file as fh (backend
+    redirects runner stdout into log.txt, so writing both duplicates lines)."""
+    try:
+        a, b = os.fstat(sys.stdout.fileno()), os.fstat(fh.fileno())
+        return (a.st_dev, a.st_ino) == (b.st_dev, b.st_ino)
+    except OSError:
+        return False
 
 
 def _run(ctx: Ctx, names: list[str]) -> int:
