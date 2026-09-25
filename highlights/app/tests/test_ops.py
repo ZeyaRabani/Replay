@@ -169,3 +169,32 @@ def test_zones_roundtrip_and_validation(client):
     r = client.put(scoped(pid, "/multiangle/zones"),
                    json={"angles": [[[[0, 0], [1.5, 0], [1, 1]]], []]})
     assert r.status_code == 422
+
+
+def test_recut_window_writes_cut_range(client, short_video, monkeypatch):
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(short_video))
+    pid = _multi_done(client)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    cr = p.multiangle_dir / "cut_range.json"
+
+    # window in current video output time -> absolute shared-T
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [1.0, 4.0]})
+    assert r.status_code == 200, r.text
+    d = json.loads(cr.read_text())
+    # fake sync.json has no coverage.union -> current_lo falls back to 0
+    assert d == {"lo": 1.0, "hi": 4.0}
+    _wait(client, pid)
+
+    # out-of-duration window -> 422 and file unchanged
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [1.0, 99.0]})
+    assert r.status_code == 422
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
+
+    # no window -> full re-cut, cut_range.json removed
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
+    assert r.status_code == 200, r.text
+    assert not cr.exists()

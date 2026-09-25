@@ -127,6 +127,8 @@ class OffsetsPut(BaseModel):
 
 class RecutPut(BaseModel):
     style: str
+    # output-time seconds of the CURRENT video [start, end]; None = full
+    window: list[float] | None = None
 
 
 class MatchWindowPut(BaseModel):
@@ -1329,6 +1331,31 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
     _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
     p.meta["cut_style"] = body.style
+    # optional cut range: window is in the current video's output time,
+    # stored as absolute shared-T seconds for the runner's ctx.union()
+    cr_path = p.multiangle_dir / "cut_range.json"
+    dur = p.video.duration_s if p.video else 0.0
+    full = (body.window is None or not body.window or
+            (body.window[0] <= 0.5 and body.window[1] >= dur - 0.5))
+    if full:
+        cr_path.unlink(missing_ok=True)
+    else:
+        if len(body.window) != 2:
+            raise HTTPException(422, "window must be [start, end]")
+        s, e = float(body.window[0]), float(body.window[1])
+        if not (0 <= s < e <= dur):
+            raise HTTPException(
+                422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
+        cur = _read_json(cr_path)
+        cur_lo = float(cur["lo"]) if cur else None
+        if cur_lo is None:
+            sync = _read_json(p.multiangle_dir / "sync.json") or {}
+            try:
+                cur_lo = float(sync["coverage"]["union"][0])
+            except Exception:
+                cur_lo = 0.0
+        write_json_atomic(cr_path, {"lo": cur_lo + s, "hi": cur_lo + e},
+                          indent=1)
     p.save()
     p.invalidate_video()   # drops proxy.mp4 + thumb cache for the old cut
     try:

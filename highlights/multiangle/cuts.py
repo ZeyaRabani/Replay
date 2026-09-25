@@ -34,7 +34,8 @@ def cut_label(style: str, zones_used: bool) -> str:
            f"{'+ zones' if zones_used else '(AI)'}"
 
 
-def snapshot_cut(project_dir: Path, style: str | None = None) -> dict | None:
+def snapshot_cut(project_dir: Path, style: str | None = None,
+                 cut_range: list[float] | None = None) -> dict | None:
     """Snapshot the current cut into multiangle/cuts/<id>/.
 
     Returns the cut meta dict, or None if there is nothing to snapshot.
@@ -71,6 +72,9 @@ def snapshot_cut(project_dir: Path, style: str | None = None) -> dict | None:
         "n_cuts": director.get("n_cuts"),
         "created_at": time.time(),
     }
+    if cut_range:
+        meta["range"] = list(cut_range)
+        meta["range_out"] = [0.0, float(cut_range[1]) - float(cut_range[0])]
     write_json_atomic(cdir / "meta.json", meta, indent=1)
     write_json_atomic(cuts_dir / "active.json", {"id": cid}, indent=1)
     return meta
@@ -79,6 +83,8 @@ def snapshot_cut(project_dir: Path, style: str | None = None) -> dict | None:
 def list_cuts(project_dir: Path) -> dict:
     cuts_dir = project_dir / "multiangle" / "cuts"
     active = (_read(cuts_dir / "active.json") or {}).get("id")
+    cr = _read(cuts_dir.parent / "cut_range.json")
+    cur_range = [cr["lo"], cr["hi"]] if cr else None
     metas = []
     if cuts_dir.is_dir():
         for d in cuts_dir.iterdir():
@@ -89,7 +95,7 @@ def list_cuts(project_dir: Path) -> dict:
                 m.setdefault("id", d.name)
                 metas.append(m)
     metas.sort(key=lambda m: m.get("created_at", 0))
-    return {"active": active, "cuts": metas}
+    return {"active": active, "cuts": metas, "range": cur_range}
 
 
 def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
@@ -115,5 +121,13 @@ def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
             tmp = dst.with_name(dst.name + ".tmp")
             shutil.copy2(src_f, tmp)
             os.replace(tmp, dst)
+    # restore the range the cut was made with so a later re-cut uses it
+    meta = _read(cdir / "meta.json") or {}
+    cr_path = cdir.parent / "cut_range.json"
+    if meta.get("range"):
+        write_json_atomic(cr_path, {"lo": meta["range"][0],
+                                    "hi": meta["range"][1]}, indent=1)
+    else:
+        cr_path.unlink(missing_ok=True)
     write_json_atomic(cdir.parent / "active.json", {"id": cut_id}, indent=1)
-    return _read(cdir / "meta.json")
+    return meta or None

@@ -75,6 +75,21 @@ class Ctx:
                 pass
         return self.durations[i]
 
+    def union(self, sync: dict) -> tuple[float, float]:
+        """Effective [lo, hi) shared-T range for director/render/fuse:
+        multiangle/cut_range.json {lo, hi} (absolute shared-T seconds)
+        clipped to sync's coverage union; else the full union."""
+        lo, hi = sync["coverage"]["union"]
+        try:
+            cr = json.loads((self.pipe / "cut_range.json").read_text())
+            lo2 = max(lo, float(cr["lo"]))
+            hi2 = min(hi, float(cr["hi"]))
+            if hi2 > lo2:
+                return lo2, hi2
+        except Exception:
+            pass
+        return float(lo), float(hi)
+
     def angle_video(self, i: int) -> Path | None:
         d = self.angles[i]["dir"]
         for ext in VIDEO_EXTS:
@@ -233,7 +248,7 @@ def stage_director(ctx: Ctx) -> dict:
 
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     offsets = sync["offsets"]
-    lo, hi = sync["coverage"]["union"]
+    lo, hi = ctx.union(sync)
     T = int(np.ceil(hi - lo))
     from highlights.multiangle.director import EVENT_POST, EVENT_PRE, EVENT_TYPES
 
@@ -352,7 +367,7 @@ def stage_render(ctx: Ctx) -> None:
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     director = json.loads((ctx.pipe / "director.json").read_text())
     videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
-    lo, hi = sync["coverage"]["union"]
+    lo, hi = ctx.union(sync)
     out = render(videos, sync["offsets"], director["segments"], lo, hi,
                  ctx.pipe, ctx.project_dir / "match.mp4", videos[0],
                  durations=list(ctx.durations), log=ctx.log)
@@ -372,7 +387,7 @@ def stage_fuse(ctx: Ctx) -> dict:
     labels = [a["label"] for a in ctx.angles]
     out = fuse_candidates(files, sync["offsets"], labels,
                           ctx.pipe / "fused_candidates.json")
-    lo, hi = sync["coverage"]["union"]
+    lo, hi = ctx.union(sync)
     # fused events are on shared T; the UI plays the rendered video whose
     # time axis is output time (0 = union start) -> shift everything by -lo
     for key in ("events", "candidates"):
@@ -412,9 +427,9 @@ def stage_stats(ctx: Ctx) -> None:
     cands = json.loads((ctx.pipe / "fused_candidates.json").read_text())["events"]
     mw = json.loads((pdir / "match_window.json").read_text()) \
         if (pdir / "match_window.json").exists() else {}
-    # the rendered video covers the coverage-union, not angle 0's file
+    # the rendered video covers the effective cut range, not angle 0's file
     sync_dur = json.loads((ctx.pipe / "sync.json").read_text())
-    lo, hi = sync_dur["coverage"]["union"]
+    lo, hi = ctx.union(sync_dur)
     dur = hi - lo
     stats = compute_stats(feats, cands, dur, tuple(mw.get("match_window", ())),
                           mw.get("halves"), None)
@@ -557,8 +572,14 @@ def main(argv: list[str] | None = None) -> int:
             run_stages(ctx, names)
             if "render" in names:
                 from highlights.multiangle.cuts import snapshot_cut
+                cr = None
                 try:
-                    meta = snapshot_cut(project_dir, ctx.style)
+                    crd = json.loads((pipe / "cut_range.json").read_text())
+                    cr = [float(crd["lo"]), float(crd["hi"])]
+                except Exception:
+                    pass
+                try:
+                    meta = snapshot_cut(project_dir, ctx.style, cut_range=cr)
                     if meta:
                         ctx.log(f"cut snapshot: {meta['id']} ({meta['label']})")
                 except Exception as e:

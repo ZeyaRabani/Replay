@@ -102,3 +102,22 @@ def test_ctx_duration_probe_fallback(tmp_path):
     # dur=0 (the old bug) collapses everything onto the t=0 sample
     row_bug = _map_view_ok(times, okarr, T=5400, lo=0.0, off=0.0, dur=0.0)
     assert not row_bug.any()
+
+
+def test_ctx_union_cut_range(tmp_path):
+    """Ctx.union: no cut_range.json -> coverage union; file -> clipped."""
+    from highlights.multiangle.run import Ctx
+
+    ctx = Ctx(project_dir=tmp_path, pipe=tmp_path / "ma",
+              status=None, angles=[])
+    ctx.pipe.mkdir(parents=True)
+    sync = {"coverage": {"union": [100.0, 6100.0]}}
+    assert ctx.union(sync) == (100.0, 6100.0)
+    import json as _json
+    (ctx.pipe / "cut_range.json").write_text(
+        _json.dumps({"lo": 1900.0, "hi": 5700.0}))
+    assert ctx.union(sync) == (1900.0, 5700.0)
+    # out-of-union values are clipped
+    (ctx.pipe / "cut_range.json").write_text(
+        _json.dumps({"lo": 0.0, "hi": 99999.0}))
+    assert ctx.union(sync) == (100.0, 6100.0)

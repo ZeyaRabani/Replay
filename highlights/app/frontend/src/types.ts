@@ -282,9 +282,12 @@ export interface CutMeta {
   zones_used: boolean;
   n_cuts: number | null;
   created_at: number;
+  range?: [number, number];      // absolute shared-T range the cut covers
+  range_out?: [number, number];  // same range on the cut's own timeline
 }
 
 export interface CutsList {
   active: string | null;
   cuts: CutMeta[];
+  range?: [number, number] | null;
 }

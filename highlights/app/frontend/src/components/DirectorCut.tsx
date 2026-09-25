@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
 import ZoneEditor, { zoneStillTimes } from "./ZoneEditor";
+import { fmtClock } from "../lib/time";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
@@ -60,6 +61,9 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [recutBusy, setRecutBusy] = useState(false);
   const [cuts, setCuts] = useState<CutsList | null>(null);
   const [cutBusy, setCutBusy] = useState<string | null>(null);
+  const [matchWin, setMatchWin] = useState<[number, number] | null>(null);
+  const [videoDur, setVideoDur] = useState(0);
+  const [useWindow, setUseWindow] = useState(true);
   const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
   const zonesLoaded = useRef(false);
@@ -73,6 +77,15 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
         setCuts(await api.listCuts());
       } catch {
         setCuts(null);   // old backend without the cuts API
+      }
+      try {
+        const mw = await api.getMatchWindow();
+        if (Array.isArray(mw.match_window) && mw.match_window.length === 2)
+          setMatchWin([mw.match_window[0], mw.match_window[1]]);
+        const proj = await api.project();
+        setVideoDur(proj.video?.duration_s ?? 0);
+      } catch {
+        /* window/video not available yet */
       }
       if (!zonesLoaded.current) {
         zonesLoaded.current = true;
@@ -118,6 +131,8 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   }, [info?.sync?.offsets, offsets.length]);
 
   const needsInput = info?.status?.state === "needs_input";
+  const windowed = !!matchWin && videoDur > 0 &&
+    matchWin[1] - matchWin[0] < videoDur - 5;
   const nAngles = info?.angles.length ?? 0;
   const segs = director?.segments ?? [];
   const total = segs.length ? segs[segs.length - 1].t_end : 0;
@@ -127,7 +142,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     setRecutBusy(true);
     try {
       const next = style ?? ((info?.cut_style ?? "normal") === "fast" ? "normal" : "fast");
-      await api.recut(next);
+      await api.recut(next, windowed && useWindow ? matchWin : null);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -337,6 +352,14 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   Director decisions
                 </div>
                 <div className="flex items-center gap-2">
+                  {windowed && (
+                    <label className="flex items-center gap-1 text-[11px] text-zinc-400 cursor-pointer"
+                      title="The re-cut covers only the match window set on the Review page">
+                      <input type="checkbox" checked={useWindow}
+                        onChange={(e) => setUseWindow(e.target.checked)} />
+                      Cut only the match window ({fmtClock(matchWin![0])}–{fmtClock(matchWin![1])}, set in Review)
+                    </label>
+                  )}
                   <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300">
                     {(info.cut_style ?? info.director?.style ?? "normal") === "fast"
                       ? "fast cuts" : "normal cuts"}
@@ -442,6 +465,12 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                         <span className="text-zinc-500">
                           {new Date(c.created_at * 1000).toLocaleString()}
                           {c.n_cuts != null ? ` · ${c.n_cuts} cuts` : ""}
+                          {c.range_out && videoDur > 0 &&
+                            c.range_out[1] < videoDur - 5 && (
+                            <span className="ml-1 rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-400">
+                              {fmtClock(c.range_out[0])}–{fmtClock(c.range_out[1])}
+                            </span>
+                          )}
                         </span>
                         {isActive && (
                           <span className="rounded px-1.5 py-0.5 text-[10px] bg-amber-500/15 text-amber-300 border border-amber-700/50">

@@ -181,8 +181,8 @@ export function projectApi(id: string) {
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
     putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
-    recut: (style: "normal" | "fast") =>
-      req<PipelineStatus>(`${base}/multiangle/recut`, json({ style })),
+    recut: (style: "normal" | "fast", window?: [number, number] | null) =>
+      req<PipelineStatus>(`${base}/multiangle/recut`, json({ style, window })),
     getZones: () =>
       req<{ angles: ZonePolygon[][]; ref_t?: (number | null)[] }>(
         `${base}/multiangle/zones`),
