@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from highlights.io import write_json_atomic, write_parquet_atomic
 from highlights.pipeline.errors import PipelineError
 from highlights.pipeline.probe import probe as ffprobe
 from highlights.pipeline.run import _stdout_is
@@ -173,10 +174,10 @@ def stage_track(ctx: Ctx) -> None:
         ctx.log(f"track: angle {i+1}/{len(ctx.angles)} {a['label']}")
         rows, frames, ball_rate = compute_rows(str(vid), model, imgsz=960, fps=1.0,
                                              max_seconds=None, log=ctx.log)
-        out.write_text(json.dumps({"fps": 1, "model": str(model), "imgsz": 960,
-                                   "columns": COLS, "rows": rows,
-                                   "meta": {"ball_rate": round(ball_rate, 4),
-                                            "n_frames": frames}}, indent=0))
+        write_json_atomic(out, {"fps": 1, "model": str(model), "imgsz": 960,
+                                "columns": COLS, "rows": rows,
+                                "meta": {"ball_rate": round(ball_rate, 4),
+                                         "n_frames": frames}}, indent=0)
         ctx.status.update(message=f"track angle {i+1}/{len(ctx.angles)} done",
                           stage_progress=(i + 1) / len(ctx.angles))
         ctx.log(f"track: a{i} done ({frames} frames, ball_rate {ball_rate:.2f})")
@@ -255,7 +256,8 @@ def stage_director(ctx: Ctx) -> dict:
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
     out = cut_director(tracks, avail, motion, ctx.style)
-    (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1, default=_np_json))
+    write_json_atomic(ctx.pipe / "director.json", out, indent=1,
+                      default=_np_json)
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
     return out
 
@@ -273,7 +275,7 @@ def stage_render(ctx: Ctx) -> None:
     pipe1 = ctx.project_dir / "pipeline"
     pipe1.mkdir(exist_ok=True)
     info = ffprobe(out)
-    (pipe1 / "probe.json").write_text(json.dumps(info, indent=1))
+    write_json_atomic(pipe1 / "probe.json", info, indent=1)
     ctx.status.update(video=info, video_path=str(out))
     ctx.log(f"render: wrote {out} ({info['width']}x{info['height']})")
 
@@ -291,10 +293,10 @@ def stage_fuse(ctx: Ctx) -> dict:
     for key in ("events", "candidates"):
         if key in out:
             out[key] = to_output_time(out[key], lo)
-    (ctx.pipe / "fused_candidates.json").write_text(json.dumps(out, indent=1))
+    write_json_atomic(ctx.pipe / "fused_candidates.json", out, indent=1)
     pdir = ctx.project_dir / "pipeline"
     pdir.mkdir(exist_ok=True)
-    (pdir / "candidates.json").write_text(json.dumps(out, indent=1))
+    write_json_atomic(pdir / "candidates.json", out, indent=1)
     # a0's match window + features, shifted to output time
     shift = sync["offsets"][0] - lo
     mw_src = ctx.angles[0]["dir"] / "pipeline" / "match_window.json"
@@ -307,13 +309,13 @@ def stage_fuse(ctx: Ctx) -> dict:
             for k in ("start", "end"):
                 if k in h:
                     h[k] = float(h[k]) + shift
-        (pdir / "match_window.json").write_text(json.dumps(mw, indent=1))
+        write_json_atomic(pdir / "match_window.json", mw, indent=1)
     fsrc = ctx.angles[0]["dir"] / "pipeline" / "features_1s.parquet"
     if fsrc.exists():
         df = pd.read_parquet(fsrc)
         df["t"] = df["t"] + shift
         df = df[(df["t"] >= 0.0) & (df["t"] <= hi - lo)]
-        df.to_parquet(pdir / "features_1s.parquet", index=False)
+        write_parquet_atomic(df, pdir / "features_1s.parquet")
     ctx.log(f"fuse: {len(out['events'])} fused events")
     return out
 
@@ -347,7 +349,7 @@ def stage_stats(ctx: Ctx) -> None:
                   "away": {"label": "away", "goals": 0},
                   "basis": "confirmed goals with team set"},
     }
-    (pdir / "stats.json").write_text(json.dumps(stats, indent=1))
+    write_json_atomic(pdir / "stats.json", stats, indent=1)
     ctx.log("stats: written")
 
 

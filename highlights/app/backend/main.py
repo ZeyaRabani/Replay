@@ -36,6 +36,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from highlights.io import write_json_atomic
+
 from . import ffmpeg as fx
 from . import pipeline, stats
 from .schemas import (
@@ -414,7 +416,7 @@ def _put_match_window(p: ProjectStore, body: MatchWindowPut) -> dict:
     mw["match_window"] = [s, e]
     mw["halves"] = halves
     mw_path.parent.mkdir(parents=True, exist_ok=True)
-    mw_path.write_text(json.dumps(mw, indent=1))
+    write_json_atomic(mw_path, mw, indent=1)
     # recompute stats with the new window; preserve the multiangle block
     try:
         from highlights.pipeline.run import recompute_stats
@@ -422,7 +424,7 @@ def _put_match_window(p: ProjectStore, body: MatchWindowPut) -> dict:
         old = _read_json(p.pipeline_dir / "stats.json") or {}
         if "multiangle" in old:
             stats["multiangle"] = old["multiangle"]
-        (p.pipeline_dir / "stats.json").write_text(json.dumps(stats, indent=1))
+        write_json_atomic(p.pipeline_dir / "stats.json", stats, indent=1)
     except Exception as e:
         print(f"warning: stats recompute failed for {p.id}: {e}")
     return _get_match_window(p)

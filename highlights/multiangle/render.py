@@ -31,8 +31,9 @@ def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
+    from highlights.io import write_text_atomic
     p = Path(path)
-    p.write_text("".join(f"file '{s}'\n" for s in segs))
+    write_text_atomic(p, "".join(f"file '{s}'\n" for s in segs))
     return p
 
 

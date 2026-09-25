@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from highlights.io import write_json_atomic, write_parquet_atomic
 from highlights.pipeline.errors import PipelineError
 from highlights.pipeline.probe import probe as ffprobe
 from highlights.pipeline.status import StatusWriter
@@ -124,7 +125,7 @@ def stage_probe(ctx: Ctx) -> None:
     info = ffprobe(ctx.video_path)
     ctx.duration = float(info["duration_s"])
     out = ctx.pipe / "probe.json"
-    out.write_text(json.dumps(info, indent=1))
+    write_json_atomic(out, info, indent=1)
     ctx.status.update(video=info, video_path=str(ctx.video_path))
     ctx.log(f"probe: {ctx.duration:.1f}s {info['width']}x{info['height']} @{info['fps']:.2f}fps")
 
@@ -138,19 +139,20 @@ def stage_audio(ctx: Ctx) -> None:
     ctx.status.update(stage_progress=0.3, message="audio features")
     feats = compute(wav, 1.0)
     feat_out = ctx.pipe / "audio" / "features_1s.json"
-    feat_out.write_text(json.dumps(feats))
+    write_json_atomic(feat_out, feats)
     ctx.status.update(stage_progress=0.8, message="whistle detection")
     segs = detect_whistles(wav)
-    (ctx.pipe / "audio" / "whistles.json").write_text(
-        json.dumps({"source": "audio", "whistles": segs}, indent=1))
+    write_json_atomic(ctx.pipe / "audio" / "whistles.json",
+                      {"source": "audio", "whistles": segs}, indent=1)
     ctx.log(f"audio: {len(feats['rows'])} rows, {len(segs)} whistle segments")
 
 
 def stage_motion(ctx: Ctx) -> None:
     out = ctx.pipe / "motion" / "features_1s.json"
     out.parent.mkdir(parents=True, exist_ok=True)
+    out_tmp = out.with_name(out.name + ".tmp")
     cmd = [sys.executable, "-m", "highlights.motion.motion",
-           "--video", str(ctx.video_path), "--out-json", str(out)]
+           "--video", str(ctx.video_path), "--out-json", str(out_tmp)]
     proc = subprocess.Popen(cmd, cwd=REPO_ROOT, stdout=subprocess.DEVNULL,
                             stderr=subprocess.PIPE, text=True)
     assert proc.stderr is not None
@@ -163,6 +165,8 @@ def stage_motion(ctx: Ctx) -> None:
         elif line:
             ctx.log(f"motion: {line}")
     proc.wait()
+    if proc.returncode == 0 and out_tmp.exists():
+        os.replace(out_tmp, out)
     if proc.returncode != 0:
         raise PipelineError(f"motion extractor exited {proc.returncode}")
 
@@ -181,9 +185,10 @@ def stage_features(ctx: Ctx) -> None:
     else:
         ctx.log(f"features: match window {lo:.0f}-{hi:.0f}s, {len(halves)} halves")
     df = build_features(audio_json, motion_json, whistles_json, ctx.duration, (lo, hi))
-    df.to_parquet(ctx.pipe / "features_1s.parquet", index=False)
-    (ctx.pipe / "match_window.json").write_text(json.dumps(
-        {"match_window": [lo, hi], "halves": halves, "warning": warning}, indent=1))
+    write_parquet_atomic(df, ctx.pipe / "features_1s.parquet")
+    write_json_atomic(ctx.pipe / "match_window.json",
+                      {"match_window": [lo, hi], "halves": halves,
+                       "warning": warning}, indent=1)
     ctx.log(f"features: {df.shape[0]} rows x {df.shape[1]} cols")
 
 
@@ -194,7 +199,7 @@ def stage_score(ctx: Ctx) -> None:
     in_match = df["in_match"].to_numpy(dtype=bool) if "in_match" in df.columns \
         else np.ones(len(df), dtype=bool)
     out = score_frame(df, model, in_match)
-    out.to_parquet(ctx.pipe / "scores.parquet", index=False)
+    write_parquet_atomic(out, ctx.pipe / "scores.parquet")
     ctx.log(f"score: {len(out)} rows, max learned {out['learned'].max():.3f}")
 
 
@@ -206,7 +211,7 @@ def stage_candidates(ctx: Ctx) -> None:
         else np.ones(len(df), dtype=bool)
     res = make_candidates(df, sc["learned"].to_numpy(), sc["rule"].to_numpy(),
                           in_match, ctx.duration or float(sc["t"].max() + 1))
-    (ctx.pipe / "candidates.json").write_text(json.dumps(res, indent=1))
+    write_json_atomic(ctx.pipe / "candidates.json", res, indent=1)
     ctx.log(f"candidates: {len(res['events'])} events")
 
 
@@ -240,7 +245,7 @@ def recompute_stats(pipe_dir: Path, duration: float | None = None) -> dict:
 
 def stage_stats(ctx: Ctx) -> None:
     stats = recompute_stats(ctx.pipe, ctx.duration)
-    (ctx.pipe / "stats.json").write_text(json.dumps(stats, indent=1))
+    write_json_atomic(ctx.pipe / "stats.json", stats, indent=1)
     ctx.log("stats: written")
 
 

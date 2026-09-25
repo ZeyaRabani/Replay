@@ -9,7 +9,6 @@ offset is trustworthy; a triangle-consistency check flags inconsistent pairs.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -249,5 +248,6 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
 def write_sync(wavs, durations, out_path, manual_offsets=None) -> dict:
     d = sync_angles(wavs, durations, manual_offsets)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_path).write_text(json.dumps(d, indent=1))
+    from highlights.io import write_json_atomic
+    write_json_atomic(out_path, d, indent=1)
     return d

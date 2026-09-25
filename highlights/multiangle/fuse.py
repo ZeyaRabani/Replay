@@ -91,5 +91,6 @@ def fuse_candidates(candidates_files: list[str | Path], offsets: list[float],
         events_by_angle.append(d.get("events") or d.get("candidates") or [])
     out = fuse_events(events_by_angle, offsets, labels)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_path).write_text(json.dumps(out, indent=1))
+    from highlights.io import write_json_atomic
+    write_json_atomic(out_path, out, indent=1)
     return out

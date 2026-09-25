@@ -15,7 +15,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 import subprocess
 import sys
@@ -138,11 +137,12 @@ def main(argv=None) -> int:
     rows, frames, ball_rate = compute_rows(
         args.video, model, args.imgsz, args.fps, args.max_seconds)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps({
+    from highlights.io import write_json_atomic
+    write_json_atomic(args.out, {
         "fps": args.fps, "model": str(model), "imgsz": args.imgsz,
         "columns": COLS, "rows": rows,
         "meta": {"ball_rate": round(ball_rate, 4), "n_frames": frames},
-    }, indent=0))
+    }, indent=0)
     print(f"trackfeat: {frames} frames -> {args.out} (ball_rate {ball_rate:.2f})")
     return 0
 
