@@ -21,6 +21,7 @@ WHITE_S = 5.0      # whitening window (s)
 REFINE_WIN_S = 0.5
 BAND = (300.0, 3000.0)
 PNR_MIN = 8.0
+PNR_WEAK = 2.5
 R2_MAX = 0.6
 TRIANGLE_TOL_S = 0.5
 
@@ -170,10 +171,12 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
         off, pnr, r2 = estimate_offset(envs[0], envs[b])
         off, spread = _refine(raws[0], raws[b], off,
                               durations[0], durations[b])
+        confident = pnr >= PNR_MIN and r2 <= R2_MAX
         pairs.append({"a": 0, "b": b, "offset": round(off, 3),
                       "pnr": round(pnr, 2), "r2": round(r2, 3),
                       "refine_spread_s": round(spread, 3),
-                      "confident": bool(pnr >= PNR_MIN and r2 <= R2_MAX)})
+                      "confident": bool(confident),
+                      "accepted_by": "pnr" if confident else None})
         offsets[b] = off
 
     # triangle check a1 vs a2 when >=3 angles
@@ -184,10 +187,12 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                                   durations[1], durations[2])
         residual = abs(off12 - (offsets[2] - offsets[1]))
         tri = round(float(residual), 3)
+        confident12 = pnr12 >= PNR_MIN and r212 <= R2_MAX
         pairs.append({"a": 1, "b": 2, "offset": round(off12, 3),
                       "pnr": round(pnr12, 2), "r2": round(r212, 3),
                       "refine_spread_s": round(spread12, 3),
-                      "confident": bool(pnr12 >= PNR_MIN and r212 <= R2_MAX)})
+                      "confident": bool(confident12),
+                      "accepted_by": "pnr" if confident12 else None})
         if residual > TRIANGLE_TOL_S:
             for pr in pairs:
                 pr["consistent"] = False
@@ -195,7 +200,21 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             for pr in pairs:
                 pr["consistent"] = True
 
+    # Second acceptance path: a closed, self-consistent triangle is strong
+    # evidence even when every pair's pnr is individually weak.
     method = "xcorr"
+    triangle_ok = (
+        n >= 3
+        and tri is not None
+        and tri <= TRIANGLE_TOL_S
+        and all(pr["pnr"] >= PNR_WEAK for pr in pairs)
+    )
+    if triangle_ok:
+        method = "xcorr+triangle"
+        for pr in pairs:
+            pr["confident"] = True
+            pr["accepted_by"] = "triangle"
+
     needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
     if manual_offsets is not None:
         if len(manual_offsets) != n or manual_offsets[0] != 0:
@@ -206,6 +225,7 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
         for pr in pairs:
             pr["confident"] = True
             pr["manual"] = True
+            pr["accepted_by"] = "manual"
 
     offs = np.array(offsets)
     durs = np.asarray(durations, dtype=float)
@@ -215,9 +235,17 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
         "union": [float(min(0.0, (-offs).min())),
                   float((durs - offs).max())],
     }
+    note = {"manual": "offsets entered manually",
+            "xcorr+triangle": ("all pairs accepted by triangle consistency "
+                               f"(residual {tri} s, every pnr >= {PNR_WEAK})"),
+            "xcorr": ("each pair accepted on pnr>=8/r2<=0.6 alone"
+                      if not needs else
+                      f"unconfident xcorr for angle(s) {sorted(set(needs))} — "
+                      "manual offsets needed")}.get(method, "")
     return {"reference": 0, "method": method, "offsets": [round(float(o), 3) for o in offsets],
             "pairs": pairs, "triangle_residual_s": tri,
-            "needs_manual": sorted(set(needs)), "coverage": coverage}
+            "needs_manual": sorted(set(needs)), "coverage": coverage,
+            "confidence_note": note}
 
 
 def write_sync(wavs, durations, out_path, manual_offsets=None) -> dict:

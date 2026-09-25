@@ -109,6 +109,45 @@ def test_refine_subsecond_shift():
     assert spread <= 0.2
 
 
+def _stub_sync(monkeypatch, offs):
+    """Scripted xcorr/refine: offs maps (a,b) -> (offset, pnr, r2)."""
+    monkeypatch.setattr(sync, "_load_env", lambda w: (np.zeros(10), np.zeros(10)))
+    # estimate_offset takes envelopes, not indices — key on call order instead
+    pairs_called = []
+    def est(env_a, env_b):
+        idx = len(pairs_called)
+        seq = [(0, 1), (0, 2), (1, 2)]
+        pairs_called.append(idx)
+        return offs[seq[idx]]
+    monkeypatch.setattr(sync, "estimate_offset", est)
+    monkeypatch.setattr(sync, "_refine", lambda a, b, c, *args: (c, 0.0))
+
+
+def test_triangle_accepts_weak_pnr(monkeypatch):
+    """3 angles, weak pnr but consistent triangle -> all confident."""
+    _stub_sync(monkeypatch, {(0, 1): (-748.2, 5.1, 0.9),
+                             (0, 2): (-520.2, 3.13, 0.9),
+                             (1, 2): (228.0, 2.66, 0.9)})  # -520.2 - -748.2
+    out = sync.sync_angles(["a", "b", "c"], [100, 100, 100])
+    assert out["method"] == "xcorr+triangle"
+    assert out["triangle_residual_s"] <= sync.TRIANGLE_TOL_S
+    assert all(p["confident"] and p["accepted_by"] == "triangle"
+               for p in out["pairs"])
+    assert out["needs_manual"] == []
+    assert "triangle" in out["confidence_note"]
+
+
+def test_triangle_inconsistent_needs_manual(monkeypatch):
+    """Weak pnr + 2 s residual -> angles 1 and 2 flagged for manual input."""
+    _stub_sync(monkeypatch, {(0, 1): (-748.2, 5.1, 0.9),
+                             (0, 2): (-520.2, 3.13, 0.9),
+                             (1, 2): (230.0, 2.66, 0.9)})  # off by ~2 s
+    out = sync.sync_angles(["a", "b", "c"], [100, 100, 100])
+    assert out["method"] == "xcorr"
+    assert out["triangle_residual_s"] > sync.TRIANGLE_TOL_S
+    assert out["needs_manual"] == [1, 2]
+
+
 def test_offsets_validation(monkeypatch):
     sr, dur = sync.SR, 10.0
     y = np.zeros(int(dur * sr))

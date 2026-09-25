@@ -148,6 +148,7 @@ def stage_sync(ctx: Ctx) -> dict:
     ctx.coverage = out["coverage"]
     ctx.log(f"sync: offsets {out['offsets']} method={out['method']} "
             f"needs_manual={out['needs_manual']}")
+    ctx.log(f"sync: {out.get('confidence_note', '')}")
     if out["needs_manual"]:
         ctx.status.update(state="needs_input",
                           message=f"Sync confidence low for angle(s) "
