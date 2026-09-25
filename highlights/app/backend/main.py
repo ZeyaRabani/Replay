@@ -31,7 +31,7 @@ from fastapi import (
     Response,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -58,6 +58,7 @@ NO_DOWNLOAD_STAGES = ["probe", "audio", "motion", "features", "score", "candidat
 _jobs: dict[str, RenderJob] = {}
 _job_owner: dict[str, str] = {}  # job_id -> project_id
 _proxy_jobs: dict[str, fx.ProxyJob] = {}  # project_id -> job
+_trim_jobs: dict[str, fx.TrimJob] = {}    # "pid:start:end" -> job
 _jobs_lock = threading.Lock()
 
 _registry: Registry | None = None
@@ -122,6 +123,16 @@ class OffsetsPut(BaseModel):
 
 class RecutPut(BaseModel):
     style: str
+
+
+class MatchWindowPut(BaseModel):
+    start_s: float
+    end_s: float
+
+
+class TrimRequest(BaseModel):
+    start_s: float
+    end_s: float
 
 
 def get_registry() -> Registry:
@@ -364,6 +375,97 @@ def _proxy_status(p: ProjectStore) -> dict:
 
 def _proxy_file(p: ProjectStore) -> FileResponse:
     return _serve(p.root / "proxy.mp4")
+
+
+# ---------- match window + trimmed video ----------
+
+def _match_window_path(p: ProjectStore) -> Path:
+    return p.pipeline_dir / "match_window.json"
+
+
+def _get_match_window(p: ProjectStore) -> dict:
+    mw = _read_json(_match_window_path(p)) or {}
+    dur = p.video.duration_s if p.video else 0.0
+    win = mw.get("match_window")
+    if not (isinstance(win, list) and len(win) == 2 and win[1] > win[0]):
+        win = [0.0, dur]
+    return {"match_window": [float(win[0]), float(win[1])],
+            "halves": mw.get("halves"),
+            "warning": mw.get("warning"),
+            "duration": dur}
+
+
+def _put_match_window(p: ProjectStore, body: MatchWindowPut) -> dict:
+    dur = p.video.duration_s if p.video else 0.0
+    if not (0.0 <= body.start_s < body.end_s and body.end_s <= dur):
+        raise HTTPException(
+            422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
+    s, e = float(body.start_s), float(body.end_s)
+    mw_path = _match_window_path(p)
+    mw = _read_json(mw_path) or {}
+    # clip existing halves to the new window; drop halves that go empty
+    halves = []
+    for h in mw.get("halves") or []:
+        hs = max(float(h.get("start", 0.0)), s)
+        he = min(float(h.get("end", 0.0)), e)
+        if he > hs:
+            halves.append({**h, "start": hs, "end": he})
+    mw["match_window"] = [s, e]
+    mw["halves"] = halves
+    mw_path.parent.mkdir(parents=True, exist_ok=True)
+    mw_path.write_text(json.dumps(mw, indent=1))
+    # recompute stats with the new window; preserve the multiangle block
+    try:
+        from highlights.pipeline.run import recompute_stats
+        stats = recompute_stats(p.pipeline_dir, dur)
+        old = _read_json(p.pipeline_dir / "stats.json") or {}
+        if "multiangle" in old:
+            stats["multiangle"] = old["multiangle"]
+        (p.pipeline_dir / "stats.json").write_text(json.dumps(stats, indent=1))
+    except Exception as e:
+        print(f"warning: stats recompute failed for {p.id}: {e}")
+    return _get_match_window(p)
+
+
+def _trim_out(p: ProjectStore, start: float, end: float) -> Path:
+    return p.root / "renders" / f"trimmed_{start:g}_{end:g}.mp4"
+
+
+def _trim_key(p: ProjectStore, start: float, end: float) -> str:
+    return f"{p.id}:{start:g}:{end:g}"
+
+
+def _window_or_422(p: ProjectStore, start: float, end: float) -> None:
+    dur = p.video.duration_s if p.video else 0.0
+    if not (0.0 <= start < end and end <= dur):
+        raise HTTPException(
+            422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
+
+
+def _start_trim(p: ProjectStore, start: float, end: float) -> dict:
+    src = _video_path(p)
+    _window_or_422(p, start, end)
+    out = _trim_out(p, start, end)
+    if out.is_file():
+        return {"ready": True, "progress": 1.0}
+    key = _trim_key(p, start, end)
+    job = _trim_jobs.get(key)
+    if job is not None and not job.done and job.error is None:
+        return {"ready": False, "progress": job.progress}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    job = fx.TrimJob(src, out, start, end)
+    _trim_jobs[key] = job
+    job.start()
+    return {"ready": False, "progress": job.progress}
+
+
+def _trim_status(p: ProjectStore, start: float, end: float) -> dict:
+    if _trim_out(p, start, end).is_file():
+        return {"ready": True, "progress": 1.0}
+    job = _trim_jobs.get(_trim_key(p, start, end))
+    if job is None:
+        return {"ready": False, "progress": 0.0}
+    return {"ready": job.done, "progress": job.progress, "error": job.error}
 
 
 def _source_file(p: ProjectStore) -> FileResponse:
@@ -1189,6 +1291,60 @@ def l_proxy_file(p: LegacyP) -> FileResponse:
 @scoped.get("/video/source.mp4")
 def s_source_file(p: PublicP) -> FileResponse:
     return _source_file(p)
+
+
+@scoped.get("/match-window")
+def s_get_match_window(p: ScopedP) -> dict:
+    return _get_match_window(p)
+
+
+@legacy.get("/match-window")
+def l_get_match_window(p: LegacyP) -> dict:
+    return _get_match_window(p)
+
+
+@scoped.put("/match-window")
+def s_put_match_window(body: MatchWindowPut, p: ScopedP) -> dict:
+    return _put_match_window(p, body)
+
+
+@legacy.put("/match-window")
+def l_put_match_window(body: MatchWindowPut, p: LegacyP) -> dict:
+    return _put_match_window(p, body)
+
+
+@scoped.post("/video/trim")
+def s_start_trim(body: TrimRequest, p: ScopedP) -> dict:
+    return _start_trim(p, body.start_s, body.end_s)
+
+
+@legacy.post("/video/trim")
+def l_start_trim(body: TrimRequest, p: LegacyP) -> dict:
+    return _start_trim(p, body.start_s, body.end_s)
+
+
+@scoped.get("/video/trim/status")
+def s_trim_status(p: ScopedP, start: float = 0.0, end: float = 0.0) -> dict:
+    return _trim_status(p, start, end)
+
+
+@legacy.get("/video/trim/status")
+def l_trim_status(p: LegacyP, start: float = 0.0, end: float = 0.0) -> dict:
+    return _trim_status(p, start, end)
+
+
+@scoped.get("/video/trimmed.mp4")
+def s_trimmed_file(p: PublicP, start: float = 0.0, end: float = 0.0) -> Response | FileResponse:
+    """First request kicks off the stream-copy; 202 + progress until ready."""
+    out = _trim_out(p, start, end)
+    if not out.is_file():
+        st = _start_trim(p, start, end)
+        if not st["ready"]:
+            return JSONResponse(st, status_code=202)
+    if not out.is_file():
+        raise HTTPException(404, "trimmed file not ready")
+    return FileResponse(out, media_type="video/mp4",
+                        filename="match_trimmed.mp4")
 
 
 @legacy.get("/video/source.mp4")

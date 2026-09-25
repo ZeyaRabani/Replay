@@ -210,15 +210,19 @@ def stage_candidates(ctx: Ctx) -> None:
     ctx.log(f"candidates: {len(res['events'])} events")
 
 
-def stage_stats(ctx: Ctx) -> None:
+def recompute_stats(pipe_dir: Path, duration: float | None = None) -> dict:
+    """Recompute the stats dict from the outputs in pipe_dir.
+
+    Same inputs as stage_stats; also used by the app backend after a
+    match-window edit."""
     from highlights.pipeline.score import MODEL_PATH, load_model
     from highlights.pipeline.stats import compute_stats
-    df = pd.read_parquet(ctx.pipe / "features_1s.parquet")
-    cand = json.loads((ctx.pipe / "candidates.json").read_text())
-    mw = json.loads((ctx.pipe / "match_window.json").read_text()) \
-        if (ctx.pipe / "match_window.json").exists() else {}
+    df = pd.read_parquet(pipe_dir / "features_1s.parquet")
+    cand = json.loads((pipe_dir / "candidates.json").read_text())
+    mw = json.loads((pipe_dir / "match_window.json").read_text()) \
+        if (pipe_dir / "match_window.json").exists() else {}
     whistles = []
-    wj = ctx.pipe / "audio" / "whistles.json"
+    wj = pipe_dir / "audio" / "whistles.json"
     if wj.exists():
         whistles = [(s["t_start"] + s["t_end"]) / 2
                     for s in json.loads(wj.read_text()).get("whistles", [])]
@@ -226,12 +230,16 @@ def stage_stats(ctx: Ctx) -> None:
         meta = load_model() if MODEL_PATH.exists() else {}
     except Exception:
         meta = {}
-    stats = compute_stats(
-        df, cand.get("events", []), ctx.duration or cand.get("video_duration_s", 0.0),
+    return compute_stats(
+        df, cand.get("events", []), duration or cand.get("video_duration_s", 0.0),
         mw.get("match_window"), mw.get("halves"), whistles,
         pipeline={"model": meta.get("version", "audio_motion_lr v1"),
                   "auroc_reference": meta.get("auroc_heldout"),
                   "notes": mw.get("warning") or ""})
+
+
+def stage_stats(ctx: Ctx) -> None:
+    stats = recompute_stats(ctx.pipe, ctx.duration)
     (ctx.pipe / "stats.json").write_text(json.dumps(stats, indent=1))
     ctx.log("stats: written")
 

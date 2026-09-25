@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import RenderBar from "../components/RenderBar";
 import Timeline from "../components/Timeline";
 import VideoPlayer from "../components/VideoPlayer";
+import { fmtClock, parseClock } from "../lib/time";
 import type { Candidate, Team, VideoInfo } from "../types";
 
 interface Props {
@@ -24,6 +25,12 @@ export default function ProjectReview({ seekRequest }: Props) {
   const [quality, setQuality] = useState<"fast" | "hd">(
     () => (localStorage.getItem("replay.quality") === "hd" ? "hd" : "fast"));
   const [isMultiangle, setIsMultiangle] = useState(false);
+  const [win, setWin] = useState<[number, number] | null>(null);
+  const [winEdit, setWinEdit] = useState(false);
+  const [winIn, setWinIn] = useState("");
+  const [winOut, setWinOut] = useState("");
+  const [trimProg, setTrimProg] = useState<number | null>(null);
+  const trimTimer = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [candVersion, setCandVersion] = useState(0);
@@ -54,6 +61,12 @@ export default function ProjectReview({ seekRequest }: Props) {
         setProxyReady(p.proxy_ready);
         setCandVersion(p.candidates_version);
         setIsMultiangle(p.mode === "multiangle");
+        try {
+          const mw = await api.getMatchWindow();
+          setWin(mw.match_window);
+        } catch {
+          /* no window yet */
+        }
       } catch {
         /* not ready yet */
       }
@@ -136,6 +149,51 @@ export default function ProjectReview({ seekRequest }: Props) {
     localStorage.setItem("replay.quality", q);
   };
 
+  const saveWindow = async () => {
+    const s = parseClock(winIn);
+    const e = parseClock(winOut);
+    if (s === null || e === null || s >= e) {
+      showError("invalid window (need m:ss start < end)");
+      return;
+    }
+    try {
+      const r = await api.putMatchWindow(s, e);
+      setWin(r.match_window);
+      setWinEdit(false);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const downloadTrimmed = async () => {
+    if (!win || !video) return;
+    const [s, e] = win;
+    try {
+      const st = await api.startTrim(s, e);
+      if (st.ready) {
+        window.open(api.trimmedUrl(s, e, String(video.registered_at)), "_blank");
+        return;
+      }
+      setTrimProg(0);
+      if (trimTimer.current) window.clearInterval(trimTimer.current);
+      trimTimer.current = window.setInterval(async () => {
+        try {
+          const r = await api.trimStatus(s, e);
+          setTrimProg(r.progress);
+          if (r.ready) {
+            if (trimTimer.current) window.clearInterval(trimTimer.current);
+            setTrimProg(null);
+            window.open(api.trimmedUrl(s, e, String(video.registered_at)), "_blank");
+          }
+        } catch {
+          /* transient */
+        }
+      }, 1000);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <Navbar
@@ -192,6 +250,61 @@ export default function ProjectReview({ seekRequest }: Props) {
                   HD
                 </button>
               </div>
+              {win && (
+                <span className="flex items-center gap-1 text-[11px] text-zinc-400">
+                  {winEdit ? (
+                    <>
+                      <input
+                        className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-[11px]"
+                        value={winIn}
+                        onChange={(e) => setWinIn(e.target.value)}
+                        placeholder="0:00"
+                      />
+                      –
+                      <input
+                        className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-[11px]"
+                        value={winOut}
+                        onChange={(e) => setWinOut(e.target.value)}
+                        placeholder="0:00"
+                      />
+                      <button
+                        className="text-zinc-400 hover:text-amber-300 border border-zinc-700 rounded px-1.5 py-0.5"
+                        title="Set start from playhead"
+                        onClick={() => setWinIn(fmtClock(playhead))}
+                      >
+                        ▶in
+                      </button>
+                      <button
+                        className="text-zinc-400 hover:text-amber-300 border border-zinc-700 rounded px-1.5 py-0.5"
+                        title="Set end from playhead"
+                        onClick={() => setWinOut(fmtClock(playhead))}
+                      >
+                        ▶out
+                      </button>
+                      <button
+                        className="text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5"
+                        onClick={() => void saveWindow()}
+                      >
+                        Save
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      window {fmtClock(win[0])}–{fmtClock(win[1])}
+                      <button
+                        className="text-amber-300 hover:text-amber-200 underline"
+                        onClick={() => {
+                          setWinIn(fmtClock(win[0]));
+                          setWinOut(fmtClock(win[1]));
+                          setWinEdit(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
+                </span>
+              )}
               {isMultiangle && (
                 <a
                   href={api.videoUrl("source", String(video.registered_at))}
@@ -200,6 +313,17 @@ export default function ProjectReview({ seekRequest }: Props) {
                 >
                   Download director cut (full match, MP4)
                 </a>
+              )}
+              {win && (
+                <button
+                  onClick={() => void downloadTrimmed()}
+                  disabled={trimProg !== null}
+                  className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                >
+                  {trimProg !== null
+                    ? `Trimming… ${Math.round(trimProg * 100)}%`
+                    : "Download trimmed match (MP4)"}
+                </button>
               )}
             </div>
           ) : null}

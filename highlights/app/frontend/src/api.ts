@@ -125,6 +125,19 @@ export function projectApi(id: string) {
     videoUrl: (kind: "proxy" | "source", v: string) =>
       mediaUrl(`${base}/video/${kind === "proxy" ? "proxy.mp4" : "source.mp4"}`, { v }),
 
+    getMatchWindow: () =>
+      req<{ match_window: [number, number]; halves: { start: number; end: number }[] | null; warning?: string; duration: number }>(
+        `${base}/match-window`),
+    putMatchWindow: (start_s: number, end_s: number) =>
+      req<{ match_window: [number, number] }>(`${base}/match-window`, json({ start_s, end_s }, "PUT")),
+    startTrim: (start_s: number, end_s: number) =>
+      req<{ ready: boolean; progress: number }>(`${base}/video/trim`, json({ start_s, end_s })),
+    trimStatus: (start_s: number, end_s: number) =>
+      req<{ ready: boolean; progress: number; error?: string }>(
+        `${base}/video/trim/status?start=${start_s}&end=${end_s}`),
+    trimmedUrl: (start_s: number, end_s: number, v: string) =>
+      mediaUrl(`${base}/video/trimmed.mp4`, { start: String(start_s), end: String(end_s), v }),
+
     loadCandidatesPath: (path: string) =>
       req<Candidate[]>(`${base}/candidates/load`, json({ path })).then(() => undefined),
     loadCandidatesFile: (file: File) => {
