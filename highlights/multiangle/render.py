@@ -1,9 +1,9 @@
-"""Render the director cut: per-segment re-encode + concat + a0 audio.
+"""Render the director cut: per-segment re-encode + concat.
 
 Each segment is cut from its angle's file at file-time T - offset_i,
 normalised to a 1920x1080 canvas (aspect preserved, letterboxed — never
-cropped), then concat-demuxed. Audio always comes from the reference angle
-a0 (next available angle where a0 lacks coverage).
+cropped) with that angle's own audio (normalised to 48 kHz stereo AAC so
+the concat demuxer can stream-copy), then concat-demuxed.
 """
 
 from __future__ import annotations
@@ -18,12 +18,14 @@ AUDIO_BITRATE = "192k"
 
 
 def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
-    """ffmpeg cmd for one segment at canvas resolution (video only)."""
+    """ffmpeg cmd for one segment at canvas resolution with its own audio."""
     return ["ffmpeg", "-y", "-v", "error",
             "-ss", f"{t_file:.3f}", "-i", video, "-t", f"{dur:.3f}",
-            "-vf", CANVAS + ",fps=30", "-an",
+            "-vf", CANVAS + ",fps=30",
             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
-            "-pix_fmt", "yuv420p", out]
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000", "-ac", "2",
+            out]
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
@@ -34,17 +36,7 @@ def concat_file(segs: list[str], path: str | Path) -> Path:
 
 def concat_cmd(list_file: str | Path, out: str) -> list[str]:
     return ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-            "-i", str(list_file), "-c", "copy", out]
-
-
-def audio_mux_cmd(video_in: str, audio_src: str, t_offset: float,
-                  dur: float, out: str) -> list[str]:
-    """Mux a0's audio (delayed/trimmed to the union window) under the cut."""
-    return ["ffmpeg", "-y", "-v", "error", "-i", video_in,
-            "-ss", f"{t_offset:.3f}", "-t", f"{dur:.3f}", "-i", audio_src,
-            "-map", "0:v", "-map", "1:a", "-c:v", "copy",
-            "-c:a", "aac", "-b:a", AUDIO_BITRATE,
-            "-movflags", "+faststart", out]
+            "-i", str(list_file), "-c", "copy", "-movflags", "+faststart", out]
 
 
 def run(cmd: list[str], log=print) -> None:
@@ -75,8 +67,5 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
         if k % 10 == 0:
             log(f"render: seg {k}/{len(segments)} ({100*(t0-union_lo)/total:.0f}%)")
     lst = concat_file(files, workdir / "concat.txt")
-    silent = workdir / "silent.mp4"
-    run(concat_cmd(lst, str(silent)), log)
-    dur = union_hi - union_lo
-    run(audio_mux_cmd(str(silent), ref_video, union_lo, dur, str(out_path)), log)
+    run(concat_cmd(lst, str(out_path)), log)
     return out_path
