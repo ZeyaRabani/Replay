@@ -53,3 +53,18 @@ def test_ids_and_ranking():
     confs = [e["confidence"] for e in out["events"]]
     assert confs == sorted(confs, reverse=True)
     assert [e["id"] for e in out["events"]] == [f"event_{i:03d}" for i in range(1, 6)]
+
+
+def test_to_output_time():
+    """shared-T events shift by -lo into rendered-video time."""
+    from highlights.multiangle.fuse import to_output_time
+    evs = [{"t": -640.2, "t_start": -643.2, "t_end": -635.2, "type": "goal"},
+           {"t": 100.0, "t_start": 97.0, "t_end": 105.0, "clip_start": 95.0,
+            "clip_end": 110.0}]
+    out = to_output_time(evs, -748.2)
+    assert out[0]["t"] == 108.0
+    assert out[0]["t_start"] == 105.0 and out[0]["t_end"] == 113.0
+    assert out[1]["t"] == 848.2
+    assert out[1]["clip_start"] == 843.2 and out[1]["clip_end"] == 858.2
+    # original untouched, absent keys not invented
+    assert evs[0]["t"] == -640.2 and "clip_start" not in out[0]

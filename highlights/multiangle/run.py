@@ -250,7 +250,8 @@ def stage_render(ctx: Ctx) -> None:
     videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
     lo, hi = sync["coverage"]["union"]
     out = render(videos, sync["offsets"], director["segments"], lo, hi,
-                 ctx.pipe, ctx.project_dir / "match.mp4", videos[0], log=ctx.log)
+                 ctx.pipe, ctx.project_dir / "match.mp4", videos[0],
+                 durations=list(ctx.durations), log=ctx.log)
     # register the cut as the project video for the Option-1 UI
     pipe1 = ctx.project_dir / "pipeline"
     pipe1.mkdir(exist_ok=True)
@@ -261,25 +262,40 @@ def stage_render(ctx: Ctx) -> None:
 
 
 def stage_fuse(ctx: Ctx) -> dict:
-    from highlights.multiangle.fuse import fuse_candidates
+    from highlights.multiangle.fuse import fuse_candidates, to_output_time
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     files = [a["dir"] / "pipeline" / "candidates.json" for a in ctx.angles]
     labels = [a["label"] for a in ctx.angles]
     out = fuse_candidates(files, sync["offsets"], labels,
                           ctx.pipe / "fused_candidates.json")
+    lo, hi = sync["coverage"]["union"]
+    # fused events are on shared T; the UI plays the rendered video whose
+    # time axis is output time (0 = union start) -> shift everything by -lo
+    for key in ("events", "candidates"):
+        if key in out:
+            out[key] = to_output_time(out[key], lo)
+    (ctx.pipe / "fused_candidates.json").write_text(json.dumps(out, indent=1))
     pdir = ctx.project_dir / "pipeline"
     pdir.mkdir(exist_ok=True)
     (pdir / "candidates.json").write_text(json.dumps(out, indent=1))
-    # a0's match window + features, shifted to T
+    # a0's match window + features, shifted to output time
+    shift = sync["offsets"][0] - lo
     mw_src = ctx.angles[0]["dir"] / "pipeline" / "match_window.json"
     if mw_src.exists():
-        (pdir / "match_window.json").write_text(mw_src.read_text())
+        mw = json.loads(mw_src.read_text())
+        if isinstance(mw.get("match_window"), list):
+            mw["match_window"] = [float(v) + shift
+                                  for v in mw["match_window"]]
+        for h in mw.get("halves", []) or []:
+            for k in ("start", "end"):
+                if k in h:
+                    h[k] = float(h[k]) + shift
+        (pdir / "match_window.json").write_text(json.dumps(mw, indent=1))
     fsrc = ctx.angles[0]["dir"] / "pipeline" / "features_1s.parquet"
     if fsrc.exists():
         df = pd.read_parquet(fsrc)
-        df["t"] = df["t"] + sync["offsets"][0]
-        lo, hi = sync["coverage"]["union"]
-        df = df[(df["t"] >= lo) & (df["t"] <= hi)]
+        df["t"] = df["t"] + shift
+        df = df[(df["t"] >= 0.0) & (df["t"] <= hi - lo)]
         df.to_parquet(pdir / "features_1s.parquet", index=False)
     ctx.log(f"fuse: {len(out['events'])} fused events")
     return out
@@ -292,7 +308,10 @@ def stage_stats(ctx: Ctx) -> None:
     cands = json.loads((ctx.pipe / "fused_candidates.json").read_text())["events"]
     mw = json.loads((pdir / "match_window.json").read_text()) \
         if (pdir / "match_window.json").exists() else {}
-    dur = ctx.durations[0] if ctx.durations else 0.0
+    # the rendered video covers the coverage-union, not angle 0's file
+    sync_dur = json.loads((ctx.pipe / "sync.json").read_text())
+    lo, hi = sync_dur["coverage"]["union"]
+    dur = hi - lo
     stats = compute_stats(feats, cands, dur, tuple(mw.get("match_window", ())),
                           mw.get("halves"), None)
     director = json.loads((ctx.pipe / "director.json").read_text())

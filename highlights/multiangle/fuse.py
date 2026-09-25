@@ -71,6 +71,18 @@ def fuse_events(events_by_angle: list[list[dict]], offsets: list[float],
     return {"source": "multiangle", "events": out_events, "candidates": out_events}
 
 
+def to_output_time(events: list[dict], lo: float) -> list[dict]:
+    """Shared T -> output (rendered-video) time: out_t = T - lo."""
+    out = []
+    for e in events:
+        e = dict(e)
+        for k in ("t", "t_start", "t_end", "clip_start", "clip_end"):
+            if k in e and e[k] is not None:
+                e[k] = round(float(e[k]) - lo, 1)
+        out.append(e)
+    return out
+
+
 def fuse_candidates(candidates_files: list[str | Path], offsets: list[float],
                     labels: list[str], out_path: str | Path) -> dict:
     events_by_angle = []
