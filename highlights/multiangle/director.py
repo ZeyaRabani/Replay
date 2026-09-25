@@ -67,11 +67,12 @@ class Style:
     margin_ball: float
     margin_cluster: float
     smooth_mean: int
+    dead_score_s: int
 
 
 STYLES = {
-    "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9),
-    "fast": Style(4, 2, 2, 1, 0.10, 0.25, 3),
+    "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9, DEAD_SCORE_S),
+    "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2),
 }
 
 
@@ -234,7 +235,8 @@ def cut_director(track: list[dict], available: np.ndarray,
         # dead-feed recovery: incumbent scoreless for >= DEAD_SCORE_S while a
         # challenger shows real signal -> margin waived
         zero_run = zero_run + 1 if cur_score <= 0 else 0
-        dead_recovery = (zero_run >= DEAD_SCORE_S and sm[j, t] > DEAD_CHALLENGER)
+        dead_recovery = (zero_run >= sty.dead_score_s
+                         and sm[j, t] > DEAD_CHALLENGER)
         margin = sty.margin_ball if cand_r[t] == 2 else sty.margin_cluster
         better = dead_recovery or sm[j, t] > cur_score * (1 + margin)
 
