@@ -202,6 +202,14 @@ def _load_motion(angle_dir: Path) -> dict[int, float]:
     return {int(r[ti]): float(r[mi]) for r in d["rows"]}
 
 
+def _np_json(o):
+    if isinstance(o, np.generic):
+        return o.item()
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    raise TypeError(f"not JSON serializable: {type(o).__name__}")
+
+
 def stage_director(ctx: Ctx) -> dict:
     from highlights.multiangle.director import cut_director
 
@@ -230,7 +238,7 @@ def stage_director(ctx: Ctx) -> dict:
                        "cluster": _row("cluster_score")})
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
     out = cut_director(tracks, avail, motion)
-    (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1))
+    (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1, default=_np_json))
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
     return out
 

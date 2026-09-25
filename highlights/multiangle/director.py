@@ -1,16 +1,28 @@
 """Director: broadcast-style per-second angle selection. Pure numpy — no IO.
 
-Rules per second over the shared timeline:
-  BALL    — if any available angle saw a ball (ball_conf >= BALL_OK within
-            ±1 s), eligible angles = those with a ball; score = ball_size.
-  CLUSTER — else score = cluster_score (player bunch close to that camera).
+Per-second candidate rules (on the shared timeline):
+  BALL    — any available angle whose ball_conf >= BALL_OK in >= 2 of the
+            5 s window [t-2, t+2] is eligible; score = max ball_size over
+            that window. Eligible angles only.
+  CLUSTER — else score = cluster_score, per-angle median-normalised so
+            wider cameras don't dominate by baseline alone.
   HOLD    — no available angle has any data -> keep current.
 
-Switching: a candidate is *proposed* when its 3 s median score beats the
-current angle's by MARGIN (25% ball, 40% cluster) for CONFIRM consecutive
-seconds; the cut then lands on the lowest summed-motion second inside
-[t-2, t+2]. MIN_HOLD = 8 s (ball may override once hold >= 4 s). A hard cut
-fires when the current angle leaves coverage.
+Smoothing: per-angle 5 s median then 9 s centred rolling mean.
+
+Switching: a challenger is proposed when its smoothed score beats the
+incumbent's by MARGIN (25% ball, 50% cluster) — or the incumbent's smoothed
+score has been 0 for >= 6 consecutive seconds while some other available
+angle's smoothed score is > 0.2 (dead-feed recovery, margin waived) — for
+CONFIRM consecutive seconds (6 cluster / 3 ball); the cut lands on the
+lowest summed-motion second inside [t-2, t+2]. MIN_HOLD = 20 s
+(ball overrides at 10 s). A hard "coverage" cut fires when the current
+angle leaves coverage.
+
+Segment semantics: each segment describes the angle SHOWN in
+[t_start, t_end); `rule` is the rule that selected it ("start", "coverage",
+"ball", "cluster"), `score` the winning smoothed score at selection time,
+`runner_up` the angle it displaced.
 """
 
 from __future__ import annotations
@@ -18,30 +30,49 @@ from __future__ import annotations
 import numpy as np
 
 BALL_OK = 0.35
-MIN_HOLD = 8
-BALL_MIN_HOLD = 4
-CONFIRM = 3
+BALL_WINDOW = 5          # seconds, centred
+BALL_MIN_SIGHTINGS = 2
+MIN_HOLD = 20
+BALL_MIN_HOLD = 10
+CONFIRM_CLUSTER = 6
+CONFIRM_BALL = 3
 MARGIN_BALL = 0.25
-MARGIN_CLUSTER = 0.40
-MEDIAN_W = 3
+MARGIN_CLUSTER = 0.50
+DEAD_SCORE_S = 6         # consecutive zero-score seconds before recovery
+DEAD_CHALLENGER = 0.2    # challenger smoothed score threshold for recovery
+SMOOTH_MEDIAN = 5
+SMOOTH_MEAN = 9
 
 
-def _median3(x: np.ndarray) -> np.ndarray:
-    """3 s centred median (edge-safe)."""
-    from scipy.ndimage import median_filter
-    return median_filter(x, size=3, mode="nearest")
+def _smooth(x: np.ndarray) -> np.ndarray:
+    from scipy.ndimage import median_filter, uniform_filter1d
+    return uniform_filter1d(
+        median_filter(x, size=SMOOTH_MEDIAN, mode="nearest"),
+        size=SMOOTH_MEAN, mode="nearest")
+
+
+def _cluster_baselines(track: list[dict], available: np.ndarray) -> np.ndarray:
+    """Per-angle median cluster_score over its available seconds."""
+    n = len(track)
+    base = np.ones(n)
+    for i in range(n):
+        vals = np.asarray(track[i]["cluster"])[available[i]]
+        vals = vals[vals > 0]
+        m = float(np.median(vals)) if len(vals) else 1.0
+        base[i] = m if m > 0 else 1.0
+    return base
 
 
 def per_second(track: list[dict], available: np.ndarray
-               ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+               ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
-    track[i] = dict of per-second arrays: ball_conf, ball_size, cluster.
-    available[i, t] bool. Returns best_angles (-1 none), scores, rules
-    (0 hold, 1 cluster, 2 ball), and S[n_angles, T] = each angle's score
-    under the rule active that second (ball_size for ball-seen angles under
-    the ball rule, else cluster_score; 0 when unavailable/ineligible).
+    Returns best_angles (-1 none), scores, rules (0 hold, 1 cluster, 2 ball),
+    S[n_angles, T] (each angle's score under the active rule), and the
+    per-angle cluster baselines used for normalisation.
     """
+    from scipy.ndimage import maximum_filter
+
     n_angles = len(track)
     T = available.shape[1]
     best_a = np.full(T, -1)
@@ -50,15 +81,21 @@ def per_second(track: list[dict], available: np.ndarray
     S = np.zeros((n_angles, T))
 
     ball_conf = np.stack([track[i]["ball_conf"] for i in range(n_angles)])
-    ball_seen = np.zeros((n_angles, T), dtype=bool)
-    for i in range(n_angles):
-        bc = ball_conf[i] >= BALL_OK
-        ball_seen[i] = bc | np.roll(bc, 1) | np.roll(bc, -1)  # ±1 s window
-        ball_seen[i, 0] |= bc[1] if T > 1 else False
-        ball_seen[i, -1] |= bc[-2] if T > 1 else False
-
     ball_size = np.stack([track[i]["ball_size"] for i in range(n_angles)])
     cluster = np.stack([track[i]["cluster"] for i in range(n_angles)])
+    baselines = _cluster_baselines(track, available)
+    cluster_n = cluster / baselines[:, None]
+
+    # sighting: >= BALL_MIN_SIGHTINGS hits of ball_conf >= BALL_OK in the
+    # centred 5 s window; score = max ball_size in that window
+    hits = np.stack([
+        np.convolve((ball_conf[i] >= BALL_OK).astype(float),
+                    np.ones(BALL_WINDOW), mode="same")
+        for i in range(n_angles)])
+    ball_seen = hits >= BALL_MIN_SIGHTINGS
+    ball_score = np.stack([
+        maximum_filter(ball_size[i], size=BALL_WINDOW, mode="nearest")
+        for i in range(n_angles)])
 
     for t in range(T):
         av = available[:, t]
@@ -66,19 +103,18 @@ def per_second(track: list[dict], available: np.ndarray
             continue
         elig = av & ball_seen[:, t]
         if elig.any():
-            S[:, t] = np.where(elig, ball_size[:, t], 0.0)
+            S[:, t] = np.where(elig, ball_score[:, t], 0.0)
             j = int(np.argmax(S[:, t]))
             best_a[t], best_s[t], best_r[t] = j, S[j, t], 2
         else:
-            S[:, t] = np.where(av, cluster[:, t], 0.0)
+            S[:, t] = np.where(av, cluster_n[:, t], 0.0)
             j = int(np.argmax(S[:, t]))
             if S[j, t] > 0:
                 best_a[t], best_s[t], best_r[t] = j, S[j, t], 1
             else:
-                # angles available but no data (dead time)
                 best_a[t] = int(np.argmax(av.astype(int)))
                 best_s[t] = 0.0
-    return best_a, best_s, best_r, S
+    return best_a, best_s, best_r, S, baselines
 
 
 def cut_director(track: list[dict], available: np.ndarray,
@@ -88,50 +124,63 @@ def cut_director(track: list[dict], available: np.ndarray,
     Returns the director.json dict."""
     T = available.shape[1]
     n_angles = len(track)
-    cand_a, cand_s, cand_r, S = per_second(track, available)
-    sm = np.stack([_median3(S[i]) for i in range(n_angles)])
+    cand_a, _cand_s, cand_r, S, baselines = per_second(track, available)
+    sm = np.stack([_smooth(S[i]) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
-    segs: list[dict] = []
     rule_counts = {"ball": 0, "cluster": 0, "hold": 0, "coverage": 0}
-    cur = int(cand_a[0]) if cand_a[0] >= 0 else 0
-    seg_start = 0
+    cur = int(cand_a[0]) if cand_a[0] >= 0 else int(np.argmax(available[:, 0]))
+    segs: list[dict] = [
+        {"t_start": 0.0, "t_end": float(T - 1), "angle": cur, "rule": "start",
+         "score": round(float(sm[cur, 0]), 4),
+         "runner_up": None}]
     hold = 0
     streak = 0
+    zero_run = 0
     propose = -1
 
-    def close_seg(end_t: int, rule: str, scores=None, runner=None):
-        seg = {"t_start": float(seg_start), "t_end": float(end_t),
-               "angle": cur, "rule": rule}
-        if scores is not None:
-            seg["score"] = round(float(scores), 4)
-        if runner is not None:
-            seg["runner_up"] = runner
-        segs.append(seg)
+    def open_seg(start_t: int, angle: int, rule: str, score: float,
+                 runner: dict | None):
+        segs.append({"t_start": float(start_t), "t_end": float(T - 1),
+                     "angle": int(angle), "rule": rule,
+                     "score": round(float(score), 4),
+                     "runner_up": runner})
 
     for t in range(1, T):
         hold += 1
-        avail_cur = available[cur, t]
-        if not avail_cur:
-            # hard cut: angle left coverage
+        # hard cut: incumbent left coverage (hold if nothing is available)
+        if not available[cur, t]:
+            if not available[:, t].any():
+                rule_counts["hold"] += 1
+                continue
             j = int(np.argmax(available[:, t].astype(int)))
             rule_counts["coverage"] += 1
-            close_seg(t, "coverage", cand_s[t])
-            cur, seg_start, hold, streak, propose = j, t, 0, 0, -1
+            segs[-1]["t_end"] = float(t)
+            open_seg(t, j, "coverage", float(sm[j, t]),
+                     {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
+            cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
             continue
 
         j = cand_a[t]
         if j < 0:
             rule_counts["hold"] += 1
-            continue  # no data anywhere -> hold
+            zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
+            continue
         rule_counts[{2: "ball", 1: "cluster", 0: "coverage"}[cand_r[t]]] += 1
         if j == cur:
             streak = 0
             propose = -1
+            zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
             continue
-        margin = MARGIN_BALL if cand_r[t] == 2 else MARGIN_CLUSTER
+
         cur_score = sm[cur, t]
-        better = sm[j, t] > cur_score * (1 + margin) or cur_score <= 0
+        # dead-feed recovery: incumbent scoreless for >= DEAD_SCORE_S while a
+        # challenger shows real signal -> margin waived
+        zero_run = zero_run + 1 if cur_score <= 0 else 0
+        dead_recovery = (zero_run >= DEAD_SCORE_S and sm[j, t] > DEAD_CHALLENGER)
+        margin = MARGIN_BALL if cand_r[t] == 2 else MARGIN_CLUSTER
+        better = dead_recovery or sm[j, t] > cur_score * (1 + margin)
+
         if better and j == propose:
             streak += 1
         elif better:
@@ -139,33 +188,38 @@ def cut_director(track: list[dict], available: np.ndarray,
         else:
             streak = 0
             propose = -1
+        confirm = CONFIRM_BALL if cand_r[t] == 2 else CONFIRM_CLUSTER
         need_hold = BALL_MIN_HOLD if cand_r[t] == 2 else MIN_HOLD
-        if propose == j and streak >= CONFIRM and hold >= need_hold:
+        if propose == j and streak >= confirm and hold >= need_hold:
             # cut at min summed motion within [t-2, t+2]
-            lo, hi = max(seg_start, t - 2), min(T - 1, t + 2)
+            lo, hi = max(segs[-1]["t_start"], t - 2), min(T - 1, t + 2)
+            lo, hi = int(lo), int(hi)
             msum = mot[:, lo:hi + 1].sum(axis=0)
             cut_t = lo + int(np.argmin(msum))
-            runner = {"angle": cur, "score": round(float(cur_score), 4)}
-            close_seg(cut_t, {2: "ball", 1: "cluster"}[cand_r[t]], sm[j, t], runner)
-            cur, hold, streak, propose = j, max(0, t - cut_t), 0, -1
-            seg_start = cut_t
-    close_seg(T - 1, "end", cand_s[-1])
+            segs[-1]["t_end"] = float(cut_t)
+            open_seg(cut_t, j, {2: "ball", 1: "cluster"}[cand_r[t]],
+                     sm[j, t],
+                     {"angle": int(cur), "score": round(float(cur_score), 4)})
+            cur, hold, streak, zero_run, propose = j, max(0, t - cut_t), 0, 0, -1
 
-    tot = sum(rule_counts.values()) or 1
-    cuts = len(segs) - 1
+    durs = [s["t_end"] - s["t_start"] for s in segs]
+    total_dur = sum(durs)
     angle_share = {str(i): 0.0 for i in range(n_angles)}
-    total_dur = 0.0
     for s in segs:
-        d = s["t_end"] - s["t_start"]
-        total_dur += d
-        angle_share[str(s["angle"])] = angle_share.get(str(s["angle"]), 0.0) + d
+        angle_share[str(s["angle"])] += s["t_end"] - s["t_start"]
     if total_dur > 0:
         angle_share = {k: round(v / total_dur, 4) for k, v in angle_share.items()}
+    tot = sum(rule_counts.values()) or 1
+    span_min = max(total_dur / 60.0, 1e-9)
     return {
         "segments": segs,
         "per_second_rule": rule_counts,
         "ratios": {k: round(v / tot, 4) for k, v in rule_counts.items()},
-        "n_cuts": cuts,
+        "n_cuts": len(segs) - 1,
         "mean_hold_s": round(total_dur / max(1, len(segs)), 2),
+        "median_hold_s": round(float(np.median(durs)), 2) if durs else 0.0,
+        "min_hold_s": round(float(min(durs)), 2) if durs else 0.0,
+        "cuts_per_10min": round((len(segs) - 1) / span_min * 10, 1),
         "angle_share": angle_share,
+        "cluster_baseline": [round(float(b), 4) for b in baselines],
     }
