@@ -9,3 +9,5 @@ highlights/app/frontend/node_modules/
 highlights/app/frontend/dist/
 highlights/app/workdir/
 highlights/**/*.mp4
+highlights/multiangle/models/*
+!highlights/multiangle/models/.gitkeep
