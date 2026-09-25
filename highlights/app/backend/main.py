@@ -758,6 +758,16 @@ def _project_cookies(p) -> str | None:
 
 # ---------- per-user saved YouTube cookies ----------
 
+def _is_admin(user: str) -> bool:
+    admins = {a.strip() for a in os.environ.get("REPLAY_ADMINS", "john").split(",")
+              if a.strip()}
+    return user in admins
+
+
+def _shared_cookies_path() -> Path:
+    return workdir() / "shared" / "youtube_cookies.txt"
+
+
 def _user_cookies_path(user: str) -> Path:
     return workdir() / "users" / user / "youtube_cookies.txt"
 
@@ -772,8 +782,11 @@ def _save_user_cookies(user: str, text: str) -> Path:
 
 
 def _user_default_cookies(p, user: str) -> str | None:
-    """Copy the user's saved cookies into the project, returning the path."""
+    """Copy the user's saved cookies into the project, returning the path.
+    Falls back to the admin-shared cookies when the user has none."""
     src = _user_cookies_path(user)
+    if not src.is_file():
+        src = _shared_cookies_path()
     if not src.is_file():
         return None
     dst = p.source_dir / "cookies.txt"
@@ -785,13 +798,16 @@ def _user_default_cookies(p, user: str) -> str | None:
 
 class CookiesPut(BaseModel):
     cookies_text: str
+    share: bool = False
 
 
 @app.get("/api/me/youtube-cookies")
 def get_youtube_cookies(user: UserDep) -> dict:
     path = _user_cookies_path(user)
     return {"saved": path.is_file(),
-            "updated_at": path.stat().st_mtime if path.is_file() else None}
+            "updated_at": path.stat().st_mtime if path.is_file() else None,
+            "shared_available": _shared_cookies_path().is_file(),
+            "is_admin": _is_admin(user)}
 
 
 @app.put("/api/me/youtube-cookies")
@@ -801,8 +817,23 @@ def put_youtube_cookies(body: CookiesPut, user: UserDep) -> dict:
         raise HTTPException(422, "cookies_text is empty")
     if "youtube.com" not in text:
         raise HTTPException(422, "does not look like Netscape cookies for youtube.com")
+    if body.share:
+        if not _is_admin(user):
+            raise HTTPException(403, "only admins can share cookies server-wide")
+        sp = _shared_cookies_path()
+        sp.parent.mkdir(parents=True, exist_ok=True)
+        sp.write_text(text)
+        os.chmod(sp, 0o600)
     path = _save_user_cookies(user, text)
     return {"saved": True, "updated_at": path.stat().st_mtime}
+
+
+@app.delete("/api/admin/youtube-cookies")
+def delete_shared_youtube_cookies(user: UserDep) -> Response:
+    if not _is_admin(user):
+        raise HTTPException(403, "admin only")
+    _shared_cookies_path().unlink(missing_ok=True)
+    return Response(status_code=204)
 
 
 @app.delete("/api/me/youtube-cookies")

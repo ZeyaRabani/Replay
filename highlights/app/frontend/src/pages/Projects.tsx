@@ -2,6 +2,7 @@ import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtu
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
 import type { ProjectMeta, ProjectSummary } from "../types";
@@ -181,14 +182,18 @@ function ProjectCard({
   );
 }
 
-function YouTubeAccess({ saved, onChanged, onError, innerRef }: {
-  saved: boolean;
+function YouTubeAccess({ status, onChanged, onError, innerRef }: {
+  status: CookieStatus | null;
   onChanged: () => void;
   onError: (m: string) => void;
   innerRef: React.Ref<HTMLDivElement>;
 }) {
+  const saved = status?.saved ?? false;
+  const isAdmin = status?.is_admin ?? false;
+  const sharedAvailable = status?.shared_available ?? false;
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [share, setShare] = useState(false);
   const [busy, setBusy] = useState(false);
   const input =
     "bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 w-full";
@@ -196,7 +201,7 @@ function YouTubeAccess({ saved, onChanged, onError, innerRef }: {
   const save = async () => {
     setBusy(true);
     try {
-      await meApi.saveCookies(text);
+      await meApi.saveCookies(text, share);
       setText("");
       setOpen(false);
       onChanged();
@@ -226,6 +231,16 @@ function YouTubeAccess({ saved, onChanged, onError, innerRef }: {
             Cookies saved ✓{" "}
             <button className="text-zinc-500 hover:text-red-300 underline" onClick={() => void remove()}>
               Remove
+            </button>
+          </span>
+        ) : sharedAvailable && !isAdmin ? (
+          <span className="text-xs text-zinc-400">
+            YouTube access provided by the server admin ✓{" "}
+            <button
+              className="text-zinc-500 hover:text-amber-300 underline"
+              onClick={() => setOpen(!open)}
+            >
+              {open ? "Close" : "paste your own anyway"}
             </button>
           </span>
         ) : (
@@ -260,6 +275,16 @@ function YouTubeAccess({ saved, onChanged, onError, innerRef }: {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+          {isAdmin && (
+            <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <input
+                type="checkbox"
+                checked={share}
+                onChange={(e) => setShare(e.target.checked)}
+              />
+              Share with all users of this server
+            </label>
+          )}
           <button
             disabled={busy || !text.trim()}
             onClick={() => void save()}
@@ -629,7 +654,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
 export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [cookiesSaved, setCookiesSaved] = useState(false);
+  const [cookieStatus, setCookieStatus] = useState<CookieStatus | null>(null);
   const [newTab, setNewTab] = useState<"youtube" | "upload">("youtube");
   const cookiesPanel = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
@@ -664,8 +689,7 @@ export default function Projects() {
 
   const refreshCookies = useCallback(async () => {
     try {
-      const c = await meApi.getCookies();
-      setCookiesSaved(c.saved);
+      setCookieStatus(await meApi.getCookies());
     } catch {
       /* leave as-is */
     }
@@ -727,7 +751,7 @@ export default function Projects() {
                 key={p.id}
                 p={p}
                 onDelete={del}
-                cookiesSaved={cookiesSaved}
+                cookiesSaved={!!cookieStatus?.saved || !!cookieStatus?.shared_available}
                 onRetry={retry}
                 onSetupCookies={openCookiesPanel}
                 onUploadInstead={uploadInstead}
@@ -737,7 +761,7 @@ export default function Projects() {
         </div>
         <div>
           <YouTubeAccess
-            saved={cookiesSaved}
+            status={cookieStatus}
             onChanged={() => void refreshCookies()}
             onError={showError}
             innerRef={cookiesPanel}

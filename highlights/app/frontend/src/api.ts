@@ -65,11 +65,19 @@ export const usersApi = {
   create: (name: string) => req<User>("/api/users", json({ name })),
 };
 
+export interface CookieStatus {
+  saved: boolean;
+  updated_at: number | null;
+  shared_available: boolean;
+  is_admin: boolean;
+}
+
 export const meApi = {
-  getCookies: () => req<{ saved: boolean; updated_at: number | null }>("/api/me/youtube-cookies"),
-  saveCookies: (cookies_text: string) =>
-    req<{ saved: boolean; updated_at: number }>("/api/me/youtube-cookies", json({ cookies_text }, "PUT")),
+  getCookies: () => req<CookieStatus>("/api/me/youtube-cookies"),
+  saveCookies: (cookies_text: string, share = false) =>
+    req<{ saved: boolean; updated_at: number }>("/api/me/youtube-cookies", json({ cookies_text, share }, "PUT")),
   deleteCookies: () => req<void>("/api/me/youtube-cookies", { method: "DELETE" }),
+  deleteSharedCookies: () => req<void>("/api/admin/youtube-cookies", { method: "DELETE" }),
 };
 
 export const configApi = {
