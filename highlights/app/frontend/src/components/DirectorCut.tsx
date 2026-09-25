@@ -1,7 +1,7 @@
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
-import type { DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
+import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
 import ZoneEditor, { zoneStillTimes } from "./ZoneEditor";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
@@ -44,9 +44,10 @@ const input =
 
 interface Props {
   onSeek?: (t: number) => void;
+  onCutsChanged?: () => void;
 }
 
-export default function DirectorCut({ onSeek }: Props) {
+export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const api = useProjectApi();
   const [info, setInfo] = useState<MultiangleInfo | null>(null);
   const [director, setDirector] = useState<DirectorFull | null>(null);
@@ -57,6 +58,8 @@ export default function DirectorCut({ onSeek }: Props) {
   const [offBusy, setOffBusy] = useState(false);
   const [offErr, setOffErr] = useState<string | null>(null);
   const [recutBusy, setRecutBusy] = useState(false);
+  const [cuts, setCuts] = useState<CutsList | null>(null);
+  const [cutBusy, setCutBusy] = useState<string | null>(null);
   const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
   const zonesLoaded = useRef(false);
@@ -66,6 +69,11 @@ export default function DirectorCut({ onSeek }: Props) {
     try {
       const i = await api.multiangle();
       setInfo(i);
+      try {
+        setCuts(await api.listCuts());
+      } catch {
+        setCuts(null);   // old backend without the cuts API
+      }
       if (!zonesLoaded.current) {
         zonesLoaded.current = true;
         try {
@@ -418,6 +426,79 @@ export default function DirectorCut({ onSeek }: Props) {
                 </>
               )}
             </div>
+
+            {/* saved cut versions */}
+            {cuts !== null && cuts.cuts.length > 0 && (
+              <div className={card}>
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
+                  Director cuts
+                </div>
+                <div className="flex flex-col divide-y divide-zinc-800">
+                  {cuts.cuts.map((c) => {
+                    const isActive = cuts.active === c.id;
+                    return (
+                      <div key={c.id} className="py-2 flex items-center gap-2 text-xs">
+                        <span className="text-zinc-200">{c.label}</span>
+                        <span className="text-zinc-500">
+                          {new Date(c.created_at * 1000).toLocaleString()}
+                          {c.n_cuts != null ? ` · ${c.n_cuts} cuts` : ""}
+                        </span>
+                        {isActive && (
+                          <span className="rounded px-1.5 py-0.5 text-[10px] bg-amber-500/15 text-amber-300 border border-amber-700/50">
+                            active
+                          </span>
+                        )}
+                        <span className="ml-auto flex items-center gap-2">
+                          {!isActive && !live && (
+                            <button
+                              disabled={cutBusy !== null}
+                              onClick={() => {
+                                setCutBusy(c.id);
+                                void api.activateCut(c.id)
+                                  .then((res) => {
+                                    setCuts(res);
+                                    onCutsChanged?.();
+                                    void refresh();
+                                  })
+                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                                  .finally(() => setCutBusy(null));
+                              }}
+                              className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                            >
+                              {cutBusy === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                              Watch this
+                            </button>
+                          )}
+                          <a
+                            href={api.cutDownloadUrl(c.id)}
+                            download
+                            className="text-[11px] text-zinc-300 hover:text-zinc-100 border border-zinc-700 rounded px-2 py-0.5"
+                          >
+                            Download
+                          </a>
+                          {!isActive && (
+                            <button
+                              disabled={cutBusy !== null || live}
+                              onClick={() => {
+                                if (!window.confirm(`Delete cut "${c.label}"?`)) return;
+                                setCutBusy(c.id);
+                                void api.deleteCut(c.id)
+                                  .then((res) => setCuts(res))
+                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                                  .finally(() => setCutBusy(null));
+                              }}
+                              className="text-[11px] text-red-300 hover:text-red-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ball zones */}
             {!info.sources_purged && zones !== null &&

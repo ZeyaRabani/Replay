@@ -278,6 +278,9 @@ def stage_director(ctx: Ctx) -> dict:
                     dur = ctx.durations[i] if i < len(ctx.durations) else 0.0
                     ref_t = (ref_ts[i] if i < len(ref_ts)
                              and ref_ts[i] is not None else dur * 0.3)
+                    ctx.status.update(
+                        stage_progress=(i + 0.5) / len(ctx.angles),
+                        message=f"director: viewcheck angle {i}")
                     try:
                         ok = _zone_view_ok(ctx, a["dir"], vid, ref_t)
                     except Exception as e:
@@ -530,6 +533,14 @@ def main(argv: list[str] | None = None) -> int:
         try:
             status.update(state="running", force=True)
             run_stages(ctx, names)
+            if "render" in names:
+                from highlights.multiangle.cuts import snapshot_cut
+                try:
+                    meta = snapshot_cut(project_dir, ctx.style)
+                    if meta:
+                        ctx.log(f"cut snapshot: {meta['id']} ({meta['label']})")
+                except Exception as e:
+                    ctx.log(f"cut snapshot failed ({e})")
         except SystemExit:
             raise
         except PipelineError as e:

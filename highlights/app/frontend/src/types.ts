@@ -274,3 +274,17 @@ export interface Stats {
     score?: MultiangleScore;
   };
 }
+
+export interface CutMeta {
+  id: string;
+  label: string;
+  style: string;
+  zones_used: boolean;
+  n_cuts: number | null;
+  created_at: number;
+}
+
+export interface CutsList {
+  active: string | null;
+  cuts: CutMeta[];
+}

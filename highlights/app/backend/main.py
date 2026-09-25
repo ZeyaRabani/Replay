@@ -37,6 +37,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from highlights.io import write_json_atomic
+from highlights.multiangle.cuts import activate_cut, list_cuts, snapshot_cut
 
 from . import ffmpeg as fx
 from . import pipeline, stats
@@ -1326,6 +1327,7 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         raise HTTPException(422, f"style must be one of {CUT_STYLES}")
     if p.meta.get("sources_purged"):
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
+    _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
     p.meta["cut_style"] = body.style
     p.save()
     p.invalidate_video()   # drops proxy.mp4 + thumb cache for the old cut
@@ -1389,6 +1391,83 @@ def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
     p.multiangle_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(p.multiangle_dir / "zones.json", out, indent=1)
     return out
+
+
+def _ensure_cut_snapshot(p: ProjectStore) -> None:
+    """Legacy projects predate cuts/: snapshot the live cut once so it
+    appears in the cuts list and stays selectable after a re-cut."""
+    cuts_dir = p.multiangle_dir / "cuts"
+    has_cuts = cuts_dir.is_dir() and any(d.is_dir() for d in cuts_dir.iterdir())
+    if has_cuts:
+        return
+    with contextlib.suppress(Exception):
+        snapshot_cut(p.root, p.meta.get("cut_style", "normal"))
+
+
+@scoped.get("/multiangle/cuts")
+def get_cuts(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    _ensure_cut_snapshot(p)
+    return list_cuts(p.root)
+
+
+@scoped.post("/multiangle/cuts/{cut_id}/activate")
+def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    meta = activate_cut(p.root, cut_id)
+    if meta is None:
+        raise HTTPException(404, "unknown cut")
+    p.meta["cut_style"] = meta.get("style") or p.meta.get("cut_style", "normal")
+    p.save()
+    p.invalidate_video()   # drop proxy/thumbs for the previous cut
+    # refresh the registered video + status.json so the UI sees this cut
+    info = _read_json(p.pipeline_dir / "probe.json") or \
+        _read_json(p.multiangle_dir / "cuts" / cut_id / "probe.json")
+    try:
+        info = info or fx.probe(p.root / "match.mp4")
+    except Exception:
+        info = info or {}
+    resolved = str((p.root / "match.mp4").resolve())
+    p.set_video(VideoInfo(path=resolved, registered_at=time.time(), **info))
+    if status:
+        status["video"] = info
+        status["video_path"] = resolved
+        pipeline.write_status(p, status)
+    return list_cuts(p.root)
+
+
+@scoped.delete("/multiangle/cuts/{cut_id}")
+def delete_cut_route(cut_id: str, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    cur = list_cuts(p.root)
+    if cur["active"] == cut_id:
+        raise HTTPException(409, "cannot delete the active cut")
+    cdir = p.multiangle_dir / "cuts" / cut_id
+    if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
+        raise HTTPException(404, "unknown cut")
+    shutil.rmtree(cdir)
+    return list_cuts(p.root)
+
+
+@scoped.get("/multiangle/cuts/{cut_id}/match.mp4")
+def get_cut_file(cut_id: str, p: PublicP) -> FileResponse:
+    _require_multiangle(p)
+    cdir = p.multiangle_dir / "cuts" / cut_id
+    f = cdir / "match.mp4"
+    if "/" in cut_id or ".." in cut_id or not f.is_file():
+        raise HTTPException(404, "cut video not found")
+    meta = _read_json(cdir / "meta.json") or {}
+    label = meta.get("label") or cut_id
+    fname = _safe_filename(f"{p.title} - {label}.mp4")
+    return FileResponse(f, media_type="video/mp4", filename=fname)
 
 
 @scoped.get("/multiangle/angle/{angle_idx}/frame.jpg")

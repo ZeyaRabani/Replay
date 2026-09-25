@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type {
   Candidate,
+  CutsList,
   DirectorFull,
   MultiangleInfo,
   PipelineStatus,
@@ -191,6 +192,13 @@ export function projectApi(id: string) {
     angleFrameUrl: (i: number, t?: number) =>
       mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`,
         t == null ? {} : { t: String(t) }),
+    listCuts: () => req<CutsList>(`${base}/multiangle/cuts`),
+    activateCut: (id: string) =>
+      req<CutsList>(`${base}/multiangle/cuts/${id}/activate`, json({})),
+    deleteCut: (id: string) =>
+      req<CutsList>(`${base}/multiangle/cuts/${id}`, { method: "DELETE" }),
+    cutDownloadUrl: (id: string) =>
+      mediaUrl(`${base}/multiangle/cuts/${id}/match.mp4`),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

@@ -25,6 +25,7 @@ export default function ProjectReview({ seekRequest }: Props) {
   const [quality, setQuality] = useState<"fast" | "hd">(
     () => (localStorage.getItem("replay.quality") === "hd" ? "hd" : "fast"));
   const [isMultiangle, setIsMultiangle] = useState(false);
+  const [cutLabel, setCutLabel] = useState<string | null>(null);
   const [win, setWin] = useState<[number, number] | null>(null);
   const [winEdit, setWinEdit] = useState(false);
   const [winIn, setWinIn] = useState("");
@@ -61,6 +62,14 @@ export default function ProjectReview({ seekRequest }: Props) {
         setProxyReady(p.proxy_ready);
         setCandVersion(p.candidates_version);
         setIsMultiangle(p.mode === "multiangle");
+        if (p.mode === "multiangle") {
+          api.listCuts()
+            .then((cl) => {
+              const act = cl.cuts.find((c) => c.id === cl.active);
+              setCutLabel(act?.label ?? null);
+            })
+            .catch(() => undefined);
+        }
         try {
           const mw = await api.getMatchWindow();
           setWin(mw.match_window);
@@ -313,6 +322,11 @@ export default function ProjectReview({ seekRequest }: Props) {
                 >
                   Download director cut (full match, MP4)
                 </a>
+              )}
+              {isMultiangle && cutLabel && (
+                <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700">
+                  {cutLabel}
+                </span>
               )}
               {win && (
                 <button

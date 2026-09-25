@@ -167,6 +167,7 @@ export default function ProjectPage() {
             </div>
             {tab === "stats" && (
               <ProjectStats
+                key={gen}
                 onSeek={(t) => {
                   setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
                   setTab("review");
@@ -175,9 +176,14 @@ export default function ProjectPage() {
             )}
             {tab === "director" && (
               <DirectorCut
+                key={gen}
                 onSeek={(t) => {
                   setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
                   setTab("review");
+                }}
+                onCutsChanged={() => {
+                  setGen((g) => g + 1);
+                  void refresh();
                 }}
               />
             )}
