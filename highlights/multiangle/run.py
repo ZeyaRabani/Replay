@@ -361,7 +361,8 @@ class Stage:
 
 STAGES: dict[str, Stage] = {
     "download": Stage(0.15, stage_download,
-                      lambda c: [a["dir"] for a in c.angles]),
+                      lambda c: [c.angle_video(i) or a["dir"] / "match.missing"
+                                 for i, a in enumerate(c.angles)]),
     "angles": Stage(0.30, stage_angles,
                     lambda c: [a["dir"] / "pipeline" / "candidates.json" for a in c.angles]),
     "sync": Stage(0.05, stage_sync, lambda c: [c.pipe / "sync.json"]),
