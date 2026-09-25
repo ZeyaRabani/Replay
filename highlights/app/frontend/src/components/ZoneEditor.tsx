@@ -19,19 +19,45 @@ const polyBounds = (p: ZonePolygon): Rect => {
   return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
 };
 
+const clamp = (v: number, hi: number) => Math.min(Math.max(0, v), Math.max(0, hi));
+
+export function zoneStillTimes(duration: number | null): [number, number, number] {
+  const d = duration ?? 120;
+  return [clamp(60, d - 1), clamp(d / 2, d - 1), clamp(d - 300, d - 1)];
+}
+
 interface Props {
   angle: AngleInfo;
   zones: ZonePolygon[];
   onChange: (zones: ZonePolygon[]) => void;
-  onTChange?: (t: number) => void;
 }
 
-export default function ZoneEditor({ angle, zones, onChange, onTChange }: Props) {
+function OverlayRects({ zones, draft }: { zones: ZonePolygon[]; draft?: Rect | null }) {
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox="0 0 1 1" preserveAspectRatio="none">
+      {zones.map((p, i) => {
+        const r = polyBounds(p);
+        return (
+          <rect key={i} x={r.x1} y={r.y1} width={r.x2 - r.x1} height={r.y2 - r.y1}
+            fill="rgba(251,146,60,0.25)" stroke="#fb923c" strokeWidth={0.004} />
+        );
+      })}
+      {draft && (
+        <rect x={Math.min(draft.x1, draft.x2)} y={Math.min(draft.y1, draft.y2)}
+          width={Math.abs(draft.x2 - draft.x1)} height={Math.abs(draft.y2 - draft.y1)}
+          fill="rgba(251,146,60,0.15)" stroke="#fb923c" strokeWidth={0.004}
+          strokeDasharray="0.01" />
+      )}
+    </svg>
+  );
+}
+
+export default function ZoneEditor({ angle, zones, onChange }: Props) {
   const api = useProjectApi();
   const box = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState<Rect | null>(null);
-  const [t, setT] = useState<number | null>(null);
-  const duration = angle.duration ?? 600;
+  const [t1, t2, t3] = zoneStillTimes(angle.duration);
 
   const norm = (e: React.MouseEvent): [number, number] => {
     const r = box.current!.getBoundingClientRect();
@@ -60,24 +86,33 @@ export default function ZoneEditor({ angle, zones, onChange, onTChange }: Props)
     if (r.x2 - r.x1 > 0.01 && r.y2 - r.y1 > 0.01) onChange([...zones, rectToPoly(r)]);
   };
 
+  const still = (t: number, interactive: boolean) => (
+    <div
+      key={t}
+      ref={interactive ? box : undefined}
+      className={`relative flex-1 min-w-0 select-none ${interactive ? "cursor-crosshair" : ""}`}
+      onMouseDown={interactive ? onDown : undefined}
+      onMouseMove={interactive ? onMove : undefined}
+      onMouseUp={interactive ? onUp : undefined}
+      onMouseLeave={interactive ? onUp : undefined}
+    >
+      <img
+        src={api.angleFrameUrl(angle.index, t)}
+        alt={`angle ${angle.index} @${Math.round(t)}s`}
+        className="w-full rounded border border-zinc-800 pointer-events-none"
+        draggable={false}
+      />
+      <OverlayRects zones={zones} draft={interactive ? draft : null} />
+      <span className="absolute bottom-1 left-1 text-[9px] font-mono bg-zinc-950/70 rounded px-1 text-zinc-300">
+        {Math.round(t)}s{interactive ? " · draw here" : ""}
+      </span>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2 text-[11px] text-zinc-400">
         <span className="font-medium text-zinc-300">a{angle.index} · {angle.label}</span>
-        <span>frame t</span>
-        <input
-          type="range"
-          min={0}
-          max={Math.floor(duration)}
-          step={10}
-          value={t ?? Math.floor(duration * 0.3)}
-          onChange={(e) => {
-            setT(Number(e.target.value));
-            onTChange?.(Number(e.target.value));
-          }}
-          className="w-28 accent-amber-400"
-        />
-        <span className="font-mono">{t ?? Math.floor(duration * 0.3)}s</span>
         <button
           className="ml-auto text-[10px] text-zinc-400 hover:text-zinc-200 underline disabled:opacity-40"
           disabled={zones.length === 0}
@@ -86,51 +121,10 @@ export default function ZoneEditor({ angle, zones, onChange, onTChange }: Props)
           Clear ({zones.length})
         </button>
       </div>
-      <div
-        ref={box}
-        className="relative w-full max-w-md select-none cursor-crosshair"
-        onMouseDown={onDown}
-        onMouseMove={onMove}
-        onMouseUp={onUp}
-        onMouseLeave={onUp}
-      >
-        <img
-          src={api.angleFrameUrl(angle.index, t ?? undefined)}
-          alt={`angle ${angle.index} frame`}
-          className="w-full rounded border border-zinc-800 pointer-events-none"
-          draggable={false}
-        />
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 1 1"
-          preserveAspectRatio="none"
-        >
-          {zones.map((p, i) => {
-            const r = polyBounds(p);
-            return (
-              <rect
-                key={i}
-                x={r.x1} y={r.y1}
-                width={r.x2 - r.x1} height={r.y2 - r.y1}
-                fill="rgba(251,146,60,0.25)"
-                stroke="#fb923c"
-                strokeWidth={0.004}
-              />
-            );
-          })}
-          {draft && (
-            <rect
-              x={Math.min(draft.x1, draft.x2)}
-              y={Math.min(draft.y1, draft.y2)}
-              width={Math.abs(draft.x2 - draft.x1)}
-              height={Math.abs(draft.y2 - draft.y1)}
-              fill="rgba(251,146,60,0.15)"
-              stroke="#fb923c"
-              strokeWidth={0.004}
-              strokeDasharray="0.01"
-            />
-          )}
-        </svg>
+      <div className="flex gap-2">
+        {still(t1, true)}
+        {still(t2, false)}
+        {still(t3, false)}
       </div>
     </div>
   );

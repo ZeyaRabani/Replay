@@ -2,7 +2,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
-import ZoneEditor from "./ZoneEditor";
+import ZoneEditor, { zoneStillTimes } from "./ZoneEditor";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
@@ -60,7 +60,6 @@ export default function DirectorCut({ onSeek }: Props) {
   const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
   const zonesLoaded = useRef(false);
-  const refT = useRef<(number | null)[]>([]);
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -72,7 +71,6 @@ export default function DirectorCut({ onSeek }: Props) {
         try {
           const z = await api.getZones();
           setZones(z.angles);
-          if (z.ref_t) refT.current = z.ref_t;
         } catch {
           zonesLoaded.current = false;
         }
@@ -320,8 +318,9 @@ export default function DirectorCut({ onSeek }: Props) {
                     {(info.cut_style ?? info.director?.style ?? "normal") === "fast"
                       ? "fast cuts" : "normal cuts"}
                   </span>
+                  {!live && (
                   <button
-                    disabled={live || info.sources_purged || recutBusy}
+                    disabled={info.sources_purged || recutBusy}
                     title={info.sources_purged ? "angle sources deleted — cannot re-cut" : undefined}
                     onClick={() => void doRecut()}
                     className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40 disabled:hover:text-amber-300"
@@ -330,6 +329,7 @@ export default function DirectorCut({ onSeek }: Props) {
                     {(info.cut_style ?? "normal") === "fast"
                       ? "Re-cut (zones + Normal)" : "Re-cut (zones + Fast)"}
                   </button>
+                  )}
                 </div>
               </div>
               {!info.director ? (
@@ -405,7 +405,8 @@ export default function DirectorCut({ onSeek }: Props) {
             </div>
 
             {/* ball zones */}
-            {!info.sources_purged && zones !== null && (
+            {!info.sources_purged && zones !== null &&
+              info.angles.length > 0 && info.angles.every((a) => a.has_file) && (
               <div className={card}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -415,7 +416,10 @@ export default function DirectorCut({ onSeek }: Props) {
                     disabled={zoneBusy || live}
                     onClick={() => {
                       setZoneBusy(true);
-                      void api.putZones(zones, refT.current)
+                      void api.putZones(
+                        zones,
+                        info.angles.map((a) => zoneStillTimes(a.duration)[0]),
+                      )
                         .then(() => refresh())
                         .catch((e) => setError(e instanceof Error ? e.message : String(e)))
                         .finally(() => setZoneBusy(false));
@@ -427,9 +431,12 @@ export default function DirectorCut({ onSeek }: Props) {
                   </button>
                 </div>
                 <div className="text-[11px] text-zinc-500 mb-3">
-                  Drag on a frame to paint a zone — when the ball is inside an
-                  angle&apos;s zone the director cuts to that angle.
+                  Drag on the first frame to paint a zone (drawn zones show
+                  read-only on the other stills so you can spot camera drift) —
+                  when the ball is inside an angle&apos;s zone the director cuts
+                  to that angle.
                   {info.director?.zones_used && (" Current cut used zones.")}
+                  {!info.director && (" Will be used by the first cut.")}
                 </div>
                 <div className="flex flex-col gap-4">
                   {info.angles.map((a) => (
@@ -437,9 +444,6 @@ export default function DirectorCut({ onSeek }: Props) {
                       key={a.index}
                       angle={a}
                       zones={zones[a.index] ?? []}
-                      onTChange={(t) => {
-                        refT.current[a.index] = t;
-                      }}
                       onChange={(z) =>
                         setZones((cur) => {
                           const next = [...(cur ?? [])];
