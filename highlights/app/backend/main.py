@@ -1334,7 +1334,18 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     # optional cut range: window is in the current video's output time,
     # stored as absolute shared-T seconds for the runner's ctx.union()
     cr_path = p.multiangle_dir / "cut_range.json"
-    dur = p.video.duration_s if p.video else 0.0
+    # dur = the CURRENT rendered video's length: an active cut_range's
+    # span, else the coverage union span, else the source video
+    cur = _read_json(cr_path)
+    if cur:
+        dur = float(cur["hi"]) - float(cur["lo"])
+    else:
+        sync = _read_json(p.multiangle_dir / "sync.json") or {}
+        try:
+            ulo, uhi = sync["coverage"]["union"]
+            dur = float(uhi) - float(ulo)
+        except Exception:
+            dur = p.video.duration_s if p.video else 0.0
     full = (body.window is None or not body.window or
             (body.window[0] <= 0.5 and body.window[1] >= dur - 0.5))
     if full:
@@ -1346,7 +1357,6 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         if not (0 <= s < e <= dur):
             raise HTTPException(
                 422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
-        cur = _read_json(cr_path)
         cur_lo = float(cur["lo"]) if cur else None
         if cur_lo is None:
             sync = _read_json(p.multiangle_dir / "sync.json") or {}

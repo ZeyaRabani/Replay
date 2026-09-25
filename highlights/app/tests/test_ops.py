@@ -194,6 +194,15 @@ def test_recut_window_writes_cut_range(client, short_video, monkeypatch):
     assert r.status_code == 422
     assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
 
+    # window must fit the CURRENT cut's span (hi-lo = 3 s), not the
+    # source video's length: [1, 5] is inside the video but extends
+    # past the windowed cut's end -> 422 (was wrongly accepted when
+    # dur came from the source video)
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [1.0, 5.0]})
+    assert r.status_code == 422
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
+
     # no window -> full re-cut, cut_range.json removed
     r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
     assert r.status_code == 200, r.text
