@@ -230,10 +230,8 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
     offs = np.array(offsets)
     durs = np.asarray(durations, dtype=float)
     coverage = {
-        "intersection": [float(max(0.0, (-offs).max())),
-                         float((durs - offs).min())],
-        "union": [float(min(0.0, (-offs).min())),
-                  float((durs - offs).max())],
+        "intersection": [float(offs.max()), float((offs + durs).min())],
+        "union": [float(offs.min()), float((offs + durs).max())],
     }
     note = {"manual": "offsets entered manually",
             "xcorr+triangle": ("all pairs accepted by triangle consistency "
