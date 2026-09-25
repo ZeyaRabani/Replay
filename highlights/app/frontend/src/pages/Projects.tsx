@@ -1,4 +1,4 @@
-import { Film, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, Youtube } from "lucide-react";
+import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
@@ -19,6 +19,12 @@ function SourceBadge({ p }: { p: ProjectSummary }) {
     return (
       <span className={`${cls} bg-red-900/50 text-red-200`}>
         <Youtube size={11} /> YouTube
+      </span>
+    );
+  if (k === "multiangle")
+    return (
+      <span className={`${cls} bg-purple-900/50 text-purple-200`}>
+        <Layers size={11} /> Multi-angle · {p.n_angles} angles
       </span>
     );
   if (k === "upload")
@@ -139,6 +145,10 @@ function ProjectCard({
               {p.message}
             </div>
           )
+        ) : p.pipeline_state === "needs_input" ? (
+          <Link to={`/projects/${p.id}`} className="text-[11px] text-orange-300 hover:text-orange-200 truncate" title={p.message ?? ""}>
+            Needs sync offsets — {p.message}
+          </Link>
         ) : (
           <div className="text-xs text-zinc-400">
             <b className="text-zinc-200">{p.n_candidates}</b> candidates ·{" "}
@@ -259,6 +269,16 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   const [file, setFile] = useState<File | null>(null);
   const [uploadOrigin, setUploadOrigin] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"single" | "multi">("single");
+  const [maTab, setMaTab] = useState<"links" | "upload">("links");
+  const [maRows, setMaRows] = useState<{ url: string; label: string }[]>([
+    { url: "", label: "" },
+    { url: "", label: "" },
+  ]);
+  const [maFiles, setMaFiles] = useState<{ file: File | null; label: string }[]>([
+    { file: null, label: "" },
+    { file: null, label: "" },
+  ]);
 
   useEffect(() => {
     configApi
@@ -272,14 +292,30 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   const submit = async () => {
     setBusy(true);
     try {
-      const p =
-        tab === "youtube"
-          ? await projectsApi.createYoutube(url.trim(), title.trim())
-          : await projectsApi.createUpload(file as File, title.trim());
+      let p: ProjectSummary;
+      if (mode === "multi") {
+        if (maTab === "links") {
+          const angles = maRows.map((r, i) => ({ url: r.url.trim(), label: r.label.trim() || `Angle ${i + 1}` }));
+          p = await projectsApi.createMultiangle(title.trim() || undefined, angles);
+        } else {
+          p = await projectsApi.createMultiangleUpload(
+            maFiles.map((r) => r.file as File),
+            maFiles.map((r, i) => r.label.trim() || `Angle ${i + 1}`),
+            title.trim() || undefined,
+          );
+        }
+      } else {
+        p =
+          tab === "youtube"
+            ? await projectsApi.createYoutube(url.trim(), title.trim())
+            : await projectsApi.createUpload(file as File, title.trim());
+      }
       onCreated(p);
       setUrl("");
       setTitle("");
       setFile(null);
+      setMaRows([{ url: "", label: "" }, { url: "", label: "" }]);
+      setMaFiles([{ file: null, label: "" }, { file: null, label: "" }]);
     } catch (e) {
       let m = e instanceof Error ? e.message : String(e);
       if (m.startsWith("413")) {
@@ -297,24 +333,177 @@ function NewProject({ onCreated, onError, tab, setTab }: {
     `flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t border-b-2 ${
       on ? "border-amber-400 text-amber-300" : "border-transparent text-zinc-400 hover:text-zinc-200"
     }`;
+  const modeCls = (on: boolean) =>
+    `flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded ${
+      on ? "bg-zinc-700 text-amber-300" : "bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
+    }`;
   const input =
     "bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 w-full";
-  const canSubmit = tab === "youtube" ? url.trim().length > 0 : !!file;
+  const canSubmit =
+    mode === "multi"
+      ? maTab === "links"
+        ? maRows.every((r) => r.url.trim().length > 0)
+        : maFiles.every((r) => r.file !== null)
+      : tab === "youtube"
+        ? url.trim().length > 0
+        : !!file;
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
       <div className="flex items-center gap-2 font-semibold text-sm mb-3">
         <Plus size={16} className="text-amber-400" /> New project
       </div>
-      <div className="flex gap-1 border-b border-zinc-800 mb-3">
-        <button className={tabCls(tab === "youtube")} onClick={() => setTab("youtube")}>
-          <Youtube size={13} /> YouTube link
+      <div className="flex gap-1.5 mb-3">
+        <button className={modeCls(mode === "single")} onClick={() => setMode("single")}>
+          <Film size={13} /> Single camera
         </button>
-        <button className={tabCls(tab === "upload")} onClick={() => setTab("upload")}>
-          <Upload size={13} /> Upload file
+        <button className={modeCls(mode === "multi")} onClick={() => setMode("multi")}>
+          <Layers size={13} /> Multi-angle (director cut)
         </button>
       </div>
-      <div className="flex flex-col gap-2">
+      {mode === "multi" ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-1 border-b border-zinc-800 mb-1">
+            <button className={tabCls(maTab === "links")} onClick={() => setMaTab("links")}>
+              <Youtube size={13} /> YouTube links
+            </button>
+            <button className={tabCls(maTab === "upload")} onClick={() => setMaTab("upload")}>
+              <Upload size={13} /> Upload files
+            </button>
+          </div>
+          {maTab === "links" ? (
+            <>
+              {maRows.map((r, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      className={input}
+                      placeholder={`Angle ${i + 1} YouTube URL${i === 0 ? " — reference angle (timeline zero)" : ""}`}
+                      value={r.url}
+                      onChange={(e) =>
+                        setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))
+                      }
+                    />
+                    {maRows.length > 2 && (
+                      <button
+                        className="text-zinc-500 hover:text-red-300 p-1 shrink-0"
+                        title="Remove angle"
+                        onClick={() => setMaRows((rs) => rs.filter((_, j) => j !== i))}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    className={input}
+                    placeholder={`Label (optional, e.g. "Main", "Far side")`}
+                    value={r.label}
+                    onChange={(e) =>
+                      setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                    }
+                  />
+                </div>
+              ))}
+              {maRows.length < 4 && (
+                <button
+                  className="self-start text-xs text-amber-300 hover:text-amber-200"
+                  onClick={() => setMaRows((rs) => [...rs, { url: "", label: "" }])}
+                >
+                  + Add angle
+                </button>
+              )}
+            </>
+          ) : foreignUpload ? (
+            <div className="text-xs text-zinc-300 rounded border border-zinc-700 bg-zinc-800/60 p-3">
+              Large uploads must go directly to your server:
+              <a
+                href={`${uploadOrigin}/projects`}
+                className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5"
+              >
+                Open {uploadOrigin}/projects
+              </a>
+            </div>
+          ) : (
+            <>
+              {maFiles.map((r, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <label className="flex items-center gap-2 bg-zinc-800 border border-dashed border-zinc-600 hover:border-amber-400 rounded px-3 py-2 text-sm cursor-pointer flex-1 min-w-0">
+                      <Upload size={14} className="text-zinc-400 shrink-0" />
+                      <span className="truncate text-zinc-300">
+                        {r.file ? r.file.name : `Angle ${i + 1} video${i === 0 ? " (reference)" : ""}…`}
+                      </span>
+                      <input
+                        type="file"
+                        accept="video/*,.mkv"
+                        className="hidden"
+                        onChange={(e) =>
+                          setMaFiles((rs) =>
+                            rs.map((x, j) => (j === i ? { ...x, file: e.target.files?.[0] ?? null } : x)),
+                          )
+                        }
+                      />
+                    </label>
+                    {maFiles.length > 2 && (
+                      <button
+                        className="text-zinc-500 hover:text-red-300 p-1 shrink-0"
+                        title="Remove angle"
+                        onClick={() => setMaFiles((rs) => rs.filter((_, j) => j !== i))}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    className={input}
+                    placeholder="Label (optional)"
+                    value={r.label}
+                    onChange={(e) =>
+                      setMaFiles((rs) => rs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                    }
+                  />
+                </div>
+              ))}
+              {maFiles.length < 4 && (
+                <button
+                  className="self-start text-xs text-amber-300 hover:text-amber-200"
+                  onClick={() => setMaFiles((rs) => [...rs, { file: null, label: "" }])}
+                >
+                  + Add angle
+                </button>
+              )}
+            </>
+          )}
+          <input
+            className={input}
+            placeholder="Title (optional)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button
+            disabled={busy || !canSubmit}
+            onClick={() => void submit()}
+            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+          >
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <Layers size={15} />}
+            Assemble director cut
+          </button>
+          <p className="text-[11px] text-zinc-500">
+            2–4 angles of the same match. The first angle is the reference (timeline zero). Angles are
+            downloaded, synced by audio, and a director picks the best shot second-by-second.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-1 border-b border-zinc-800 mb-3">
+            <button className={tabCls(tab === "youtube")} onClick={() => setTab("youtube")}>
+              <Youtube size={13} /> YouTube link
+            </button>
+            <button className={tabCls(tab === "upload")} onClick={() => setTab("upload")}>
+              <Upload size={13} /> Upload file
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
         {tab === "youtube" ? (
           <input
             className={input}
@@ -362,7 +551,9 @@ function NewProject({ onCreated, onError, tab, setTab }: {
           Best available quality is downloaded and analysed on this machine. Processing runs in the background —
           you can close the tab and come back.
         </p>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -460,7 +651,7 @@ export default function Projects() {
             </div>
           ) : projects.length === 0 ? (
             <div className="rounded-lg border border-dashed border-zinc-800 p-8 text-center text-sm text-zinc-500">
-              No projects yet. Paste a YouTube link or upload a match video to get started.
+              No projects yet. Paste a YouTube link, upload a match video, or assemble a multi-angle director cut to get started.
             </div>
           ) : (
             projects.map((p) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Candidate, Status } from "../types";
+import type { Candidate, Status, Team } from "../types";
 import CandidateCard from "./CandidateCard";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   sort: "confidence" | "time";
   onSort: (s: "confidence" | "time") => void;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
+  onPatch: (id: string, patch: Partial<Candidate> & { team?: Team }) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 

@@ -349,7 +349,7 @@ export default function ProjectStats({ onSeek }: Props) {
               <dt className="text-zinc-500">Model</dt>
               <dd>{stats.pipeline.model}</dd>
               <dt className="text-zinc-500">Reference AUROC</dt>
-              <dd>{stats.pipeline.auroc_reference.toFixed(2)}</dd>
+              <dd>{stats.pipeline.auroc_reference != null ? stats.pipeline.auroc_reference.toFixed(2) : "—"}</dd>
               <dt className="text-zinc-500">Duration</dt>
               <dd>{fmt(stats.duration_s)}</dd>
               <dt className="text-zinc-500">Whistles</dt>

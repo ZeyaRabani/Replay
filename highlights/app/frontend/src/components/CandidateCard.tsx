@@ -1,7 +1,7 @@
 import { Check, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useProjectApi } from "../api";
-import type { Candidate } from "../types";
+import type { Candidate, Team } from "../types";
 import { TYPE_COLORS } from "./Timeline";
 
 const XV_STYLE: Record<string, string> = {
@@ -24,7 +24,7 @@ interface Props {
   selected: boolean;
   thumbV: string | undefined;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
+  onPatch: (id: string, patch: Partial<Candidate> & { team?: Team }) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 
@@ -100,6 +100,30 @@ export default function CandidateCard(props: Props) {
               {c.type}
             </span>
             <span className={`rounded px-1.5 py-0.5 ${XV_STYLE[c.cross_validation]}`}>{c.cross_validation}</span>
+            {Array.isArray(c.signals.angles) &&
+              ((c.signals.angles as unknown[]).length >= 2 ? (
+                <span
+                  className="rounded px-1.5 py-0.5 bg-emerald-800 text-emerald-200"
+                  title={`seen by angles ${(c.signals.angles as number[]).join(", ")}`}
+                >
+                  cross-confirmed
+                </span>
+              ) : (
+                <span
+                  className="rounded px-1.5 py-0.5 bg-zinc-700 text-zinc-300"
+                  title={`seen by angle ${(c.signals.angles as number[]).join(", ")}`}
+                >
+                  single-angle
+                </span>
+              ))}
+            {c.signals.disputed === true && (
+              <span
+                className="rounded px-1.5 py-0.5 bg-orange-900/60 text-orange-200"
+                title={`disputed type: ${(c.signals.types as string[] | undefined)?.join(" / ") ?? ""}`}
+              >
+                disputed
+              </span>
+            )}
             <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[c.status]}`}>{c.status}</span>
             <span className="ml-auto font-mono text-xs text-zinc-300">{fmt(c.t)}</span>
           </div>
@@ -147,6 +171,22 @@ export default function CandidateCard(props: Props) {
           <RotateCcw size={12} />
         </button>
         <span className="flex-1" />
+        {c.type === "goal" && Array.isArray(c.signals.angles) && (
+          <select
+            className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-[10px]"
+            title="Team (multi-angle score)"
+            value={(c.signals.team as Team | undefined) ?? ""}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "home" || v === "away") void props.onPatch(c.id, { team: v });
+            }}
+          >
+            <option value="">—</option>
+            <option value="home">Home</option>
+            <option value="away">Away</option>
+          </select>
+        )}
         <button
           className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
             c.status === "confirmed" ? "bg-emerald-700" : "bg-zinc-700 hover:bg-emerald-800"

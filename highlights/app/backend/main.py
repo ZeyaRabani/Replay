@@ -75,6 +75,22 @@ class UserCreate(BaseModel):
     name: str
 
 
+class AngleSpec(BaseModel):
+    url: str | None = None
+    filename: str | None = None
+    label: str = ""
+
+
+class MultiangleCreate(BaseModel):
+    title: str | None = None
+    angles: list[AngleSpec]
+    cookies_text: str | None = None
+
+
+class OffsetsPut(BaseModel):
+    offsets: list[float]
+
+
 def get_registry() -> Registry:
     global _registry
     wd = workdir()
@@ -352,6 +368,7 @@ def _patch_candidate(p: ProjectStore, cand_id: str, patch: CandidatePatch) -> di
     if c is None:
         raise HTTPException(404, "candidate not found")
     data = patch.model_dump(exclude_none=True)
+    team = data.pop("team", None)
     updated = c.model_copy(update=data)
     duration = p.video.duration_s if p.video else 0.0
     err = fx.validate_clip_window(updated.clip_start, updated.clip_end, duration)
@@ -359,6 +376,8 @@ def _patch_candidate(p: ProjectStore, cand_id: str, patch: CandidatePatch) -> di
         raise HTTPException(422, err)
     for k, v in data.items():
         setattr(c, k, v)
+    if team is not None:
+        c.signals = {**c.signals, "team": team}
     p.update(c)
     return c.model_dump()
 
@@ -505,7 +524,10 @@ def _stats5(p: ProjectStore) -> dict:
     """Contract 5 stats: pipeline/stats.json or computed demo stats."""
     sp = p.pipeline_dir / "stats.json"
     if sp.is_file():
-        return json.loads(sp.read_text())
+        st = json.loads(sp.read_text())
+        if p.is_multiangle:
+            st.setdefault("multiangle", {})["score"] = _multiangle_score(p)
+        return st
     if p.owner == "demo" and p.title.startswith("Demo match"):
         st = stats.demo_stats()
         with contextlib.suppress(OSError):
@@ -543,6 +565,8 @@ def summary(p: ProjectStore) -> dict:
         "n_candidates": len(p.candidates),
         "n_confirmed": sum(1 for c in p.candidates if c.status == "confirmed"),
         "thumb_url": f"/api/projects/{p.id}/thumb.jpg" if p.video else None,
+        "mode": "multiangle" if p.is_multiangle else "single",
+        "n_angles": len(p.source_info.get("angles") or []) if p.is_multiangle else 1,
     }
 
 
@@ -743,6 +767,142 @@ def list_projects(user: UserDep) -> list:
     return [summary(p) for p in get_registry().list_projects(user)]
 
 
+# ---------- multi-angle (Option 2: director cut) ----------
+
+
+def _norm_angles(angles: list[AngleSpec]) -> list[dict]:
+    if not (2 <= len(angles) <= 4):
+        raise HTTPException(422, "multi-angle projects need 2..4 angles")
+    out = []
+    for i, a in enumerate(angles):
+        out.append({
+            "url": a.url.strip() if a.url else None,
+            "filename": a.filename.strip() if a.filename else None,
+            "label": a.label.strip() or f"Angle {i + 1}",
+        })
+    return out
+
+
+@app.post("/api/projects/multiangle")
+def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
+    angles = _norm_angles(body.angles)
+    for i, a in enumerate(angles):
+        if not a["url"]:
+            raise HTTPException(422, f"angle {i} has no url")
+    p = get_registry().create_project(
+        owner=user,
+        title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
+        source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
+    )
+    if body.cookies_text:
+        cookies = _save_cookies(p, body.cookies_text)
+        _save_user_cookies(user, body.cookies_text)
+    else:
+        cookies = _user_default_cookies(p, user)
+    try:
+        pipeline.spawn_multiangle(p, cookies=cookies)
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
+    return summary(p)
+
+
+@app.post("/api/projects/multiangle/upload")
+async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
+    form = await request.form()
+    files = [f for f in form.getlist("files") if hasattr(f, "read")]
+    labels = [x for x in form.getlist("labels") if isinstance(x, str)]
+    title = form.get("title") if isinstance(form.get("title"), str) else ""
+    cookies_text = form.get("cookies_text") if isinstance(form.get("cookies_text"), str) else None
+    if not (2 <= len(files) <= 4):
+        raise HTTPException(422, "multi-angle uploads need 2..4 files")
+    names = [_safe_filename(f.filename or f"angle{i}.mp4") for i, f in enumerate(files)]
+    angles = [
+        {
+            "url": None,
+            "filename": name,
+            "label": (labels[i].strip() if i < len(labels) else "") or f"Angle {i + 1}",
+        }
+        for i, name in enumerate(names)
+    ]
+    p = get_registry().create_project(
+        owner=user,
+        title=title.strip() or names[0],
+        source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
+    )
+    for i, (f, name) in enumerate(zip(files, names, strict=True)):
+        suffix = Path(name).suffix or ".mp4"
+        dst = p.angle_dir(i) / f"match{suffix}"
+        with open(dst, "wb") as fh:
+            while True:
+                chunk = await f.read(1 << 20)
+                if not chunk:
+                    break
+                fh.write(chunk)
+    _save_cookies(p, cookies_text)
+    try:
+        pipeline.spawn_multiangle(p)
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
+    return summary(p)
+
+
+def _require_multiangle(p: ProjectStore) -> None:
+    if not p.is_multiangle:
+        raise HTTPException(404, "not a multi-angle project")
+
+
+def _read_json(path: Path) -> dict | None:
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def _multiangle_score(p: ProjectStore) -> dict:
+    score: dict = {}
+    st = _read_json(p.pipeline_dir / "stats.json") or {}
+    score = (st.get("multiangle") or {}).get("score") or {}
+    if not score:
+        score = _read_json(p.multiangle_dir / "score.json") or {}
+    home_label = (score.get("home") or {}).get("label") or "Home"
+    away_label = (score.get("away") or {}).get("label") or "Away"
+    n_home = n_away = n_un = 0
+    for c in p.candidates:
+        if c.status != "confirmed" or c.type != "goal":
+            continue
+        team = (c.signals or {}).get("team")
+        if team == "home":
+            n_home += 1
+        elif team == "away":
+            n_away += 1
+        else:
+            n_un += 1
+    return {
+        **score,
+        "home": {"label": home_label, "goals": n_home},
+        "away": {"label": away_label, "goals": n_away},
+        "unassigned": n_un,
+        "basis": "confirmed goals with team set",
+    }
+
+
+def _angles_info(p: ProjectStore) -> list[dict]:
+    out = []
+    for i, a in enumerate(p.source_info.get("angles") or []):
+        ast = _read_json(p.angle_dir(i) / "pipeline" / "status.json") or {}
+        duration = (ast.get("video") or {}).get("duration_s")
+        out.append({
+            "index": i,
+            "label": a.get("label") or f"Angle {i + 1}",
+            "url": a.get("url"),
+            "filename": a.get("filename"),
+            "duration": duration,
+            "status": ast.get("state"),
+            "has_file": p.angle_video(i) is not None,
+        })
+    return out
+
+
 scoped = APIRouter(prefix="/api/projects/{project_id}")
 legacy = APIRouter(prefix="/api")
 
@@ -771,8 +931,12 @@ def run_pipeline(p: ScopedP, user: UserDep,
     body = body or {}
     stages = body.get("stages")
     force = bool(body.get("force", False))
-    kind = p.source_info.get("kind")
     try:
+        if p.is_multiangle:
+            ck = _user_default_cookies(p, user) or _project_cookies(p)
+            return pipeline.spawn_multiangle(p, stages=stages, force=force,
+                                           cookies=ck)
+        kind = p.source_info.get("kind")
         if kind == "youtube":
             ck = _user_default_cookies(p, user) or _project_cookies(p)
             return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
@@ -807,6 +971,58 @@ def get_pipeline(p: ScopedP) -> dict:
 @scoped.get("/stats")
 def get_stats(p: ScopedP) -> dict:
     return _stats5(p)
+
+
+@scoped.get("/multiangle")
+def get_multiangle(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    director = _read_json(p.multiangle_dir / "director.json")
+    if director:
+        director = {k: v for k, v in director.items() if k != "segments"}
+    return {
+        "sync": _read_json(p.multiangle_dir / "sync.json"),
+        "director": director,
+        "angles": _angles_info(p),
+        "score": _multiangle_score(p),
+        "status": pipeline.read_status(p),
+    }
+
+
+@scoped.get("/multiangle/director")
+def get_multiangle_director(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    d = _read_json(p.multiangle_dir / "director.json")
+    if d is None:
+        raise HTTPException(404, "director.json not available yet")
+    return d
+
+
+@scoped.get("/multiangle/angle/{angle_idx}/video")
+def get_angle_video(angle_idx: int, p: PublicP) -> FileResponse:
+    _require_multiangle(p)
+    angles = p.source_info.get("angles") or []
+    if not (0 <= angle_idx < len(angles)):
+        raise HTTPException(404, "angle out of range")
+    v = p.angle_video(angle_idx)
+    if v is None:
+        raise HTTPException(404, "angle video not found")
+    return _serve(v)
+
+
+@scoped.put("/multiangle/offsets")
+def put_multiangle_offsets(body: OffsetsPut, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    n = len(p.source_info.get("angles") or [])
+    if len(body.offsets) != n:
+        raise HTTPException(422, f"expected {n} offsets, got {len(body.offsets)}")
+    if body.offsets[0] != 0:
+        raise HTTPException(422, "reference angle offset must be 0")
+    try:
+        return pipeline.spawn_multiangle(
+            p, stages=pipeline.MULTIANGLE_FROM_SYNC,
+            offsets=body.offsets, cookies=_project_cookies(p))
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
 
 
 @scoped.get("/thumb.jpg")

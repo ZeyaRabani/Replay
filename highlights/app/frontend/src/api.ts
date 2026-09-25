@@ -1,11 +1,14 @@
 import { createContext, useContext } from "react";
 import type {
   Candidate,
+  DirectorFull,
+  MultiangleInfo,
   PipelineStatus,
   ProjectDetail,
   ProjectSummary,
   RenderJob,
   Stats,
+  Team,
   User,
   VideoInfo,
 } from "./types";
@@ -84,6 +87,15 @@ export const projectsApi = {
     if (title) fd.append("title", title);
     return req<ProjectSummary>("/api/projects", { method: "POST", body: fd });
   },
+  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string) =>
+    req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text })),
+  createMultiangleUpload: (files: File[], labels: string[], title?: string) => {
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    for (const l of labels) fd.append("labels", l);
+    if (title) fd.append("title", title);
+    return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
+  },
   remove: (id: string) => req<void>(`/api/projects/${id}`, { method: "DELETE" }),
 };
 
@@ -114,7 +126,7 @@ export function projectApi(id: string) {
       return req<Candidate[]>(`${base}/candidates/load`, { method: "POST", body: fd }).then(() => undefined);
     },
     listCandidates: (sort: "confidence" | "time") => req<Candidate[]>(`${base}/candidates?sort=${sort}`),
-    patchCandidate: (cid: string, patch: Partial<Candidate>) =>
+    patchCandidate: (cid: string, patch: Partial<Candidate> & { team?: Team }) =>
       req<Candidate>(`${base}/candidates/${cid}`, json(patch, "PATCH")),
     resetCandidate: (cid: string) => req<Candidate>(`${base}/candidates/${cid}/reset`, { method: "POST" }),
     thumbUrl: (cid: string, v?: string) => mediaUrl(`${base}/candidates/${cid}/thumb.jpg`, { v }),
@@ -124,6 +136,11 @@ export function projectApi(id: string) {
     renderJob: (jobId: string) => req<RenderJob>(`${base}/render/${jobId}`),
     statsUrl: mediaUrl(`${base}/stats`),
     fileUrl: (url: string) => mediaUrl(url),
+
+    multiangle: () => req<MultiangleInfo>(`${base}/multiangle`),
+    multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
+    putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
+    angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean }>(`${base}/project`),
