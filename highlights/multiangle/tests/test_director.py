@@ -86,7 +86,7 @@ def test_min_hold_respected():
     assert out["n_cuts"] == 1
     cut = out["segments"][1]["t_start"]
     # cut lands inside the [t-2, t+2] window after hold reaches MIN_HOLD
-    assert cut >= 18
+    assert 18 <= cut <= 24
 
 
 def test_cluster_margin_blocks_and_allows():
