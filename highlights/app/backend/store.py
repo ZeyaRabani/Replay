@@ -77,6 +77,10 @@ class ProjectStore:
         self.title = title
         self.created_at = time.time()
         self.source_info: dict = source or {"kind": "path", "url": None, "filename": None}
+        if self.is_multiangle:
+            self.multiangle_dir.mkdir(exist_ok=True)
+            for i in range(len(self.source_info.get("angles") or [])):
+                self.angle_dir(i).mkdir(parents=True, exist_ok=True)
         self.pipeline_state: str = "none"
         self.state_path = self.root / "project.json"
         self.lock = threading.RLock()
@@ -93,11 +97,39 @@ class ProjectStore:
         return self.root / "pipeline"
 
     @property
+    def is_multiangle(self) -> bool:
+        return self.source_info.get("kind") == "multiangle"
+
+    @property
+    def multiangle_dir(self) -> Path:
+        return self.root / "multiangle"
+
+    @property
+    def angles_dir(self) -> Path:
+        return self.root / "angles"
+
+    def angle_dir(self, i: int) -> Path:
+        return self.angles_dir / f"a{i}"
+
+    def angle_video(self, i: int) -> Path | None:
+        d = self.angle_dir(i)
+        if not d.is_dir():
+            return None
+        for f in sorted(d.iterdir()):
+            if f.is_file() and f.name.startswith("match."):
+                return f
+        return None
+
+    @property
     def status_path(self) -> Path:
+        if self.is_multiangle:
+            return self.multiangle_dir / "status.json"
         return self.pipeline_dir / "status.json"
 
     @property
     def log_path(self) -> Path:
+        if self.is_multiangle:
+            return self.multiangle_dir / "log.txt"
         return self.pipeline_dir / "log.txt"
 
     @property

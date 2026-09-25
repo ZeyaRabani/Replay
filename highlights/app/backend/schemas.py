@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 EventType = Literal["goal", "shot", "chance", "excitement", "other"]
 CandidateStatus = Literal["pending", "confirmed", "rejected"]
+Team = Literal["home", "away"]
 CrossValidation = Literal["confirmed", "pipeline_only", "visual_only", "rejected"]
 
 
@@ -54,6 +55,7 @@ class CandidatePatch(BaseModel):
     clip_end: float | None = None
     type: EventType | None = None
     notes: str | None = None
+    team: Team | None = None
 
 
 class VideoInfo(BaseModel):

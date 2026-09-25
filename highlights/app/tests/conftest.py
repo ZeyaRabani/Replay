@@ -10,6 +10,7 @@ APP = Path(__file__).resolve().parents[1]
 REPO = APP.parents[1]
 SAMPLE = APP / "sample"
 FAKE_PIPELINE = Path(__file__).resolve().parent / "fake_pipeline.py"
+FAKE_MULTIANGLE = Path(__file__).resolve().parent / "fake_multiangle.py"
 
 
 @pytest.fixture(scope="session")
@@ -35,6 +36,7 @@ def short_video(tmp_path_factory):
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("HL_WORKDIR", str(tmp_path / "wd"))
     monkeypatch.setenv("HL_PIPELINE_CMD", f"{sys.executable} {FAKE_PIPELINE}")
+    monkeypatch.setenv("HL_MULTIANGLE_CMD", f"{sys.executable} {FAKE_MULTIANGLE}")
     monkeypatch.setenv("HL_DEMO_VIDEO", "/nonexistent")
     from fastapi.testclient import TestClient
 

@@ -37,6 +37,18 @@ def runner_cmd() -> list[str]:
     return [sys.executable, "-m", "highlights.pipeline.run"]
 
 
+def multiangle_runner_cmd() -> list[str]:
+    env = os.environ.get("HL_MULTIANGLE_CMD")
+    if env:
+        return shlex.split(env)
+    return [sys.executable, "-m", "highlights.multiangle.run"]
+
+
+MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "director",
+                     "render", "fuse", "stats"]
+MULTIANGLE_FROM_SYNC = MULTIANGLE_STAGES[2:]
+
+
 def read_status(p: ProjectStore) -> dict | None:
     try:
         return json.loads(p.status_path.read_text())
@@ -45,7 +57,7 @@ def read_status(p: ProjectStore) -> dict | None:
 
 
 def write_status(p: ProjectStore, status: dict) -> None:
-    p.pipeline_dir.mkdir(exist_ok=True)
+    p.status_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.status_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(status, indent=2))
     tmp.replace(p.status_path)
@@ -88,10 +100,6 @@ def spawn(
     force: bool = False,
     cookies: str | None = None,
 ) -> dict:
-    status = read_status(p)
-    if status and status.get("state") in ("queued", "running") and _status_alive(status):
-        raise PipelineBusy("pipeline already running for this project")
-
     argv = runner_cmd() + ["--project-dir", str(p.root)]
     if youtube_url:
         argv += ["--youtube-url", youtube_url]
@@ -104,14 +112,42 @@ def spawn(
     ck = cookies or os.environ.get("HL_YT_COOKIES")
     if ck:
         argv += ["--cookies", ck]
+    return _launch(p, argv, initial_stage="download" if youtube_url else "probe")
 
-    p.pipeline_dir.mkdir(exist_ok=True)
+
+def spawn_multiangle(
+    p: ProjectStore,
+    *,
+    stages: list[str] | None = None,
+    force: bool = False,
+    cookies: str | None = None,
+    offsets: list[float] | None = None,
+) -> dict:
+    argv = multiangle_runner_cmd() + ["--project-dir", str(p.root)]
+    if stages:
+        argv += ["--stages", ",".join(stages)]
+    if force:
+        argv += ["--force"]
+    ck = cookies or os.environ.get("HL_YT_COOKIES")
+    if ck:
+        argv += ["--cookies", ck]
+    if offsets is not None:
+        argv += ["--offsets", ",".join(f"{o:g}" for o in offsets)]
+    return _launch(p, argv, initial_stage="download")
+
+
+def _launch(p: ProjectStore, argv: list[str], *, initial_stage: str) -> dict:
+    status = read_status(p)
+    if status and status.get("state") in ("queued", "running") and _status_alive(status):
+        raise PipelineBusy("pipeline already running for this project")
+
+    p.status_path.parent.mkdir(parents=True, exist_ok=True)
     # write queued BEFORE Popen so a fast runner's running/done status is
     # never clobbered back to queued; pid is filled in just after spawn
     now = time.time()
     status = {
         "state": "queued",
-        "stage": "download" if youtube_url else "probe",
+        "stage": initial_stage,
         "progress": 0.0,
         "stage_progress": 0.0,
         "message": "queued",
@@ -216,6 +252,10 @@ def refresh(p: ProjectStore) -> dict | None:
         p.set_pipeline_state(state)
     if state == "done":
         vp = status.get("video_path")
+        if not vp and p.is_multiangle:
+            ma_video = p.root / "match.mp4"
+            if ma_video.is_file():
+                vp = str(ma_video)
         if vp:
             resolved = str(Path(vp).resolve())
             if (p.video is None or p.video.path != resolved) and Path(resolved).is_file():
