@@ -121,3 +121,56 @@ def test_ctx_union_cut_range(tmp_path):
     (ctx.pipe / "cut_range.json").write_text(
         _json.dumps({"lo": 0.0, "hi": 99999.0}))
     assert ctx.union(sync) == (100.0, 6100.0)
+
+
+def test_stage_fuse_match_window_cut_range(tmp_path):
+    """With cut_range.json, stage_fuse writes match_window=[0, hi-lo] and
+    clips halves to the output duration; without it, a0's window is shifted
+    and clamped (regression for the re-cut overwrite bug)."""
+    import json as _json
+
+    from highlights.multiangle.run import Ctx, stage_fuse
+
+    def _proj():
+        proj = tmp_path / "p"
+        ma = proj / "multiangle"
+        ma.mkdir(parents=True)
+        (ma / "sync.json").write_text(_json.dumps({
+            "offsets": [0.0, -10.0],
+            "coverage": {"union": [100.0, 200.0]}}))
+        angles = []
+        for i in range(2):
+            d = proj / "angles" / f"a{i}" / "pipeline"
+            d.mkdir(parents=True)
+            (d / "candidates.json").write_text(_json.dumps({"events": []}))
+            angles.append({"label": f"a{i}", "dir": d.parent})
+        (angles[0]["dir"] / "pipeline" / "match_window.json").write_text(
+            _json.dumps({"match_window": [110.0, 195.0],
+                         "halves": [{"start": 110.0, "end": 152.0},
+                                    {"start": 190.0, "end": 195.0}]}))
+        ctx = Ctx(project_dir=proj, pipe=ma, status=None, angles=angles)
+        return proj, ctx
+
+    # no cut range: a0 window shifted (offset0 - lo = -100) and clamped
+    proj, ctx = _proj()
+    stage_fuse(ctx)
+    mw = _json.loads((proj / "pipeline" / "match_window.json").read_text())
+    assert mw["match_window"] == [10.0, 95.0]
+    assert mw["halves"] == [{"start": 10.0, "end": 52.0},
+                            {"start": 90.0, "end": 95.0}]
+
+    # with cut range: window = whole rendered video, halves re-clipped
+    proj2 = tmp_path / "p2"
+    proj2.mkdir()
+    import shutil as _sh
+    _sh.copytree(proj, proj2, dirs_exist_ok=True)
+    ma2 = proj2 / "multiangle"
+    (ma2 / "cut_range.json").write_text(_json.dumps({"lo": 110.0, "hi": 150.0}))
+    ctx2 = Ctx(project_dir=proj2, pipe=ma2, status=None,
+               angles=[{"label": "a0", "dir": proj2 / "angles" / "a0"},
+                       {"label": "a1", "dir": proj2 / "angles" / "a1"}])
+    stage_fuse(ctx2)
+    mw2 = _json.loads((proj2 / "pipeline" / "match_window.json").read_text())
+    assert mw2["match_window"] == [0.0, 40.0]
+    # halves clipped to [0,40] of the cut (a0 times stay as-is but clamped)
+    assert all(0 <= h["start"] < h["end"] <= 40.0 for h in mw2["halves"])

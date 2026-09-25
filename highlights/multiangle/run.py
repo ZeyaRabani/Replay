@@ -397,18 +397,34 @@ def stage_fuse(ctx: Ctx) -> dict:
     pdir = ctx.project_dir / "pipeline"
     pdir.mkdir(exist_ok=True)
     write_json_atomic(pdir / "candidates.json", out, indent=1)
-    # a0's match window + features, shifted to output time
+    # a0's match window + features, shifted to output time; with a
+    # cut_range the rendered video IS the match — window covers it all
+    dur_out = hi - lo
+    ranged = (ctx.pipe / "cut_range.json").exists()
     shift = sync["offsets"][0] - lo
     mw_src = ctx.angles[0]["dir"] / "pipeline" / "match_window.json"
     if mw_src.exists():
         mw = json.loads(mw_src.read_text())
-        if isinstance(mw.get("match_window"), list):
-            mw["match_window"] = [float(v) + shift
+
+        def _clamp(v: float) -> float:
+            return min(max(float(v), 0.0), dur_out)
+
+        def _halves() -> list:
+            kept = []
+            for h in mw.get("halves", []) or []:
+                s = _clamp(h.get("start", 0) + (0 if ranged else shift))
+                e = _clamp(h.get("end", 0) + (0 if ranged else shift))
+                if e > s:
+                    kept.append({**h, "start": s, "end": e})
+            return kept
+
+        if ranged:
+            mw["match_window"] = [0.0, dur_out]
+        elif isinstance(mw.get("match_window"), list):
+            mw["match_window"] = [_clamp(v + shift)
                                   for v in mw["match_window"]]
-        for h in mw.get("halves", []) or []:
-            for k in ("start", "end"):
-                if k in h:
-                    h[k] = float(h[k]) + shift
+        if "halves" in mw:
+            mw["halves"] = _halves()
         write_json_atomic(pdir / "match_window.json", mw, indent=1)
     fsrc = ctx.angles[0]["dir"] / "pipeline" / "features_1s.parquet"
     if fsrc.exists():
