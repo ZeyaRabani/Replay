@@ -9,6 +9,7 @@ services:
       - replay_data:/data
     environment:
       HL_WORKDIR: /data
+      REPLAY_ADMINS: ${REPLAY_ADMINS:-john}
       # Public URL the browser can reach this server at — used so the hosted
       # frontend (e.g. Vercel) can redirect large uploads to the server.
       HL_PUBLIC_URL: ${HL_PUBLIC_URL:-}
