@@ -234,7 +234,7 @@ def _match_stats(df: pd.DataFrame, t: np.ndarray, events: list[dict],
     if "near_frac" in df.columns:
         near = float(np.nanmean(
             pd.to_numeric(df["near_frac"], errors="coerce").to_numpy(dtype=float)[in_match]))
-        if not math.isfinite(near):
+        if not math.isfinite(near) or not 0.0 <= near <= 1.0:
             near = 0.5
     else:
         near = 0.5
