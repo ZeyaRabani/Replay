@@ -49,13 +49,38 @@ def _zncc_shifted(a: np.ndarray, b: np.ndarray, max_shift: int = 2) -> float:
 
 
 def view_ok(video: str | Path, ref_t: float, step: int = 10,
-            thresh: float = 0.6) -> tuple[np.ndarray, np.ndarray]:
-    """(times, ok): per-sample camera-view check vs the frame at ref_t."""
+            thresh: float = 0.6, workers: int = 8) -> tuple[np.ndarray, np.ndarray]:
+    """(times, ok): per-sample camera-view check vs the frame at ref_t.
+
+    Decoding every keyframe of a long video serially is minutes; the sample
+    pass is split into time-range chunks decoded by parallel ffmpeg calls.
+    """
+    import concurrent.futures as cf
+    import json as _json
+
+    dur = float(_json.loads(_run([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "json", str(video)]))["format"]["duration"])
     ref = _gray_frames(video, ["-ss", f"{ref_t:.3f}"],
                        f"scale={W}:{H},format=gray",
                        extra_out=["-frames:v", "1"])[0]
-    samples = _gray_frames(video, ["-skip_frame", "nokey"],
-                           f"fps={1.0 / step},scale={W}:{H},format=gray")
+
+    vf = f"fps={1.0 / step},scale={W}:{H},format=gray"
+    n_chunks = max(1, min(workers, int(dur / step / 4) or 1))
+    edges = np.linspace(0, dur, n_chunks + 1)
+    spans = [(float(edges[i]), float(edges[i + 1]))
+             for i in range(n_chunks)]
+
+    def _decode(span: tuple[float, float]) -> np.ndarray:
+        s, e = span
+        return _gray_frames(video, ["-skip_frame", "nokey",
+                                    "-ss", f"{s:.3f}", "-to", f"{e:.3f}"],
+                            vf)
+
+    with cf.ThreadPoolExecutor(n_chunks) as ex:
+        chunks = list(ex.map(_decode, spans))
+    samples = np.concatenate([c for c in chunks if len(c)]) \
+        if any(len(c) for c in chunks) else np.zeros((0, H, W))
     times = np.arange(len(samples)) * float(step)
     ok = np.array([_zncc_shifted(f, ref) >= thresh for f in samples])
     return times, ok
