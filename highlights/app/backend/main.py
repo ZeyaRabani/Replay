@@ -434,6 +434,7 @@ def _project_old(p: ProjectStore) -> dict:
         "video": p.video.model_dump() if p.video else None,
         "candidates_version": p.candidates_version,
         "proxy_ready": _proxy_ready(p),
+        "mode": "multiangle" if p.is_multiangle else "single",
     }
 
 

@@ -21,6 +21,9 @@ export default function ProjectReview({ seekRequest }: Props) {
   const [playhead, setPlayhead] = useState(0);
   const [proxyReady, setProxyReady] = useState(false);
   const [proxyProgress, setProxyProgress] = useState<number | null>(null);
+  const [quality, setQuality] = useState<"fast" | "hd">(
+    () => (localStorage.getItem("replay.quality") === "hd" ? "hd" : "fast"));
+  const [isMultiangle, setIsMultiangle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [candVersion, setCandVersion] = useState(0);
@@ -50,6 +53,7 @@ export default function ProjectReview({ seekRequest }: Props) {
         setVideo(p.video);
         setProxyReady(p.proxy_ready);
         setCandVersion(p.candidates_version);
+        setIsMultiangle(p.mode === "multiangle");
       } catch {
         /* not ready yet */
       }
@@ -122,7 +126,15 @@ export default function ProjectReview({ seekRequest }: Props) {
       }, 1000);
     });
 
-  const videoSrc = video ? api.videoUrl(proxyReady ? "proxy" : "source", String(video.registered_at)) : undefined;
+  const videoSrc = video
+    ? api.videoUrl(quality === "hd" || !proxyReady ? "source" : "proxy",
+                   String(video.registered_at))
+    : undefined;
+
+  const setQ = (q: "fast" | "hd") => {
+    setQuality(q);
+    localStorage.setItem("replay.quality", q);
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -163,6 +175,34 @@ export default function ProjectReview({ seekRequest }: Props) {
       )}
       <div className="flex flex-1 min-h-0 gap-3 p-3">
         <div className="flex flex-col gap-3 w-[62%] min-w-0">
+          {video && videoSrc ? (
+            <div className="flex items-center gap-2 justify-end">
+              <div className="flex rounded overflow-hidden border border-zinc-700 text-[11px]">
+                <button
+                  disabled={!proxyReady}
+                  onClick={() => setQ("fast")}
+                  className={`px-2 py-0.5 ${quality === "fast" ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-400"} disabled:opacity-40`}
+                >
+                  Fast
+                </button>
+                <button
+                  onClick={() => setQ("hd")}
+                  className={`px-2 py-0.5 ${quality === "hd" || !proxyReady ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-400"}`}
+                >
+                  HD
+                </button>
+              </div>
+              {isMultiangle && (
+                <a
+                  href={api.videoUrl("source", String(video.registered_at))}
+                  download
+                  className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5"
+                >
+                  Download director cut (full match, MP4)
+                </a>
+              )}
+            </div>
+          ) : null}
           {video && videoSrc ? (
             <VideoPlayer
               ref={videoRef}

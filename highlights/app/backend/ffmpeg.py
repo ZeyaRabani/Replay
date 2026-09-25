@@ -161,6 +161,9 @@ def concat_reel(clips: list[str | Path], out: str | Path) -> Path:
     return out
 
 
+PROXY_HEIGHT = 720
+
+
 class ProxyJob:
     """Background low-res proxy build with progress parsing."""
 
@@ -188,9 +191,10 @@ class ProxyJob:
         self.part.unlink(missing_ok=True)
         cmd = [
             "ffmpeg", "-y", "-i", str(self.src),
-            "-vf", "scale=-2:360", "-r", "15",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
-            "-c:a", "aac", "-b:a", "64k",
+            "-vf", f"scale=-2:{PROXY_HEIGHT}",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+            "-threads", "0",
+            "-c:a", "aac", "-b:a", "96k",
             "-movflags", "+faststart",
             "-progress", "pipe:1", "-nostats", str(self.part),
         ]

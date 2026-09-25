@@ -148,7 +148,7 @@ export function projectApi(id: string) {
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
 
     project: () =>
-      req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean }>(`${base}/project`),
+      req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),
   };
 }
 
