@@ -117,6 +117,20 @@ def test_create_youtube(client):
     _wait_done(client, d["id"])
 
 
+def test_create_youtube_rejects_cookie_blob(client):
+    blob = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tabc\n"
+    r = client.post("/api/projects", json={"youtube_url": blob})
+    assert r.status_code == 422
+    assert "valid video URL" in r.json()["detail"]
+    # plain non-URL junk also rejected
+    r = client.post("/api/projects", json={"youtube_url": "not a url"})
+    assert r.status_code == 422
+    # a normal youtu.be URL is still accepted
+    r = client.post("/api/projects", json={"youtube_url": "https://youtu.be/xyz123"})
+    assert r.status_code == 200, r.text
+    _wait_done(client, r.json()["id"])
+
+
 def test_create_youtube_with_cookies(client):
     r = client.post("/api/projects", json={
         "youtube_url": "https://youtu.be/abc",

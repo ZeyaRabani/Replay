@@ -18,6 +18,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import (
     APIRouter,
@@ -689,6 +690,14 @@ async def create_project(request: Request, user: UserDep) -> dict:
     # JSON body
     body = ProjectCreate(**(await request.json()))
     if body.youtube_url:
+        url = body.youtube_url.strip()
+        parsed = urlparse(url)
+        if ("\n" in body.youtube_url or len(url) > 2048
+                or parsed.scheme not in ("http", "https") or not parsed.netloc):
+            raise HTTPException(
+                422, "Enter a valid video URL "
+                     "(e.g. https://www.youtube.com/watch?v=...)")
+        body.youtube_url = url
         p = reg.create_project(
             owner=user,
             title=body.title or body.youtube_url,
