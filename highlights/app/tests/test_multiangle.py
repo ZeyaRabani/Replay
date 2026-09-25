@@ -269,3 +269,36 @@ def test_multiangle_pipeline_run_uses_multiangle_runner(client):
 
     # busy -> 409 while a second run is in flight is covered implicitly;
     # single-camera projects still use HL_PIPELINE_CMD (existing tests)
+
+
+def test_angle_duration_probe_fallback(client, short_video, monkeypatch):
+    """Imported projects have status.json video:null; duration falls back to
+    the per-angle pipeline/probe.json, or ffprobe cached into probe.json."""
+    import shutil
+
+    import highlights.app.backend.main as m
+
+    r = _create(client, 2, title="dur")
+    pid = r.json()["id"]
+    _wait(client, pid)
+    p = m.get_registry().get(pid)
+
+    # simulate an imported angle: status video null, probe.json present
+    for i in (0, 1):
+        st = p.angle_dir(i) / "pipeline" / "status.json"
+        d = json.loads(st.read_text())
+        d["video"] = None
+        st.write_text(json.dumps(d))
+    (p.angle_dir(0) / "pipeline" / "probe.json").write_text(
+        json.dumps({"duration_s": 123.4, "width": 100, "height": 50,
+                    "fps": 25.0}))
+    # angle 1: no probe.json, but a real angle video -> ffprobe + cache
+    shutil.copyfile(short_video, p.angle_dir(1) / "match.mp4")
+
+    info = client.get(scoped(pid, "/multiangle")).json()
+    assert info["angles"][0]["duration"] == 123.4
+    d1 = info["angles"][1]["duration"]
+    assert d1 is not None and 5.0 < d1 < 7.0
+    probe1 = p.angle_dir(1) / "pipeline" / "probe.json"
+    assert probe1.is_file()
+    assert json.loads(probe1.read_text())["duration_s"] == d1

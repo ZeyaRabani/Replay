@@ -1166,11 +1166,33 @@ def _multiangle_score(p: ProjectStore) -> dict:
     }
 
 
+def _angle_probe_duration(p: ProjectStore, i: int) -> float | None:
+    """Duration fallback for angles whose status.json lacks a probe block
+    (imported projects): per-angle pipeline/probe.json, else ffprobe the
+    angle video and cache the result there."""
+    probe_path = p.angle_dir(i) / "pipeline" / "probe.json"
+    pr = _read_json(probe_path)
+    if pr and pr.get("duration_s"):
+        return pr["duration_s"]
+    video = p.angle_video(i)
+    if video is None:
+        return None
+    try:
+        pr = fx.probe(video)
+    except Exception:
+        return None
+    probe_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(probe_path, pr, indent=1)
+    return pr.get("duration_s")
+
+
 def _angles_info(p: ProjectStore) -> list[dict]:
     out = []
     for i, a in enumerate(p.source_info.get("angles") or []):
         ast = _read_json(p.angle_dir(i) / "pipeline" / "status.json") or {}
         duration = (ast.get("video") or {}).get("duration_s")
+        if duration is None:
+            duration = _angle_probe_duration(p, i)
         out.append({
             "index": i,
             "label": a.get("label") or f"Angle {i + 1}",
