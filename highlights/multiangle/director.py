@@ -28,26 +28,26 @@ MEDIAN_W = 3
 
 def _median3(x: np.ndarray) -> np.ndarray:
     """3 s centred median (edge-safe)."""
-    n = len(x)
-    out = np.empty(n)
-    for i in range(n):
-        lo, hi = max(0, i - 1), min(n, i + 2)
-        out[i] = np.median(x[lo:hi])
-    return out
+    from scipy.ndimage import median_filter
+    return median_filter(x, size=3, mode="nearest")
 
 
-def per_second(track: list[dict], available: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Per-second best candidate (angle, score, rule_id) over available angles.
+def per_second(track: list[dict], available: np.ndarray
+               ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Per-second best candidate + full score matrix over available angles.
 
     track[i] = dict of per-second arrays: ball_conf, ball_size, cluster.
     available[i, t] bool. Returns best_angles (-1 none), scores, rules
-    (0 hold, 1 cluster, 2 ball).
+    (0 hold, 1 cluster, 2 ball), and S[n_angles, T] = each angle's score
+    under the rule active that second (ball_size for ball-seen angles under
+    the ball rule, else cluster_score; 0 when unavailable/ineligible).
     """
     n_angles = len(track)
     T = available.shape[1]
     best_a = np.full(T, -1)
     best_s = np.zeros(T)
     best_r = np.zeros(T, dtype=int)
+    S = np.zeros((n_angles, T))
 
     ball_conf = np.stack([track[i]["ball_conf"] for i in range(n_angles)])
     ball_seen = np.zeros((n_angles, T), dtype=bool)
@@ -66,19 +66,19 @@ def per_second(track: list[dict], available: np.ndarray) -> tuple[np.ndarray, np
             continue
         elig = av & ball_seen[:, t]
         if elig.any():
-            s = np.where(elig, ball_size[:, t], -1.0)
-            j = int(np.argmax(s))
-            best_a[t], best_s[t], best_r[t] = j, s[j], 2
+            S[:, t] = np.where(elig, ball_size[:, t], 0.0)
+            j = int(np.argmax(S[:, t]))
+            best_a[t], best_s[t], best_r[t] = j, S[j, t], 2
         else:
-            s = np.where(av, cluster[:, t], -np.inf)
-            j = int(np.argmax(s))
-            if np.isfinite(s[j]) and s[j] > 0:
-                best_a[t], best_s[t], best_r[t] = j, s[j], 1
+            S[:, t] = np.where(av, cluster[:, t], 0.0)
+            j = int(np.argmax(S[:, t]))
+            if S[j, t] > 0:
+                best_a[t], best_s[t], best_r[t] = j, S[j, t], 1
             else:
                 # angles available but no data (dead time)
                 best_a[t] = int(np.argmax(av.astype(int)))
                 best_s[t] = 0.0
-    return best_a, best_s, best_r
+    return best_a, best_s, best_r, S
 
 
 def cut_director(track: list[dict], available: np.ndarray,
@@ -88,9 +88,8 @@ def cut_director(track: list[dict], available: np.ndarray,
     Returns the director.json dict."""
     T = available.shape[1]
     n_angles = len(track)
-    cand_a, cand_s, cand_r = per_second(track, available)
-    sm = [ _median3(cand_s * (cand_a == i)) for i in range(n_angles) ]
-    sm = np.stack(sm)  # smoothed score per angle (0 when not the candidate)
+    cand_a, cand_s, cand_r, S = per_second(track, available)
+    sm = np.stack([_median3(S[i]) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
     segs: list[dict] = []

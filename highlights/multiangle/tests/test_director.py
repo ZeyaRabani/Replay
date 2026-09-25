@@ -63,6 +63,23 @@ def test_hard_cut_on_unavailable():
     assert out["segments"][0]["rule"] == "coverage"
 
 
+def test_cluster_margin_blocks_and_allows():
+    """Under cluster rule (margin 40%): challenger 1.2 vs 1.0 -> no cut;
+    challenger 1.5 -> cut after CONFIRM + MIN_HOLD."""
+    T = 90
+    tr = [_track(T, cluster=1.0), _track(T, cluster=0.0)]
+    tr[1]["cluster"][20:] = 1.2  # beats but within 40% margin
+    out = D.cut_director(tr, _avail(2, T), [np.zeros(T), np.zeros(T)])
+    assert out["n_cuts"] == 0
+
+    tr[1]["cluster"][20:] = 1.5  # exceeds margin -> cuts
+    out = D.cut_director(tr, _avail(2, T), [np.zeros(T), np.zeros(T)])
+    assert out["n_cuts"] == 1
+    cut = out["segments"][0]["t_end"]
+    # CONFIRM satisfied at t=22; cut placed inside the [t-2, t+2] window
+    assert 20 <= cut <= 24
+
+
 def test_ratios_sum_to_one():
     T = 120
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]

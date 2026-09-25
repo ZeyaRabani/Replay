@@ -96,6 +96,19 @@ def test_manual_offsets(monkeypatch):
     assert all(p["confident"] and p.get("manual") for p in out["pairs"])
 
 
+def test_refine_subsecond_shift():
+    """Refine recovers a sub-second (sample-level) shift on band-limited
+    noise via windowed FFT xcorr — fast path, no full-waveform scan."""
+    sr, dur = sync.SR, 60.0
+    rng = np.random.default_rng(11)
+    sig = sync._bandpass(rng.normal(size=int(dur * sr)), *sync.BAND)
+    shift_s = 12.3125
+    b_raw = np.roll(sig, int(shift_s * sr)) * 0.9
+    off, spread = sync._refine(sig, b_raw, -12.34, dur, dur)
+    assert abs(off + shift_s) < 0.01
+    assert spread <= 0.2
+
+
 def test_offsets_validation(monkeypatch):
     sr, dur = sync.SR, 10.0
     y = np.zeros(int(dur * sr))

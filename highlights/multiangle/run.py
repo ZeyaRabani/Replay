@@ -74,7 +74,8 @@ def _load_angles(project_dir: Path, angles_json: str | None) -> list[dict]:
         pj = project_dir / "project.json"
         spec = {}
         if pj.exists():
-            spec = (json.loads(pj.read_text()).get("source_info") or {})
+            data = json.loads(pj.read_text())
+            spec = data.get("source") or data.get("source_info") or {}
         if not spec.get("angles"):
             dirs = sorted(project_dir.joinpath("angles").glob("a*"))
             if not dirs:

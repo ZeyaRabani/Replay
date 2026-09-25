@@ -103,29 +103,51 @@ def estimate_offset(env_a: np.ndarray, env_b: np.ndarray) -> tuple[float, float,
     return lag_s, pnr, r2
 
 
-def _refine(y_a: np.ndarray, y_b: np.ndarray, coarse_off_s: float) -> float:
-    """Sub-frame refinement on band-passed raw waveforms around the coarse
-    offset. offset(b) = coarse; we search ±REFINE_WIN_S around it."""
-    a = _bandpass(y_a, *BAND)
-    b = _bandpass(y_b, *BAND)
-    # same lag convention as _xcorr: offset = lag / SR
-    centre = round(coarse_off_s * SR)
-    hw = int(REFINE_WIN_S * SR)
-    best_lag, best_v = centre, -np.inf
-    n = min(len(a), len(b))
-    # direct dot-product scan over the small window (fast enough at 8 kHz)
-    for lag in range(centre - hw, centre + hw + 1):
-        if lag >= 0:
-            aa, bb = a[lag:lag + n], b[:n - lag] if n - lag > 0 else b[:0]
-        else:
-            aa, bb = a[:n + lag], b[-lag:-lag + n + lag]
-        m = min(len(aa), len(bb))
-        if m <= 0:
+REFINE_K = 5           # windows across the overlap
+REFINE_WIN_LEN = 30.0  # s per window
+REFINE_GUARD = 0.75    # s of extra context on b (> REFINE_WIN_S)
+
+
+def _refine(y_a: np.ndarray, y_b: np.ndarray, coarse_off_s: float,
+            dur_a: float | None = None, dur_b: float | None = None
+            ) -> tuple[float, float]:
+    """Sub-frame refinement on K windowed FFT xcorrs (fast — not a full
+    waveform scan). Returns (offset_s, spread_s). spread > 0.2 s means the
+    windows disagreed; caller falls back to the coarse offset."""
+    dur_a = dur_a if dur_a is not None else len(y_a) / SR
+    dur_b = dur_b if dur_b is not None else len(y_b) / SR
+    # overlap in a-time: b index = a index - off  ->  t in [off, off+dur_b]
+    lo = max(0.0, coarse_off_s) + REFINE_GUARD + 1.0
+    hi = min(dur_a, coarse_off_s + dur_b) - REFINE_WIN_LEN - 1.0
+    if hi <= lo:
+        return coarse_off_s, 0.0
+    starts = np.linspace(lo, hi, REFINE_K)
+    offs = []
+    for w in starts:
+        s_b = w - coarse_off_s  # corresponding start in b's file time
+        i_a0, i_a1 = int(w * SR), int((w + REFINE_WIN_LEN) * SR)
+        i_b0 = int((s_b - REFINE_GUARD) * SR)
+        i_b1 = int((s_b + REFINE_WIN_LEN + REFINE_GUARD) * SR)
+        if i_b0 < 0 or i_b1 > len(y_b) or i_a1 > len(y_a):
             continue
-        v = float(np.dot(aa[:m], bb[:m]))
-        if v > best_v:
-            best_v, best_lag = v, lag
-    return best_lag / SR
+        a = _bandpass(y_a[i_a0:i_a1], *BAND)
+        b = _bandpass(y_b[i_b0:i_b1], *BAND)
+        corr = _xcorr(a, b)
+        lags = (np.arange(len(corr)) - (len(b) - 1)) / SR
+        # b is delayed by -off: peak sits near lag = -coarse - GUARD...
+        # lag where a_seg[t+L] = b_seg[t]; b_seg starts GUARD s early,
+        # so L_s + GUARD = off_true - off_coarse
+        mask = np.abs(lags - (-REFINE_GUARD)) <= REFINE_WIN_S
+        if not mask.any():
+            continue
+        i = int(np.argmax(np.where(mask, corr, -np.inf)))
+        offs.append(coarse_off_s + REFINE_GUARD + float(lags[i]))
+    if not offs:
+        return coarse_off_s, 0.0
+    spread = float(max(offs) - min(offs))
+    if spread > 0.2:
+        return coarse_off_s, spread
+    return float(np.median(offs)), spread
 
 
 def sync_angles(wavs: list[str | Path], durations: list[float],
@@ -146,9 +168,11 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
     offsets = [0.0] * n
     for b in range(1, n):
         off, pnr, r2 = estimate_offset(envs[0], envs[b])
-        off = _refine(raws[0], raws[b], off)
+        off, spread = _refine(raws[0], raws[b], off,
+                              durations[0], durations[b])
         pairs.append({"a": 0, "b": b, "offset": round(off, 3),
                       "pnr": round(pnr, 2), "r2": round(r2, 3),
+                      "refine_spread_s": round(spread, 3),
                       "confident": bool(pnr >= PNR_MIN and r2 <= R2_MAX)})
         offsets[b] = off
 
@@ -156,11 +180,13 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
     tri = None
     if n >= 3:
         off12, pnr12, r212 = estimate_offset(envs[1], envs[2])
-        off12 = _refine(raws[1], raws[2], off12)
+        off12, spread12 = _refine(raws[1], raws[2], off12,
+                                  durations[1], durations[2])
         residual = abs(off12 - (offsets[2] - offsets[1]))
         tri = round(float(residual), 3)
         pairs.append({"a": 1, "b": 2, "offset": round(off12, 3),
                       "pnr": round(pnr12, 2), "r2": round(r212, 3),
+                      "refine_spread_s": round(spread12, 3),
                       "confident": bool(pnr12 >= PNR_MIN and r212 <= R2_MAX)})
         if residual > TRIANGLE_TOL_S:
             for pr in pairs:
