@@ -12,6 +12,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -847,6 +848,64 @@ def get_config() -> dict:
     return {"upload_origin": os.environ.get("HL_PUBLIC_URL") or None}
 
 
+# ---------- storage ----------
+
+_STORAGE_TTL = 60.0
+_storage_cache: tuple[float, dict] | None = None
+
+
+def _du(root: Path, seen: set) -> int:
+    """Bytes under root; hardlinked files counted once via the shared
+    (st_dev, st_ino) set."""
+    total = 0
+    for dp, _dn, fns in os.walk(root):
+        for fn in fns:
+            try:
+                st = os.lstat(os.path.join(dp, fn))
+            except OSError:
+                continue
+            key = (st.st_dev, st.st_ino)
+            if key in seen:
+                continue
+            seen.add(key)
+            total += st.st_size
+    return total
+
+
+def _project_sources_bytes(p: ProjectStore, seen: set) -> int:
+    total = 0
+    if p.is_multiangle:
+        for i in range(len(p.source_info.get("angles") or [])):
+            total += _du(p.angle_dir(i), seen)
+    else:
+        total += _du(p.source_dir, seen)
+    return total
+
+
+@app.get("/api/storage")
+def get_storage(user: UserDep) -> dict:
+    global _storage_cache
+    now = time.time()
+    if _storage_cache and now - _storage_cache[0] < _STORAGE_TTL:
+        return _storage_cache[1]
+    wd = workdir()
+    usage = shutil.disk_usage(wd)
+    seen: set = set()
+    per = []
+    projects_bytes = 0
+    for p in get_registry().list_projects():
+        b = _du(p.root, seen)
+        sb = _project_sources_bytes(p, seen)
+        projects_bytes += b
+        per.append({"id": p.id, "title": p.title, "owner": p.owner,
+                    "bytes": b, "sources_bytes": sb})
+    out = {"total_bytes": usage.total, "used_bytes": usage.used,
+           "free_bytes": usage.free, "projects_bytes": projects_bytes,
+           "per_project": per}
+    _storage_cache = (now, out)
+    return out
+
+
 @app.post("/api/projects")
 async def create_project(request: Request, user: UserDep) -> dict:
     reg = get_registry()
@@ -1204,6 +1263,32 @@ def get_multiangle(p: ScopedP) -> dict:
     }
 
 
+@scoped.post("/purge-sources")
+def purge_sources(p: ScopedP) -> dict:
+    """Delete the original angle videos + track intermediates; keep the cut."""
+    _require_multiangle(p)
+    if p.pipeline_state != "done":
+        raise HTTPException(409, "pipeline is not done")
+    if p.meta.get("sources_purged"):
+        return {"freed_bytes": 0, "sources_purged": True}
+    freed = 0
+    video_exts = {".mp4", ".mkv", ".mov", ".webm", ".avi"}
+    for i in range(len(p.source_info.get("angles") or [])):
+        v = p.angle_video(i)
+        if v is not None:
+            freed += v.stat().st_size
+            v.unlink()
+        td = p.angle_dir(i) / "track"
+        if td.is_dir():
+            for f in td.iterdir():
+                if f.is_file() and f.suffix.lower() in video_exts | {".wav"}:
+                    freed += f.stat().st_size
+                    f.unlink()
+    p.meta["sources_purged"] = True
+    p.save()
+    return {"freed_bytes": freed, "sources_purged": True}
+
+
 @scoped.post("/multiangle/recut")
 def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     """Re-run director+render+fuse with a different cut style."""
@@ -1365,7 +1450,7 @@ def l_trim_status(p: LegacyP, start: float = 0.0, end: float = 0.0) -> dict:
 
 
 @scoped.get("/video/trimmed.mp4")
-def s_trimmed_file(p: PublicP, start: float = 0.0, end: float = 0.0) -> Response | FileResponse:
+def s_trimmed_file(p: PublicP, start: float = 0.0, end: float = 0.0) -> Response:
     """First request kicks off the stream-copy; 202 + progress until ready."""
     out = _trim_out(p, start, end)
     if not out.is_file():

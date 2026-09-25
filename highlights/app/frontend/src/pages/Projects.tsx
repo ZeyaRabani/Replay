@@ -1,7 +1,7 @@
 import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import { configApi, getUser, meApi, mediaUrl, projectApi, projectsApi } from "../api";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
@@ -51,6 +51,7 @@ function ProjectCard({
   onRetry,
   onSetupCookies,
   onUploadInstead,
+  onPurge,
 }: {
   p: ProjectSummary;
   onDelete: (p: ProjectSummary) => void;
@@ -58,6 +59,7 @@ function ProjectCard({
   onRetry: (p: ProjectSummary) => void;
   onSetupCookies: () => void;
   onUploadInstead: () => void;
+  onPurge: (p: ProjectSummary) => void;
 }) {
   const [thumbErr, setThumbErr] = useState(false);
   return (
@@ -177,6 +179,17 @@ function ProjectCard({
           </div>
         )}
         {p.source.filename && <div className="text-[11px] text-zinc-500 truncate">{p.source.filename}</div>}
+        {p.mode === "multiangle" && p.pipeline_state === "done" && !p.meta?.sources_purged && (
+          <button
+            className="self-start text-[11px] text-zinc-400 hover:text-amber-300 underline"
+            onClick={() => onPurge(p)}
+          >
+            Free up space (delete originals, keep director cut)
+          </button>
+        )}
+        {p.mode === "multiangle" && p.meta?.sources_purged && (
+          <span className="text-[10px] text-zinc-600">originals deleted — director cut kept</span>
+        )}
       </div>
     </div>
   );
@@ -655,6 +668,7 @@ export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cookieStatus, setCookieStatus] = useState<CookieStatus | null>(null);
+  const [storage, setStorage] = useState<Awaited<ReturnType<typeof projectsApi.storage>> | null>(null);
   const [newTab, setNewTab] = useState<"youtube" | "upload">("youtube");
   const cookiesPanel = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
@@ -717,6 +731,28 @@ export default function Projects() {
     cookiesPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  useEffect(() => {
+    projectsApi.storage().then(setStorage).catch(() => setStorage(null));
+  }, [projects?.length]);
+
+  const purge = async (p: ProjectSummary) => {
+    if (!window.confirm(
+      `Delete the original angle videos for "${p.title}"? The director cut, candidates and stats are kept; re-cut will be disabled.`))
+      return;
+    try {
+      await projectsApi.purgeSources(p.id);
+      void refresh();
+      projectsApi.storage().then(setStorage).catch(() => undefined);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const fmtGB = (b: number) => `${(b / 1e9).toFixed(0)} GB`;
+  const myBytes = storage
+    ? storage.per_project.filter((x) => x.owner === getUser()).reduce((a, x) => a + x.bytes, 0)
+    : 0;
+
   const del = async (p: ProjectSummary) => {
     if (!window.confirm(`Delete "${p.title}"? This removes the downloaded video and all renders.`)) return;
     try {
@@ -733,6 +769,20 @@ export default function Projects() {
       {error && <div className="bg-red-900/80 text-red-100 text-sm px-4 py-2 border-b border-red-700">{error}</div>}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 p-4 max-w-7xl w-full mx-auto">
         <div className="flex flex-col gap-3 min-w-0">
+          {storage && (
+            <div>
+              <div className="h-1.5 bg-zinc-800 rounded">
+                <div
+                  className="h-1.5 rounded bg-sky-500"
+                  style={{ width: `${Math.min(100, (storage.used_bytes / storage.total_bytes) * 100)}%` }}
+                />
+              </div>
+              <div className="text-[11px] text-zinc-500 mt-1">
+                {fmtGB(storage.used_bytes)} of {fmtGB(storage.total_bytes)} used · your projects{" "}
+                {fmtGB(myBytes)}
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <h1 className="font-semibold">Your projects</h1>
             <span className="text-xs text-zinc-500">{projects ? `${projects.length} total` : ""}</span>
@@ -755,6 +805,7 @@ export default function Projects() {
                 onRetry={retry}
                 onSetupCookies={openCookiesPanel}
                 onUploadInstead={uploadInstead}
+                onPurge={purge}
               />
             ))
           )}

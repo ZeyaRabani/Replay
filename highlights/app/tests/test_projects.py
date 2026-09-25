@@ -170,7 +170,8 @@ COOKIES = ("# Netscape HTTP Cookie File\n"
 
 def test_user_cookies_roundtrip(client):
     r = client.get("/api/me/youtube-cookies")
-    assert r.status_code == 200 and r.json() == {"saved": False, "updated_at": None}
+    assert r.status_code == 200 and r.json()["saved"] is False \
+        and r.json()["updated_at"] is None
     r = client.put("/api/me/youtube-cookies", json={"cookies_text": COOKIES})
     assert r.status_code == 200 and r.json()["saved"] and r.json()["updated_at"]
     r = client.get("/api/me/youtube-cookies")

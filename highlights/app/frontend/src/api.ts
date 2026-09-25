@@ -112,6 +112,16 @@ export const projectsApi = {
     return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
   },
   remove: (id: string) => req<void>(`/api/projects/${id}`, { method: "DELETE" }),
+  storage: () =>
+    req<{
+      total_bytes: number;
+      used_bytes: number;
+      free_bytes: number;
+      projects_bytes: number;
+      per_project: { id: string; title: string; owner: string; bytes: number; sources_bytes: number }[];
+    }>("/api/storage"),
+  purgeSources: (id: string) =>
+    req<{ freed_bytes: number; sources_purged: boolean }>(`/api/projects/${id}/purge-sources`, { method: "POST" }),
 };
 
 export function projectApi(id: string) {
