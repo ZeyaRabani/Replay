@@ -1,0 +1,5 @@
+# multiangle extras (on top of highlights/pipeline/requirements.txt)
+# ultralytics pulls in torch; on servers install the CPU wheel first:
+#   pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+torch
+ultralytics

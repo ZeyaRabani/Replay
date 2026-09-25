@@ -1,0 +1,441 @@
+"""Multi-angle pipeline runner — mirrors highlights.pipeline.run.
+
+Layout (per spec): <project>/angles/aN/ are Option-1 project dirs (each gets
+its own pipeline/ outputs via `python -m highlights.pipeline.run`), and
+<project>/multiangle/ holds this stage's status/log + sync.json,
+director.json, fused_candidates.json, score.json. The director cut lands at
+<project>/match.mp4 with <project>/pipeline/ populated so the existing
+review UI works unchanged.
+
+Stages: download, angles, sync, track, director, render, fuse, stats.
+
+    python -m highlights.multiangle.run --project-dir DIR [--stages ...]
+        [--offsets 0,12.5,-3.2] [--cookies F] [--force]
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from highlights.pipeline.errors import PipelineError
+from highlights.pipeline.probe import probe as ffprobe
+from highlights.pipeline.run import _stdout_is
+from highlights.pipeline.status import StatusWriter, load_status
+
+ANGLE_STAGES = "probe,audio,motion,features,score,candidates"
+VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".webm", ".avi"}
+
+
+@dataclass
+class Ctx:
+    project_dir: Path
+    pipe: Path                       # <project>/multiangle
+    status: StatusWriter
+    angles: list[dict] = field(default_factory=list)   # [{"label","url"|None,"dir"}]
+    offsets: list[float] | None = None                  # --offsets manual
+    cookies: str | None = None
+    force: bool = False
+    durations: list[float] = field(default_factory=list)
+    coverage: dict | None = None
+    log_fh: object = None
+
+    def log(self, msg: str) -> None:
+        line = f"[{time.strftime('%H:%M:%S')}] {msg}"
+        print(line, flush=True)
+        if self.log_fh is not None and not _stdout_is(self.log_fh):
+            self.log_fh.write(line + "\n")
+            self.log_fh.flush()
+
+    def angle_video(self, i: int) -> Path | None:
+        d = self.angles[i]["dir"]
+        for ext in VIDEO_EXTS:
+            p = d / f"match{ext}"
+            if p.exists():
+                return p
+        return None
+
+
+def _load_angles(project_dir: Path, angles_json: str | None) -> list[dict]:
+    """Angle list from --angles-json, else project.json source_info, else dirs."""
+    if angles_json:
+        spec = json.loads(Path(angles_json).read_text())
+    else:
+        pj = project_dir / "project.json"
+        spec = {}
+        if pj.exists():
+            spec = (json.loads(pj.read_text()).get("source_info") or {})
+        if not spec.get("angles"):
+            dirs = sorted(project_dir.joinpath("angles").glob("a*"))
+            if not dirs:
+                raise PipelineError("no angles: pass --angles-json or create angles/aN dirs")
+            spec = {"angles": [{"label": d.name, "url": None} for d in dirs]}
+    out = []
+    for i, a in enumerate(spec["angles"]):
+        d = project_dir / "angles" / f"a{i}"
+        d.mkdir(parents=True, exist_ok=True)
+        out.append({"label": a.get("label") or f"angle {i}", "url": a.get("url"), "dir": d})
+    return out
+
+
+# ------------------------------ stages ------------------------------------
+
+def stage_download(ctx: Ctx) -> None:
+    from highlights.pipeline.download import download
+    for i, a in enumerate(ctx.angles):
+        if ctx.angle_video(i) is not None:
+            ctx.log(f"download: a{i} already has a file")
+            continue
+        if not a.get("url"):
+            raise PipelineError(f"angle {i}: no file and no url")
+        ctx.log(f"download: angle {i}/{len(ctx.angles)-1} {a['url']}")
+        download(a["url"], a["dir"], status=ctx.status, cookies=ctx.cookies, log=ctx.log)
+
+
+def stage_angles(ctx: Ctx) -> None:
+    n = len(ctx.angles)
+    for i, a in enumerate(ctx.angles):
+        vid = ctx.angle_video(i)
+        if vid is None:
+            raise PipelineError(f"angle {i}: no video file after download")
+        sub_status = a["dir"] / "pipeline" / "status.json"
+        done_marker = a["dir"] / "pipeline" / "candidates.json"
+        if done_marker.exists() and not ctx.force:
+            ctx.log(f"angles: a{i} skipped (candidates exist)")
+            continue
+        ctx.log(f"angles: running Option-1 pipeline on a{i} ({a['label']})")
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "highlights.pipeline.run",
+             "--project-dir", str(a["dir"]), "--video", str(vid),
+             "--stages", ANGLE_STAGES],
+            stdout=ctx.log_fh or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT)
+        while proc.poll() is None:
+            st = load_status(sub_status) or {}
+            sub = float(st.get("progress", 0.0))
+            ctx.status.update(progress=(i + sub) / n,
+                              message=f"angle {i+1}/{n}: {st.get('message','running')}")
+            time.sleep(2)
+        if proc.returncode != 0:
+            tail = ""
+            if sub_status.exists():
+                tail = str((load_status(sub_status) or {}).get("error", ""))
+            raise PipelineError(f"angle {i} pipeline failed ({proc.returncode}) {tail}")
+        ctx.log(f"angles: a{i} done")
+
+
+def stage_sync(ctx: Ctx) -> dict:
+    from highlights.multiangle.sync import write_sync
+    wavs = [a["dir"] / "pipeline" / "audio" / "audio.wav" for a in ctx.angles]
+    durations = []
+    for i, a in enumerate(ctx.angles):
+        pj = a["dir"] / "pipeline" / "probe.json"
+        durations.append(float(json.loads(pj.read_text())["duration_s"]))
+    ctx.durations = durations
+    out = write_sync(wavs, durations, ctx.pipe / "sync.json",
+                     manual_offsets=ctx.offsets)
+    ctx.coverage = out["coverage"]
+    ctx.log(f"sync: offsets {out['offsets']} method={out['method']} "
+            f"needs_manual={out['needs_manual']}")
+    if out["needs_manual"]:
+        ctx.status.update(state="needs_input",
+                          message=f"Sync confidence low for angle(s) "
+                                  f"{out['needs_manual']} — enter offsets",
+                          finished_at=time.time(), force=True)
+        raise SystemExit(0)  # clean stop, not failed
+    return out
+
+
+def stage_track(ctx: Ctx) -> None:
+    from highlights.multiangle.trackfeat import COLS, _ensure_model, compute_rows
+    model = _ensure_model(Path(os.environ.get("HL_MA_MODEL",
+                                              str(Path(__file__).parent / "models" / "yolov8n.pt"))))
+    for i, a in enumerate(ctx.angles):
+        vid = ctx.angle_video(i)
+        out = a["dir"] / "track" / "features_1s.json"
+        if out.exists() and not ctx.force:
+            ctx.log(f"track: a{i} skip")
+            continue
+        out.parent.mkdir(parents=True, exist_ok=True)
+        ctx.log(f"track: angle {i+1}/{len(ctx.angles)} {a['label']}")
+        rows, frames, ball_rate = compute_rows(str(vid), model, imgsz=960, fps=1.0,
+                                             max_seconds=None, log=ctx.log)
+        out.write_text(json.dumps({"fps": 1, "model": str(model), "imgsz": 960,
+                                   "columns": COLS, "rows": rows,
+                                   "meta": {"ball_rate": round(ball_rate, 4),
+                                            "n_frames": frames}}, indent=0))
+        ctx.status.update(message=f"track angle {i+1}/{len(ctx.angles)} done",
+                          stage_progress=(i + 1) / len(ctx.angles))
+        ctx.log(f"track: a{i} done ({frames} frames, ball_rate {ball_rate:.2f})")
+
+
+def _load_track_rows(angle_dir: Path) -> dict:
+    """Per-second track arrays keyed by file-time second."""
+    f = angle_dir / "track" / "features_1s.json"
+    if not f.exists():
+        return {}
+    d = json.loads(f.read_text())
+    cols = d["columns"]
+    M = np.asarray(d["rows"], dtype=float)
+    return {c: M[:, cols.index(c)] for c in cols}
+
+
+def _load_motion(angle_dir: Path) -> dict[int, float]:
+    f = angle_dir / "pipeline" / "motion" / "features_1s.json"
+    if not f.exists():
+        return {}
+    d = json.loads(f.read_text())
+    cols = d["columns"]
+    ti, mi = cols.index("t"), cols.index("motion_total")
+    return {int(r[ti]): float(r[mi]) for r in d["rows"]}
+
+
+def stage_director(ctx: Ctx) -> dict:
+    from highlights.multiangle.director import cut_director
+
+    sync = json.loads((ctx.pipe / "sync.json").read_text())
+    offsets = sync["offsets"]
+    lo, hi = sync["coverage"]["union"]
+    T = int(np.ceil(hi - lo))
+    tracks, motion, avail = [], [], np.zeros((len(ctx.angles), T), dtype=bool)
+    for i, a in enumerate(ctx.angles):
+        tr = _load_track_rows(a["dir"])
+        mo = _load_motion(a["dir"])
+        dur = ctx.durations[i] if i < len(ctx.durations) else (
+            float(json.loads((a["dir"] / "pipeline" / "probe.json").read_text())["duration_s"]))
+        off = offsets[i]
+        t_idx = np.arange(T)
+        ft = t_idx + lo - off                      # angle file time at T second
+        ok = (ft >= 0) & (ft <= dur - 1)
+        avail[i] = ok
+        fsec = np.clip(np.round(ft), 0, 1 << 30).astype(int)
+        def _row(col, tr=tr, ok=ok, fsec=fsec):
+            src = tr.get(col)
+            if src is None or len(src) == 0:
+                return np.zeros(T)
+            return np.where(ok, src[np.clip(fsec, 0, len(src) - 1)], 0.0)
+        tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
+                       "cluster": _row("cluster_score")})
+        motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
+    out = cut_director(tracks, avail, motion)
+    (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1))
+    ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
+    return out
+
+
+def stage_render(ctx: Ctx) -> None:
+    from highlights.multiangle.render import render
+    sync = json.loads((ctx.pipe / "sync.json").read_text())
+    director = json.loads((ctx.pipe / "director.json").read_text())
+    videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
+    lo, hi = sync["coverage"]["union"]
+    out = render(videos, sync["offsets"], director["segments"], lo, hi,
+                 ctx.pipe, ctx.project_dir / "match.mp4", videos[0], log=ctx.log)
+    # register the cut as the project video for the Option-1 UI
+    pipe1 = ctx.project_dir / "pipeline"
+    pipe1.mkdir(exist_ok=True)
+    info = ffprobe(out)
+    (pipe1 / "probe.json").write_text(json.dumps(info, indent=1))
+    ctx.status.update(video=info, video_path=str(out))
+    ctx.log(f"render: wrote {out} ({info['width']}x{info['height']})")
+
+
+def stage_fuse(ctx: Ctx) -> dict:
+    from highlights.multiangle.fuse import fuse_candidates
+    sync = json.loads((ctx.pipe / "sync.json").read_text())
+    files = [a["dir"] / "pipeline" / "candidates.json" for a in ctx.angles]
+    labels = [a["label"] for a in ctx.angles]
+    out = fuse_candidates(files, sync["offsets"], labels,
+                          ctx.pipe / "fused_candidates.json")
+    pdir = ctx.project_dir / "pipeline"
+    pdir.mkdir(exist_ok=True)
+    (pdir / "candidates.json").write_text(json.dumps(out, indent=1))
+    # a0's match window + features, shifted to T
+    mw_src = ctx.angles[0]["dir"] / "pipeline" / "match_window.json"
+    if mw_src.exists():
+        (pdir / "match_window.json").write_text(mw_src.read_text())
+    fsrc = ctx.angles[0]["dir"] / "pipeline" / "features_1s.parquet"
+    if fsrc.exists():
+        df = pd.read_parquet(fsrc)
+        df["t"] = df["t"] + sync["offsets"][0]
+        lo, hi = sync["coverage"]["union"]
+        df = df[(df["t"] >= lo) & (df["t"] <= hi)]
+        df.to_parquet(pdir / "features_1s.parquet", index=False)
+    ctx.log(f"fuse: {len(out['events'])} fused events")
+    return out
+
+
+def stage_stats(ctx: Ctx) -> None:
+    from highlights.pipeline.stats import compute_stats
+    pdir = ctx.project_dir / "pipeline"
+    feats = pd.read_parquet(pdir / "features_1s.parquet")
+    cands = json.loads((ctx.pipe / "fused_candidates.json").read_text())["events"]
+    mw = json.loads((pdir / "match_window.json").read_text()) \
+        if (pdir / "match_window.json").exists() else {}
+    dur = ctx.durations[0] if ctx.durations else 0.0
+    stats = compute_stats(feats, cands, dur, tuple(mw.get("match_window", ())),
+                          mw.get("halves"), None)
+    director = json.loads((ctx.pipe / "director.json").read_text())
+    sync = json.loads((ctx.pipe / "sync.json").read_text())
+    n_cross = sum(1 for e in cands if e.get("cross_validation") == "confirmed")
+    n_single = len(cands) - n_cross
+    n_disp = sum(1 for e in cands if (e.get("signals") or {}).get("disputed"))
+    stats["multiangle"] = {
+        "sync": {"method": sync["method"], "offsets": sync["offsets"],
+                 "needs_manual": sync["needs_manual"],
+                 "triangle_residual_s": sync.get("triangle_residual_s")},
+        "director": {"ratios": director["ratios"], "n_cuts": director["n_cuts"],
+                     "angle_share": director["angle_share"]},
+        "confirmation": {"cross": n_cross, "single": n_single, "disputed": n_disp},
+        "score": {"home": {"label": "home", "goals": 0},
+                  "away": {"label": "away", "goals": 0},
+                  "basis": "confirmed goals with team set"},
+    }
+    (pdir / "stats.json").write_text(json.dumps(stats, indent=1))
+    ctx.log("stats: written")
+
+
+# ------------------------------ driver ------------------------------------
+
+@dataclass
+class Stage:
+    weight: float
+    fn: object
+    outputs: object
+
+
+STAGES: dict[str, Stage] = {
+    "download": Stage(0.15, stage_download,
+                      lambda c: [a["dir"] for a in c.angles]),
+    "angles": Stage(0.30, stage_angles,
+                    lambda c: [a["dir"] / "pipeline" / "candidates.json" for a in c.angles]),
+    "sync": Stage(0.05, stage_sync, lambda c: [c.pipe / "sync.json"]),
+    "track": Stage(0.20, stage_track,
+                   lambda c: [a["dir"] / "track" / "features_1s.json" for a in c.angles]),
+    "director": Stage(0.02, stage_director, lambda c: [c.pipe / "director.json"]),
+    "render": Stage(0.20, stage_render, lambda c: [c.project_dir / "match.mp4"]),
+    "fuse": Stage(0.03, stage_fuse,
+                  lambda c: [c.pipe / "fused_candidates.json",
+                             c.project_dir / "pipeline" / "candidates.json"]),
+    "stats": Stage(0.05, stage_stats,
+                   lambda c: [c.project_dir / "pipeline" / "stats.json"]),
+}
+
+
+def _stage_done(ctx: Ctx, name: str) -> bool:
+    outs = STAGES[name].outputs(ctx)
+    return all(Path(o).exists() if not isinstance(o, Path) else o.exists() for o in outs)
+
+
+class _Heartbeat:
+    def __init__(self, status: StatusWriter):
+        self.status = status
+        self._stop = threading.Event()
+        self._th = threading.Thread(target=self._loop, daemon=True)
+
+    def _loop(self):
+        while not self._stop.wait(2.0):
+            self.status.update(force=True)
+
+    def __enter__(self):
+        self._th.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._th.join(timeout=3)
+
+
+def run_stages(ctx: Ctx, names: list[str]) -> None:
+    base = 0.0
+    for name in names:
+        stage = STAGES[name]
+        if not ctx.force and _stage_done(ctx, name):
+            ctx.log(f"{name}: skip (outputs exist)")
+            base += stage.weight
+            ctx.status.update(progress=base, message=f"{name} skipped")
+            continue
+        ctx.status.update(state="running", stage=name, stage_progress=0.0,
+                          progress=base, message=f"{name} running", force=True)
+        ctx.log(f"{name}: start")
+        with _Heartbeat(ctx.status):
+            stage.fn(ctx)
+        base += stage.weight
+        ctx.status.update(stage_progress=1.0, progress=base,
+                          message=f"{name} done", force=True)
+        ctx.log(f"{name}: done")
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="highlights.multiangle.run")
+    ap.add_argument("--project-dir", required=True, type=Path)
+    ap.add_argument("--angles-json", help="JSON file with {\"angles\": [{url,label}]}")
+    ap.add_argument("--stages", default=",".join(STAGES))
+    ap.add_argument("--offsets", help="comma list, len==n angles, first must be 0")
+    ap.add_argument("--cookies")
+    ap.add_argument("--force", action="store_true")
+    args = ap.parse_args(argv)
+
+    project_dir = args.project_dir
+    pipe = project_dir / "multiangle"
+    pipe.mkdir(parents=True, exist_ok=True)
+    status = StatusWriter(pipe / "status.json")
+    angles = _load_angles(project_dir, args.angles_json)
+    offsets = None
+    if args.offsets:
+        offsets = [float(x) for x in args.offsets.split(",")]
+        if len(offsets) != len(angles) or offsets[0] != 0:
+            print("--offsets must have len == n angles, first == 0", file=sys.stderr)
+            return 2
+    ctx = Ctx(project_dir=project_dir, pipe=pipe, status=status, angles=angles,
+              offsets=offsets, cookies=args.cookies, force=args.force)
+
+    names = [s.strip() for s in args.stages.split(",") if s.strip()]
+    unknown = [n for n in names if n not in STAGES]
+    if unknown:
+        print(f"unknown stages: {unknown}; valid: {list(STAGES)}", file=sys.stderr)
+        return 2
+
+    def on_sigterm(signum, frame):
+        status.update(state="failed", error="cancelled",
+                      finished_at=time.time(), force=True)
+        sys.exit(1)
+    import signal
+    signal.signal(signal.SIGTERM, on_sigterm)
+
+    with open(pipe / "log.txt", "a") as log_fh:
+        ctx.log_fh = log_fh
+        try:
+            status.update(state="running", force=True)
+            run_stages(ctx, names)
+        except SystemExit:
+            raise
+        except PipelineError as e:
+            ctx.log(f"FAILED: {e}")
+            status.update(state="failed", error=str(e),
+                          finished_at=time.time(), force=True)
+            return 1
+        except Exception as e:
+            ctx.log(f"FAILED ({type(e).__name__}): {e}")
+            status.update(state="failed", error=str(e),
+                          finished_at=time.time(), force=True)
+            return 1
+        status.update(state="done", stage="done", progress=1.0,
+                      stage_progress=1.0, message="done",
+                      finished_at=time.time(), force=True)
+        ctx.log("multiangle done")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
