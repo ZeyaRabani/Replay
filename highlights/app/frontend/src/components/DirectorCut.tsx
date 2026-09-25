@@ -200,7 +200,7 @@ export default function DirectorCut({ onSeek }: Props) {
                         <th className="pb-1 font-medium">Pair</th>
                         <th className="pb-1 font-medium">Offset (s)</th>
                         <th className="pb-1 font-medium">PNR</th>
-                        <th className="pb-1 font-medium">r²</th>
+                        <th className="pb-1 font-medium" title="second peak / main peak">r2</th>
                         <th className="pb-1 font-medium"></th>
                       </tr>
                     </thead>
