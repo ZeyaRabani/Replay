@@ -6,11 +6,31 @@ import type { DirectorFull, DirectorSegment, MultiangleInfo } from "../types";
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
 const RULE_COLORS: Record<string, string> = {
+  event: "#f87171",
   ball: "#10b981",
   cluster: "#0ea5e9",
   hold: "#71717a",
-  coverage: "#71717a",
+  coverage: "#64748b",
+  start: "#94a3b8",
 };
+
+const RULE_LABELS: Record<string, string> = {
+  event: "Event (shot/goal)",
+  ball: "Ball",
+  cluster: "Player cluster",
+  hold: "Hold",
+  coverage: "Coverage",
+  start: "Start",
+};
+
+const RULE_ORDER = ["event", "ball", "cluster", "hold", "coverage", "start"];
+
+function ratioKeys(ratios: Record<string, number>): string[] {
+  const known = RULE_ORDER.filter((k) => (ratios[k] ?? 0) > 0);
+  const rest = Object.keys(ratios).filter(
+    (k) => !RULE_ORDER.includes(k) && ratios[k] > 0);
+  return [...known, ...rest];
+}
 
 const fmtT = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 const fmtS = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
@@ -268,27 +288,26 @@ export default function DirectorCut({ onSeek }: Props) {
               ) : (
                 <>
                   <div className="h-4 rounded overflow-hidden flex bg-zinc-800">
-                    {(["ball", "cluster", "hold"] as const).map((r) => {
+                    {ratioKeys(info.director.ratios).map((r) => {
                       const v = info.director!.ratios[r] ?? 0;
-                      if (v <= 0) return null;
                       return (
                         <div
                           key={r}
                           className="h-full"
-                          style={{ width: `${v * 100}%`, backgroundColor: RULE_COLORS[r] }}
-                          title={`${r}: ${(v * 100).toFixed(1)}%`}
+                          style={{ width: `${v * 100}%`, backgroundColor: RULE_COLORS[r] ?? "#52525b" }}
+                          title={`${RULE_LABELS[r] ?? r}: ${(v * 100).toFixed(1)}%`}
                         />
                       );
                     })}
                   </div>
                   <div className="mt-2 flex items-center gap-3 text-[11px] text-zinc-400 flex-wrap">
-                    {(["ball", "cluster", "hold"] as const).map((r) => (
+                    {ratioKeys(info.director.ratios).map((r) => (
                       <span key={r} className="flex items-center gap-1">
                         <span
                           className="inline-block w-2 h-2 rounded-sm"
-                          style={{ backgroundColor: RULE_COLORS[r] }}
+                          style={{ backgroundColor: RULE_COLORS[r] ?? "#52525b" }}
                         />
-                        {r} {((info.director!.ratios[r] ?? 0) * 100).toFixed(1)}%
+                        {RULE_LABELS[r] ?? r} {((info.director!.ratios[r] ?? 0) * 100).toFixed(1)}%
                       </span>
                     ))}
                     <span className="ml-auto">
