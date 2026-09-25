@@ -230,10 +230,16 @@ export default function DirectorCut({ onSeek }: Props) {
                     </tbody>
                   </table>
                   <div className="mt-2 text-[11px] text-zinc-500">
-                    triangle residual {info.sync.triangle_residual_s.toFixed(2)} s
+                    {info.sync.triangle_residual_s != null &&
+                      `triangle residual ${info.sync.triangle_residual_s.toFixed(2)} s`}
                     {info.sync.needs_manual.length > 0 &&
                       ` · needs manual: ${info.sync.needs_manual.map((i) => `a${i}`).join(", ")}`}
                   </div>
+                  {info.sync.confidence_note && (
+                    <div className="mt-1 text-[11px] text-zinc-500">
+                      {info.sync.confidence_note}
+                    </div>
+                  )}
                   <div className="mt-3">
                     {needsInput ? (
                       offsetsForm

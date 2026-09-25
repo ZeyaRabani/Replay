@@ -96,16 +96,21 @@ export interface SyncPair {
   pnr: number;
   r2: number;
   confident: boolean;
+  accepted_by?: "pnr" | "triangle" | "manual" | null;
+  refine_spread_s?: number;
+  manual?: boolean;
+  consistent?: boolean;
 }
 
 export interface SyncInfo {
   reference: number;
-  method: "xcorr" | "manual" | string;
+  method: "xcorr" | "xcorr+triangle" | "manual" | string;
   offsets: number[];
   pairs: SyncPair[];
-  triangle_residual_s: number;
+  triangle_residual_s: number | null;
   needs_manual: number[];
   coverage: Record<string, unknown>;
+  confidence_note?: string;
 }
 
 export interface DirectorSummary {
@@ -113,16 +118,20 @@ export interface DirectorSummary {
   ratios: Record<string, number>;
   n_cuts: number;
   mean_hold_s: number;
+  median_hold_s?: number;
+  min_hold_s?: number;
+  cuts_per_10min?: number;
   angle_share: Record<string, number>;
+  cluster_baseline?: number[];
 }
 
 export interface DirectorSegment {
   t_start: number;
   t_end: number;
   angle: number;
-  rule: "ball" | "cluster" | "hold" | "coverage" | string;
+  rule: "ball" | "cluster" | "hold" | "coverage" | "start" | string;
   score: number;
-  runner_up?: { angle: number; score: number };
+  runner_up?: { angle: number; score: number } | null;
 }
 
 export interface DirectorFull extends DirectorSummary {
