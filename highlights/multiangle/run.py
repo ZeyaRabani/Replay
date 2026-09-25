@@ -217,6 +217,8 @@ def stage_director(ctx: Ctx) -> dict:
     offsets = sync["offsets"]
     lo, hi = sync["coverage"]["union"]
     T = int(np.ceil(hi - lo))
+    from highlights.multiangle.director import EVENT_POST, EVENT_PRE, EVENT_TYPES
+
     tracks, motion, avail = [], [], np.zeros((len(ctx.angles), T), dtype=bool)
     for i, a in enumerate(ctx.angles):
         tr = _load_track_rows(a["dir"])
@@ -234,9 +236,23 @@ def stage_director(ctx: Ctx) -> dict:
             if src is None or len(src) == 0:
                 return np.zeros(T)
             return np.where(ok, src[np.clip(fsec, 0, len(src) - 1)], 0.0)
+        event = np.zeros(T)
+        ev_file = a["dir"] / "pipeline" / "candidates.json"
+        if ev_file.exists():
+            evs = json.loads(ev_file.read_text())
+            for e in (evs.get("events") or evs.get("candidates") or []):
+                if str(e.get("type")) not in EVENT_TYPES:
+                    continue
+                conf = float(e.get("confidence", 0.5))
+                ti = float(e.get("t", 0.0)) + off - lo   # shared-T -> output idx
+                for k in range(int(ti - EVENT_PRE), int(ti + EVENT_POST) + 1):
+                    if 0 <= k < T and ok[k]:
+                        event[k] = max(event[k], conf)
+        n_ev = int((event > 0).sum())
         tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
-                       "cluster": _row("cluster_score")})
+                       "cluster": _row("cluster_score"), "event": event})
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
+        ctx.log(f"director: angle {i} event channel {n_ev} s")
     out = cut_director(tracks, avail, motion)
     (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1, default=_np_json))
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")

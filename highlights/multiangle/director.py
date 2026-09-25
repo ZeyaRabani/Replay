@@ -1,6 +1,11 @@
 """Director: broadcast-style per-second angle selection. Pure numpy — no IO.
 
 Per-second candidate rules (on the shared timeline):
+  EVENT   — any available angle whose event channel (shared-timeline
+            candidate-event confidence, 0 when none) is > 0 wins outright;
+            score = that confidence. Cuts happen immediately (no margin,
+            no confirm, no hold, raw unsmoothed score, cut at the event
+            second itself so the event window's pre-roll is kept).
   BALL    — any available angle whose ball_conf >= BALL_OK in >= 2 of the
             5 s window [t-2, t+2] is eligible; score = max ball_size over
             that window. Eligible angles only.
@@ -22,7 +27,7 @@ angle leaves coverage.
 
 Segment semantics: each segment describes the angle SHOWN in
 [t_start, t_end); `rule` is the rule that selected it ("start", "coverage",
-"ball", "cluster"), `score` the winning smoothed score at selection time,
+"ball", "cluster", "event"), `score` the winning smoothed score at selection time,
 `runner_up` the angle it displaced.
 """
 
@@ -41,6 +46,9 @@ MARGIN_BALL = 0.25
 MARGIN_CLUSTER = 0.50
 DEAD_SCORE_S = 6         # consecutive zero-score seconds before recovery
 DEAD_CHALLENGER = 0.2    # challenger smoothed score threshold for recovery
+EVENT_PRE = 3            # event window: seconds before the candidate peak
+EVENT_POST = 6           # seconds after
+EVENT_TYPES = ("goal", "shot", "goalmouth")
 SMOOTH_MEDIAN = 5
 SMOOTH_MEAN = 9
 BASELINE_Q = 90
@@ -74,7 +82,8 @@ def per_second(track: list[dict], available: np.ndarray
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
-    Returns best_angles (-1 none), scores, rules (0 hold, 1 cluster, 2 ball),
+    Returns best_angles (-1 none), scores, rules (0 hold, 1 cluster,
+    2 ball, 3 event),
     S[n_angles, T] (each angle's score under the active rule), and the
     per-angle cluster baselines used for normalisation.
     """
@@ -87,6 +96,9 @@ def per_second(track: list[dict], available: np.ndarray
     best_r = np.zeros(T, dtype=int)
     S = np.zeros((n_angles, T))
 
+    event = np.stack([
+        np.asarray(track[i].get("event", np.zeros(T)), dtype=float)
+        for i in range(n_angles)])
     ball_conf = np.stack([track[i]["ball_conf"] for i in range(n_angles)])
     ball_size = np.stack([track[i]["ball_size"] for i in range(n_angles)])
     cluster = np.stack([track[i]["cluster"] for i in range(n_angles)])
@@ -107,6 +119,12 @@ def per_second(track: list[dict], available: np.ndarray
     for t in range(T):
         av = available[:, t]
         if not av.any():
+            continue
+        ev = np.where(av, event[:, t], 0.0)
+        if ev.max() > 0:
+            S[:, t] = ev
+            j = int(np.argmax(S[:, t]))
+            best_a[t], best_s[t], best_r[t] = j, S[j, t], 3
             continue
         elig = av & ball_seen[:, t]
         if elig.any():
@@ -135,7 +153,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     sm = np.stack([_smooth(S[i]) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
-    rule_counts = {"ball": 0, "cluster": 0, "hold": 0, "coverage": 0}
+    rule_counts = {"event": 0, "ball": 0, "cluster": 0, "hold": 0, "coverage": 0}
     cur = int(cand_a[0]) if cand_a[0] >= 0 else int(np.argmax(available[:, 0]))
     segs: list[dict] = [
         {"t_start": 0.0, "t_end": float(T - 1), "angle": cur, "rule": "start",
@@ -173,11 +191,21 @@ def cut_director(track: list[dict], available: np.ndarray,
             rule_counts["hold"] += 1
             zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
             continue
-        rule_counts[{2: "ball", 1: "cluster", 0: "coverage"}[cand_r[t]]] += 1
+        rule_counts[{3: "event", 2: "ball", 1: "cluster", 0: "coverage"}[cand_r[t]]] += 1
         if j == cur:
             streak = 0
             propose = -1
             zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
+            continue
+
+        if cand_r[t] == 3:
+            # event rule: cut to the camera that sees the shot — immediate,
+            # raw score, no margin/confirm/hold, cut at the event second
+            # itself (the window's pre-roll is built into S)
+            segs[-1]["t_end"] = float(t)
+            open_seg(t, j, "event", float(S[j, t]),
+                     {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
+            cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
             continue
 
         cur_score = sm[cur, t]
@@ -204,7 +232,7 @@ def cut_director(track: list[dict], available: np.ndarray,
             msum = mot[:, lo:hi + 1].sum(axis=0)
             cut_t = lo + int(np.argmin(msum))
             segs[-1]["t_end"] = float(cut_t)
-            open_seg(cut_t, j, {2: "ball", 1: "cluster"}[cand_r[t]],
+            open_seg(cut_t, j, {2: "ball", 1: "cluster"}.get(cand_r[t], "cluster"),
                      sm[j, t],
                      {"angle": int(cur), "score": round(float(cur_score), 4)})
             cur, hold, streak, zero_run, propose = j, max(0, t - cut_t), 0, 0, -1
