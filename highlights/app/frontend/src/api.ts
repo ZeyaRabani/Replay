@@ -88,6 +88,7 @@ export const projectsApi = {
     if (title) fd.append("title", title);
     if (meta?.pitch_type) fd.append("pitch_type", meta.pitch_type);
     if (meta?.camera) fd.append("camera", meta.camera);
+    if (meta?.cut_style) fd.append("cut_style", meta.cut_style);
     return req<ProjectSummary>("/api/projects", { method: "POST", body: fd });
   },
   createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string, meta?: ProjectMeta) =>
@@ -99,6 +100,7 @@ export const projectsApi = {
     if (title) fd.append("title", title);
     if (meta?.pitch_type) fd.append("pitch_type", meta.pitch_type);
     if (meta?.camera) fd.append("camera", meta.camera);
+    if (meta?.cut_style) fd.append("cut_style", meta.cut_style);
     return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
   },
   remove: (id: string) => req<void>(`/api/projects/${id}`, { method: "DELETE" }),
@@ -146,6 +148,8 @@ export function projectApi(id: string) {
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
     putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
+    recut: (style: "normal" | "fast") =>
+      req<PipelineStatus>(`${base}/multiangle/recut`, json({ style })),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

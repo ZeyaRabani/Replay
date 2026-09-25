@@ -53,6 +53,7 @@ export default function DirectorCut({ onSeek }: Props) {
   const [offsets, setOffsets] = useState<string[]>([]);
   const [offBusy, setOffBusy] = useState(false);
   const [offErr, setOffErr] = useState<string | null>(null);
+  const [recutBusy, setRecutBusy] = useState(false);
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -98,6 +99,19 @@ export default function DirectorCut({ onSeek }: Props) {
   const segs = director?.segments ?? [];
   const total = segs.length ? segs[segs.length - 1].t_end : 0;
   const angleLabel = (i: number) => info?.angles[i]?.label ?? `Angle ${i + 1}`;
+
+  const doRecut = async () => {
+    setRecutBusy(true);
+    try {
+      const next = (info?.cut_style ?? "normal") === "fast" ? "normal" : "fast";
+      await api.recut(next);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRecutBusy(false);
+    }
+  };
 
   const submitOffsets = async () => {
     const vals = Array.from({ length: nAngles }, (_, i) => parseFloat(offsets[i] ?? ""));
@@ -280,8 +294,26 @@ export default function DirectorCut({ onSeek }: Props) {
 
             {/* rule ratios */}
             <div className={card}>
-              <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
-                Director decisions
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Director decisions
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300">
+                    {(info.cut_style ?? info.director?.style ?? "normal") === "fast"
+                      ? "fast cuts" : "normal cuts"}
+                  </span>
+                  <button
+                    disabled={live || info.sources_purged || recutBusy}
+                    title={info.sources_purged ? "angle sources deleted — cannot re-cut" : undefined}
+                    onClick={() => void doRecut()}
+                    className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40 disabled:hover:text-amber-300"
+                  >
+                    {recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
+                    {(info.cut_style ?? "normal") === "fast"
+                      ? "Re-cut as Normal" : "Re-cut as Fast"}
+                  </button>
+                </div>
               </div>
               {!info.director ? (
                 <div className="text-xs text-zinc-500">Director decisions not available yet.</div>

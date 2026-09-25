@@ -83,6 +83,8 @@ export interface ProjectVideo {
 export interface ProjectMeta {
   pitch_type?: "11" | "9" | "7" | "5" | "other";
   camera?: "normal" | "ultrawide" | "zoom" | "other";
+  cut_style?: "normal" | "fast";
+  sources_purged?: boolean;
 }
 
 export interface ProjectSummary {
@@ -128,6 +130,7 @@ export interface SyncInfo {
 }
 
 export interface DirectorSummary {
+  style?: string;
   per_second_rule: Record<string, number>;
   ratios: Record<string, number>;
   n_cuts: number;
@@ -175,6 +178,8 @@ export interface MultiangleInfo {
   angles: AngleInfo[];
   score: MultiangleScore;
   status: PipelineStatus | null;
+  cut_style?: string;
+  sources_purged?: boolean;
 }
 
 export interface PipelineStatus {

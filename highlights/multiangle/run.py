@@ -46,6 +46,7 @@ class Ctx:
     offsets: list[float] | None = None                  # --offsets manual
     cookies: str | None = None
     force: bool = False
+    style: str = "normal"
     durations: list[float] = field(default_factory=list)
     coverage: dict | None = None
     log_fh: object = None
@@ -253,7 +254,7 @@ def stage_director(ctx: Ctx) -> dict:
                        "cluster": _row("cluster_score"), "event": event})
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
-    out = cut_director(tracks, avail, motion)
+    out = cut_director(tracks, avail, motion, ctx.style)
     (ctx.pipe / "director.json").write_text(json.dumps(out, indent=1, default=_np_json))
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
     return out
@@ -430,6 +431,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--offsets", help="comma list, len==n angles, first must be 0")
     ap.add_argument("--cookies")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--style", default="normal",
+                    choices=("normal", "fast"))
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -444,7 +447,8 @@ def main(argv: list[str] | None = None) -> int:
             print("--offsets must have len == n angles, first == 0", file=sys.stderr)
             return 2
     ctx = Ctx(project_dir=project_dir, pipe=pipe, status=status, angles=angles,
-              offsets=offsets, cookies=args.cookies, force=args.force)
+              offsets=offsets, cookies=args.cookies, force=args.force,
+              style=args.style)
 
     names = [s.strip() for s in args.stages.split(",") if s.strip()]
     unknown = [n for n in names if n not in STAGES]

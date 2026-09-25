@@ -65,9 +65,11 @@ _registry: Registry | None = None
 
 PITCH_TYPES = ("11", "9", "7", "5", "other")
 CAMERA_TYPES = ("normal", "ultrawide", "zoom", "other")
+CUT_STYLES = ("normal", "fast")
 
 
-def _meta_or_422(pitch_type: str | None, camera: str | None) -> dict:
+def _meta_or_422(pitch_type: str | None, camera: str | None,
+                 cut_style: str | None = None) -> dict:
     meta = {}
     if pitch_type is not None:
         if pitch_type not in PITCH_TYPES:
@@ -77,6 +79,10 @@ def _meta_or_422(pitch_type: str | None, camera: str | None) -> dict:
         if camera not in CAMERA_TYPES:
             raise HTTPException(422, f"camera must be one of {CAMERA_TYPES}")
         meta["camera"] = camera
+    if cut_style is not None:
+        if cut_style not in CUT_STYLES:
+            raise HTTPException(422, f"cut_style must be one of {CUT_STYLES}")
+        meta["cut_style"] = cut_style
     return meta
 
 
@@ -88,6 +94,7 @@ class ProjectCreate(BaseModel):
     cookies_text: str | None = None
     pitch_type: str | None = None
     camera: str | None = None
+    cut_style: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -106,10 +113,15 @@ class MultiangleCreate(BaseModel):
     cookies_text: str | None = None
     pitch_type: str | None = None
     camera: str | None = None
+    cut_style: str | None = None
 
 
 class OffsetsPut(BaseModel):
     offsets: list[float]
+
+
+class RecutPut(BaseModel):
+    style: str
 
 
 def get_registry() -> Registry:
@@ -716,7 +728,8 @@ async def create_project(request: Request, user: UserDep) -> dict:
         name = _safe_filename(file.filename or "upload.mp4")
         meta = _meta_or_422(
             form.get("pitch_type") or None,
-            form.get("camera") or None)
+            form.get("camera") or None,
+            form.get("cut_style") or None)
         # create the project first so we have a source dir
         p = reg.create_project(
             owner=user,
@@ -753,7 +766,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
             owner=user,
             title=body.title or body.youtube_url,
             source={"kind": "youtube", "url": body.youtube_url, "filename": None},
-            meta=_meta_or_422(body.pitch_type, body.camera),
+            meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
         )
         if body.cookies_text:
             cookies = _save_cookies(p, body.cookies_text)
@@ -774,7 +787,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
             owner=user,
             title=body.title or fp.name,
             source={"kind": "path", "url": resolved, "filename": fp.name},
-            meta=_meta_or_422(body.pitch_type, body.camera),
+            meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
         )
         if body.run_pipeline:
             try:
@@ -855,7 +868,7 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
         owner=user,
         title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
         source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
-        meta=_meta_or_422(body.pitch_type, body.camera),
+        meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
     )
     if body.cookies_text:
         cookies = _save_cookies(p, body.cookies_text)
@@ -880,7 +893,8 @@ async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
         raise HTTPException(422, "multi-angle uploads need 2..4 files")
     meta = _meta_or_422(
         form.get("pitch_type") or None,
-        form.get("camera") or None)
+        form.get("camera") or None,
+        form.get("cut_style") or None)
     names = [_safe_filename(f.filename or f"angle{i}.mp4") for i, f in enumerate(files)]
     angles = [
         {
@@ -1052,7 +1066,29 @@ def get_multiangle(p: ScopedP) -> dict:
         "angles": _angles_info(p),
         "score": _multiangle_score(p),
         "status": pipeline.read_status(p),
+        "cut_style": p.meta.get("cut_style", "normal"),
+        "sources_purged": bool(p.meta.get("sources_purged")),
     }
+
+
+@scoped.post("/multiangle/recut")
+def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
+    """Re-run director+render+fuse with a different cut style."""
+    _require_multiangle(p)
+    if body.style not in CUT_STYLES:
+        raise HTTPException(422, f"style must be one of {CUT_STYLES}")
+    if p.meta.get("sources_purged"):
+        raise HTTPException(409, "angle sources were purged — cannot re-cut")
+    p.meta["cut_style"] = body.style
+    p.save()
+    p.invalidate_video()   # drops proxy.mp4 + thumb cache for the old cut
+    try:
+        ck = _user_default_cookies(p, user) or _project_cookies(p)
+        return pipeline.spawn_multiangle(
+            p, stages=["director", "render", "fuse"], force=True,
+            style=body.style, cookies=ck)
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
 
 
 @scoped.get("/multiangle/director")

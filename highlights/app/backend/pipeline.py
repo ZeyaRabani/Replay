@@ -122,8 +122,12 @@ def spawn_multiangle(
     force: bool = False,
     cookies: str | None = None,
     offsets: list[float] | None = None,
+    style: str | None = None,
 ) -> dict:
     argv = multiangle_runner_cmd() + ["--project-dir", str(p.root)]
+    style = style or (p.meta or {}).get("cut_style")
+    if style:
+        argv += ["--style", style]
     if stages:
         argv += ["--stages", ",".join(stages)]
     if force:

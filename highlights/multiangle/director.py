@@ -33,6 +33,8 @@ Segment semantics: each segment describes the angle SHOWN in
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 BALL_OK = 0.35
@@ -54,11 +56,30 @@ SMOOTH_MEAN = 9
 BASELINE_Q = 90
 
 
-def _smooth(x: np.ndarray) -> np.ndarray:
+@dataclass(frozen=True)
+class Style:
+    """Switching-policy knobs. 'normal' is broadcast-style holds; 'fast'
+    follows the ball with quick cuts."""
+    min_hold: int
+    ball_min_hold: int
+    confirm_cluster: int
+    confirm_ball: int
+    margin_ball: float
+    margin_cluster: float
+    smooth_mean: int
+
+
+STYLES = {
+    "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9),
+    "fast": Style(4, 2, 2, 1, 0.10, 0.25, 3),
+}
+
+
+def _smooth(x: np.ndarray, mean: int = SMOOTH_MEAN) -> np.ndarray:
     from scipy.ndimage import median_filter, uniform_filter1d
     return uniform_filter1d(
         median_filter(x, size=SMOOTH_MEDIAN, mode="nearest"),
-        size=SMOOTH_MEAN, mode="nearest")
+        size=mean, mode="nearest")
 
 
 def _cluster_baselines(track: list[dict], available: np.ndarray) -> np.ndarray:
@@ -143,14 +164,15 @@ def per_second(track: list[dict], available: np.ndarray
 
 
 def cut_director(track: list[dict], available: np.ndarray,
-                 motion: list[np.ndarray]) -> dict:
+                 motion: list[np.ndarray], style: str = "normal") -> dict:
     """Full decision. track[i]: {"ball_conf","ball_size","cluster"} 1 Hz arrays
     on the shared timeline; available[i, t]; motion[i] shared-timeline motion.
     Returns the director.json dict."""
+    sty = STYLES[style]
     T = available.shape[1]
     n_angles = len(track)
     cand_a, _cand_s, cand_r, S, baselines = per_second(track, available)
-    sm = np.stack([_smooth(S[i]) for i in range(n_angles)])
+    sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
     rule_counts = {"event": 0, "ball": 0, "cluster": 0, "hold": 0, "coverage": 0}
@@ -213,7 +235,7 @@ def cut_director(track: list[dict], available: np.ndarray,
         # challenger shows real signal -> margin waived
         zero_run = zero_run + 1 if cur_score <= 0 else 0
         dead_recovery = (zero_run >= DEAD_SCORE_S and sm[j, t] > DEAD_CHALLENGER)
-        margin = MARGIN_BALL if cand_r[t] == 2 else MARGIN_CLUSTER
+        margin = sty.margin_ball if cand_r[t] == 2 else sty.margin_cluster
         better = dead_recovery or sm[j, t] > cur_score * (1 + margin)
 
         if better and j == propose:
@@ -223,8 +245,8 @@ def cut_director(track: list[dict], available: np.ndarray,
         else:
             streak = 0
             propose = -1
-        confirm = CONFIRM_BALL if cand_r[t] == 2 else CONFIRM_CLUSTER
-        need_hold = BALL_MIN_HOLD if cand_r[t] == 2 else MIN_HOLD
+        confirm = sty.confirm_ball if cand_r[t] == 2 else sty.confirm_cluster
+        need_hold = sty.ball_min_hold if cand_r[t] == 2 else sty.min_hold
         if propose == j and streak >= confirm and hold >= need_hold:
             # cut at min summed motion within [t-2, t+2]
             lo, hi = max(segs[-1]["t_start"], t - 2), min(T - 1, t + 2)
@@ -247,6 +269,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     tot = sum(rule_counts.values()) or 1
     span_min = max(total_dur / 60.0, 1e-9)
     return {
+        "style": style,
         "segments": segs,
         "per_second_rule": rule_counts,
         "ratios": {k: round(v / tot, 4) for k, v in rule_counts.items()},

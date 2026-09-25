@@ -99,5 +99,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
             log(f"render: seg {p['seg_index']}/{len(segments)} "
                 f"({100*p['t0']/total:.0f}%)")
     lst = concat_file(files, workdir / "concat.txt")
+    # unlink first: out_path may be a hardlink to another project's file
+    # (e.g. a copied demo project) and ffmpeg would clobber the shared inode
+    Path(out_path).unlink(missing_ok=True)
     run(concat_cmd(lst, str(out_path)), log)
     return out_path

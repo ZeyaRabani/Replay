@@ -107,6 +107,11 @@ function ProjectCard({
               {p.meta.camera}
             </span>
           )}
+          {p.meta?.cut_style && (
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              {p.meta.cut_style === "fast" ? "fast cuts" : "normal cuts"}
+            </span>
+          )}
         </div>
         {isLive(p) ? (
           <div className="mt-1">
@@ -291,6 +296,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   ]);
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
+  const [cutStyle, setCutStyle] = useState<"normal" | "fast">("normal");
 
   useEffect(() => {
     configApi
@@ -307,6 +313,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
       const meta: ProjectMeta = {};
       if (pitchType) meta.pitch_type = pitchType as ProjectMeta["pitch_type"];
       if (camera) meta.camera = camera as ProjectMeta["camera"];
+      if (mode === "multi") meta.cut_style = cutStyle;
       let p: ProjectSummary;
       if (mode === "multi") {
         if (maTab === "links") {
@@ -332,6 +339,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
       setFile(null);
       setPitchType("");
       setCamera("");
+      setCutStyle("normal");
       setMaRows([{ url: "", label: "" }, { url: "", label: "" }]);
       setMaFiles([{ file: null, label: "" }, { file: null, label: "" }]);
     } catch (e) {
@@ -513,6 +521,14 @@ function NewProject({ onCreated, onError, tab, setTab }: {
               <option value="ultrawide">Ultrawide 0.5×</option>
               <option value="zoom">Zoomed</option>
               <option value="other">Other</option>
+            </select>
+            <select
+              className={input}
+              value={cutStyle}
+              onChange={(e) => setCutStyle(e.target.value as "normal" | "fast")}
+            >
+              <option value="normal">Cuts: Normal — broadcast-style holds</option>
+              <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
             </select>
           </div>
           <button
