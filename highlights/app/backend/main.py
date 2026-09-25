@@ -1349,7 +1349,11 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     full = (body.window is None or not body.window or
             (body.window[0] <= 0.5 and body.window[1] >= dur - 0.5))
     if full:
-        cr_path.unlink(missing_ok=True)
+        # "the whole current video": keep an existing cut_range (the
+        # current video is itself windowed — deleting it would expand
+        # the re-cut to the full coverage union)
+        if not cur:
+            cr_path.unlink(missing_ok=True)
     else:
         if len(body.window) != 2:
             raise HTTPException(422, "window must be [start, end]")

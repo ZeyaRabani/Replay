@@ -203,7 +203,15 @@ def test_recut_window_writes_cut_range(client, short_video, monkeypatch):
     assert r.status_code == 422
     assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
 
-    # no window -> full re-cut, cut_range.json removed
+    # no window = "the whole current video": the existing range is
+    # kept so the re-cut covers the same span, not the union
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
+    assert r.status_code == 200, r.text
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
+    _wait(client, pid)
+
+    # with no range active, a no-window re-cut leaves cut_range absent
+    cr.unlink()
     r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
     assert r.status_code == 200, r.text
     assert not cr.exists()
