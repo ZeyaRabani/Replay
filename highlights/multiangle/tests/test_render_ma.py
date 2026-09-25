@@ -56,3 +56,38 @@ def test_three_segment_render(tmp_path):
     assert streams == {"video", "audio"}
     v = next(s for s in info["streams"] if s["codec_type"] == "video")
     assert (v["width"], v["height"]) == (1920, 1080)
+
+
+@pytest.mark.skipif(
+    subprocess.run(["which", "ffmpeg"], capture_output=True).returncode != 0,
+    reason="ffmpeg missing")
+def test_segment_cache_reuse_and_prune(tmp_path):
+    """Second render of the same segments reuses all cached files; a
+    changed plan encodes anew and stale cache entries are pruned."""
+    v0 = _mkvideo(tmp_path / "a0.mp4", 10.0)
+    v1 = _mkvideo(tmp_path / "a1.mp4", 10.0)
+    segs = [{"t_start": 0.0, "t_end": 3.0, "angle": 0},
+            {"t_start": 3.0, "t_end": 5.0, "angle": 1}]
+    logs: list[str] = []
+    kwargs = dict(videos=[str(v0), str(v1)], offsets=[0.0, 0.0],
+                  union_lo=0.0, union_hi=5.0, ref_video=str(v0),
+                  log=lambda m, *a: logs.append(str(m)))
+    work = tmp_path / "work"
+    render.render(segments=segs, workdir=work,
+                  out_path=tmp_path / "out.mp4", **kwargs)
+    assert any("reused 0/2" in m for m in logs)
+    n_cached = len(list((work / "segs").glob("*.mp4")))
+
+    logs.clear()
+    render.render(segments=segs, workdir=work,
+                  out_path=tmp_path / "out2.mp4", **kwargs)
+    assert any("reused 2/2" in m for m in logs)
+
+    # one changed segment -> 1 reused, 1 encoded, and the dropped
+    # segment's cache file is pruned
+    logs.clear()
+    segs2 = [segs[0], {"t_start": 3.0, "t_end": 4.5, "angle": 1}]
+    render.render(segments=segs2, workdir=work,
+                  out_path=tmp_path / "out3.mp4", **kwargs)
+    assert any("reused 1/2" in m for m in logs)
+    assert len(list((work / "segs").glob("*.mp4"))) == n_cached - 1 + 1

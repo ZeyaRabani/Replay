@@ -10,6 +10,7 @@ the concat demuxer can stream-copy), then concat-demuxed.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -29,6 +30,12 @@ def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000", "-ac", "2",
             out]
+
+
+def seg_key(angle: int, t_file: float, dur: float) -> str:
+    """Content key for a cached segment: same inputs -> same file."""
+    raw = f"{angle}|{t_file:.3f}|{dur:.3f}|{CANVAS}|{CRF}|{PRESET}"
+    return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
@@ -85,6 +92,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     seg_dir = workdir / "segs"
     seg_dir.mkdir(parents=True, exist_ok=True)
     files = []
+    used: set[str] = set()
+    reused = encoded = 0
     total = max(1.0, union_hi - union_lo)
     plans = plan_segments(segments, offsets, union_lo, union_hi,
                           durations or [])
@@ -94,12 +103,27 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
                 f"file t={p['t_file']:.1f} s, beyond that angle's video — skipped")
             continue
         a = p["angle"]
-        out = seg_dir / f"{p['seg_index']:04d}.mp4"
-        run(segment_cmd(videos[a], p["t_file"], p["dur"], str(out)), log)
+        out = seg_dir / f"{seg_key(a, p['t_file'], p['dur'])}.mp4"
+        used.add(out.name)
+        if out.exists() and out.stat().st_size > 0:
+            reused += 1
+        else:
+            # encode to a .part sibling then os.replace so a killed run
+            # never leaves a truncated file in the cache
+            tmp = out.with_name(out.stem + ".part.mp4")
+            tmp.unlink(missing_ok=True)
+            run(segment_cmd(videos[a], p["t_file"], p["dur"], str(tmp)), log)
+            os.replace(tmp, out)
+            encoded += 1
         files.append(f"segs/{out.name}")  # concat resolves relative to list dir
         if p["seg_index"] % 10 == 0:
             log(f"render: seg {p['seg_index']}/{len(segments)} "
                 f"({100*p['t0']/total:.0f}%)")
+    log(f"render: reused {reused}/{reused + encoded} segments")
+    # prune cache entries not referenced by this render
+    for f in seg_dir.glob("*.mp4"):
+        if f.name not in used and f.suffix == ".mp4":
+            f.unlink()
     lst = concat_file(files, workdir / "concat.txt")
     # write to a sibling tmp then os.replace: out_path may be hardlinked
     # into cuts/ snapshots or a copied project — never clobber in place
