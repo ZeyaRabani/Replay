@@ -21,9 +21,11 @@ def _run(cmd: list[str]) -> bytes:
     return r.stdout
 
 
-def _gray_frames(video: str | Path, extra_in: list[str], vf: str) -> np.ndarray:
+def _gray_frames(video: str | Path, extra_in: list[str], vf: str,
+                 extra_out: list[str] | None = None) -> np.ndarray:
     raw = _run(["ffmpeg", "-v", "error", *extra_in, "-i", str(video),
-                "-vf", vf, "-f", "rawvideo", "-"])
+                "-vf", vf, "-an", "-sn", *(extra_out or []),
+                "-f", "rawvideo", "-"])
     n = len(raw) // (W * H)
     return np.frombuffer(raw[: n * W * H], dtype=np.uint8).reshape(n, H, W).astype(float)
 
@@ -50,7 +52,8 @@ def view_ok(video: str | Path, ref_t: float, step: int = 10,
             thresh: float = 0.6) -> tuple[np.ndarray, np.ndarray]:
     """(times, ok): per-sample camera-view check vs the frame at ref_t."""
     ref = _gray_frames(video, ["-ss", f"{ref_t:.3f}"],
-                       f"scale={W}:{H},format=gray")[0]
+                       f"scale={W}:{H},format=gray",
+                       extra_out=["-frames:v", "1"])[0]
     samples = _gray_frames(video, ["-skip_frame", "nokey"],
                            f"fps={1.0 / step},scale={W}:{H},format=gray")
     times = np.arange(len(samples)) * float(step)

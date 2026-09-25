@@ -300,13 +300,15 @@ def cut_director(track: list[dict], available: np.ndarray,
             cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
             continue
 
-        if cand_r[t] == 4 and hold >= ZONE_MIN_HOLD:
+        if cand_r[t] == 4:
             # zone rule: ball inside a painted zone -> cut to that camera
-            # immediately like an event, after a short min hold
-            segs[-1]["t_end"] = float(t)
-            open_seg(t, j, "zone", float(S[j, t]),
-                     {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
-            cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
+            # immediately like an event, after a short min hold; while the
+            # hold is short just keep waiting (never use the margin path)
+            if hold >= ZONE_MIN_HOLD:
+                segs[-1]["t_end"] = float(t)
+                open_seg(t, j, "zone", float(S[j, t]),
+                         {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
+                cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
             continue
 
         cur_score = sm[cur, t]

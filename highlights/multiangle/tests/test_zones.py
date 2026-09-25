@@ -41,6 +41,10 @@ def test_zone_cut_overrides_cluster():
     assert t1 >= 200            # plus linger (~203)
     assert d["zones_used"] is True
     assert d["ratios"].get("zone", 0) > 0
+    # while a zone angle is eligible the director never uses the cluster rule
+    for s in d["segments"]:
+        if s["rule"] == "cluster":
+            assert s["t_end"] <= t0 or s["t_start"] >= t1
     # outside the zone window the strong cluster camera holds
     assert d["segments"][0]["angle"] == 0
 
