@@ -63,12 +63,31 @@ _jobs_lock = threading.Lock()
 _registry: Registry | None = None
 
 
+PITCH_TYPES = ("11", "9", "7", "5", "other")
+CAMERA_TYPES = ("normal", "ultrawide", "zoom", "other")
+
+
+def _meta_or_422(pitch_type: str | None, camera: str | None) -> dict:
+    meta = {}
+    if pitch_type is not None:
+        if pitch_type not in PITCH_TYPES:
+            raise HTTPException(422, f"pitch_type must be one of {PITCH_TYPES}")
+        meta["pitch_type"] = pitch_type
+    if camera is not None:
+        if camera not in CAMERA_TYPES:
+            raise HTTPException(422, f"camera must be one of {CAMERA_TYPES}")
+        meta["camera"] = camera
+    return meta
+
+
 class ProjectCreate(BaseModel):
     title: str | None = None
     youtube_url: str | None = None
     path: str | None = None
     run_pipeline: bool = True
     cookies_text: str | None = None
+    pitch_type: str | None = None
+    camera: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -85,6 +104,8 @@ class MultiangleCreate(BaseModel):
     title: str | None = None
     angles: list[AngleSpec]
     cookies_text: str | None = None
+    pitch_type: str | None = None
+    camera: str | None = None
 
 
 class OffsetsPut(BaseModel):
@@ -544,6 +565,7 @@ def summary(p: ProjectStore) -> dict:
         "title": p.title,
         "created_at": p.created_at,
         "source": p.source_info,
+        "meta": p.meta,
         "pipeline_state": p.pipeline_state,
         "progress": status["progress"] if status else 0.0,
         "stage": status["stage"] if status else None,
@@ -691,11 +713,15 @@ async def create_project(request: Request, user: UserDep) -> dict:
         title = (form.get("title") or "").strip() if isinstance(form.get("title"), str) else ""
         cookies_text = form.get("cookies_text") if isinstance(form.get("cookies_text"), str) else None
         name = _safe_filename(file.filename or "upload.mp4")
+        meta = _meta_or_422(
+            form.get("pitch_type") or None,
+            form.get("camera") or None)
         # create the project first so we have a source dir
         p = reg.create_project(
             owner=user,
             title=title or name,
             source={"kind": "upload", "url": None, "filename": name},
+            meta=meta,
         )
         dst = p.source_dir / name
         with open(dst, "wb") as fh:
@@ -726,6 +752,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
             owner=user,
             title=body.title or body.youtube_url,
             source={"kind": "youtube", "url": body.youtube_url, "filename": None},
+            meta=_meta_or_422(body.pitch_type, body.camera),
         )
         if body.cookies_text:
             cookies = _save_cookies(p, body.cookies_text)
@@ -746,6 +773,7 @@ async def create_project(request: Request, user: UserDep) -> dict:
             owner=user,
             title=body.title or fp.name,
             source={"kind": "path", "url": resolved, "filename": fp.name},
+            meta=_meta_or_422(body.pitch_type, body.camera),
         )
         if body.run_pipeline:
             try:
@@ -765,6 +793,39 @@ async def create_project(request: Request, user: UserDep) -> dict:
 @app.get("/api/projects")
 def list_projects(user: UserDep) -> list:
     return [summary(p) for p in get_registry().list_projects(user)]
+
+
+@app.get("/api/feedback/export")
+def feedback_export(user: UserDep, all: bool = False) -> Response:
+    """JSONL of review decisions across all projects — training data export."""
+    lines = []
+    for p in get_registry().list_projects():
+        vid = {
+            "width": p.video.width, "height": p.video.height,
+            "fps": p.video.fps, "duration_s": p.video.duration_s,
+        } if p.video else None
+        for c in p.candidates:
+            if c.status == "pending" and not all:
+                continue
+            lines.append(json.dumps({
+                "project_id": p.id,
+                "owner": p.owner,
+                "title": p.title,
+                "meta": p.meta,
+                "video": vid,
+                "candidate_id": c.id,
+                "type": c.type,
+                "t": c.t,
+                "t_start": c.t_start,
+                "t_end": c.t_end,
+                "confidence": c.confidence,
+                "signals": c.signals,
+                "status": c.status,
+                "cross_validation": c.cross_validation,
+                "source_kind": p.source_info.get("kind"),
+            }))
+    return Response("\n".join(lines) + ("\n" if lines else ""),
+                    media_type="application/x-ndjson")
 
 
 # ---------- multi-angle (Option 2: director cut) ----------
@@ -793,6 +854,7 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
         owner=user,
         title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
         source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
+        meta=_meta_or_422(body.pitch_type, body.camera),
     )
     if body.cookies_text:
         cookies = _save_cookies(p, body.cookies_text)
@@ -815,6 +877,9 @@ async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
     cookies_text = form.get("cookies_text") if isinstance(form.get("cookies_text"), str) else None
     if not (2 <= len(files) <= 4):
         raise HTTPException(422, "multi-angle uploads need 2..4 files")
+    meta = _meta_or_422(
+        form.get("pitch_type") or None,
+        form.get("camera") or None)
     names = [_safe_filename(f.filename or f"angle{i}.mp4") for i, f in enumerate(files)]
     angles = [
         {
@@ -828,6 +893,7 @@ async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
         owner=user,
         title=title.strip() or names[0],
         source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
+        meta=meta,
     )
     for i, (f, name) in enumerate(zip(files, names, strict=True)):
         suffix = Path(name).suffix or ".mp4"

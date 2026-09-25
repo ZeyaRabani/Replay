@@ -82,6 +82,7 @@ class ProjectStore:
             for i in range(len(self.source_info.get("angles") or [])):
                 self.angle_dir(i).mkdir(parents=True, exist_ok=True)
         self.pipeline_state: str = "none"
+        self.meta: dict = {}
         self.state_path = self.root / "project.json"
         self.lock = threading.RLock()
         self.video: VideoInfo | None = None
@@ -160,6 +161,7 @@ class ProjectStore:
             self.proxy_source = data.get("proxy_source", "")
             self.candidates_version = int(data.get("candidates_version", 0))
             self.pipeline_state = data.get("pipeline_state", "none")
+            self.meta = data.get("meta") or {}
         except Exception:
             # corrupt state -> start fresh rather than crash
             self.video = None
@@ -182,6 +184,7 @@ class ProjectStore:
                         "proxy_complete": self.proxy_complete,
                         "proxy_source": self.proxy_source,
                         "pipeline_state": self.pipeline_state,
+                        "meta": self.meta,
                         "candidates_source": self.source,
                     },
                     indent=2,
@@ -335,13 +338,15 @@ class Registry:
     def new_project_id() -> str:
         return uuid.uuid4().hex[:12]
 
-    def create_project(self, owner: str, title: str, source: dict) -> ProjectStore:
+    def create_project(self, owner: str, title: str, source: dict,
+                       meta: dict | None = None) -> ProjectStore:
         with self.lock:
             pid = self.new_project_id()
             p = ProjectStore(
                 self.projects_dir / pid,
                 id=pid, owner=owner, title=title, source=source,
             )
+            p.meta = {k: v for k, v in (meta or {}).items() if v is not None}
             p.save()
             self._projects[pid] = p
             return p

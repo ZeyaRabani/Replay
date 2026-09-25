@@ -80,11 +80,17 @@ export interface ProjectVideo {
   fps: number;
 }
 
+export interface ProjectMeta {
+  pitch_type?: "11" | "9" | "7" | "5" | "other";
+  camera?: "normal" | "ultrawide" | "zoom" | "other";
+}
+
 export interface ProjectSummary {
   id: string;
   title: string;
   created_at: number | string;
   source: ProjectSource;
+  meta?: ProjectMeta;
   pipeline_state: PipelineState;
   progress: number;
   stage: string | null;

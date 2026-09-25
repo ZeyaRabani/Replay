@@ -5,6 +5,7 @@ import type {
   MultiangleInfo,
   PipelineStatus,
   ProjectDetail,
+  ProjectMeta,
   ProjectSummary,
   RenderJob,
   Stats,
@@ -77,23 +78,27 @@ export const configApi = {
 
 export const projectsApi = {
   list: () => req<ProjectSummary[]>("/api/projects"),
-  createYoutube: (youtube_url: string, title?: string) =>
-    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined })),
-  createPath: (path: string, title?: string) =>
-    req<ProjectSummary>("/api/projects", json({ path, title: title || undefined })),
-  createUpload: (file: File, title?: string) => {
+  createYoutube: (youtube_url: string, title?: string, meta?: ProjectMeta) =>
+    req<ProjectSummary>("/api/projects", json({ youtube_url, title: title || undefined, ...meta })),
+  createPath: (path: string, title?: string, meta?: ProjectMeta) =>
+    req<ProjectSummary>("/api/projects", json({ path, title: title || undefined, ...meta })),
+  createUpload: (file: File, title?: string, meta?: ProjectMeta) => {
     const fd = new FormData();
     fd.append("file", file);
     if (title) fd.append("title", title);
+    if (meta?.pitch_type) fd.append("pitch_type", meta.pitch_type);
+    if (meta?.camera) fd.append("camera", meta.camera);
     return req<ProjectSummary>("/api/projects", { method: "POST", body: fd });
   },
-  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string) =>
-    req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text })),
-  createMultiangleUpload: (files: File[], labels: string[], title?: string) => {
+  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string, meta?: ProjectMeta) =>
+    req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text, ...meta })),
+  createMultiangleUpload: (files: File[], labels: string[], title?: string, meta?: ProjectMeta) => {
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
     for (const l of labels) fd.append("labels", l);
     if (title) fd.append("title", title);
+    if (meta?.pitch_type) fd.append("pitch_type", meta.pitch_type);
+    if (meta?.camera) fd.append("camera", meta.camera);
     return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
   },
   remove: (id: string) => req<void>(`/api/projects/${id}`, { method: "DELETE" }),

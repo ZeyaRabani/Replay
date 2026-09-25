@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { configApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
-import type { ProjectSummary } from "../types";
+import type { ProjectMeta, ProjectSummary } from "../types";
 
 const fmtDate = (v: number | string) =>
   new Date(typeof v === "number" ? v * 1000 : v).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -95,6 +95,16 @@ function ProjectCard({
           {p.video && (
             <span>
               {fmtDur(p.video.duration_s)} · {p.video.width}×{p.video.height}
+            </span>
+          )}
+          {p.meta?.pitch_type && (
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              {p.meta.pitch_type}-a-side
+            </span>
+          )}
+          {p.meta?.camera && (
+            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              {p.meta.camera}
             </span>
           )}
         </div>
@@ -279,6 +289,8 @@ function NewProject({ onCreated, onError, tab, setTab }: {
     { file: null, label: "" },
     { file: null, label: "" },
   ]);
+  const [pitchType, setPitchType] = useState("");
+  const [camera, setCamera] = useState("");
 
   useEffect(() => {
     configApi
@@ -292,28 +304,34 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   const submit = async () => {
     setBusy(true);
     try {
+      const meta: ProjectMeta = {};
+      if (pitchType) meta.pitch_type = pitchType as ProjectMeta["pitch_type"];
+      if (camera) meta.camera = camera as ProjectMeta["camera"];
       let p: ProjectSummary;
       if (mode === "multi") {
         if (maTab === "links") {
           const angles = maRows.map((r, i) => ({ url: r.url.trim(), label: r.label.trim() || `Angle ${i + 1}` }));
-          p = await projectsApi.createMultiangle(title.trim() || undefined, angles);
+          p = await projectsApi.createMultiangle(title.trim() || undefined, angles, undefined, meta);
         } else {
           p = await projectsApi.createMultiangleUpload(
             maFiles.map((r) => r.file as File),
             maFiles.map((r, i) => r.label.trim() || `Angle ${i + 1}`),
             title.trim() || undefined,
+            meta,
           );
         }
       } else {
         p =
           tab === "youtube"
-            ? await projectsApi.createYoutube(url.trim(), title.trim())
-            : await projectsApi.createUpload(file as File, title.trim());
+            ? await projectsApi.createYoutube(url.trim(), title.trim(), meta)
+            : await projectsApi.createUpload(file as File, title.trim(), meta);
       }
       onCreated(p);
       setUrl("");
       setTitle("");
       setFile(null);
+      setPitchType("");
+      setCamera("");
       setMaRows([{ url: "", label: "" }, { url: "", label: "" }]);
       setMaFiles([{ file: null, label: "" }, { file: null, label: "" }]);
     } catch (e) {
@@ -480,6 +498,23 @@ function NewProject({ onCreated, onError, tab, setTab }: {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          <div className="flex gap-2">
+            <select className={input} value={pitchType} onChange={(e) => setPitchType(e.target.value)}>
+              <option value="">Pitch — not set</option>
+              <option value="11">11-a-side</option>
+              <option value="9">9-a-side</option>
+              <option value="7">7-a-side</option>
+              <option value="5">5-a-side</option>
+              <option value="other">Other</option>
+            </select>
+            <select className={input} value={camera} onChange={(e) => setCamera(e.target.value)}>
+              <option value="">Camera — not set</option>
+              <option value="normal">Normal 1×</option>
+              <option value="ultrawide">Ultrawide 0.5×</option>
+              <option value="zoom">Zoomed</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
           <button
             disabled={busy || !canSubmit}
             onClick={() => void submit()}
@@ -539,6 +574,23 @@ function NewProject({ onCreated, onError, tab, setTab }: {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        <div className="flex gap-2">
+          <select className={input} value={pitchType} onChange={(e) => setPitchType(e.target.value)}>
+            <option value="">Pitch — not set</option>
+            <option value="11">11-a-side</option>
+            <option value="9">9-a-side</option>
+            <option value="7">7-a-side</option>
+            <option value="5">5-a-side</option>
+            <option value="other">Other</option>
+          </select>
+          <select className={input} value={camera} onChange={(e) => setCamera(e.target.value)}>
+            <option value="">Camera — not set</option>
+            <option value="normal">Normal 1×</option>
+            <option value="ultrawide">Ultrawide 0.5×</option>
+            <option value="zoom">Zoomed</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
         <button
           disabled={busy || !canSubmit}
           onClick={() => void submit()}
