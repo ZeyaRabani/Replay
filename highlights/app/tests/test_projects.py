@@ -16,7 +16,7 @@ SUMMARY_KEYS = {
 STATS_KEYS = {
     "duration_s", "match_window", "halves", "bin_s", "timeline",
     "events_by_type", "events_per_10min", "top_moments", "whistles",
-    "activity", "pipeline",
+    "activity", "pipeline", "match_stats",
 }
 
 

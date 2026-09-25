@@ -4,7 +4,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-EventType = Literal["goal", "shot", "chance", "excitement", "tackle", "other"]
+EventType = Literal[
+    "goal", "shot", "goalmouth", "crowd", "attack",
+    "chance", "excitement", "tackle", "other",
+]
 CandidateStatus = Literal["pending", "confirmed", "rejected"]
 Team = Literal["home", "away"]
 CrossValidation = Literal["confirmed", "pipeline_only", "visual_only", "rejected"]

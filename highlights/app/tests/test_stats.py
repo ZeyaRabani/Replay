@@ -10,7 +10,7 @@ from highlights.app.backend.stats import compute_stats
 KEYS = {
     "duration_s", "match_window", "halves", "bin_s", "timeline",
     "events_by_type", "events_per_10min", "top_moments", "whistles",
-    "activity", "pipeline",
+    "activity", "pipeline", "match_stats",
 }
 
 
@@ -37,6 +37,7 @@ def test_compute_stats_shape():
                       [{"start": 0, "end": 270}], [12.345, 99.0],
                       model="m", auroc_reference=0.5, notes="n")
     assert set(s.keys()) == KEYS
+    assert s["match_stats"]["goals"] == 1
     assert len(s["timeline"]) == 20
     for row in s["timeline"]:
         assert 0 <= row["motion"] <= 1

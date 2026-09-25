@@ -18,7 +18,8 @@ BIN_S = 30
 MOTION_COL = "motion_total"
 AUDIO_COL = "rms_db"
 EXCITEMENT_COLS = ("z300_speech", "z300_rms", "motion_goal_roi")
-EVENT_TYPES = ("goal", "shot", "chance", "excitement", "other")
+EVENT_TYPES = ("goal", "shot", "goalmouth", "crowd", "attack",
+               "chance", "excitement", "other")
 
 PIPELINE_INFO = {
     "model": "audio_motion_lr v1",
@@ -142,7 +143,8 @@ def compute_stats(
         per10.append(row)
 
     # top moments
-    type_rank = {"goal": 0, "shot": 1, "chance": 2, "excitement": 3, "other": 4}
+    type_rank = {"goal": 0, "shot": 1, "goalmouth": 2, "crowd": 3,
+                 "attack": 4, "chance": 4, "excitement": 5, "other": 6}
     ordered = sorted(
         events,
         key=lambda e: (-float(e.get("confidence", 0.0)), type_rank.get(str(e.get("type")), 5), float(e.get("t", 0.0))),
@@ -194,6 +196,9 @@ def compute_stats(
         if isinstance(h, dict) and "start" in h and "end" in h
     ]
 
+    match_stats = _match_stats(
+        df, t, events, in_match, halves, motion_n, w_out, duration)
+
     info = dict(PIPELINE_INFO)
     if pipeline:
         info.update(pipeline)
@@ -209,7 +214,88 @@ def compute_stats(
         "top_moments": top_moments,
         "whistles": w_out,
         "activity": activity,
+        "match_stats": match_stats,
         "pipeline": info,
+    }
+
+
+def _match_stats(df: pd.DataFrame, t: np.ndarray, events: list[dict],
+                 in_match: np.ndarray, halves, motion_n: np.ndarray,
+                 w_out: list[float], duration: float) -> dict[str, Any]:
+    """FIFA-style broadcast stats. Single camera -> match-level estimates."""
+    n_match = int(in_match.sum()) or 1
+    ev_in = [e for e in events
+             if in_match.any() and float(e.get("t", -1)) >= 0
+             and in_match[np.clip(int(float(e["t"])), 0, max(0, len(in_match) - 1))]]
+
+    def _count(*types: str) -> int:
+        return sum(1 for e in ev_in if str(e.get("type")) in types)
+
+    if "near_frac" in df.columns:
+        near = float(np.nanmean(
+            pd.to_numeric(df["near_frac"], errors="coerce").to_numpy(dtype=float)[in_match]))
+        if not math.isfinite(near):
+            near = 0.5
+    else:
+        near = 0.5
+
+    quiet = motion_n < 0.2
+    quiet = quiet & in_match
+    # contiguous quiet runs >= 20 s
+    n_stretches = 0
+    quiet_s = 0
+    run = 0
+    for i in range(len(t)):
+        if quiet[i]:
+            run += 1
+        else:
+            if run >= 20:
+                n_stretches += 1
+                quiet_s += run
+            run = 0
+    if run >= 20:
+        n_stretches += 1
+        quiet_s += run
+
+    halves_out = []
+    for h in halves or []:
+        if not (isinstance(h, dict) and "start" in h and "end" in h):
+            continue
+        hm = (t >= h["start"]) & (t <= h["end"]) & in_match
+        hev = [e for e in ev_in if h["start"] <= float(e.get("t", 0)) <= h["end"]]
+        halves_out.append({
+            "start": _f(h["start"], 1), "end": _f(h["end"], 1),
+            "goals": sum(1 for e in hev if e.get("type") == "goal"),
+            "shots_on_goal": sum(1 for e in hev if e.get("type") in ("goal", "shot")),
+            "attacks": sum(1 for e in hev if e.get("type") in ("attack", "chance")),
+            "mean_motion_pct": _f(motion_n[hm].mean() * 100, 1) if hm.any() else 0.0,
+        })
+
+    # peak minute: 60 s bin with most in-match events
+    peak_t, peak_n = 0.0, 0
+    for b_lo in np.arange(0.0, duration, 60.0):
+        c = sum(1 for e in ev_in if b_lo <= float(e.get("t", 0.0)) < b_lo + 60.0)
+        if c > peak_n:
+            peak_n, peak_t = c, float(b_lo)
+
+    return {
+        "goals": _count("goal"),
+        "shots_on_goal": _count("goal", "shot"),
+        "goalmouth_actions": _count("goalmouth"),
+        "attacks": _count("attack", "chance"),
+        "crowd_reactions": _count("crowd"),
+        "big_moments": sum(1 for e in ev_in if float(e.get("confidence", 0)) >= 0.7),
+        "territory": {"near_goal_pct": _f(near * 100, 1),
+                      "far_goal_pct": _f((1 - near) * 100, 1)},
+        "tempo": {"mean_motion_pct": _f(motion_n[in_match].mean() * 100, 1),
+                  "high_intensity_pct": _f(
+                      float((motion_n[in_match] > 0.6).mean()) * 100, 1)},
+        "stoppages": {"whistles": len(w_out),
+                      "quiet_stretches": n_stretches,
+                      "estimated_stoppage_pct": _f(quiet_s / n_match * 100, 1)},
+        "halves": halves_out,
+        "peak_minute": {"t": _f(peak_t, 1), "events": peak_n},
+        "basis": "single camera; motion/audio estimates, not tracked per team",
     }
 
 

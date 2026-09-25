@@ -1,12 +1,27 @@
 import { useRef } from "react";
-import type { Candidate } from "../types";
+import { fmtClock } from "../lib/time";
+import type { Candidate, EventType } from "../types";
 
 export const TYPE_COLORS: Record<string, string> = {
   goal: "#f87171",
   shot: "#fb923c",
+  goalmouth: "#fbbf24",
+  crowd: "#c084fc",
+  attack: "#facc15",
   chance: "#facc15",
   excitement: "#60a5fa",
   other: "#9ca3af",
+};
+
+export const TYPE_LABEL: Record<EventType, string> = {
+  goal: "GOAL",
+  shot: "Shot on goal",
+  goalmouth: "Goalmouth action",
+  crowd: "Crowd reaction",
+  attack: "Attack",
+  chance: "Attack",
+  excitement: "Excitement",
+  other: "Other",
 };
 
 interface Props {
@@ -35,7 +50,7 @@ export default function Timeline(props: Props) {
   const tickEvery = duration > 3600 ? 600 : 300;
   const ticks: number[] = [];
   for (let t = 0; t <= duration; t += tickEvery) ticks.push(t);
-  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const fmt = fmtClock;
 
   return (
     <div className="bg-zinc-900 rounded-lg p-2">
@@ -78,7 +93,7 @@ export default function Timeline(props: Props) {
               {c.id === props.selectedId && (
                 <circle cx={x(c.t)} cy={base - h} r={5} fill="none" stroke="#fff" strokeWidth={1.5} />
               )}
-              <title>{`${c.type} @ ${fmt(c.t)} (${(c.confidence * 100).toFixed(0)}%)`}</title>
+              <title>{`${TYPE_LABEL[c.type] ?? c.type} @ ${fmt(c.t)} (${(c.confidence * 100).toFixed(0)}%)`}</title>
             </g>
           );
         })}

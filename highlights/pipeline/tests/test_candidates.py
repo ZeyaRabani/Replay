@@ -17,6 +17,8 @@ def _frame(n=1200):
         "motion_goal_roi": rng.normal(size=n),
         "net_disturbance": rng.normal(size=n),
         "z300_rms": rng.normal(size=n),
+        "z60_rms": rng.normal(size=n),
+        "motion_total": 1.0 + rng.random(n),
     })
     in_match = (t >= 60) & (t <= 1140)
     return df, learned, np.zeros(n), in_match
@@ -47,4 +49,60 @@ def test_shot_rule_on_goal_roi_spike():
     shot = [e for e in out["events"] if abs(e["t"] - 200) <= 1]
     assert shot and shot[0]["type"] == "shot"
     assert shot[0]["signals"]["motion_goal_roi_z"] > 2
-    assert any(e["type"] == "chance" for e in out["events"])
+    assert any(e["type"] == "attack" for e in out["events"])
+
+
+def _ev(out, t):
+    return [e for e in out["events"] if abs(e["t"] - t) <= 1]
+
+
+def test_goal_rule_needs_net_crowd_and_lull():
+    df, learned, rule, in_match = _frame()
+    # goal-ROI + net + crowd spikes at the t=200 peak, motion lull after it
+    df.loc[df["t"] == 200, ["motion_goal_roi", "net_disturbance", "z60_rms"]] = 1e6
+    df.loc[(df["t"] >= 215) & (df["t"] < 245), "motion_total"] = 0.01
+    out = make_candidates(df, learned, rule, in_match, 1200.0)
+    e = _ev(out, 200)[0]
+    assert e["type"] == "goal"
+    assert e["signals"]["restart_lull"] is True
+    assert e["signals"]["net_disturbance_z"] >= 2
+    assert "goal" in e["notes"]
+    # without the lull the same spikes classify as a shot
+    df.loc[(df["t"] >= 215) & (df["t"] < 245), "motion_total"] = 5.0
+    out = make_candidates(df, learned, rule, in_match, 1200.0)
+    assert _ev(out, 200)[0]["type"] == "shot"
+
+
+def test_goalmouth_rule():
+    df, learned, rule, in_match = _frame()
+    # roi z between 1 and 2: modest positive spike at the t=200 peak
+    v = df["motion_goal_roi"]
+    med = v[in_match].median()
+    mad = (v[in_match] - med).abs().median()
+    scale = mad * 1.4826
+    df.loc[df["t"] == 200, "motion_goal_roi"] = med + 1.5 * scale
+    out = make_candidates(df, learned, rule, in_match, 1200.0)
+    e = _ev(out, 200)[0]
+    assert e["type"] == "goalmouth"
+    assert 1.0 <= e["signals"]["motion_goal_roi_z"] <= 2.0
+
+
+def test_crowd_rule():
+    df, learned, rule, in_match = _frame()
+    # big audio spike, no goal-ROI motion
+    df.loc[df["t"] == 200, "z60_rms"] = 1e6
+    df.loc[df["t"] == 200, "motion_goal_roi"] = df["motion_goal_roi"].median()
+    out = make_candidates(df, learned, rule, in_match, 1200.0)
+    e = _ev(out, 200)[0]
+    assert e["type"] == "crowd"
+    assert e["signals"]["z60_rms_z"] >= 2.0
+
+
+def test_attack_is_default():
+    df, learned, rule, in_match = _frame()
+    # keep every signal at baseline so nothing else fires
+    df.loc[df["t"] == 200, ["motion_goal_roi", "z60_rms"]] = \
+        df[["motion_goal_roi", "z60_rms"]].median()
+    out = make_candidates(df, learned, rule, in_match, 1200.0)
+    e = _ev(out, 200)[0]
+    assert e["type"] == "attack"

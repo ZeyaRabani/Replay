@@ -19,10 +19,11 @@ import {
   YAxis,
 } from "recharts";
 import { useProjectApi } from "../api";
-import { TYPE_COLORS } from "../components/Timeline";
-import type { Stats, TopMoment } from "../types";
+import { TYPE_COLORS, TYPE_LABEL } from "../components/Timeline";
+import { fmtClock } from "../lib/time";
+import type { MatchStats, Stats, TopMoment } from "../types";
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 const SERIES = [
@@ -31,7 +32,10 @@ const SERIES = [
   { key: "excitement", color: "#fbbf24", label: "Excitement" },
 ] as const;
 
-const TYPE_ORDER = ["goal", "shot", "chance", "excitement", "other"];
+const TYPE_ORDER = [
+  "goal", "shot", "goalmouth", "crowd", "attack",
+  "chance", "excitement", "other",
+];
 
 interface Props {
   onSeek: (t: number) => void;
@@ -79,6 +83,86 @@ function Kpi({ icon, label, value, sub, onClick }: {
         {sub && <div className="text-[11px] text-zinc-500 truncate">{sub}</div>}
       </div>
     </Tag>
+  );
+}
+
+function StatRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1.5 border-b border-zinc-800/60 last:border-b-0">
+      <span className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-sm font-semibold text-zinc-200">{children}</span>
+    </div>
+  );
+}
+
+function MatchStatsCard({ ms, onSeek }: { ms: MatchStats; onSeek: (t: number) => void }) {
+  const near = ms.territory.near_goal_pct;
+  const far = ms.territory.far_goal_pct;
+  return (
+    <Card title="Match stats">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+        <div>
+          <StatRow label="Goals">{ms.goals}</StatRow>
+          <StatRow label="Shots on goal">{ms.shots_on_goal}</StatRow>
+          <StatRow label="Goalmouth actions">{ms.goalmouth_actions}</StatRow>
+          <StatRow label="Attacks">{ms.attacks}</StatRow>
+          <StatRow label="Crowd reactions">{ms.crowd_reactions}</StatRow>
+          <StatRow label="Big moments">{ms.big_moments}</StatRow>
+        </div>
+        <div>
+          <div className="py-1.5 border-b border-zinc-800/60">
+            <div className="flex items-center justify-between gap-4 mb-1">
+              <span className="text-[11px] uppercase tracking-wide text-zinc-500">Territory</span>
+              <span className="text-[11px] text-zinc-400">
+                near goal {Math.round(near)}% · far {Math.round(far)}%
+              </span>
+            </div>
+            <div className="flex h-2 rounded overflow-hidden">
+              <div className="bg-amber-400" style={{ width: `${near}%` }} />
+              <div className="bg-zinc-600" style={{ width: `${far}%` }} />
+            </div>
+          </div>
+          <StatRow label="High-intensity play">{Math.round(ms.tempo.high_intensity_pct)}%</StatRow>
+          <StatRow label="Estimated stoppages">{Math.round(ms.stoppages.estimated_stoppage_pct)}%</StatRow>
+          <StatRow label="Whistles">{ms.stoppages.whistles}</StatRow>
+          <StatRow label="Peak minute">
+            <button
+              onClick={() => onSeek(ms.peak_minute.t)}
+              className="text-amber-400 hover:underline"
+            >
+              {fmt(ms.peak_minute.t)} ({ms.peak_minute.events} events)
+            </button>
+          </StatRow>
+        </div>
+      </div>
+      {ms.halves.length > 0 && (
+        <table className="w-full text-[11px] text-zinc-400 mt-2">
+          <thead>
+            <tr className="text-zinc-500 text-left">
+              <th className="py-0.5 font-normal">Half</th>
+              <th className="py-0.5 font-normal">Goals</th>
+              <th className="py-0.5 font-normal">Shots</th>
+              <th className="py-0.5 font-normal">Attacks</th>
+              <th className="py-0.5 font-normal">Motion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ms.halves.map((h, i) => (
+              <tr key={i} className="border-t border-zinc-800/60">
+                <td className="py-0.5">{fmt(h.start)}–{fmt(h.end)}</td>
+                <td>{h.goals}</td>
+                <td>{h.shots_on_goal}</td>
+                <td>{h.attacks}</td>
+                <td>{Math.round(h.mean_motion_pct)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="text-[10px] text-zinc-600 mt-2">
+        estimated from motion/audio — single camera
+      </div>
+    </Card>
   );
 }
 
@@ -137,6 +221,7 @@ export default function ProjectStats({ onSeek }: Props) {
     }
   };
 
+  const ms = stats.match_stats;
   const halfGap =
     stats.halves.length >= 2 ? { from: stats.halves[0].end, to: stats.halves[1].start } : null;
   const totalEvents = byType.reduce((s, b) => s + b.value, 0);
@@ -144,6 +229,7 @@ export default function ProjectStats({ onSeek }: Props) {
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
+        {ms && <MatchStatsCard ms={ms} onSeek={onSeek} />}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           <Kpi icon={<Activity size={18} />} label="Mean motion" value={pct(stats.activity.mean_motion)} />
           <Kpi
@@ -251,7 +337,7 @@ export default function ProjectStats({ onSeek }: Props) {
             {TYPE_ORDER.filter((k) => stats.top_moments.some((m) => m.type === k)).map((k) => (
               <span key={k} className="flex items-center gap-1">
                 <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: TYPE_COLORS[k] }} />
-                {k}
+                {(TYPE_LABEL as Record<string, string>)[k] ?? k}
               </span>
             ))}
             <span className="ml-auto">
@@ -310,7 +396,7 @@ export default function ProjectStats({ onSeek }: Props) {
                 {byType.map((b) => (
                   <li key={b.name} className="flex items-center gap-2">
                     <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: TYPE_COLORS[b.name] }} />
-                    <span className="flex-1 capitalize text-zinc-300">{b.name}</span>
+                    <span className="flex-1 text-zinc-300">{(TYPE_LABEL as Record<string, string>)[b.name] ?? b.name}</span>
                     <b>{b.value}</b>
                     <span className="text-zinc-500 w-9 text-right">{totalEvents ? pct(b.value / totalEvents) : "–"}</span>
                   </li>
@@ -334,7 +420,7 @@ export default function ProjectStats({ onSeek }: Props) {
                       className="text-[10px] uppercase font-semibold rounded px-1.5 py-0.5 text-zinc-900 w-16 text-center"
                       style={{ background: TYPE_COLORS[m.type] ?? "#9ca3af" }}
                     >
-                      {m.type}
+                      {(TYPE_LABEL as Record<string, string>)[m.type] ?? m.type}
                     </span>
                     <span className="font-mono text-sm w-14">{fmt(m.t)}</span>
                     <span className="flex-1 text-xs text-zinc-400 truncate">{m.reason}</span>

@@ -1,4 +1,12 @@
-export type EventType = "goal" | "shot" | "chance" | "excitement" | "other";
+export type EventType =
+  | "goal"
+  | "shot"
+  | "goalmouth"
+  | "crowd"
+  | "attack"
+  | "chance"   // legacy projects
+  | "excitement"
+  | "other";
 export type Status = "pending" | "confirmed" | "rejected";
 export type CrossValidation = "confirmed" | "pipeline_only" | "visual_only" | "rejected";
 
@@ -199,10 +207,38 @@ export interface TopMoment {
   reason: string;
 }
 
+export interface MatchStats {
+  goals: number;
+  shots_on_goal: number;
+  goalmouth_actions: number;
+  attacks: number;
+  crowd_reactions: number;
+  big_moments: number;
+  territory: { near_goal_pct: number; far_goal_pct: number };
+  tempo: { mean_motion_pct: number; high_intensity_pct: number };
+  stoppages: {
+    whistles: number;
+    quiet_stretches: number;
+    estimated_stoppage_pct: number;
+  };
+  halves: {
+    start: number;
+    end: number;
+    goals: number;
+    shots_on_goal: number;
+    attacks: number;
+    mean_motion_pct: number;
+  }[];
+  peak_minute: { t: number; events: number };
+  basis?: string;
+}
+
 export interface Stats {
   duration_s: number;
+  match_stats?: MatchStats;
   match_window: [number, number];
   halves: { start: number; end: number }[];
+  // match-level broadcast stats (new pipeline only)
   bin_s: number;
   timeline: TimelineBin[];
   events_by_type: Record<string, number>;
