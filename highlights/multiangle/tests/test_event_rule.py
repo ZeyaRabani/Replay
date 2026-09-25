@@ -33,7 +33,7 @@ def _three_angles(T=200):
 
 def test_event_rule_overrides_cluster():
     tracks, avail, motion = _three_angles()
-    best_a, _, best_r, S, _ = per_second(tracks, avail)
+    best_a, _, best_r, S, _, _ = per_second(tracks, avail)
     assert best_r[105] == 3 and best_a[105] == 0
     assert S[0, 105] == 0.9
 

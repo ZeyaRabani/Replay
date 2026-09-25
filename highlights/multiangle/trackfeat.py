@@ -4,7 +4,8 @@ YOLO (ultralytics yolov8n by default) at 1 fps over an ffmpeg pipe: person +
 sports-ball detections reduced to one row per second:
 
     t, n_players, ball_conf, ball_size, ball_x, ball_y,
-    players_cx, players_cy, players_spread, players_height_mean, cluster_score
+    players_cx, players_cy, players_spread, players_height_mean, cluster_score,
+    players_xy   (JSON string of [[fx, fy], ...] feet points, "[]" if none)
 
 Usage:
     python -m highlights.multiangle.trackfeat --video match.mp4 \
@@ -15,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -29,7 +31,7 @@ DEFAULT_MODEL = Path(__file__).resolve().parent / "models" / "yolov8n.pt"
 FRAME_W = 960
 COLS = ["t", "n_players", "ball_conf", "ball_size", "ball_x", "ball_y",
         "players_cx", "players_cy", "players_spread", "players_height_mean",
-        "cluster_score"]
+        "cluster_score", "players_xy"]
 
 
 def _ensure_model(model: Path) -> Path:
@@ -103,6 +105,8 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
         else:
             bconf, ball_size, ball_x, ball_y = 0.0, 0.0, 0.0, 0.0
         if persons:
+            pfeet = [[round((b[0][0] + b[0][2]) / 2 / frame.shape[1], 3),
+                      round(b[0][3] / frame.shape[0], 3)] for b in persons]
             cx = np.array([(b[0][0] + b[0][2]) / 2 / frame.shape[1] for b in persons])
             cy = np.array([(b[0][1] + b[0][3]) / 2 / frame.shape[0] for b in persons])
             hh = np.array([(b[0][3] - b[0][1]) / frame.shape[0] for b in persons])
@@ -110,12 +114,14 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
             players_spread = float(cx.std())
             players_height_mean = float(hh.mean())
         else:
+            pfeet = []
             players_cx = players_cy = players_spread = players_height_mean = 0.0
         cluster = n_p * (1 - abs(players_cx - 0.5) * 2 * 0.5) * players_height_mean
         rows.append([round(t, 3), n_p, round(float(bconf), 3), round(ball_size, 4),
                      round(ball_x, 4), round(ball_y, 4), round(players_cx, 4),
                      round(players_cy, 4), round(players_spread, 4),
-                     round(players_height_mean, 4), round(cluster, 4)])
+                     round(players_height_mean, 4), round(cluster, 4),
+                     json.dumps(pfeet)])
         frames += 1
         if frames % 30 == 0:
             log(f"trackfeat @{t:.0f}s")

@@ -174,3 +174,68 @@ def test_stage_fuse_match_window_cut_range(tmp_path):
     assert mw2["match_window"] == [0.0, 40.0]
     # halves clipped to [0,40] of the cut (a0 times stay as-is but clamped)
     assert all(0 <= h["start"] < h["end"] <= 40.0 for h in mw2["halves"])
+
+
+def _seg_times(d, rule="zone"):
+    return [(s["t_start"], s["t_end"]) for s in d["segments"]
+            if s["rule"] == rule]
+
+
+def test_zone_low_ball_conf_fires():
+    """ball_conf 0.25 (>= ZONE_BALL_OK, < BALL_OK) inside a zone is enough."""
+    avail = np.ones((2, 300), dtype=bool)
+    tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+    tr[1]["ball_conf"][100:201] = 0.25
+    tr[1]["ball_x"][100:201] = 0.2
+    tr[1]["ball_y"][100:201] = 0.5
+    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    d = cut_director(tr, avail, [np.ones(300)] * 2, zones=zones)
+    assert _seg_times(d), "expected zone segments at ball_conf 0.25"
+    assert d["zone_ball_share"] > 0
+
+
+def test_zone_linger_is_8s():
+    """A single in-zone sighting keeps the angle eligible ~8 s."""
+    from highlights.multiangle.director import _zone_eligible
+
+    avail = np.ones((2, 300), dtype=bool)
+    tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+    tr[1]["ball_conf"][100] = 0.6
+    tr[1]["ball_x"][100] = 0.2
+    tr[1]["ball_y"][100] = 0.5
+    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    elig, _, _ = _zone_eligible(tr, avail, zones)
+    assert elig[1, 100]
+    assert elig[1, 108]                # linger 8 covers the hit + 8 s
+    assert not elig[1, 109]
+
+
+def test_zone_player_density():
+    """>=3 feet inside a zone AND >= half of detected players -> eligible."""
+    zone = [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]
+    inside = [[0.2, 0.5]] * 4
+    outside = [[0.9, 0.9]]
+    avail = np.ones((2, 300), dtype=bool)
+
+    def run(feet):
+        tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+        tr[1]["players_xy"] = [feet if 100 <= t < 200 else []
+                               for t in range(300)]
+        return cut_director(tr, avail, [np.ones(300)] * 2,
+                            zones=[[], zone])
+
+    d4 = run(inside + outside)            # 4/5 inside
+    assert _seg_times(d4), "4/5 players in zone should fire"
+    assert d4["zone_players_share"] > 0
+    d2 = run(inside[:2] + outside * 3)    # 2/5 inside
+    assert not _seg_times(d2), "2/5 players in zone should not fire"
+
+
+def test_zone_no_players_xy_unchanged():
+    """Tracks without players_xy behave exactly as before."""
+    avail = np.ones((2, 300), dtype=bool)
+    tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    d = cut_director(tr, avail, [np.ones(300)] * 2, zones=zones)
+    assert not _seg_times(d)              # no ball sighting, no players_xy
+    assert d["zone_players_share"] == 0.0

@@ -54,8 +54,12 @@ EVENT_TYPES = ("goal", "shot", "goalmouth")
 SMOOTH_MEDIAN = 5
 SMOOTH_MEAN = 9
 BASELINE_Q = 90
-ZONE_LINGER = 3        # seconds an angle stays zone-eligible after last hit
+ZONE_BALL_OK = 0.2     # ball_conf needed for a zone hit (lower than BALL_OK)
+ZONE_LINGER = 8        # seconds an angle stays zone-eligible after last hit
 ZONE_MIN_HOLD = 2      # min hold before cutting TO a zone angle
+ZONE_PLAYERS_MIN = 3   # player-density proxy: feet points inside a zone
+ZONE_PLAYERS_FRAC = 0.5  # ... that are also >= this share of detected players
+ZONE_DENSITY_SCORE = 0.3  # score floor for density-driven zone eligibility
 
 
 @dataclass(frozen=True)
@@ -120,34 +124,57 @@ def _in_poly(pts: np.ndarray, poly: list[list[float]]) -> np.ndarray:
 
 def _zone_eligible(track: list[dict], available: np.ndarray,
                    zones: list[list[list[list[float]]]],
-                   zone_ok: np.ndarray | None = None) -> np.ndarray:
-    """[n_angles, T] bool: ball detected inside one of the angle's zones,
-    extended ZONE_LINGER seconds after the last in-zone sighting."""
+                   zone_ok: np.ndarray | None = None
+                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(elig, ball_hits, dens_hits): [n_angles, T] bools.
+
+    elig = ball inside a zone (conf >= ZONE_BALL_OK) OR >= ZONE_PLAYERS_MIN
+    player feet inside a zone that are >= ZONE_PLAYERS_FRAC of the detected
+    players, extended ZONE_LINGER seconds after the last hit of either kind.
+    ball_hits / dens_hits are the raw per-source hits (for diagnostics).
+    """
     n = len(track)
     T = available.shape[1]
-    hits = np.zeros((n, T), dtype=bool)
+    ball_hits = np.zeros((n, T), dtype=bool)
+    dens_hits = np.zeros((n, T), dtype=bool)
     for i in range(n):
         if not zones[i]:
             continue
         bx = np.asarray(track[i].get("ball_x", np.zeros(T)), dtype=float)
         by = np.asarray(track[i].get("ball_y", np.zeros(T)), dtype=float)
         bc = np.asarray(track[i].get("ball_conf", np.zeros(T)), dtype=float)
-        seen = available[i] & (bc >= BALL_OK) & (bx > 0) & (by > 0)
-        if not seen.any():
-            continue
-        pts = np.stack([bx, by], axis=1)
-        in_any = np.zeros(T, dtype=bool)
-        for poly in zones[i]:
-            if len(poly) >= 3:
+        seen = available[i] & (bc >= ZONE_BALL_OK) & (bx > 0) & (by > 0)
+        polys = [p for p in zones[i] if len(p) >= 3]
+        if seen.any():
+            pts = np.stack([bx, by], axis=1)
+            in_any = np.zeros(T, dtype=bool)
+            for poly in polys:
                 in_any |= _in_poly(pts, poly)
-        hits[i] = seen & in_any
+            ball_hits[i] = seen & in_any
+        # player-density proxy (only for tracks carrying per-player feet)
+        pxy = track[i].get("players_xy")
+        if pxy is not None:
+            for t in range(T):
+                if not available[i, t]:
+                    continue
+                feet = pxy[t] if t < len(pxy) else []
+                if len(feet) < ZONE_PLAYERS_MIN:
+                    continue
+                pts = np.asarray(feet, dtype=float).reshape(-1, 2)
+                in_any = np.zeros(len(pts), dtype=bool)
+                for poly in polys:
+                    in_any |= _in_poly(pts, poly)
+                k = int(in_any.sum())
+                if k >= ZONE_PLAYERS_MIN and k >= ZONE_PLAYERS_FRAC * len(pts):
+                    dens_hits[i, t] = True
+    hits = ball_hits | dens_hits
     # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
     elig = hits.copy()
     for s in range(1, ZONE_LINGER + 1):
         elig[:, s:] |= hits[:, :T - s]
     if zone_ok is not None:
         elig &= zone_ok
-    return elig
+    return elig, ball_hits, dens_hits
 
 
 def per_second(track: list[dict], available: np.ndarray,
@@ -178,8 +205,16 @@ def per_second(track: list[dict], available: np.ndarray,
     cluster = np.stack([track[i]["cluster"] for i in range(n_angles)])
     baselines = _cluster_baselines(track, available)
     cluster_n = cluster / baselines[:, None]
-    zone_elig = (_zone_eligible(track, available, zones, zone_ok)
-                 if zones else None)
+    zone_shares: dict | None = None
+    zone_elig = None
+    zone_dens = np.zeros((n_angles, T), dtype=bool)
+    if zones:
+        zone_elig, zb, zp = _zone_eligible(track, available, zones, zone_ok)
+        zone_dens = zp
+        zone_shares = {
+            "zone_ball_share": round(float((zb & available).any(axis=0).mean()), 4),
+            "zone_players_share": round(float((zp & available).any(axis=0).mean()), 4),
+        }
 
     # sighting: >= BALL_MIN_SIGHTINGS hits of ball_conf >= BALL_OK in the
     # centred 5 s window; score = max ball_size in that window
@@ -205,7 +240,10 @@ def per_second(track: list[dict], available: np.ndarray,
         if zone_elig is not None:
             ze = zone_elig[:, t]
             if ze.any():
-                S[:, t] = np.where(ze, ball_conf[:, t], 0.0)
+                # density-driven eligibility has no ball signal — floor score
+                zone_score = np.where(zone_dens[:, t], np.maximum(
+                    ball_conf[:, t], ZONE_DENSITY_SCORE), ball_conf[:, t])
+                S[:, t] = np.where(ze, zone_score, 0.0)
                 j = int(np.argmax(S[:, t]))
                 if S[j, t] > 0:
                     best_a[t], best_s[t], best_r[t] = j, S[j, t], 4
@@ -223,7 +261,7 @@ def per_second(track: list[dict], available: np.ndarray,
             else:
                 best_a[t] = int(np.argmax(av.astype(int)))
                 best_s[t] = 0.0
-    return best_a, best_s, best_r, S, baselines
+    return best_a, best_s, best_r, S, baselines, zone_shares
 
 
 def cut_director(track: list[dict], available: np.ndarray,
@@ -238,7 +276,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     sty = STYLES[style]
     T = available.shape[1]
     n_angles = len(track)
-    cand_a, _cand_s, cand_r, S, baselines = per_second(
+    cand_a, _cand_s, cand_r, S, baselines, zone_shares = per_second(
         track, available, zones=zones, zone_ok=zone_ok)
     sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
@@ -363,4 +401,5 @@ def cut_director(track: list[dict], available: np.ndarray,
         "cuts_per_10min": round((len(segs) - 1) / span_min * 10, 1),
         "angle_share": angle_share,
         "cluster_baseline": [round(float(b), 4) for b in baselines],
+        **(zone_shares or {}),
     }

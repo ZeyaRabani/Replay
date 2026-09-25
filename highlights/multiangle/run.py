@@ -221,8 +221,16 @@ def _load_track_rows(angle_dir: Path) -> dict:
         return {}
     d = json.loads(f.read_text())
     cols = d["columns"]
-    M = np.asarray(d["rows"], dtype=float)
-    return {c: M[:, cols.index(c)] for c in cols}
+    rows = d["rows"]
+    out = {}
+    for c in cols:
+        vals = [r[cols.index(c)] for r in rows]
+        if c == "players_xy":
+            out[c] = [json.loads(v) if isinstance(v, str) else v
+                      for v in vals]
+        else:
+            out[c] = np.asarray(vals, dtype=float)
+    return out
 
 
 def _load_motion(angle_dir: Path) -> dict[int, float]:
@@ -284,6 +292,11 @@ def stage_director(ctx: Ctx) -> dict:
         tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
                        "ball_x": _row("ball_x"), "ball_y": _row("ball_y"),
                        "cluster": _row("cluster_score"), "event": event})
+        pxy_src = tr.get("players_xy")
+        if pxy_src is not None and len(pxy_src):
+            tracks[-1]["players_xy"] = [
+                (pxy_src[min(fsec[k], len(pxy_src) - 1)] or []) if ok[k] else []
+                for k in range(T)]
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
     zones, zone_ok = None, None
