@@ -62,8 +62,8 @@ export default function ProjectPage() {
   useEffect(() => {
     if (timer.current) window.clearInterval(timer.current);
     timer.current = null;
-    if (!live) return;
-    timer.current = window.setInterval(() => void refresh(), 2000);
+    // slow poll when idle so a re-cut started elsewhere (another tab) shows up
+    timer.current = window.setInterval(() => void refresh(), live ? 2000 : 15000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };
