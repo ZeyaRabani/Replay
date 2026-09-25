@@ -412,8 +412,8 @@ def stage_fuse(ctx: Ctx) -> dict:
         def _halves() -> list:
             kept = []
             for h in mw.get("halves", []) or []:
-                s = _clamp(h.get("start", 0) + (0 if ranged else shift))
-                e = _clamp(h.get("end", 0) + (0 if ranged else shift))
+                s = _clamp(h.get("start", 0) + shift)
+                e = _clamp(h.get("end", 0) + shift)
                 if e > s:
                     kept.append({**h, "start": s, "end": e})
             return kept
