@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import RenderBar from "../components/RenderBar";
 import Timeline from "../components/Timeline";
 import VideoPlayer from "../components/VideoPlayer";
-import type { Candidate, VideoInfo } from "../types";
+import type { Candidate, Team, VideoInfo } from "../types";
 
 interface Props {
   /** seek request from another tab (e.g. Stats); {t, n} so repeated seeks to the same t still fire */
@@ -86,7 +86,7 @@ export default function ProjectReview({ seekRequest }: Props) {
     return () => el.removeEventListener("loadedmetadata", apply);
   }, [seekRequest, video]);
 
-  const patch = async (id: string, p: Partial<Candidate>): Promise<boolean> => {
+  const patch = async (id: string, p: Partial<Candidate> & { team?: Team }): Promise<boolean> => {
     try {
       const updated = await api.patchCandidate(id, p);
       setCandidates((cs) => cs.map((c) => (c.id === id ? updated : c)));

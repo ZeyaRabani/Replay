@@ -45,7 +45,8 @@ export interface User {
   n_projects?: number;
 }
 
-export type PipelineState = "none" | "queued" | "running" | "done" | "failed";
+export type PipelineState = "none" | "queued" | "running" | "done" | "failed" | "needs_input";
+export type Team = "home" | "away";
 export type PipelineStage =
   | "download"
   | "probe"
@@ -58,9 +59,10 @@ export type PipelineStage =
   | "done";
 
 export interface ProjectSource {
-  kind: "youtube" | "upload" | "path";
-  url?: string;
-  filename?: string;
+  kind: "youtube" | "upload" | "path" | "multiangle";
+  url?: string | null;
+  filename?: string | null;
+  angles?: { url: string | null; filename: string | null; label: string }[];
 }
 
 export interface ProjectVideo {
@@ -83,6 +85,73 @@ export interface ProjectSummary {
   n_candidates: number;
   n_confirmed: number;
   thumb_url: string | null;
+  mode: "single" | "multiangle";
+  n_angles: number;
+}
+
+export interface SyncPair {
+  a: number;
+  b: number;
+  offset: number;
+  pnr: number;
+  r2: number;
+  confident: boolean;
+}
+
+export interface SyncInfo {
+  reference: number;
+  method: "xcorr" | "manual" | string;
+  offsets: number[];
+  pairs: SyncPair[];
+  triangle_residual_s: number;
+  needs_manual: number[];
+  coverage: Record<string, unknown>;
+}
+
+export interface DirectorSummary {
+  per_second_rule: Record<string, number>;
+  ratios: Record<string, number>;
+  n_cuts: number;
+  mean_hold_s: number;
+  angle_share: Record<string, number>;
+}
+
+export interface DirectorSegment {
+  t_start: number;
+  t_end: number;
+  angle: number;
+  rule: "ball" | "cluster" | "hold" | "coverage" | string;
+  score: number;
+  runner_up?: { angle: number; score: number };
+}
+
+export interface DirectorFull extends DirectorSummary {
+  segments: DirectorSegment[];
+}
+
+export interface AngleInfo {
+  index: number;
+  label: string;
+  url: string | null;
+  filename: string | null;
+  duration: number | null;
+  status: string | null;
+  has_file: boolean;
+}
+
+export interface MultiangleScore {
+  home: { label: string; goals: number };
+  away: { label: string; goals: number };
+  unassigned?: number;
+  basis?: string;
+}
+
+export interface MultiangleInfo {
+  sync: SyncInfo | null;
+  director: DirectorSummary | null;
+  angles: AngleInfo[];
+  score: MultiangleScore;
+  status: PipelineStatus | null;
 }
 
 export interface PipelineStatus {
@@ -137,5 +206,11 @@ export interface Stats {
     loudest_t: number;
     quietest_stretch: [number, number];
   };
-  pipeline: { model: string; auroc_reference: number; notes: string };
+  pipeline: { model: string; auroc_reference: number | null; notes: string };
+  multiangle?: {
+    sync?: SyncInfo;
+    director?: DirectorSummary;
+    confirmation?: { cross: number; single: number; disputed: number };
+    score?: MultiangleScore;
+  };
 }

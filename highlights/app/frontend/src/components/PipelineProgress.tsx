@@ -12,6 +12,17 @@ export const STAGES: { key: string; label: string }[] = [
   { key: "stats", label: "Match stats" },
 ];
 
+export const MULTIANGLE_STAGES: { key: string; label: string }[] = [
+  { key: "download", label: "Download angles" },
+  { key: "angles", label: "Analyse each angle" },
+  { key: "sync", label: "Audio sync" },
+  { key: "track", label: "Track players & ball" },
+  { key: "director", label: "Director decisions" },
+  { key: "render", label: "Render director cut" },
+  { key: "fuse", label: "Fuse candidates" },
+  { key: "stats", label: "Match stats" },
+];
+
 interface Props {
   project: ProjectSummary;
   status: PipelineStatus | null;
@@ -21,7 +32,12 @@ interface Props {
 }
 
 export default function PipelineProgress({ project, status, onRerun, onCancel, busy }: Props) {
-  const stages = project.source.kind === "youtube" ? STAGES : STAGES.filter((s) => s.key !== "download");
+  const stages =
+    project.mode === "multiangle"
+      ? MULTIANGLE_STAGES
+      : project.source.kind === "youtube"
+        ? STAGES
+        : STAGES.filter((s) => s.key !== "download");
   const curIdx = status ? stages.findIndex((s) => s.key === status.stage) : -1;
   const state = status?.state ?? project.pipeline_state;
   const failed = state === "failed";

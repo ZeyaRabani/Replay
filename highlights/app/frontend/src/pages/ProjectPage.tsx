@@ -1,7 +1,8 @@
-import { BarChart3, ChevronLeft, ListVideo, Loader2 } from "lucide-react";
+import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectApiContext, projectApi } from "../api";
+import DirectorCut from "../components/DirectorCut";
 import PipelineProgress from "../components/PipelineProgress";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
@@ -9,7 +10,7 @@ import type { PipelineStatus, ProjectDetail } from "../types";
 import ProjectReview from "./ProjectReview";
 import ProjectStats from "./ProjectStats";
 
-type Tab = "review" | "stats";
+type Tab = "review" | "stats" | "director";
 
 export default function ProjectPage() {
   const { id = "" } = useParams();
@@ -43,6 +44,12 @@ export default function ProjectPage() {
     void refresh();
   }, [refresh]);
 
+  // multi-angle projects waiting for sync offsets default to the director tab
+  useEffect(() => {
+    if (project?.pipeline_state === "needs_input") setTab("director");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
+
   const live = project?.pipeline_state === "queued" || project?.pipeline_state === "running";
   useEffect(() => {
     if (timer.current) window.clearInterval(timer.current);
@@ -66,7 +73,11 @@ export default function ProjectPage() {
     }
   };
 
-  const showPipeline = project && project.pipeline_state !== "done" && project.pipeline_state !== "none";
+  const showPipeline =
+    project &&
+    project.pipeline_state !== "done" &&
+    project.pipeline_state !== "none" &&
+    project.pipeline_state !== "needs_input";
 
   const tabCls = (on: boolean) =>
     `flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded ${
@@ -90,6 +101,11 @@ export default function ProjectPage() {
               <button className={tabCls(tab === "stats")} onClick={() => setTab("stats")}>
                 <BarChart3 size={13} /> Stats
               </button>
+              {project.mode === "multiangle" && (
+                <button className={tabCls(tab === "director")} onClick={() => setTab("director")}>
+                  <Clapperboard size={13} /> Director cut
+                </button>
+              )}
             </div>
           )}
         </TopBar>
@@ -114,6 +130,14 @@ export default function ProjectPage() {
             </div>
             {tab === "stats" && (
               <ProjectStats
+                onSeek={(t) => {
+                  setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
+                  setTab("review");
+                }}
+              />
+            )}
+            {tab === "director" && (
+              <DirectorCut
                 onSeek={(t) => {
                   setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
                   setTab("review");
