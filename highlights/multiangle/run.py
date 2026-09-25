@@ -59,6 +59,22 @@ class Ctx:
             self.log_fh.write(line + "\n")
             self.log_fh.flush()
 
+    def duration(self, i: int) -> float:
+        """Angle i's video duration: stage_sync fills ctx.durations, but a
+        re-cut (director,render,fuse) skips it — fall back to the per-angle
+        pipeline/probe.json and cache the result."""
+        while len(self.durations) <= i:
+            self.durations.append(0.0)
+        if self.durations[i] <= 0:
+            try:
+                pr = json.loads(
+                    (self.angles[i]["dir"] / "pipeline" / "probe.json")
+                    .read_text())
+                self.durations[i] = float(pr.get("duration_s") or 0.0)
+            except Exception:
+                pass
+        return self.durations[i]
+
     def angle_video(self, i: int) -> Path | None:
         d = self.angles[i]["dir"]
         for ext in VIDEO_EXTS:
@@ -225,8 +241,7 @@ def stage_director(ctx: Ctx) -> dict:
     for i, a in enumerate(ctx.angles):
         tr = _load_track_rows(a["dir"])
         mo = _load_motion(a["dir"])
-        dur = ctx.durations[i] if i < len(ctx.durations) else (
-            float(json.loads((a["dir"] / "pipeline" / "probe.json").read_text())["duration_s"]))
+        dur = ctx.duration(i)
         off = offsets[i]
         t_idx = np.arange(T)
         ft = t_idx + lo - off                      # angle file time at T second
@@ -275,7 +290,7 @@ def stage_director(ctx: Ctx) -> dict:
                     if vid is None:
                         continue
                     off = offsets[i]
-                    dur = ctx.durations[i] if i < len(ctx.durations) else 0.0
+                    dur = ctx.duration(i)
                     ref_t = (ref_ts[i] if i < len(ref_ts)
                              and ref_ts[i] is not None else dur * 0.3)
                     ctx.status.update(
@@ -287,16 +302,13 @@ def stage_director(ctx: Ctx) -> dict:
                         ctx.log(f"director: viewcheck a{i} failed ({e})")
                         continue
                     times, okarr = ok
-                    t_idx = np.arange(T)
-                    ft = np.clip(t_idx + lo - off, 0, max(0, dur))
-                    idx = np.clip(np.searchsorted(times, ft), 0,
-                                  len(okarr) - 1)
-                    zone_ok[i] = okarr[idx]
+                    zone_ok[i] = _map_view_ok(times, okarr, T, lo, off, dur)
                     suspended[i] = float(
                         (~zone_ok[i] & avail[i]).sum() / max(1, avail[i].sum()))
                 if any(s > 0 for s in suspended):
                     ctx.log("director: zones suspended "
-                            f"{[round(s, 3) for s in suspended]} (camera moved)")
+                            f"{[round(s, 3) for s in suspended]} "
+                            "(view differs from reference)")
         except Exception as e:
             ctx.log(f"director: ignoring bad zones.json ({e})")
             zones, zone_ok = None, None
@@ -308,6 +320,16 @@ def stage_director(ctx: Ctx) -> dict:
                       default=_np_json)
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
     return out
+
+
+def _map_view_ok(times: np.ndarray, okarr: np.ndarray, T: int,
+                 lo: float, off: float, dur: float) -> np.ndarray:
+    """Nearest-sample map of viewcheck ok flags (angle file time) onto the
+    shared output timeline of length T."""
+    t_idx = np.arange(T)
+    ft = np.clip(t_idx + lo - off, 0, max(0, dur))
+    idx = np.clip(np.searchsorted(times, ft), 0, len(okarr) - 1)
+    return np.asarray(okarr[idx], dtype=bool)
 
 
 def _zone_view_ok(ctx: Ctx, angle_dir: Path, video: Path,

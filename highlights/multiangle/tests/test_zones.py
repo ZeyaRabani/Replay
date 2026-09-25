@@ -71,3 +71,34 @@ def test_in_poly():
     poly = [[0, 0], [1, 0], [1, 1], [0, 1]]
     pts = np.array([[0.5, 0.5], [1.5, 0.5], [0.5, 1.5]])
     assert _in_poly(pts, poly).tolist() == [True, False, False]
+
+
+def test_ctx_duration_probe_fallback(tmp_path):
+    """Recut bug regression: ctx.durations empty (no stage_sync) must fall
+    back to angles/aN/pipeline/probe.json — else dur=0 pinned every second
+    to okarr[0] and suspended 100% of the angle's zones."""
+    import json as _json
+
+    from highlights.multiangle.run import Ctx, _map_view_ok
+
+    adir = tmp_path / "angles" / "a1"
+    (adir / "pipeline").mkdir(parents=True)
+    (adir / "pipeline" / "probe.json").write_text(
+        _json.dumps({"duration_s": 5600.0}))
+    ctx = Ctx(project_dir=tmp_path, pipe=tmp_path / "ma",
+              status=None, angles=[{"dir": tmp_path / "angles" / "a0"},
+                                    {"dir": adir}])
+    assert ctx.durations == []              # recut: stage_sync never ran
+    assert ctx.duration(1) == 5600.0
+    assert ctx.durations[1] == 5600.0       # cached
+
+    # and the viewcheck mapping uses it: ok=False only at file t=0
+    times = np.arange(0, 5600, 10.0)
+    okarr = np.ones(len(times), dtype=bool)
+    okarr[0] = False                        # camera still being set up at t=0
+    row = _map_view_ok(times, okarr, T=5400, lo=0.0, off=0.0, dur=5600.0)
+    assert row.sum() > 5000                 # not all-False
+    assert not row[0]
+    # dur=0 (the old bug) collapses everything onto the t=0 sample
+    row_bug = _map_view_ok(times, okarr, T=5400, lo=0.0, off=0.0, dur=0.0)
+    assert not row_bug.any()
