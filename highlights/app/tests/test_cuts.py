@@ -45,10 +45,18 @@ def test_cuts_snapshot_activate_delete(client, short_video, monkeypatch):
     assert len(cuts["cuts"]) == 2
     assert cuts["active"] == meta2["id"]
 
-    # activating the first cut restores its files
+    # activating a cut restores the range it was made with (written to
+    # multiangle/cut_range.json, not inside cuts/)
+    cr = p.multiangle_dir / "cut_range.json"
+    cr.write_text('{"lo": 9.0, "hi": 99.0}')
+    mpath = cdir / "meta.json"
+    mm = json.loads(mpath.read_text()); mm["range"] = [5.0, 10.0]
+    mpath.write_text(json.dumps(mm))
     r = client.post(scoped(pid, f"/multiangle/cuts/{cut0['id']}/activate"))
     assert r.status_code == 200, r.text
     assert r.json()["active"] == cut0["id"]
+    assert json.loads(cr.read_text()) == {"lo": 5.0, "hi": 10.0}
+    assert not (p.multiangle_dir / "cuts" / "cut_range.json").exists()
     assert os.stat(live).st_ino == os.stat(cdir / "match.mp4").st_ino
     dj = json.loads((p.multiangle_dir / "director.json").read_text())
     assert dj["n_cuts"] == 133          # fake runner's original director

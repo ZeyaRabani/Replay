@@ -123,7 +123,7 @@ def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
             os.replace(tmp, dst)
     # restore the range the cut was made with so a later re-cut uses it
     meta = _read(cdir / "meta.json") or {}
-    cr_path = cdir.parent / "cut_range.json"
+    cr_path = cdir.parent.parent / "cut_range.json"
     if meta.get("range"):
         write_json_atomic(cr_path, {"lo": meta["range"][0],
                                     "hi": meta["range"][1]}, indent=1)
