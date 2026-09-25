@@ -4,8 +4,9 @@ Per-second candidate rules (on the shared timeline):
   BALL    — any available angle whose ball_conf >= BALL_OK in >= 2 of the
             5 s window [t-2, t+2] is eligible; score = max ball_size over
             that window. Eligible angles only.
-  CLUSTER — else score = cluster_score, per-angle median-normalised so
-            wider cameras don't dominate by baseline alone.
+  CLUSTER — else score = cluster_score / per-angle 90th-percentile over the
+            common span ("how close to this camera's best view is it now"),
+            so wider cameras don't dominate by baseline alone.
   HOLD    — no available angle has any data -> keep current.
 
 Smoothing: per-angle 5 s median then 9 s centred rolling mean.
@@ -42,6 +43,7 @@ DEAD_SCORE_S = 6         # consecutive zero-score seconds before recovery
 DEAD_CHALLENGER = 0.2    # challenger smoothed score threshold for recovery
 SMOOTH_MEDIAN = 5
 SMOOTH_MEAN = 9
+BASELINE_Q = 90
 
 
 def _smooth(x: np.ndarray) -> np.ndarray:
@@ -52,13 +54,18 @@ def _smooth(x: np.ndarray) -> np.ndarray:
 
 
 def _cluster_baselines(track: list[dict], available: np.ndarray) -> np.ndarray:
-    """Per-angle median cluster_score over its available seconds."""
+    """Per-angle BASELINE_Q-quantile of cluster_score over the seconds where
+    every angle is available (so cameras are compared on the same span; a
+    camera that ran through an empty pre-match isn't inflated). Falls back
+    to each angle's own seconds when there is no common span."""
     n = len(track)
     base = np.ones(n)
+    common = available.all(axis=0)
     for i in range(n):
-        vals = np.asarray(track[i]["cluster"])[available[i]]
+        span = common if common.any() else available[i]
+        vals = np.asarray(track[i]["cluster"])[span]
         vals = vals[vals > 0]
-        m = float(np.median(vals)) if len(vals) else 1.0
+        m = float(np.percentile(vals, BASELINE_Q)) if len(vals) else 1.0
         base[i] = m if m > 0 else 1.0
     return base
 

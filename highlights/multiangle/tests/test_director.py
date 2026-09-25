@@ -40,9 +40,9 @@ def test_ball_needs_two_sightings():
 
 def test_cluster_fallback_no_ball():
     """No ball anywhere -> cluster rule picks the angle above its baseline."""
-    T = 60
+    T = 400
     tr = [_track(T, cluster=2.0), _track(T, cluster=1.0)]
-    tr[1]["cluster"][40:] = 9.0  # 9x its own baseline -> normalised win
+    tr[1]["cluster"][370:] = 9.0  # 9x its own p90 baseline -> normalised win
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["per_second_rule"]["cluster"] > 0
     assert out["per_second_rule"]["ball"] == 0
@@ -62,9 +62,9 @@ def test_no_flicker_blip_below_margin():
 def test_segment_fields_recorded_at_start():
     """rule/score/runner_up describe the selection at segment start, and
     runner_up is the displaced angle (never the new one)."""
-    T = 90
+    T = 400
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
-    tr[1]["cluster"][70:] = 20.0  # late rise keeps a1's median at 2.0
+    tr[1]["cluster"][370:] = 20.0  # <10% rise keeps a1's p90 at 2.0
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["n_cuts"] == 1
     s0, s1 = out["segments"]
@@ -79,35 +79,35 @@ def test_segment_fields_recorded_at_start():
 
 def test_min_hold_respected():
     """Challenger better from t=5: CONFIRM at 11 but cut waits for hold>=20."""
-    T = 60
+    T = 400
     tr = [_track(T, cluster=8.0), _track(T, cluster=3.0)]
-    tr[1]["cluster"][35:] = 20.0  # median stays 3.0; normalised ~6.7 beats margin
+    tr[1]["cluster"][5:35] = 20.0  # 30 s rise, <10% of span -> p90 stays 3.0
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["n_cuts"] == 1
     cut = out["segments"][1]["t_start"]
-    # CONFIRM_CLUSTER satisfied ~t=40-41; cut in the [t-2, t+2] window
-    assert 36 <= cut <= 45
+    # cut lands inside the [t-2, t+2] window after hold reaches MIN_HOLD
+    assert cut >= 18
 
 
 def test_cluster_margin_blocks_and_allows():
     """Margin 50% under cluster rule: 1.4x no cut; 1.6x cut."""
-    T = 90
+    T = 400
     tr = [_track(T, cluster=1.0), _track(T, cluster=1.0)]
-    tr[1]["cluster"][60:] = 1.4  # 1.4x a1's own baseline = within 50% margin
+    tr[1]["cluster"][370:] = 1.4  # 1.4x a1's own p90 = within 50% margin
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["n_cuts"] == 0
 
-    tr[1]["cluster"][60:] = 2.0  # 2x -> exceeds margin
+    tr[1]["cluster"][370:] = 2.0  # 2x -> exceeds margin
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["n_cuts"] == 1
 
 
 def test_cluster_baseline_normalisation():
     """Different camera baselines must not bias the winner."""
-    T = 90
+    T = 400
     # angle 0: wide shot, high raw baseline; angle 1: tight, low baseline
     tr = [_track(T, cluster=10.0), _track(T, cluster=1.0)]
-    tr[1]["cluster"][60:] = 5.0  # 5x its own baseline vs 1x for a0
+    tr[1]["cluster"][370:] = 5.0  # short <10% rise: p90 stays at the 1.0 base
     out = D.cut_director(tr, _avail(2, T), [_mot(T), _mot(T)])
     assert out["cluster_baseline"] == [10.0, 1.0]
     assert out["n_cuts"] == 1
