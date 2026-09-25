@@ -115,16 +115,31 @@ export default function DirectorCut({ onSeek }: Props) {
   const total = segs.length ? segs[segs.length - 1].t_end : 0;
   const angleLabel = (i: number) => info?.angles[i]?.label ?? `Angle ${i + 1}`;
 
-  const doRecut = async () => {
+  const doRecut = async (style?: "normal" | "fast") => {
     setRecutBusy(true);
     try {
-      const next = (info?.cut_style ?? "normal") === "fast" ? "normal" : "fast";
+      const next = style ?? ((info?.cut_style ?? "normal") === "fast" ? "normal" : "fast");
       await api.recut(next);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setRecutBusy(false);
+    }
+  };
+
+  const saveZones = async (): Promise<boolean> => {
+    if (!info || zones === null) return false;
+    setZoneBusy(true);
+    try {
+      await api.putZones(zones, info.angles.map((a) => zoneStillTimes(a.duration)[0]));
+      await refresh();
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return false;
+    } finally {
+      setZoneBusy(false);
     }
   };
 
@@ -327,7 +342,7 @@ export default function DirectorCut({ onSeek }: Props) {
                   >
                     {recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
                     {(info.cut_style ?? "normal") === "fast"
-                      ? "Re-cut (zones + Normal)" : "Re-cut (zones + Fast)"}
+                      ? "Re-cut as Normal" : "Re-cut as Fast"}
                   </button>
                   )}
                 </div>
@@ -412,29 +427,38 @@ export default function DirectorCut({ onSeek }: Props) {
                   <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     Ball zones (manual + AI)
                   </div>
-                  <button
-                    disabled={zoneBusy || live}
-                    onClick={() => {
-                      setZoneBusy(true);
-                      void api.putZones(
-                        zones,
-                        info.angles.map((a) => zoneStillTimes(a.duration)[0]),
-                      )
-                        .then(() => refresh())
-                        .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-                        .finally(() => setZoneBusy(false));
-                    }}
-                    className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
-                  >
-                    {zoneBusy ? <Loader2 size={11} className="animate-spin" /> : null}
-                    Save zones
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={zoneBusy || recutBusy}
+                      onClick={() => void saveZones()}
+                      className="text-[11px] text-zinc-300 hover:text-zinc-100 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                    >
+                      {zoneBusy ? <Loader2 size={11} className="animate-spin" /> : null}
+                      Save zones
+                    </button>
+                    {!live && (
+                      <button
+                        disabled={zoneBusy || recutBusy}
+                        onClick={() => {
+                          void saveZones().then((ok) => {
+                            if (ok) void doRecut("fast");
+                          });
+                        }}
+                        className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-0.5 disabled:opacity-40"
+                      >
+                        {zoneBusy || recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
+                        Save zones &amp; re-cut (Fast)
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-[11px] text-zinc-500 mb-3">
                   Drag on the first frame to paint a zone (drawn zones show
                   read-only on the other stills so you can spot camera drift) —
                   when the ball is inside an angle&apos;s zone the director cuts
-                  to that angle.
+                  to that angle; otherwise the AI rules apply. &quot;Save zones &amp;
+                  re-cut (Fast)&quot; re-cuts the whole match with your zones and fast
+                  switching (~15 min, no re-analysis).
                   {info.director?.zones_used && (" Current cut used zones.")}
                   {!info.director && (" Will be used by the first cut.")}
                 </div>
