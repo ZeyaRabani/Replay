@@ -10,6 +10,7 @@ the concat demuxer can stream-copy), then concat-demuxed.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -102,7 +103,6 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     lst = concat_file(files, workdir / "concat.txt")
     # write to a sibling tmp then os.replace: out_path may be hardlinked
     # into cuts/ snapshots or a copied project — never clobber in place
-    import os
     tmp = Path(out_path).with_name(Path(out_path).name + ".part.mp4")
     tmp.unlink(missing_ok=True)
     run(concat_cmd(lst, str(tmp)), log)
