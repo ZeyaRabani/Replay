@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -43,17 +44,19 @@ class StatusWriter:
         self.min_interval = min_interval
         self.status = default_status()
         self._last_write = 0.0
+        self._lock = threading.Lock()
 
     def update(self, force: bool = False, **fields) -> dict:
-        self.status.update(fields)
-        self.status["updated_at"] = _now()
-        if force or (self.status["updated_at"] - self._last_write) >= self.min_interval:
-            self._write()
-        return self.status
+        with self._lock:
+            self.status.update(fields)
+            self.status["updated_at"] = _now()
+            if force or (self.status["updated_at"] - self._last_write) >= self.min_interval:
+                self._write()
+            return self.status
 
     def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".json.tmp")
+        tmp = self.path.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")
         tmp.write_text(json.dumps(self.status, indent=1))
         os.replace(tmp, self.path)
         self._last_write = _now()
