@@ -59,11 +59,16 @@ def download(url: str, dest_dir: str | Path, status=None,
         "fragment_retries": 20,
         "concurrent_fragment_downloads": 4,
     }
+    js = {}
+    if shutil.which("deno"):
+        js["deno"] = {}
     if shutil.which("node"):
-        opts["js_runtimes"] = {"node": {}}
-        log("js runtime: node enabled")
+        js["node"] = {}
+    if js:
+        opts["js_runtimes"] = js
+        log(f"js runtimes: {','.join(js)}")
     else:
-        log("warning: node not on PATH; YouTube JS challenges may fail")
+        log("warning: no JS runtime on PATH; YouTube JS challenges may fail")
     if cookiefile:
         opts["cookiefile"] = cookiefile
 

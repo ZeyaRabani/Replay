@@ -1,4 +1,5 @@
 yt-dlp
+yt-dlp-ejs>=0.8
 joblib
 scikit-learn
 pandas

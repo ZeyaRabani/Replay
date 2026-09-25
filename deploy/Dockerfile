@@ -10,8 +10,21 @@ RUN npm run build
 # Stage 2: runtime
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg nodejs ca-certificates \
+    ffmpeg nodejs ca-certificates curl unzip \
     && rm -rf /var/lib/apt/lists/*
+# deno: yt-dlp-ejs needs a supported JS runtime for YouTube n-challenges
+# (container node 20.19 is "unsupported" by ejs); install per-arch binary
+RUN arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+         arm64) deno_arch="aarch64" ;; \
+         amd64) deno_arch="x86_64" ;; \
+         *) echo "unsupported arch: $arch" && exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/deno.zip \
+       "https://github.com/denoland/deno/releases/latest/download/deno-${deno_arch}-unknown-linux-gnu.zip" \
+    && unzip -q /tmp/deno.zip -d /usr/local/bin \
+    && chmod +x /usr/local/bin/deno \
+    && rm /tmp/deno.zip
 WORKDIR /app
 COPY highlights/app/requirements.txt /tmp/app-req.txt
 COPY highlights/pipeline/requirements.txt /tmp/pipeline-req.txt
