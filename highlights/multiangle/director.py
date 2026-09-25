@@ -207,10 +207,8 @@ def per_second(track: list[dict], available: np.ndarray,
     cluster_n = cluster / baselines[:, None]
     zone_shares: dict | None = None
     zone_elig = None
-    zone_dens = np.zeros((n_angles, T), dtype=bool)
     if zones:
         zone_elig, zb, zp = _zone_eligible(track, available, zones, zone_ok)
-        zone_dens = zp
         zone_shares = {
             "zone_ball_share": round(float((zb & available).any(axis=0).mean()), 4),
             "zone_players_share": round(float((zp & available).any(axis=0).mean()), 4),
@@ -240,10 +238,10 @@ def per_second(track: list[dict], available: np.ndarray,
         if zone_elig is not None:
             ze = zone_elig[:, t]
             if ze.any():
-                # density-driven eligibility has no ball signal — floor score
-                zone_score = np.where(zone_dens[:, t], np.maximum(
-                    ball_conf[:, t], ZONE_DENSITY_SCORE), ball_conf[:, t])
-                S[:, t] = np.where(ze, zone_score, 0.0)
+                # lingering / density-driven eligibility has no ball
+                # signal at t — floor the score so the cut still happens
+                S[:, t] = np.where(
+                    ze, np.maximum(ball_conf[:, t], ZONE_DENSITY_SCORE), 0.0)
                 j = int(np.argmax(S[:, t]))
                 if S[j, t] > 0:
                     best_a[t], best_s[t], best_r[t] = j, S[j, t], 4
