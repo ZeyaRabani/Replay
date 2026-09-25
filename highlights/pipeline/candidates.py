@@ -1,7 +1,8 @@
 """Contract 4 candidate extraction from a scored feature frame.
 
 Peaks: greedy argmax over the 3-s smoothed learned probability, 12 s NMS,
-top 60, restricted to in-match seconds. Type heuristic (first match wins):
+a duration-scaled cap (~0.7/min, 15..80) trimmed to MIN_N by relative
+probability, restricted to in-match seconds. Type heuristic (first match wins):
 goal (roi spike + net disturbance + crowd + restart lull), shot (roi
 spike), goalmouth (roi z>=1), crowd (audio z>=2 without a near-goal spike),
 attack (anything else). Confidence = 0.9 * (0.5*prob + 0.5*rank decay)
@@ -16,7 +17,10 @@ import pandas as pd
 from highlights.fusion.score import RULE_COLS, pick_peaks, robust_z
 
 NMS = 12
-TOP_N = 60
+PER_MIN = 0.7    # target candidates per in-match minute
+MIN_N = 15
+MAX_N = 80
+REL_PROB = 0.25  # drop peaks (beyond MIN_N) below 25% of the top probability
 SHOT_Z = 2.0
 GOALMOUTH_Z = 1.0
 NET_Z = 2.0
@@ -56,11 +60,20 @@ def make_candidates(df: pd.DataFrame, learned: np.ndarray, rule: np.ndarray,
     z = robust_z(df, zcols, mask).clip(-1, 4).fillna(0.0) if zcols \
         else pd.DataFrame(index=df.index)
 
-    peak_idx = pick_peaks(np.asarray(learned, dtype=float), t, mask,
-                          nms=NMS, top=TOP_N)
-
     lo = float(t[mask].min()) if mask.any() else 0.0
     hi = float(t[mask].max()) if mask.any() else float(duration)
+
+    peak_idx = pick_peaks(np.asarray(learned, dtype=float), t, mask,
+                          nms=NMS,
+                          top=int(np.clip(round((hi - lo) / 60 * PER_MIN),
+                                          MIN_N, MAX_N)))
+    # drop weak peaks beyond the MIN_N floor
+    peak_idx = np.asarray(peak_idx)
+    if len(peak_idx) > MIN_N:
+        floor = REL_PROB * float(np.max(np.asarray(learned)[peak_idx]))
+        peak_idx = np.concatenate([
+            peak_idx[:MIN_N],
+            peak_idx[MIN_N:][np.asarray(learned)[peak_idx[MIN_N:]] >= floor]])
 
     def _lull(i: int) -> bool:
         post = (t >= t[i] + LULL_POST[0]) & (t < t[i] + LULL_POST[1])
