@@ -1,4 +1,4 @@
-import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2 } from "lucide-react";
+import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectApiContext, projectApi } from "../api";
@@ -21,6 +21,7 @@ export default function ProjectPage() {
   const [tab, setTab] = useState<Tab>("review");
   const [seekRequest, setSeekRequest] = useState<{ t: number; n: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [gen, setGen] = useState(0);
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -51,6 +52,13 @@ export default function ProjectPage() {
   }, [project?.id]);
 
   const live = project?.pipeline_state === "queued" || project?.pipeline_state === "running";
+  // a re-run on a project that already has output keeps the old cut viewable;
+  // remount the tabs when it finishes so they pick up the new files
+  const wasLive = useRef(false);
+  useEffect(() => {
+    if (wasLive.current && !live) setGen((g) => g + 1);
+    wasLive.current = live;
+  }, [live]);
   useEffect(() => {
     if (timer.current) window.clearInterval(timer.current);
     timer.current = null;
@@ -73,11 +81,14 @@ export default function ProjectPage() {
     }
   };
 
+  const inlineProgress = !!project && live && project.video !== null;
   const showPipeline =
     project &&
     project.pipeline_state !== "done" &&
     project.pipeline_state !== "none" &&
-    project.pipeline_state !== "needs_input";
+    project.pipeline_state !== "needs_input" &&
+    !inlineProgress;
+  const pct = Math.round((status?.progress ?? project?.progress ?? 0) * 100);
 
   const tabCls = (on: boolean) =>
     `flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded ${
@@ -124,8 +135,34 @@ export default function ProjectPage() {
           />
         ) : (
           <>
+            {inlineProgress && (
+              <div className="border-b border-amber-900/60 bg-amber-950/30 px-4 py-2 flex items-center gap-3 text-xs">
+                <Loader2 size={14} className="animate-spin text-amber-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-amber-200 truncate">
+                      Re-cutting in the background — {status?.message ?? project.message ?? "working"}
+                    </span>
+                    <span className="text-zinc-400 shrink-0">{pct}%</span>
+                  </div>
+                  <div className="h-1.5 bg-zinc-800 rounded mt-1">
+                    <div className="h-1.5 rounded bg-amber-400 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-[11px] text-zinc-500 mt-0.5">
+                    The current cut below stays available; the page switches to the new cut when it finishes. You can close this tab.
+                  </div>
+                </div>
+                <button
+                  disabled={busy}
+                  onClick={() => void act(() => api.cancelPipeline())}
+                  className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 disabled:opacity-40 shrink-0"
+                >
+                  <XCircle size={12} /> Cancel
+                </button>
+              </div>
+            )}
             {/* keep Review mounted so the video/playhead survive tab switches */}
-            <div className={tab === "review" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
+            <div key={gen} className={tab === "review" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
               <ProjectReview seekRequest={seekRequest} />
             </div>
             {tab === "stats" && (
