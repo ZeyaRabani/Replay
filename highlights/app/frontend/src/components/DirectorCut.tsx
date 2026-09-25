@@ -1,12 +1,14 @@
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
-import type { DirectorFull, DirectorSegment, MultiangleInfo } from "../types";
+import type { DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
+import ZoneEditor from "./ZoneEditor";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
 const RULE_COLORS: Record<string, string> = {
   event: "#f87171",
+  zone: "#fb923c",
   ball: "#10b981",
   cluster: "#0ea5e9",
   hold: "#71717a",
@@ -16,6 +18,7 @@ const RULE_COLORS: Record<string, string> = {
 
 const RULE_LABELS: Record<string, string> = {
   event: "Event (shot/goal)",
+  zone: "Ball zone (manual)",
   ball: "Ball",
   cluster: "Player cluster",
   hold: "Hold",
@@ -23,7 +26,7 @@ const RULE_LABELS: Record<string, string> = {
   start: "Start",
 };
 
-const RULE_ORDER = ["event", "ball", "cluster", "hold", "coverage", "start"];
+const RULE_ORDER = ["event", "zone", "ball", "cluster", "hold", "coverage", "start"];
 
 function ratioKeys(ratios: Record<string, number>): string[] {
   const known = RULE_ORDER.filter((k) => (ratios[k] ?? 0) > 0);
@@ -54,12 +57,26 @@ export default function DirectorCut({ onSeek }: Props) {
   const [offBusy, setOffBusy] = useState(false);
   const [offErr, setOffErr] = useState<string | null>(null);
   const [recutBusy, setRecutBusy] = useState(false);
+  const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
+  const [zoneBusy, setZoneBusy] = useState(false);
+  const zonesLoaded = useRef(false);
+  const refT = useRef<(number | null)[]>([]);
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       const i = await api.multiangle();
       setInfo(i);
+      if (!zonesLoaded.current) {
+        zonesLoaded.current = true;
+        try {
+          const z = await api.getZones();
+          setZones(z.angles);
+          if (z.ref_t) refT.current = z.ref_t;
+        } catch {
+          zonesLoaded.current = false;
+        }
+      }
       if (i.director) {
         try {
           setDirector(await api.multiangleDirector());
@@ -311,7 +328,7 @@ export default function DirectorCut({ onSeek }: Props) {
                   >
                     {recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
                     {(info.cut_style ?? "normal") === "fast"
-                      ? "Re-cut as Normal" : "Re-cut as Fast"}
+                      ? "Re-cut (zones + Normal)" : "Re-cut (zones + Fast)"}
                   </button>
                 </div>
               </div>
@@ -345,6 +362,15 @@ export default function DirectorCut({ onSeek }: Props) {
                     <span className="ml-auto">
                       {info.director.n_cuts} cuts · mean hold {info.director.mean_hold_s.toFixed(1)} s
                     </span>
+                    {(info.director.zone_suspended_share ?? []).some((s) => s > 0.005) && (
+                      <span className="text-orange-300">
+                        zones suspended{" "}
+                        {(info.director.zone_suspended_share ?? [])
+                          .map((s, i) => (s > 0.005 ? `a${i} ${(s * 100).toFixed(0)}%` : null))
+                          .filter(Boolean).join(", ")}{" "}
+                        — camera moved
+                      </span>
+                    )}
                   </div>
 
                   {/* angle share */}
@@ -377,6 +403,56 @@ export default function DirectorCut({ onSeek }: Props) {
                 </>
               )}
             </div>
+
+            {/* ball zones */}
+            {!info.sources_purged && zones !== null && (
+              <div className={card}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Ball zones (manual + AI)
+                  </div>
+                  <button
+                    disabled={zoneBusy || live}
+                    onClick={() => {
+                      setZoneBusy(true);
+                      void api.putZones(zones, refT.current)
+                        .then(() => refresh())
+                        .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                        .finally(() => setZoneBusy(false));
+                    }}
+                    className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                  >
+                    {zoneBusy ? <Loader2 size={11} className="animate-spin" /> : null}
+                    Save zones
+                  </button>
+                </div>
+                <div className="text-[11px] text-zinc-500 mb-3">
+                  Drag on a frame to paint a zone — when the ball is inside an
+                  angle&apos;s zone the director cuts to that angle.
+                  {info.director?.zones_used && (" Current cut used zones.")}
+                </div>
+                <div className="flex flex-col gap-4">
+                  {info.angles.map((a) => (
+                    <ZoneEditor
+                      key={a.index}
+                      angle={a}
+                      zones={zones[a.index] ?? []}
+                      onTChange={(t) => {
+                        refT.current[a.index] = t;
+                      }}
+                      onChange={(z) =>
+                        setZones((cur) => {
+                          const next = [...(cur ?? [])];
+                          while (next.length <= a.index) next.push([]);
+                          next[a.index] = z;
+                          return next;
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* cut timeline */}
             <div className={card}>

@@ -252,14 +252,74 @@ def stage_director(ctx: Ctx) -> dict:
                         event[k] = max(event[k], conf)
         n_ev = int((event > 0).sum())
         tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
+                       "ball_x": _row("ball_x"), "ball_y": _row("ball_y"),
                        "cluster": _row("cluster_score"), "event": event})
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
-    out = cut_director(tracks, avail, motion, ctx.style)
+    zones, zone_ok = None, None
+    zf = ctx.pipe / "zones.json"
+    if zf.exists():
+        try:
+            zd = json.loads(zf.read_text()) or {}
+            zones = zd.get("angles")
+            ref_ts = zd.get("ref_t") or []
+            if zones:
+                ctx.log("director: zones on angles "
+                        f"{[i for i, z in enumerate(zones) if z]}")
+                zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
+                suspended = [0.0] * len(ctx.angles)
+                for i, a in enumerate(ctx.angles):
+                    if not zones[i]:
+                        continue
+                    vid = ctx.angle_video(i)
+                    if vid is None:
+                        continue
+                    off = offsets[i]
+                    dur = ctx.durations[i] if i < len(ctx.durations) else 0.0
+                    ref_t = (ref_ts[i] if i < len(ref_ts)
+                             and ref_ts[i] is not None else dur * 0.3)
+                    try:
+                        ok = _zone_view_ok(ctx, a["dir"], vid, ref_t)
+                    except Exception as e:
+                        ctx.log(f"director: viewcheck a{i} failed ({e})")
+                        continue
+                    times, okarr = ok
+                    t_idx = np.arange(T)
+                    ft = np.clip(t_idx + lo - off, 0, max(0, dur))
+                    idx = np.clip(np.searchsorted(times, ft), 0,
+                                  len(okarr) - 1)
+                    zone_ok[i] = okarr[idx]
+                    suspended[i] = float(
+                        (~zone_ok[i] & avail[i]).sum() / max(1, avail[i].sum()))
+                if any(s > 0 for s in suspended):
+                    ctx.log("director: zones suspended "
+                            f"{[round(s, 3) for s in suspended]} (camera moved)")
+        except Exception as e:
+            ctx.log(f"director: ignoring bad zones.json ({e})")
+            zones, zone_ok = None, None
+    out = cut_director(tracks, avail, motion, ctx.style,
+                       zones=zones, zone_ok=zone_ok)
+    if zones:
+        out["zone_suspended_share"] = [round(s, 4) for s in suspended]
     write_json_atomic(ctx.pipe / "director.json", out, indent=1,
                       default=_np_json)
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")
     return out
+
+
+def _zone_view_ok(ctx: Ctx, angle_dir: Path, video: Path,
+                  ref_t: float) -> tuple[np.ndarray, np.ndarray]:
+    """view_ok with a per-angle cache keyed on ref_t."""
+    from highlights.multiangle.viewcheck import view_ok
+    cache = angle_dir / "track" / f"viewcheck_{ref_t:.0f}.json"
+    if cache.exists():
+        d = json.loads(cache.read_text())
+        return (np.asarray(d["times"], dtype=float),
+                np.asarray(d["ok"], dtype=bool))
+    times, ok = view_ok(video, ref_t)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(cache, {"times": times.tolist(), "ok": ok.tolist()})
+    return times, ok
 
 
 def stage_render(ctx: Ctx) -> None:

@@ -12,6 +12,7 @@ import type {
   Team,
   User,
   VideoInfo,
+  ZonePolygon,
 } from "./types";
 
 const USER_KEY = "hl_user";
@@ -181,6 +182,15 @@ export function projectApi(id: string) {
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
     recut: (style: "normal" | "fast") =>
       req<PipelineStatus>(`${base}/multiangle/recut`, json({ style })),
+    getZones: () =>
+      req<{ angles: ZonePolygon[][]; ref_t?: (number | null)[] }>(
+        `${base}/multiangle/zones`),
+    putZones: (angles: ZonePolygon[][], ref_t?: (number | null)[]) =>
+      req<{ angles: ZonePolygon[][] }>(`${base}/multiangle/zones`,
+        json({ angles, ref_t }, "PUT")),
+    angleFrameUrl: (i: number, t?: number) =>
+      mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`,
+        t == null ? {} : { t: String(t) }),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

@@ -54,6 +54,8 @@ EVENT_TYPES = ("goal", "shot", "goalmouth")
 SMOOTH_MEDIAN = 5
 SMOOTH_MEAN = 9
 BASELINE_Q = 90
+ZONE_LINGER = 3        # seconds an angle stays zone-eligible after last hit
+ZONE_MIN_HOLD = 2      # min hold before cutting TO a zone angle
 
 
 @dataclass(frozen=True)
@@ -100,12 +102,62 @@ def _cluster_baselines(track: list[dict], available: np.ndarray) -> np.ndarray:
     return base
 
 
-def per_second(track: list[dict], available: np.ndarray
+def _in_poly(pts: np.ndarray, poly: list[list[float]]) -> np.ndarray:
+    """Ray-casting point-in-polygon for Nx2 pts vs an [[x,y],...] polygon."""
+    x = pts[:, 0]
+    y = pts[:, 1]
+    px = np.asarray(poly, dtype=float)
+    inside = np.zeros(len(pts), dtype=bool)
+    n = len(px)
+    for k in range(n):
+        x1, y1 = px[k]
+        x2, y2 = px[(k + 1) % n]
+        cross = (y1 > y) != (y2 > y)
+        xint = x1 + (y - y1) / (y2 - y1 + 1e-12) * (x2 - x1)
+        inside ^= cross & (x < xint)
+    return inside
+
+
+def _zone_eligible(track: list[dict], available: np.ndarray,
+                   zones: list[list[list[list[float]]]],
+                   zone_ok: np.ndarray | None = None) -> np.ndarray:
+    """[n_angles, T] bool: ball detected inside one of the angle's zones,
+    extended ZONE_LINGER seconds after the last in-zone sighting."""
+    n = len(track)
+    T = available.shape[1]
+    hits = np.zeros((n, T), dtype=bool)
+    for i in range(n):
+        if not zones[i]:
+            continue
+        bx = np.asarray(track[i].get("ball_x", np.zeros(T)), dtype=float)
+        by = np.asarray(track[i].get("ball_y", np.zeros(T)), dtype=float)
+        bc = np.asarray(track[i].get("ball_conf", np.zeros(T)), dtype=float)
+        seen = available[i] & (bc >= BALL_OK) & (bx > 0) & (by > 0)
+        if not seen.any():
+            continue
+        pts = np.stack([bx, by], axis=1)
+        in_any = np.zeros(T, dtype=bool)
+        for poly in zones[i]:
+            if len(poly) >= 3:
+                in_any |= _in_poly(pts, poly)
+        hits[i] = seen & in_any
+    # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
+    elig = hits.copy()
+    for s in range(1, ZONE_LINGER + 1):
+        elig[:, s:] |= hits[:, :T - s]
+    if zone_ok is not None:
+        elig &= zone_ok
+    return elig
+
+
+def per_second(track: list[dict], available: np.ndarray,
+               zones: list | None = None,
+               zone_ok: np.ndarray | None = None
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
     Returns best_angles (-1 none), scores, rules (0 hold, 1 cluster,
-    2 ball, 3 event),
+    2 ball, 3 event, 4 zone),
     S[n_angles, T] (each angle's score under the active rule), and the
     per-angle cluster baselines used for normalisation.
     """
@@ -126,6 +178,8 @@ def per_second(track: list[dict], available: np.ndarray
     cluster = np.stack([track[i]["cluster"] for i in range(n_angles)])
     baselines = _cluster_baselines(track, available)
     cluster_n = cluster / baselines[:, None]
+    zone_elig = (_zone_eligible(track, available, zones, zone_ok)
+                 if zones else None)
 
     # sighting: >= BALL_MIN_SIGHTINGS hits of ball_conf >= BALL_OK in the
     # centred 5 s window; score = max ball_size in that window
@@ -148,6 +202,14 @@ def per_second(track: list[dict], available: np.ndarray
             j = int(np.argmax(S[:, t]))
             best_a[t], best_s[t], best_r[t] = j, S[j, t], 3
             continue
+        if zone_elig is not None:
+            ze = zone_elig[:, t]
+            if ze.any():
+                S[:, t] = np.where(ze, ball_conf[:, t], 0.0)
+                j = int(np.argmax(S[:, t]))
+                if S[j, t] > 0:
+                    best_a[t], best_s[t], best_r[t] = j, S[j, t], 4
+                    continue
         elig = av & ball_seen[:, t]
         if elig.any():
             S[:, t] = np.where(elig, ball_score[:, t], 0.0)
@@ -165,18 +227,24 @@ def per_second(track: list[dict], available: np.ndarray
 
 
 def cut_director(track: list[dict], available: np.ndarray,
-                 motion: list[np.ndarray], style: str = "normal") -> dict:
-    """Full decision. track[i]: {"ball_conf","ball_size","cluster"} 1 Hz arrays
-    on the shared timeline; available[i, t]; motion[i] shared-timeline motion.
-    Returns the director.json dict."""
+                 motion: list[np.ndarray], style: str = "normal",
+                 zones: list | None = None,
+                 zone_ok: np.ndarray | None = None) -> dict:
+    """Full decision. track[i]: {"ball_conf","ball_size","cluster",
+    "ball_x","ball_y"} 1 Hz arrays on the shared timeline;
+    available[i, t]; motion[i] shared-timeline motion. zones (optional):
+    per-angle lists of normalised polygons; a ball inside a zone cuts to
+    that angle immediately. Returns the director.json dict."""
     sty = STYLES[style]
     T = available.shape[1]
     n_angles = len(track)
-    cand_a, _cand_s, cand_r, S, baselines = per_second(track, available)
+    cand_a, _cand_s, cand_r, S, baselines = per_second(
+        track, available, zones=zones, zone_ok=zone_ok)
     sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
-    rule_counts = {"event": 0, "ball": 0, "cluster": 0, "hold": 0, "coverage": 0}
+    rule_counts = {"event": 0, "zone": 0, "ball": 0, "cluster": 0,
+                   "hold": 0, "coverage": 0}
     cur = int(cand_a[0]) if cand_a[0] >= 0 else int(np.argmax(available[:, 0]))
     segs: list[dict] = [
         {"t_start": 0.0, "t_end": float(T - 1), "angle": cur, "rule": "start",
@@ -214,7 +282,8 @@ def cut_director(track: list[dict], available: np.ndarray,
             rule_counts["hold"] += 1
             zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
             continue
-        rule_counts[{3: "event", 2: "ball", 1: "cluster", 0: "coverage"}[cand_r[t]]] += 1
+        rule_counts[{4: "zone", 3: "event", 2: "ball", 1: "cluster",
+                     0: "coverage"}[cand_r[t]]] += 1
         if j == cur:
             streak = 0
             propose = -1
@@ -227,6 +296,15 @@ def cut_director(track: list[dict], available: np.ndarray,
             # itself (the window's pre-roll is built into S)
             segs[-1]["t_end"] = float(t)
             open_seg(t, j, "event", float(S[j, t]),
+                     {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
+            cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
+            continue
+
+        if cand_r[t] == 4 and hold >= ZONE_MIN_HOLD:
+            # zone rule: ball inside a painted zone -> cut to that camera
+            # immediately like an event, after a short min hold
+            segs[-1]["t_end"] = float(t)
+            open_seg(t, j, "zone", float(S[j, t]),
                      {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
             cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
             continue
@@ -272,6 +350,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     span_min = max(total_dur / 60.0, 1e-9)
     return {
         "style": style,
+        "zones_used": zones is not None and any(len(z) for z in zones),
         "segments": segs,
         "per_second_rule": rule_counts,
         "ratios": {k: round(v / tot, 4) for k, v in rule_counts.items()},

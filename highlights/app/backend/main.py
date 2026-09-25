@@ -133,6 +133,11 @@ class MatchWindowPut(BaseModel):
     end_s: float
 
 
+class ZonesPut(BaseModel):
+    angles: list[list[list[list[float]]]]
+    ref_t: list[float | None] | None = None
+
+
 class TrimRequest(BaseModel):
     start_s: float
     end_s: float
@@ -1330,6 +1335,59 @@ def get_angle_video(angle_idx: int, p: PublicP) -> FileResponse:
     if v is None:
         raise HTTPException(404, "angle video not found")
     return _serve(v)
+
+
+@scoped.get("/multiangle/zones")
+def get_multiangle_zones(p: PublicP) -> dict:
+    _require_multiangle(p)
+    n = len(p.source_info.get("angles") or [])
+    z = _read_json(p.multiangle_dir / "zones.json")
+    if z and isinstance(z.get("angles"), list):
+        z.setdefault("ref_t", [None] * len(z["angles"]))
+        return z
+    return {"angles": [[] for _ in range(n)], "ref_t": [None] * n}
+
+
+@scoped.put("/multiangle/zones")
+def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    n = len(p.source_info.get("angles") or [])
+    if len(body.angles) != n:
+        raise HTTPException(422, f"expected {n} angle entries, got {len(body.angles)}")
+    for ai, polys in enumerate(body.angles):
+        for poly in polys:
+            if len(poly) < 3:
+                raise HTTPException(422, f"angle {ai}: polygon needs >= 3 points")
+            for pt in poly:
+                if len(pt) != 2 or not all(0.0 <= float(v) <= 1.0 for v in pt):
+                    raise HTTPException(422, f"angle {ai}: coords must be [x,y] in 0..1")
+    if body.ref_t is not None and len(body.ref_t) != n:
+        raise HTTPException(422, f"ref_t must have {n} entries")
+    out = {"angles": body.angles, "ref_t": body.ref_t or [None] * n}
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(p.multiangle_dir / "zones.json", out, indent=1)
+    return out
+
+
+@scoped.get("/multiangle/angle/{angle_idx}/frame.jpg")
+def get_angle_frame(angle_idx: int, p: PublicP, t: float | None = None) -> FileResponse:
+    _require_multiangle(p)
+    angles = p.source_info.get("angles") or []
+    if not (0 <= angle_idx < len(angles)):
+        raise HTTPException(404, "angle out of range")
+    v = p.angle_video(angle_idx)
+    if v is None:
+        raise HTTPException(404, "angle video not found (purged?)")
+    if t is None:
+        probe = _read_json(p.angle_dir(angle_idx) / "pipeline" / "probe.json") or {}
+        t = float(probe.get("duration_s") or 60.0) * 0.3
+    out = p.thumb_dir() / f"angle{angle_idx}_{t:.0f}.jpg"
+    if not out.is_file():
+        try:
+            fx.thumbnail(v, t, out)
+        except Exception as e:
+            raise HTTPException(500, f"frame extract failed: {e}") from e
+    return FileResponse(out, media_type="image/jpeg")
 
 
 @scoped.put("/multiangle/offsets")

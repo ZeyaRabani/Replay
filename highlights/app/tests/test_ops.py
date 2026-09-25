@@ -144,3 +144,28 @@ def test_admin_shared_cookies(client):
     assert r.status_code == 403
     st = client.get("/api/me/youtube-cookies").json()
     assert st["is_admin"] is False and st["shared_available"] is False
+
+
+def test_zones_roundtrip_and_validation(client):
+    pid = _multi_done(client)
+    zones = {"angles": [[[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]], []],
+             "ref_t": [30.0, None]}
+    r = client.put(scoped(pid, "/multiangle/zones"), json=zones)
+    assert r.status_code == 200, r.text
+    r = client.get(scoped(pid, "/multiangle/zones"))
+    assert r.status_code == 200
+    assert r.json()["angles"][0][0][0] == [0.1, 0.1]
+    assert r.json()["ref_t"][0] == 30.0
+
+    # wrong number of angle entries -> 422
+    r = client.put(scoped(pid, "/multiangle/zones"),
+                   json={"angles": [[]]})
+    assert r.status_code == 422
+    # polygon with <3 points -> 422
+    r = client.put(scoped(pid, "/multiangle/zones"),
+                   json={"angles": [[[[0, 0], [1, 1]]], []]})
+    assert r.status_code == 422
+    # coord out of range -> 422
+    r = client.put(scoped(pid, "/multiangle/zones"),
+                   json={"angles": [[[[0, 0], [1.5, 0], [1, 1]]], []]})
+    assert r.status_code == 422

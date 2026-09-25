@@ -129,8 +129,12 @@ export interface SyncInfo {
   confidence_note?: string;
 }
 
+export type ZonePolygon = number[][];
+
 export interface DirectorSummary {
   style?: string;
+  zones_used?: boolean;
+  zone_suspended_share?: number[];
   per_second_rule: Record<string, number>;
   ratios: Record<string, number>;
   n_cuts: number;
