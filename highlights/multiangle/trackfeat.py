@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -72,9 +73,13 @@ def _frame_reader(video: str, fps: float, width: int):
 
 
 def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
-                 max_seconds: float | None, log=print) -> tuple[list[list], int, int]:
+                 max_seconds: float | None, log=print,
+                 progress_file: Path | None = None) -> tuple[list[list], int, int]:
+    import torch
     from ultralytics import YOLO
 
+    torch.set_num_threads(int(os.environ.get("TORCH_NUM_THREADS", "0")) or
+                          (os.cpu_count() or 1))
     model = YOLO(str(model_path))
     rows: list[list] = []
     frames = 0
@@ -125,6 +130,9 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
         frames += 1
         if frames % 30 == 0:
             log(f"trackfeat @{t:.0f}s")
+            if progress_file is not None:
+                progress_file.write_text(
+                    json.dumps({"t": round(t, 3), "frames": frames}))
     ball_rate = (sum(1 for r in rows if r[2] >= BALL_OK) / len(rows)) if rows else 0.0
     return rows, frames, ball_rate
 
@@ -137,11 +145,14 @@ def main(argv=None) -> int:
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--fps", type=float, default=1.0)
     ap.add_argument("--max-seconds", type=float, default=None)
+    ap.add_argument("--progress-file", type=Path, default=None,
+                    help="write {t, frames} here every 30 frames")
     args = ap.parse_args(argv)
 
     model = _ensure_model(args.model)
     rows, frames, ball_rate = compute_rows(
-        args.video, model, args.imgsz, args.fps, args.max_seconds)
+        args.video, model, args.imgsz, args.fps, args.max_seconds,
+        progress_file=args.progress_file)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     from highlights.io import write_json_atomic
     write_json_atomic(args.out, {
