@@ -40,7 +40,7 @@ from highlights.io import write_json_atomic
 from highlights.multiangle.cuts import activate_cut, list_cuts, snapshot_cut
 
 from . import ffmpeg as fx
-from . import pipeline, stats
+from . import history, pipeline, stats
 from .schemas import (
     CandidatePatch,
     CandidatesFile,
@@ -196,6 +196,10 @@ def get_registry() -> Registry:
         ensure_demo(reg)
         for p in reg.list_projects():
             pipeline.reconcile(p)
+        try:
+            history.backfill(reg)
+        except Exception as e:
+            print(f"warning: history backfill failed: {e}")
         _registry = reg
     return _registry
 
@@ -320,6 +324,15 @@ ScopedP = Annotated[ProjectStore, Depends(project_dep)]
 PublicP = Annotated[ProjectStore, Depends(project_public)]
 LegacyP = Annotated[ProjectStore, Depends(legacy_project)]
 UserDep = Annotated[str, Depends(current_user)]
+
+
+def _hist(p: ProjectStore, kind: str, **kw) -> None:
+    """Log a history event + refresh the match record; never fatal."""
+    try:
+        history.log(p.id, kind, **kw)
+        history.upsert_match(p)
+    except Exception:
+        pass
 
 
 # ---------- shared per-project logic ----------
@@ -467,6 +480,7 @@ def _put_match_window(p: ProjectStore, body: MatchWindowPut) -> dict:
     mw["halves"] = halves
     mw_path.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(mw_path, mw, indent=1)
+    _hist(p, "window_set", start=s, end=e)
     # recompute stats with the new window; preserve the multiangle block
     try:
         from highlights.pipeline.run import recompute_stats
@@ -509,6 +523,7 @@ def _start_trim(p: ProjectStore, start: float, end: float) -> dict:
     job = fx.TrimJob(src, out, start, end)
     _trim_jobs[key] = job
     job.start()
+    _hist(p, "trimmed", start_s=start, end_s=end)
     return {"ready": False, "progress": job.progress}
 
 
@@ -567,6 +582,9 @@ def _patch_candidate(p: ProjectStore, cand_id: str, patch: CandidatePatch) -> di
     if team is not None:
         c.signals = {**c.signals, "team": team}
     p.update(c)
+    if data.get("status") in ("confirmed", "rejected"):
+        _hist(p, f"candidate_{data['status']}", cand_id=cand_id,
+              type=c.type, t_start=c.t_start, t_end=c.t_end)
     return c.model_dump()
 
 
@@ -614,6 +632,7 @@ def _run_render(p: ProjectStore, job_id: str, req: RenderRequest, items: list[di
             job.progress, job.message = frac, msg
 
         res = fx.render_reel(_video_path(p), items, out_dir, overlay=req.overlay, reencode=req.reencode, progress_cb=cb)
+        _hist(p, "rendered_reel", job_id=job_id, n_items=len(items))
         base = f"/api/projects/{p.id}/files/{job_id}"
         job.clips = [
             ClipResult(id=r["id"], path=r["path"], url=f"{base}/clips/{Path(r['path']).name}", duration=r["duration"])
@@ -989,6 +1008,8 @@ async def create_project(request: Request, user: UserDep) -> dict:
                     break
                 fh.write(chunk)
         _save_cookies(p, cookies_text)
+        _hist(p, "created", title=p.title)
+        _hist(p, "source_added", src="upload", filename=name)
         try:
             pipeline.spawn(p, video=str(dst), stages=NO_DOWNLOAD_STAGES)
         except pipeline.PipelineBusy as e:
@@ -1017,6 +1038,8 @@ async def create_project(request: Request, user: UserDep) -> dict:
             _save_user_cookies(user, body.cookies_text)
         else:
             cookies = _user_default_cookies(p, user)
+        _hist(p, "created", title=p.title)
+        _hist(p, "source_added", src="youtube", url=body.youtube_url)
         try:
             pipeline.spawn(p, youtube_url=body.youtube_url, cookies=cookies)
         except pipeline.PipelineBusy as e:
@@ -1033,6 +1056,8 @@ async def create_project(request: Request, user: UserDep) -> dict:
             source={"kind": "path", "url": resolved, "filename": fp.name},
             meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
         )
+        _hist(p, "created", title=p.title)
+        _hist(p, "source_added", src="path", path=resolved)
         if body.run_pipeline:
             try:
                 pipeline.spawn(p, video=resolved, stages=NO_DOWNLOAD_STAGES)
@@ -1132,6 +1157,9 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
         _save_user_cookies(user, body.cookies_text)
     else:
         cookies = _user_default_cookies(p, user)
+    _hist(p, "created", title=p.title)
+    _hist(p, "source_added", src="multiangle",
+          n_angles=len(angles))
     try:
         pipeline.spawn_multiangle(p, cookies=cookies)
     except pipeline.PipelineBusy as e:
@@ -1177,6 +1205,9 @@ async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
                     break
                 fh.write(chunk)
     _save_cookies(p, cookies_text)
+    _hist(p, "created", title=p.title)
+    _hist(p, "source_added", src="multiangle",
+          n_angles=len(angles))
     try:
         pipeline.spawn_multiangle(p)
     except pipeline.PipelineBusy as e:
@@ -1278,6 +1309,7 @@ def patch_project(body: TitlePatch, p: ScopedP) -> dict:
         raise HTTPException(422, "title must be 1-120 characters")
     p.title = t
     p.save()
+    _hist(p, "renamed", title=t)
     return {"id": p.id, "title": p.title}
 
 
@@ -1295,6 +1327,10 @@ def delete_project(p: ScopedP) -> Response:
         _jobs.pop(jid, None)
         _job_owner.pop(jid, None)
     _proxy_jobs.pop(p.id, None)
+    try:
+        history.archive_project(p)
+    except Exception as e:
+        print(f"warning: archive failed for {p.id}: {e}")
     get_registry().delete(p.id)
     return Response(status_code=204)
 
@@ -1334,7 +1370,9 @@ def run_pipeline(p: ScopedP, user: UserDep,
 
 @scoped.post("/pipeline/cancel")
 def cancel_pipeline(p: ScopedP) -> dict:
-    return pipeline.cancel(p)
+    out = pipeline.cancel(p)
+    _hist(p, "paused")
+    return out
 
 
 @scoped.get("/pipeline")
@@ -1395,6 +1433,7 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
         cr_path.unlink(missing_ok=True)
         if had:
             _invalidate_downstream()
+        _hist(p, "window_set", cleared=True)
         return {"match_window": None, "match_window_src": None}
     if body.start is None or body.end is None:
         raise HTTPException(422, "provide both start and end, or neither")
@@ -1430,6 +1469,8 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
         except Exception:
             mw = None
     p.save()
+    _hist(p, "window_set", angle=resolved, start=float(body.start),
+          end=float(body.end))
     return {"match_window": mw, "match_window_src":
             {"angle": resolved, "start": float(body.start),
              "end": float(body.end)}}
@@ -1477,6 +1518,7 @@ def put_multiangle_angle(index: int, body: MaAnglePut, p: ScopedP) -> dict:
     if p.video and Path(p.video.path).exists():
         Path(p.video.path).unlink()
     p.save()
+    _hist(p, "source_added", src="angle", index=index, url=url)
     return {"index": index, "url": url, "angles": angles}
 
 
@@ -1516,6 +1558,7 @@ def purge_sources(p: ScopedP) -> dict:
                     f.unlink()
     p.meta["sources_purged"] = True
     p.save()
+    _hist(p, "sources_purged", freed_bytes=freed)
     return {"freed_bytes": freed, "sources_purged": True}
 
 
@@ -1572,9 +1615,11 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     p.invalidate_video()   # drops proxy.mp4 + thumb cache for the old cut
     try:
         ck = _user_default_cookies(p, user) or _project_cookies(p)
-        return pipeline.spawn_multiangle(
+        out = pipeline.spawn_multiangle(
             p, stages=["director", "render", "fuse"], force=True,
             style=body.style, cookies=ck)
+        _hist(p, "recut_queued", style=body.style)
+        return out
     except pipeline.PipelineBusy as e:
         raise HTTPException(409, str(e)) from e
 
@@ -1637,6 +1682,7 @@ def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
     out = {"version": 2, "angles": kfs}
     p.multiangle_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(p.multiangle_dir / "zones.json", out, indent=1)
+    _hist(p, "zones_saved")
     return out
 
 
@@ -1684,6 +1730,7 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
         status["video"] = info
         status["video_path"] = resolved
         pipeline.write_status(p, status)
+    _hist(p, "cut_activated", cut_id=cut_id)
     return list_cuts(p.root)
 
 
@@ -1701,6 +1748,7 @@ def delete_cut_route(cut_id: str, p: ScopedP) -> dict:
     if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
         raise HTTPException(404, "unknown cut")
     shutil.rmtree(cdir)
+    _hist(p, "cut_deleted", cut_id=cut_id)
     return list_cuts(p.root)
 
 
@@ -1975,6 +2023,123 @@ def l_render_file(job_id: str, name: str, p: LegacyP) -> FileResponse:
 @legacy.get("/stats")
 def l_stats(p: LegacyP) -> dict:
     return _stats(p)
+
+
+# ---------- history / archive ----------
+
+
+def _match_or_404(match_id: str, user: str) -> dict:
+    m = history.get_match(match_id)
+    if m is None or (m["owner"] != user and not _is_admin(user)):
+        raise HTTPException(404, "match not found")
+    return m
+
+
+@app.get("/api/history")
+def get_history(user: UserDep, include_deleted: bool = False) -> list:
+    return history.list_matches(user, include_deleted=include_deleted)
+
+
+@app.get("/api/history/{match_id}/events")
+def get_history_events(match_id: str, user: UserDep) -> list:
+    _match_or_404(match_id, user)
+    return history.events(match_id)
+
+
+@app.get("/api/history/{match_id}/artefacts/{name}")
+def get_history_artefact(match_id: str, name: str) -> FileResponse:
+    """Public like other media GETs — artefact names live under an
+    unguessable match id, same pattern as cut/thumb downloads."""
+    f = history.artefact_path(match_id, name)
+    if f is None:
+        raise HTTPException(404, "artefact not found")
+    return FileResponse(f, filename=_safe_filename(name))
+
+
+@app.post("/api/history/{match_id}/restart")
+def restart_match(match_id: str, user: UserDep) -> dict:
+    """Create a NEW project for the same owner from the archived record:
+    same sources, title + \" (restart)\", window/zones/style as hints."""
+    m = _match_or_404(match_id, user)
+    rec = m.get("record") or {}
+    src = rec.get("sources") or {}
+    meta = dict(rec.get("meta") or {})
+    if rec.get("style"):
+        meta["cut_style"] = rec["style"]
+    title = f"{m['title']} (restart)"[:120]
+    reg = get_registry()
+    if rec.get("mode") == "multiangle":
+        angles = [
+            {"url": a.get("url"), "filename": a.get("filename"),
+             "label": a.get("label") or f"Angle {i + 1}"}
+            for i, a in enumerate(src.get("angles") or [])
+        ]
+        if not (2 <= len(angles) <= 4):
+            raise HTTPException(422, "record has no usable angle list")
+        p = reg.create_project(
+            owner=m["owner"], title=title,
+            source={"kind": "multiangle", "url": None, "filename": None,
+                    "angles": angles}, meta=meta)
+        win = (rec.get("window") or {})
+        p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+        if win.get("match_window_src"):
+            write_json_atomic(
+                p.multiangle_dir / "match_window_src.json",
+                win["match_window_src"], indent=1)
+        if win.get("cut_range"):
+            write_json_atomic(
+                p.multiangle_dir / "cut_range.json",
+                win["cut_range"], indent=1)
+        if rec.get("zones") and isinstance(rec["zones"], dict):
+            write_json_atomic(
+                p.multiangle_dir / "zones.json", rec["zones"], indent=1)
+        try:
+            out = pipeline.spawn_multiangle(
+                p, cookies=_user_default_cookies(p, user))
+        except pipeline.PipelineBusy as e:
+            raise HTTPException(409, str(e)) from e
+    else:
+        kind = src.get("kind") or "path"
+        if not src.get("url") and not src.get("filename"):
+            raise HTTPException(422, "record has no usable source")
+        p = reg.create_project(
+            owner=m["owner"], title=title,
+            source={"kind": kind, "url": src.get("url"),
+                    "filename": src.get("filename")}, meta=meta)
+        mw = (rec.get("window") or {}).get("match_window")
+        if mw:
+            write_json_atomic(
+                _match_window_path(p), {"match_window": mw}, indent=1)
+        ck = _user_default_cookies(p, user)
+        try:
+            if kind == "youtube":
+                out = pipeline.spawn(p, youtube_url=src["url"], cookies=ck)
+            else:
+                video = src.get("url")
+                if not video or not Path(video).is_file():
+                    files = [f for f in p.source_dir.iterdir()
+                             if f.is_file()]
+                    video = str(files[0]) if files else None
+                if not video:
+                    raise HTTPException(
+                        422, "source file no longer available to restart")
+                out = pipeline.spawn(p, video=video,
+                                     stages=NO_DOWNLOAD_STAGES)
+        except pipeline.PipelineBusy as e:
+            raise HTTPException(409, str(e)) from e
+    history.log(match_id, "restarted", new_project=p.id)
+    _hist(p, "created", restarted_from=match_id)
+    _hist(p, "source_added", src=(rec.get("mode") or src.get("kind")),
+          n_angles=len(src.get("angles") or []))
+    return {**summary(p), "pipeline": out}
+
+
+@app.delete("/api/history/{match_id}")
+def delete_history(match_id: str, user: UserDep) -> Response:
+    """Really delete: drop the archived artefacts + match row + events."""
+    _match_or_404(match_id, user)
+    history.remove_match(match_id)
+    return Response(status_code=204)
 
 
 app.include_router(scoped)

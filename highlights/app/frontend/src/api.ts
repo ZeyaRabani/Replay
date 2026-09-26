@@ -3,6 +3,8 @@ import type {
   Candidate,
   CutsList,
   DirectorFull,
+  HistoryEvent,
+  HistoryMatch,
   MultiangleInfo,
   PipelineStatus,
   ProjectDetail,
@@ -220,3 +222,15 @@ export function useProjectApi(): ProjectApi {
   if (!api) throw new Error("useProjectApi outside ProjectApiContext");
   return api;
 }
+
+export const historyApi = {
+  list: (includeDeleted = true) =>
+    req<HistoryMatch[]>(`/api/history?include_deleted=${includeDeleted ? 1 : 0}`),
+  events: (id: string) => req<HistoryEvent[]>(`/api/history/${id}/events`),
+  artefactUrl: (id: string, name: string) =>
+    mediaUrl(`/api/history/${id}/artefacts/${encodeURIComponent(name)}`),
+  restart: (id: string) =>
+    req<ProjectSummary>(`/api/history/${id}/restart`, json({})),
+  remove: (id: string) =>
+    req<void>(`/api/history/${id}`, { method: "DELETE" }),
+};

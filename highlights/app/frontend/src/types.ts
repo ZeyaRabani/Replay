@@ -300,3 +300,25 @@ export interface CutsList {
   cuts: CutMeta[];
   range?: [number, number] | null;
 }
+
+export interface HistoryMatch {
+  id: string;
+  owner: string;
+  title: string;
+  mode: string;
+  created_at: number | null;
+  deleted_at: number | null;
+  n_angles: number;
+  style: string | null;
+  artefacts: string[];
+  deleted: boolean;
+}
+
+export interface HistoryEvent {
+  id: number;
+  ts: number;
+  kind: string;
+  stage: string | null;
+  status: string | null;
+  detail: Record<string, unknown>;
+}

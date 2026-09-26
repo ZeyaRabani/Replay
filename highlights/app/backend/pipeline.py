@@ -141,8 +141,9 @@ def spawn_multiangle(
 
 
 def _launch(p: ProjectStore, argv: list[str], *, initial_stage: str) -> dict:
-    status = read_status(p)
-    if status and status.get("state") in ("queued", "running") and _status_alive(status):
+    prev_state = (read_status(p) or {}).get("state")
+    if prev_state in ("queued", "running") and _status_alive(
+            read_status(p) or {}):
         raise PipelineBusy("pipeline already running for this project")
 
     p.status_path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,6 +187,14 @@ def _launch(p: ProjectStore, argv: list[str], *, initial_stage: str) -> dict:
         status = cur
     elif cur:
         status = cur
+    try:
+        from . import history
+        kind = ("resumed" if prev_state == "paused"
+                else "restarted" if prev_state == "done" else "queued")
+        history.log(p.id, kind, stage=initial_stage, status="queued")
+        history.upsert_match(p)
+    except Exception:
+        pass
     return status
 
 
@@ -251,6 +260,11 @@ def refresh(p: ProjectStore) -> dict | None:
     status = reconcile(p)
     if status is None:
         return None
+    try:
+        from . import history
+        history.track_status(p, status)
+    except Exception:
+        pass
     state = status.get("state")
     if state != p.pipeline_state:
         p.set_pipeline_state(state)

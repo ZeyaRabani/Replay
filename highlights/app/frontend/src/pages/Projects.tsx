@@ -1,13 +1,13 @@
 import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configApi, getUser, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import { configApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
-import type { ProjectMeta, ProjectSummary } from "../types";
+import type { HistoryMatch, ProjectMeta, ProjectSummary } from "../types";
 
 const fmtDate = (v: number | string) =>
   new Date(typeof v === "number" ? v * 1000 : v).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -693,6 +693,95 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   );
 }
 
+function ArchiveSection({ onRestart, onDelete, onError }: {
+  onRestart: (p: ProjectSummary) => void;
+  onDelete: () => void;
+  onError: (m: string) => void;
+}) {
+  const [items, setItems] = useState<HistoryMatch[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    historyApi.list(true)
+      .then((ms) => setItems(ms.filter((m) => m.deleted)))
+      .catch(() => setItems(null));
+  }, []);
+
+  useEffect(() => { load(); }, [load, onDelete]);
+
+  if (!items?.length) return null;
+  const restart = async (m: HistoryMatch) => {
+    setBusy(m.id);
+    try {
+      onRestart(await historyApi.restart(m.id));
+      load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const remove = async (m: HistoryMatch) => {
+    if (!window.confirm(`Delete "${m.title}" forever? The archived record and kept files are removed.`)) return;
+    setBusy(m.id);
+    try {
+      await historyApi.remove(m.id);
+      setItems((ms) => ms?.filter((x) => x.id !== m.id) ?? null);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="mt-6">
+      <h2 className="font-semibold mb-2">Archive</h2>
+      <div className="flex flex-col gap-2">
+        {items.map((m) => (
+          <div key={m.id} className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium flex-1 min-w-0 truncate">{m.title}</span>
+              <span className="text-[11px] text-zinc-500">
+                deleted {m.deleted_at ? fmtDate(m.deleted_at) : ""}
+              </span>
+            </div>
+            {m.artefacts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {m.artefacts.map((a) => (
+                  <a
+                    key={a}
+                    href={historyApi.artefactUrl(m.id, a)}
+                    download
+                    className="text-[10px] bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-0.5 text-sky-300"
+                  >
+                    {a}
+                  </a>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button
+                disabled={busy === m.id}
+                onClick={() => void restart(m)}
+                className="flex items-center gap-1 text-[11px] bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded px-2 py-1 disabled:opacity-40"
+              >
+                <RotateCcw size={11} /> Restart
+              </button>
+              <button
+                disabled={busy === m.id}
+                onClick={() => void remove(m)}
+                className="flex items-center gap-1 text-[11px] bg-red-900/50 hover:bg-red-800 text-red-200 rounded px-2 py-1 disabled:opacity-40"
+              >
+                <Trash2 size={11} /> Delete forever
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -848,6 +937,11 @@ export default function Projects() {
               />
             ))
           )}
+          <ArchiveSection
+            onRestart={(p) => setProjects((ps) => [p, ...(ps ?? [])])}
+            onDelete={() => undefined}
+            onError={showError}
+          />
         </div>
         <div>
           <YouTubeAccess
