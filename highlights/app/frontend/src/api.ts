@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 import type {
+  AnalysisResponse,
+  AnalysisStatus,
   Candidate,
   CutsList,
   DirectorFull,
@@ -178,6 +180,9 @@ export function projectApi(id: string) {
     renderJob: (jobId: string) => req<RenderJob>(`${base}/render/${jobId}`),
     statsUrl: mediaUrl(`${base}/stats`),
     fileUrl: (url: string) => mediaUrl(url),
+
+    analysis: () => req<AnalysisResponse>(`${base}/analysis`),
+    analyse: (force = false) => req<AnalysisStatus>(`${base}/analyse`, json({ force })),
 
     multiangle: () => req<MultiangleInfo>(`${base}/multiangle`),
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),

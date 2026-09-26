@@ -4,7 +4,9 @@ Mimics `python -m highlights.analysis.run`: writes analysis/argv.json,
 progresses analysis/status.json queued -> running -> done, and emits
 analysis/{match_stats,summary}.json fixtures.
 
-Env: FAKE_A_SLEEP seconds between state transitions (default 0.05).
+Env:
+  FAKE_A_SLEEP         seconds between state transitions (default 0.05)
+  FAKE_ANALYSIS_DELAY  extra seconds to sit in "running" before finishing
 """
 
 import argparse
@@ -91,7 +93,8 @@ def main() -> None:
     status.update(state="running", progress=0.5, message="running",
                   updated_at=time.time())
     write_status(adir, status)
-    time.sleep(sleep)
+    delay = float(os.environ.get("FAKE_ANALYSIS_DELAY", "0"))
+    time.sleep(sleep + delay)
 
     (adir / "match_stats.json").write_text(json.dumps(STATS, indent=1))
     (adir / "summary.json").write_text(json.dumps(SUMMARY, indent=1))

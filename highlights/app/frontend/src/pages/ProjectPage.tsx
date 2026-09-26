@@ -1,8 +1,9 @@
-import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2, XCircle } from "lucide-react";
+import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2, PieChart, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectApiContext, projectApi, projectsApi } from "../api";
 import DirectorCut from "../components/DirectorCut";
+import MatchAnalysis from "../components/MatchAnalysis";
 import PipelineProgress from "../components/PipelineProgress";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
@@ -11,7 +12,7 @@ import type { PipelineStatus, ProjectDetail } from "../types";
 import ProjectReview from "./ProjectReview";
 import ProjectStats from "./ProjectStats";
 
-type Tab = "review" | "stats" | "director";
+type Tab = "review" | "stats" | "director" | "analysis";
 
 export default function ProjectPage() {
   const { id = "" } = useParams();
@@ -127,9 +128,14 @@ export default function ProjectPage() {
                 <BarChart3 size={13} /> Stats
               </button>
               {project.mode === "multiangle" && (
-                <button className={tabCls(tab === "director")} onClick={() => setTab("director")}>
-                  <Clapperboard size={13} /> Director cut
-                </button>
+                <>
+                  <button className={tabCls(tab === "director")} onClick={() => setTab("director")}>
+                    <Clapperboard size={13} /> Director cut
+                  </button>
+                  <button className={tabCls(tab === "analysis")} onClick={() => setTab("analysis")}>
+                    <PieChart size={13} /> Analysis
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -181,6 +187,15 @@ export default function ProjectPage() {
             </div>
             {tab === "stats" && (
               <ProjectStats
+                key={gen}
+                onSeek={(t) => {
+                  setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
+                  setTab("review");
+                }}
+              />
+            )}
+            {tab === "analysis" && (
+              <MatchAnalysis
                 key={gen}
                 onSeek={(t) => {
                   setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));

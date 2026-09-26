@@ -92,9 +92,7 @@ def _estimate_min(p) -> int:
         ctx = resolve_context(p.root)
         return estimate_minutes(ctx["window"][1] - ctx["window"][0])
     except Exception:
-        dur = 0.0
-        if p.video is not None:
-            dur = float(getattr(p.video, "duration_s", 0.0) or 0.0)
+        dur = float(p.video.duration_s) if p.video else 0.0
         if dur <= 0:
             dur = 600.0
         return estimate_minutes(dur)
