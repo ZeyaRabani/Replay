@@ -29,6 +29,7 @@ def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000", "-ac", "2",
+            "-threads", "2",
             out]
 
 
@@ -93,7 +94,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     seg_dir.mkdir(parents=True, exist_ok=True)
     files = []
     used: set[str] = set()
-    reused = encoded = 0
+    reused = 0
+    to_encode = []        # (plan, out_path) — cache misses
     total = max(1.0, union_hi - union_lo)
     plans = plan_segments(segments, offsets, union_lo, union_hi,
                           durations or [])
@@ -108,18 +110,30 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
         if out.exists() and out.stat().st_size > 0:
             reused += 1
         else:
-            # encode to a .part sibling then os.replace so a killed run
-            # never leaves a truncated file in the cache
-            tmp = out.with_name(out.stem + ".part.mp4")
-            tmp.unlink(missing_ok=True)
-            run(segment_cmd(videos[a], p["t_file"], p["dur"], str(tmp)), log)
-            os.replace(tmp, out)
-            encoded += 1
+            to_encode.append((p, out))
         files.append(f"segs/{out.name}")  # concat resolves relative to list dir
-        if p["seg_index"] % 10 == 0:
-            log(f"render: seg {p['seg_index']}/{len(segments)} "
-                f"({100*p['t0']/total:.0f}%)")
-    log(f"render: reused {reused}/{reused + encoded} segments")
+    # encode missing segments HL_RENDER_WORKERS at a time (threads are
+    # fine: the work is in ffmpeg subprocesses); cache hits keep order
+    from concurrent.futures import ThreadPoolExecutor
+    workers = int(os.environ.get("HL_RENDER_WORKERS", "2"))
+    done_n = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = []
+        for p, out in to_encode:
+            def _enc(p=p, out=out):
+                tmp = out.with_name(out.stem + ".part.mp4")
+                tmp.unlink(missing_ok=True)
+                run(segment_cmd(videos[p["angle"]], p["t_file"],
+                                p["dur"], str(tmp)), log)
+                os.replace(tmp, out)
+            futs.append((p, ex.submit(_enc)))
+        for p, fut in futs:
+            fut.result()
+            done_n += 1
+            if p["seg_index"] % 10 == 0 or done_n == len(futs):
+                log(f"render: seg {p['seg_index']}/{len(segments)} "
+                    f"({100*p['t0']/total:.0f}%)")
+    log(f"render: reused {reused}/{reused + len(futs)} segments")
     # prune cache entries not referenced by this render
     for f in seg_dir.glob("*.mp4"):
         if f.name not in used and f.suffix == ".mp4":
