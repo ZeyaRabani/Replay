@@ -16,10 +16,12 @@ are safe from any thread (WAL mode).
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import sqlite3
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from .store import ProjectStore, workdir
@@ -116,6 +118,7 @@ def _row_summary(row: sqlite3.Row, full: bool = False) -> dict:
         "n_angles": len((record.get("sources") or {}).get("angles") or []),
         "style": record.get("style"),
         "artefacts": record.get("artefacts") or [],
+        "cuts": record.get("cuts") or [],
         "deleted": row["deleted_at"] is not None,
     }
     if full:
@@ -281,8 +284,9 @@ def track_status(p: ProjectStore, status: dict) -> None:
                 status="failed", message=status.get("message"))
             upsert_match(p)
         elif state in ("queued", "running", "paused"):
-            log(key, "resumed" if pstate == "paused" else "stage_start",
-                stage=stage, status=state)
+            kind = ("paused" if state == "paused"
+                    else "resumed" if pstate == "paused" else "stage_start")
+            log(key, kind, stage=stage, status=state)
 
 
 # ---------- archive on delete ----------
@@ -297,6 +301,11 @@ _ARCHIVE_FILES = [
     ("multiangle/fused_candidates.json", "fused_candidates.json"),
     ("pipeline/stats.json", "stats.json"),
 ]
+
+# per cut version under multiangle/cuts/<id>/ only the small JSONs are
+# kept; the ~4 GB match.mp4 survives only for the ACTIVE cut (it is a
+# hardlink of root match.mp4, archived above)
+_CUT_JSONS = ("meta", "director", "probe", "stats")
 
 
 def archive_project(p: ProjectStore) -> list[str]:
@@ -318,15 +327,54 @@ def archive_project(p: ProjectStore) -> list[str]:
         for f in sorted(reels.glob("*.mp4")):
             shutil.move(str(f), str(dest / f.name))
             kept.append(f.name)
+    # cut versions: small files per version + which one kept its video
+    cuts_info: list[dict] = []
+    cuts_dir = p.multiangle_dir / "cuts" if p.is_multiangle else None
+    active_id = ((_read_json(cuts_dir / "active.json") or {}).get("id")
+                 if cuts_dir and cuts_dir.is_dir() else None)
+    root_ino = None
+    with suppress(OSError):
+        root_ino = os.stat(dest / "match.mp4").st_ino
+    if cuts_dir and cuts_dir.is_dir():
+        for cdir in sorted(d for d in cuts_dir.iterdir() if d.is_dir()):
+            meta = _read_json(cdir / "meta.json") or {}
+            is_active = cdir.name == active_id
+            cdest = dest / "cuts" / cdir.name
+            cdest.mkdir(parents=True, exist_ok=True)
+            for j in _CUT_JSONS:
+                f = cdir / f"{j}.json"
+                if f.is_file():
+                    shutil.move(str(f), str(cdest / f.name))
+                    kept.append(f"cuts/{cdir.name}/{j}.json")
+            video = cdir / "match.mp4"
+            archived_video = False
+            if is_active and video.is_file():
+                # the active video is a hardlink of root match.mp4 — it
+                # survives as dest/match.mp4 already; move the cut's copy
+                # only when the root file was missing
+                if root_ino is None:
+                    shutil.move(str(video), str(dest / "match.mp4"))
+                    kept.append("match.mp4")
+                    root_ino = os.stat(dest / "match.mp4").st_ino
+                archived_video = True
+            cuts_info.append({**meta, "id": cdir.name, "active": is_active,
+                              "archived_video": archived_video})
     record["artefacts"] = kept
+    record["cuts"] = cuts_info
     _write_record(p.id, record)
     log(p.id, "deleted", artefacts=kept)
     mark_deleted(p.id)
     return kept
 
 
+_ART_RE = re.compile(
+    r"^[A-Za-z0-9_.-]+$|^cuts/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+$")
+
+
 def artefact_path(match_id: str, name: str) -> Path | None:
-    if "/" in name or ".." in name or "\\" in name:
+    """Flat artefact names, or one level deep under cuts/<id>/; `..`
+    and path separators outside the cuts/ pattern are blocked."""
+    if ".." in name or "\\" in name or not _ART_RE.match(name):
         return None
     f = archive_root() / match_id / name
     return f if f.is_file() else None

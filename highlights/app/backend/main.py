@@ -1370,9 +1370,9 @@ def run_pipeline(p: ScopedP, user: UserDep,
 
 @scoped.post("/pipeline/cancel")
 def cancel_pipeline(p: ScopedP) -> dict:
-    out = pipeline.cancel(p)
-    _hist(p, "paused")
-    return out
+    # pause is logged by history.track_status (refresh diff) — one event
+    # no matter which path cancelled/paused the run
+    return pipeline.cancel(p)
 
 
 @scoped.get("/pipeline")
@@ -2046,7 +2046,7 @@ def get_history_events(match_id: str, user: UserDep) -> list:
     return history.events(match_id)
 
 
-@app.get("/api/history/{match_id}/artefacts/{name}")
+@app.get("/api/history/{match_id}/artefacts/{name:path}")
 def get_history_artefact(match_id: str, name: str) -> FileResponse:
     """Public like other media GETs — artefact names live under an
     unguessable match id, same pattern as cut/thumb downloads."""

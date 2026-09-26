@@ -311,6 +311,7 @@ export interface HistoryMatch {
   n_angles: number;
   style: string | null;
   artefacts: string[];
+  cuts: HistoryCut[];
   deleted: boolean;
 }
 
@@ -321,4 +322,14 @@ export interface HistoryEvent {
   stage: string | null;
   status: string | null;
   detail: Record<string, unknown>;
+}
+
+export interface HistoryCut {
+  id: string;
+  label?: string;
+  style?: string;
+  n_cuts?: number | null;
+  created_at?: number;
+  active?: boolean;
+  archived_video?: boolean;
 }

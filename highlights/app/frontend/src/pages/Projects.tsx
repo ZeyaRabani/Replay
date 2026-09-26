@@ -745,6 +745,21 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
                 deleted {m.deleted_at ? fmtDate(m.deleted_at) : ""}
               </span>
             </div>
+            {m.cuts.length > 0 && (
+              <div className="flex flex-col gap-1 mt-2">
+                {m.cuts.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2 text-[11px] text-zinc-400">
+                    <span className="text-zinc-300">{c.label || c.id}</span>
+                    {c.style && <span className="rounded bg-zinc-800 px-1 py-0.5">{c.style}</span>}
+                    {c.n_cuts != null && <span>{c.n_cuts} cuts</span>}
+                    {c.created_at && <span>{fmtDate(c.created_at)}</span>}
+                    {c.archived_video && (
+                      <span className="rounded bg-emerald-900/60 text-emerald-300 px-1 py-0.5">video kept</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             {m.artefacts.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {m.artefacts.map((a) => (

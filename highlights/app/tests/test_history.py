@@ -117,3 +117,49 @@ def test_owner_scoping(client, short_video):
     assert c2.post(f"/api/history/{pid}/restart").status_code == 404
     ids = {m["id"] for m in c2.get("/api/history").json()}
     assert pid not in ids
+
+
+def test_archive_keeps_active_cut_video_only(client, short_video):
+    """Two cut versions: small files archived for both; only the ACTIVE
+    version's mp4 survives (as the root match.mp4 hardlink)."""
+    import os
+
+    from highlights.app.backend.main import get_registry
+    body = {"title": "MA2", "angles": [
+        {"url": "https://youtu.be/aaa", "label": "A"},
+        {"url": "https://youtu.be/bbb", "label": "B"}]}
+    pid = client.post("/api/projects/multiangle", json=body).json()["id"]
+    p = get_registry().get(pid)
+    cuts = p.multiangle_dir / "cuts"
+    for cid, active in (("cutA", False), ("cutB", True)):
+        d = cuts / cid
+        d.mkdir(parents=True)
+        v = d / "match.mp4"
+        v.write_bytes(b"video-" + cid.encode())
+        for j in ("meta", "director", "probe", "stats"):
+            (d / f"{j}.json").write_text(json.dumps({"cut": cid, "j": j}))
+    # root match.mp4 = hardlink of the ACTIVE cut's video (same inode)
+    (p.root / "match.mp4").unlink(missing_ok=True)
+    os.link(cuts / "cutB" / "match.mp4", p.root / "match.mp4")
+    (cuts / "active.json").write_text(json.dumps({"id": "cutB"}))
+    assert client.delete(f"/api/projects/{pid}").status_code == 204
+    arch = history.archive_root() / pid
+    # small files kept for both versions
+    for cid in ("cutA", "cutB"):
+        for j in ("meta", "director", "probe", "stats"):
+            assert (arch / "cuts" / cid / f"{j}.json").is_file()
+    # only one mp4 kept, and it's the active cut's bytes
+    mp4s = list(arch.rglob("*.mp4"))
+    assert [f.relative_to(arch).as_posix() for f in mp4s] == ["match.mp4"]
+    assert (arch / "match.mp4").read_bytes() == b"video-cutB"
+    # record.cuts reflects versions + video retention
+    m = history.get_match(pid)
+    rec_cuts = {c["id"]: c for c in m["record"]["cuts"]}
+    assert rec_cuts["cutB"]["active"] and rec_cuts["cutB"]["archived_video"]
+    assert not rec_cuts["cutA"]["archived_video"]
+    # artefact_path: one level under cuts/ allowed, traversal blocked
+    assert history.artefact_path(pid, "cuts/cutA/meta.json") is not None
+    assert history.artefact_path(pid, "cuts/../meta.json") is None
+    assert history.artefact_path(pid, "cuts/../../x") is None
+    r = client.get(f"/api/history/{pid}/artefacts/cuts/cutA/meta.json")
+    assert r.status_code == 200
