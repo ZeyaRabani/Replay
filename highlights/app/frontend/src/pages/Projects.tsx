@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi, ytId } from "../api";
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
+import CutBadges from "../components/CutBadges";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
@@ -128,6 +129,7 @@ function ProjectCard({
         <div className="flex items-center gap-2 flex-wrap text-xs text-zinc-400">
           <SourceBadge p={p} />
           <StatusPill state={p.pipeline_state} progress={p.progress} />
+          <CutBadges info={p.cut_info} />
           <span>{fmtDate(p.created_at)}</span>
           {p.video && (
             <span>
@@ -813,6 +815,7 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
                     {c.archived_video && (
                       <span className="rounded bg-emerald-900/60 text-emerald-300 px-1 py-0.5">video kept</span>
                     )}
+                    <CutBadges info={c.cut_info} />
                   </div>
                 ))}
               </div>

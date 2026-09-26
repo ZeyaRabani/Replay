@@ -2,6 +2,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZoneKeyframe } from "../types";
+import CutBadges from "./CutBadges";
 import ZoneEditor from "./ZoneEditor";
 import { fmtClock, parseClock } from "../lib/time";
 
@@ -569,8 +570,9 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   {cuts.cuts.map((c) => {
                     const isActive = cuts.active === c.id;
                     return (
-                      <div key={c.id} className="py-2 flex items-center gap-2 text-xs">
+                      <div key={c.id} className="py-2 flex items-center gap-2 text-xs flex-wrap">
                         <span className="text-zinc-200">{c.label}</span>
+                        <CutBadges info={c.cut_info} />
                         <span className="text-zinc-500">
                           {new Date(c.created_at * 1000).toLocaleString()}
                           {c.n_cuts != null ? ` · ${c.n_cuts} cuts` : ""}

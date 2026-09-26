@@ -103,6 +103,7 @@ export interface ProjectSummary {
   thumb_url: string | null;
   mode: "single" | "multiangle";
   n_angles: number;
+  cut_info?: CutInfo | null;
 }
 
 export interface SyncPair {
@@ -375,6 +376,14 @@ export interface AnalysisResponse {
   estimate_min: number;
 }
 
+export interface CutInfo {
+  zones_angles: number;
+  zones_total: number;
+  window_set: boolean;
+  zone_share: number | null;
+  window?: [number, number] | null;
+}
+
 export interface CutMeta {
   id: string;
   label: string;
@@ -384,6 +393,7 @@ export interface CutMeta {
   created_at: number;
   range?: [number, number];      // absolute shared-T range the cut covers
   range_out?: [number, number];  // same range on the cut's own timeline
+  cut_info?: CutInfo | null;
 }
 
 export interface CutsList {
@@ -422,6 +432,7 @@ export interface HistoryCut {
   n_cuts?: number | null;
   created_at?: number;
   active?: boolean;
+  cut_info?: CutInfo | null;
   archived_video?: boolean;
 }
 

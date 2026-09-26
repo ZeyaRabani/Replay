@@ -106,6 +106,56 @@ def test_restart_multiangle(client, short_video):
     assert "created" in evs
 
 
+def test_cut_info_derivation(client, short_video):
+    """zones present + window set -> zones badge data; zones absent -> 'no
+    zones'; window unset -> no window badge."""
+    import highlights.io
+    from highlights.app.backend.main import get_registry
+    body = {"title": "CI", "angles": [
+        {"url": "https://youtu.be/aaa", "label": "A"},
+        {"url": "https://youtu.be/bbb", "label": "B"}]}
+    pid = client.post("/api/projects/multiangle", json=body).json()["id"]
+    p = get_registry().get(pid)
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+
+    def get_ci():
+        for m in client.get("/api/projects").json():
+            if m["id"] == pid:
+                return m.get("cut_info")
+        raise AssertionError("project missing")
+
+    # zones on 1 of 2 angles, 0.8 share, window set
+    highlights.io.write_json_atomic(
+        p.multiangle_dir / "director.json",
+        {"zones_used": True, "zone_keyframes": [3, 0],
+         "zone_players_share": 0.8, "n_cuts": 5}, indent=1)
+    highlights.io.write_json_atomic(
+        p.multiangle_dir / "zones.json",
+        {"version": 2, "angles": [[{"t": 0.0, "zones": []}], []]}, indent=1)
+    highlights.io.write_json_atomic(
+        p.multiangle_dir / "cut_range.json", {"lo": 100.0, "hi": 200.0},
+        indent=1)
+    ci = get_ci()
+    assert ci["zones_angles"] == 1 and ci["zones_total"] == 2
+    assert ci["window_set"] and ci["window"] == [100.0, 200.0]
+    assert abs(ci["zone_share"] - 0.8) < 1e-6
+
+    # zones absent + no window
+    (p.multiangle_dir / "director.json").write_text(
+        json.dumps({"zones_used": False, "n_cuts": 5}))
+    (p.multiangle_dir / "cut_range.json").unlink()
+    ci = get_ci()
+    assert ci["zones_angles"] == 0
+    assert ci["zone_share"] is None
+    assert ci["window_set"] is False and ci["window"] is None
+
+    # non-multiangle project -> no cut_info
+    pid2 = new_project(client, short_video)
+    for m in client.get("/api/projects").json():
+        if m["id"] == pid2:
+            assert m["cut_info"] is None
+
+
 def test_owner_scoping(client, short_video):
     r = client.post("/api/projects",
                     json={"path": str(short_video), "run_pipeline": False})

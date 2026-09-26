@@ -34,6 +34,53 @@ def cut_label(style: str, zones_used: bool) -> str:
            f"{'+ zones' if zones_used else '(AI)'}"
 
 
+def cut_info(project_dir: Path, cut_dir: Path | None = None,
+             meta: dict | None = None) -> dict | None:
+    """Zone/window info for one cut (or the active one when cut_dir=None,
+    i.e. the live multiangle/ state). None when the project isn't
+    multi-angle or has no director output yet."""
+    ma = project_dir / "multiangle"
+    ddir = cut_dir if cut_dir is not None else ma
+    director = _read(ddir / "director.json")
+    if not director and cut_dir is None:
+        return None
+    director = director or {}
+    zones_used = director.get("zones_used")
+    kfs = director.get("zone_keyframes")
+    if zones_used is None:
+        # cut predates zones_used recording: infer zones existed at cut
+        # time from zones.json being older than the director output
+        zf = ma / "zones.json"
+        df = ddir / "director.json"
+        zones_used = zf.is_file() and (
+            not df.is_file() or zf.stat().st_mtime <= df.stat().st_mtime)
+    zj = _read(ma / "zones.json")
+    n_zj = len((zj or {}).get("angles") or [])
+    if kfs:
+        zones_total = len(kfs)
+        zones_angles = sum(1 for k in kfs if k)
+    else:
+        zones_total = n_zj or len(
+            (_read(project_dir / "project.json") or {})
+            .get("sources", {}).get("angles") or [])
+        zones_angles = n_zj if zones_used else 0
+    if cut_dir is not None:
+        window = (meta or {}).get("range")
+        window_set = bool(window)
+    else:
+        cr = _read(ma / "cut_range.json")
+        window = [cr["lo"], cr["hi"]] if cr else None
+        window_set = cr is not None
+    share = director.get("zone_players_share")
+    return {
+        "zones_angles": zones_angles,
+        "zones_total": zones_total,
+        "window_set": bool(window_set),
+        "zone_share": share if zones_used else None,
+        "window": window,
+    }
+
+
 def snapshot_cut(project_dir: Path, style: str | None = None,
                  cut_range: list[float] | None = None) -> dict | None:
     """Snapshot the current cut into multiangle/cuts/<id>/.
@@ -75,6 +122,7 @@ def snapshot_cut(project_dir: Path, style: str | None = None,
     if cut_range:
         meta["range"] = list(cut_range)
         meta["range_out"] = [0.0, float(cut_range[1]) - float(cut_range[0])]
+    meta["cut_info"] = cut_info(project_dir, cdir, meta)
     write_json_atomic(cdir / "meta.json", meta, indent=1)
     write_json_atomic(cuts_dir / "active.json", {"id": cid}, indent=1)
     return meta
@@ -93,6 +141,7 @@ def list_cuts(project_dir: Path) -> dict:
             m = _read(d / "meta.json")
             if m:
                 m.setdefault("id", d.name)
+                m["cut_info"] = cut_info(project_dir, d, m)
                 metas.append(m)
     metas.sort(key=lambda m: m.get("created_at", 0))
     return {"active": active, "cuts": metas, "range": cur_range}

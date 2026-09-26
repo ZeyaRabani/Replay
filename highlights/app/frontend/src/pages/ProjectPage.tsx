@@ -5,6 +5,7 @@ import { ProjectApiContext, projectApi, projectsApi } from "../api";
 import DirectorCut from "../components/DirectorCut";
 import HistoryPanel from "../components/HistoryPanel";
 import PipelineProgress from "../components/PipelineProgress";
+import CutBadges from "../components/CutBadges";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
@@ -119,6 +120,7 @@ export default function ProjectPage() {
             />
           )}
           {project && <StatusPill state={project.pipeline_state} progress={project.progress} />}
+          {project?.mode === "multiangle" && <CutBadges info={project.cut_info} />}
           {project && !showPipeline && (
             <div className="flex items-center gap-1 ml-3 bg-zinc-800/60 rounded p-0.5 overflow-x-auto whitespace-nowrap min-w-0">
               <button className={tabCls(tab === "review")} onClick={() => setTab("review")}>

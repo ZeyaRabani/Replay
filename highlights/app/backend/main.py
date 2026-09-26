@@ -37,7 +37,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from highlights.io import write_json_atomic
-from highlights.multiangle.cuts import activate_cut, list_cuts, snapshot_cut
+from highlights.multiangle.cuts import (
+    activate_cut,
+    cut_info,
+    list_cuts,
+    snapshot_cut,
+)
 
 from . import ffmpeg as fx
 from . import history, pipeline, stats
@@ -776,6 +781,7 @@ def summary(p: ProjectStore) -> dict:
         "thumb_url": f"/api/projects/{p.id}/thumb.jpg" if p.video else None,
         "mode": "multiangle" if p.is_multiangle else "single",
         "n_angles": len(p.source_info.get("angles") or []) if p.is_multiangle else 1,
+        "cut_info": cut_info(p.root) if p.is_multiangle else None,
     }
 
 

@@ -225,6 +225,19 @@ def build_record(p: ProjectStore, artefacts: list[str] | None = None) -> dict:
         "artefacts": artefacts or [],
         "snapshotted_at": time.time(),
     }
+    if ma:
+        from highlights.multiangle.cuts import cut_info
+        cuts_dir = ma / "cuts"
+        if cuts_dir.is_dir():
+            record["cuts"] = [
+                {**(_read_json(c / "meta.json") or {}),
+                 "id": c.name,
+                 "cut_info": cut_info(p.root, c,
+                                      _read_json(c / "meta.json"))}
+                for c in sorted(d for d in cuts_dir.iterdir() if d.is_dir())
+            ]
+        else:
+            record["cuts"] = []
     return record
 
 
@@ -358,8 +371,11 @@ def archive_project(p: ProjectStore) -> list[str]:
                     kept.append("match.mp4")
                     root_ino = os.stat(dest / "match.mp4").st_ino
                 archived_video = True
+            ci = next((c.get("cut_info") for c in record.get("cuts", [])
+                       if c.get("id") == cdir.name), None)
             cuts_info.append({**meta, "id": cdir.name, "active": is_active,
-                              "archived_video": archived_video})
+                              "archived_video": archived_video,
+                              "cut_info": ci})
     record["artefacts"] = kept
     record["cuts"] = cuts_info
     _write_record(p.id, record)
