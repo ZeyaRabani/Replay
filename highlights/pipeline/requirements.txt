@@ -1,0 +1,12 @@
+yt-dlp
+yt-dlp-ejs>=0.8
+joblib
+scikit-learn
+pandas
+pyarrow
+librosa
+soundfile
+scipy
+opencv-python-headless
+numpy
+matplotlib

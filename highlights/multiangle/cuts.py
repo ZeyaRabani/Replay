@@ -1,0 +1,182 @@
+"""Director-cut snapshots: every completed cut is kept under
+<project>/multiangle/cuts/<id>/ so it can be re-activated or downloaded
+later. match.mp4 is hardlinked (never rewritten in place — the renderer
+writes to a tmp file then os.replace()s)."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import time
+from pathlib import Path
+
+from highlights.io import write_json_atomic
+
+SNAP_FILES = [
+    "multiangle/director.json",
+    "multiangle/fused_candidates.json",
+    "pipeline/candidates.json",
+    "pipeline/probe.json",
+    "pipeline/stats.json",
+]
+
+
+def _read(path: Path) -> dict | None:
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def cut_label(style: str, zones_used: bool) -> str:
+    return f"{'Fast' if style == 'fast' else 'Normal'} " \
+           f"{'+ zones' if zones_used else '(AI)'}"
+
+
+def cut_info(project_dir: Path, cut_dir: Path | None = None,
+             meta: dict | None = None) -> dict | None:
+    """Zone/window info for one cut (or the active one when cut_dir=None,
+    i.e. the live multiangle/ state). None when the project isn't
+    multi-angle or has no director output yet."""
+    ma = project_dir / "multiangle"
+    ddir = cut_dir if cut_dir is not None else ma
+    director = _read(ddir / "director.json")
+    if not director and cut_dir is None:
+        return None
+    director = director or {}
+    zones_used = director.get("zones_used")
+    kfs = director.get("zone_keyframes")
+    if zones_used is None:
+        # cut predates zones_used recording: infer zones existed at cut
+        # time from zones.json being older than the director output
+        zf = ma / "zones.json"
+        df = ddir / "director.json"
+        zones_used = zf.is_file() and (
+            not df.is_file() or zf.stat().st_mtime <= df.stat().st_mtime)
+    zj = _read(ma / "zones.json")
+    n_zj = len((zj or {}).get("angles") or [])
+    if kfs:
+        zones_total = len(kfs)
+        zones_angles = sum(1 for k in kfs if k)
+    else:
+        zones_total = n_zj or len(
+            (_read(project_dir / "project.json") or {})
+            .get("sources", {}).get("angles") or [])
+        zones_angles = n_zj if zones_used else 0
+    if cut_dir is not None:
+        window = (meta or {}).get("range")
+        window_set = bool(window)
+    else:
+        cr = _read(ma / "cut_range.json")
+        window = [cr["lo"], cr["hi"]] if cr else None
+        window_set = cr is not None
+    share = director.get("zone_players_share")
+    return {
+        "zones_angles": zones_angles,
+        "zones_total": zones_total,
+        "window_set": bool(window_set),
+        "zone_share": share if zones_used else None,
+        "window": window,
+    }
+
+
+def snapshot_cut(project_dir: Path, style: str | None = None,
+                 cut_range: list[float] | None = None) -> dict | None:
+    """Snapshot the current cut into multiangle/cuts/<id>/.
+
+    Returns the cut meta dict, or None if there is nothing to snapshot.
+    """
+    ma = project_dir / "multiangle"
+    match = project_dir / "match.mp4"
+    director = _read(ma / "director.json")
+    if not match.is_file() or not director:
+        return None
+    cuts_dir = ma / "cuts"
+    cid = time.strftime("%Y%m%d-%H%M%S")
+    cdir = cuts_dir / cid
+    n = 1
+    while cdir.exists():
+        n += 1
+        cdir = cuts_dir / f"{cid}-{n}"
+    cid = cdir.name
+    cdir.mkdir(parents=True)
+    try:
+        os.link(match, cdir / "match.mp4")
+    except OSError:
+        shutil.copy2(match, cdir / "match.mp4")
+    for rel in SNAP_FILES:
+        src = project_dir / rel
+        if src.is_file():
+            shutil.copy2(src, cdir / src.name)
+    zones_used = bool(director.get("zones_used"))
+    st = style or director.get("style") or "normal"
+    meta = {
+        "id": cid,
+        "label": cut_label(st, zones_used),
+        "style": st,
+        "zones_used": zones_used,
+        "n_cuts": director.get("n_cuts"),
+        "created_at": time.time(),
+    }
+    if cut_range:
+        meta["range"] = list(cut_range)
+        meta["range_out"] = [0.0, float(cut_range[1]) - float(cut_range[0])]
+    meta["cut_info"] = cut_info(project_dir, cdir, meta)
+    write_json_atomic(cdir / "meta.json", meta, indent=1)
+    write_json_atomic(cuts_dir / "active.json", {"id": cid}, indent=1)
+    return meta
+
+
+def list_cuts(project_dir: Path) -> dict:
+    cuts_dir = project_dir / "multiangle" / "cuts"
+    active = (_read(cuts_dir / "active.json") or {}).get("id")
+    cr = _read(cuts_dir.parent / "cut_range.json")
+    cur_range = [cr["lo"], cr["hi"]] if cr else None
+    metas = []
+    if cuts_dir.is_dir():
+        for d in cuts_dir.iterdir():
+            if not d.is_dir():
+                continue
+            m = _read(d / "meta.json")
+            if m:
+                m.setdefault("id", d.name)
+                m["cut_info"] = cut_info(project_dir, d, m)
+                metas.append(m)
+    metas.sort(key=lambda m: m.get("created_at", 0))
+    return {"active": active, "cuts": metas, "range": cur_range}
+
+
+def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
+    """Make cuts/<cut_id>/ the live cut. Returns its meta or None."""
+    cdir = project_dir / "multiangle" / "cuts" / cut_id
+    if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
+        return None
+    live_match = project_dir / "match.mp4"
+    src = cdir / "match.mp4"
+    if src.is_file():
+        tmp = project_dir / f".match.{cut_id}.mp4"
+        tmp.unlink(missing_ok=True)
+        try:
+            os.link(src, tmp)
+        except OSError:
+            shutil.copy2(src, tmp)
+        os.replace(tmp, live_match)
+    for rel in SNAP_FILES:
+        src_f = cdir / Path(rel).name
+        dst = project_dir / rel
+        if src_f.is_file():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dst.with_name(dst.name + ".tmp")
+            shutil.copy2(src_f, tmp)
+            os.replace(tmp, dst)
+    # restore the range the cut was made with so a later re-cut uses it
+    meta = _read(cdir / "meta.json") or {}
+    cr_path = cdir.parent.parent / "cut_range.json"
+    if meta.get("range"):
+        write_json_atomic(cr_path, {"lo": meta["range"][0],
+                                    "hi": meta["range"][1]}, indent=1)
+    else:
+        cr_path.unlink(missing_ok=True)
+    write_json_atomic(cdir.parent / "active.json", {"id": cut_id}, indent=1)
+    return meta or None

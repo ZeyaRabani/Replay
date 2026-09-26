@@ -4,4 +4,15 @@
 
 body {
   @apply bg-zinc-950 text-zinc-100;
+  overflow-x: hidden;
+}
+
+/* mobile layout: 40px+ tap targets */
+.mobile button,
+.mobile select,
+.mobile [role="button"] {
+  min-height: 40px;
+}
+.mobile input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 40px;
 }

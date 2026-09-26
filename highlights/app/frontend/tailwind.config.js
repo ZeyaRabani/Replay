@@ -4,5 +4,10 @@ export default {
   theme: {
     extend: {},
   },
-  plugins: [],
+  plugins: [
+    function ({ addVariant }) {
+      addVariant("mob", ".mobile &");
+      addVariant("dsk", "html:not(.mobile) &");
+    },
+  ],
 };
