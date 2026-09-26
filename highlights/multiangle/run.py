@@ -30,6 +30,7 @@ import pandas as pd
 
 from highlights.io import write_json_atomic, write_parquet_atomic
 from highlights.pipeline.errors import PipelineError
+from highlights.pipeline.joblock import job_slot, workdir_for
 from highlights.pipeline.probe import probe as ffprobe
 from highlights.pipeline.run import _stdout_is
 from highlights.pipeline.status import StatusWriter, load_status
@@ -137,7 +138,11 @@ def stage_download(ctx: Ctx) -> None:
 
 
 def stage_angles(ctx: Ctx) -> None:
+    """Run each angle's Option-1 pipeline concurrently (ffmpeg+numpy,
+    ~1.5 cores each). Progress = mean of sub-progress; first nonzero
+    returncode terminates the rest and fails the stage."""
     n = len(ctx.angles)
+    running = []          # (i, proc, sub_status)
     for i, a in enumerate(ctx.angles):
         vid = ctx.angle_video(i)
         if vid is None:
@@ -151,21 +156,39 @@ def stage_angles(ctx: Ctx) -> None:
         proc = subprocess.Popen(
             [sys.executable, "-m", "highlights.pipeline.run",
              "--project-dir", str(a["dir"]), "--video", str(vid),
-             "--stages", ANGLE_STAGES],
+             "--stages", ANGLE_STAGES, "--no-job-lock"],
             stdout=ctx.log_fh or subprocess.DEVNULL,
             stderr=subprocess.STDOUT)
-        while proc.poll() is None:
+        running.append((i, proc, sub_status))
+
+    pending = list(running)
+    while pending:
+        msgs = []
+        still = []
+        for i, proc, sub_status in pending:
             st = load_status(sub_status) or {}
-            sub = float(st.get("progress", 0.0))
-            ctx.status.update(progress=(i + sub) / n,
-                              message=f"angle {i+1}/{n}: {st.get('message','running')}")
+            rc = proc.poll()
+            if rc is None:
+                msgs.append(f"a{i}: {st.get('message', 'running')}")
+                still.append((i, proc, sub_status))
+            elif rc == 0:
+                ctx.log(f"angles: a{i} done")
+            else:
+                for _, q, _ in pending:
+                    if q is not proc and q.poll() is None:
+                        q.terminate()
+                tail = str(st.get("error", ""))
+                raise PipelineError(
+                    f"angle {i} pipeline failed ({rc}) {tail}")
+        pending = still
+        # progress = mean over angles (skipped + finished count as 1.0)
+        subs = [1.0] * (n - len(running)) + \
+            [float((load_status(ss) or {}).get("progress", 0.0))
+             for _, _, ss in pending]
+        ctx.status.update(progress=min(1.0, sum(subs) / n),
+                          message=" · ".join(msgs) or "angles done")
+        if pending:
             time.sleep(2)
-        if proc.returncode != 0:
-            tail = ""
-            if sub_status.exists():
-                tail = str((load_status(sub_status) or {}).get("error", ""))
-            raise PipelineError(f"angle {i} pipeline failed ({proc.returncode}) {tail}")
-        ctx.log(f"angles: a{i} done")
 
 
 def stage_sync(ctx: Ctx) -> dict:
@@ -192,26 +215,70 @@ def stage_sync(ctx: Ctx) -> dict:
 
 
 def stage_track(ctx: Ctx) -> None:
-    from highlights.multiangle.trackfeat import COLS, _ensure_model, compute_rows
-    model = _ensure_model(Path(os.environ.get("HL_MA_MODEL",
-                                              str(Path(__file__).parent / "models" / "yolov8n.pt"))))
+    """Run trackfeat as a subprocess per angle, HL_TRACK_WORKERS (2) at
+    a time. OMP/TORCH threads capped at 2 so two workers fit the box.
+    Each child writes <out>.progress {t, frames} every 30 frames; the
+    stage's stage_progress is the mean of per-angle fractions."""
+    workers = int(os.environ.get("HL_TRACK_WORKERS", "2"))
+    model = os.environ.get("HL_MA_MODEL",
+                           str(Path(__file__).parent / "models" / "yolov8n.pt"))
+    env = {**os.environ, "OMP_NUM_THREADS": "2", "TORCH_NUM_THREADS": "2"}
+    n = len(ctx.angles)
+    pending = []          # (i, vid, out, prog_file)
+    n_done = 0
     for i, a in enumerate(ctx.angles):
         vid = ctx.angle_video(i)
         out = a["dir"] / "track" / "features_1s.json"
         if out.exists() and not ctx.force:
             ctx.log(f"track: a{i} skip")
+            n_done += 1
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
-        ctx.log(f"track: angle {i+1}/{len(ctx.angles)} {a['label']}")
-        rows, frames, ball_rate = compute_rows(str(vid), model, imgsz=960, fps=1.0,
-                                             max_seconds=None, log=ctx.log)
-        write_json_atomic(out, {"fps": 1, "model": str(model), "imgsz": 960,
-                                "columns": COLS, "rows": rows,
-                                "meta": {"ball_rate": round(ball_rate, 4),
-                                         "n_frames": frames}}, indent=0)
-        ctx.status.update(message=f"track angle {i+1}/{len(ctx.angles)} done",
-                          stage_progress=(i + 1) / len(ctx.angles))
-        ctx.log(f"track: a{i} done ({frames} frames, ball_rate {ball_rate:.2f})")
+        prog = out.with_suffix(".progress")
+        prog.unlink(missing_ok=True)
+        pending.append((i, vid, out, prog))
+
+    def _frac(i: int, prog: Path) -> float:
+        try:
+            t = float(json.loads(prog.read_text()).get("t", 0.0))
+        except Exception:
+            t = 0.0
+        d = ctx.duration(i)
+        return min(1.0, t / d) if d else 0.0
+
+    running = []          # (i, proc, prog)
+    while pending or running:
+        while pending and len(running) < workers:
+            i, vid, out, prog = pending.pop(0)
+            ctx.log(f"track: angle {i+1}/{n} {ctx.angles[i]['label']}")
+            running.append((i, subprocess.Popen(
+                [sys.executable, "-m", "highlights.multiangle.trackfeat",
+                 "--video", str(vid), "--out", str(out), "--model", model,
+                 "--imgsz", "960", "--fps", "1",
+                 "--progress-file", str(prog)],
+                stdout=ctx.log_fh or subprocess.DEVNULL,
+                stderr=subprocess.STDOUT, env=env), prog))
+        still = []
+        for i, proc, prog in running:
+            rc = proc.poll()
+            if rc is None:
+                still.append((i, proc, prog))
+            elif rc == 0:
+                n_done += 1
+                ctx.log(f"track: a{i} done")
+            else:
+                for _, q, _ in running:
+                    if q is not proc and q.poll() is None:
+                        q.terminate()
+                raise PipelineError(f"track angle {i} failed ({rc})")
+        running = still
+        subs = [1.0] * n_done + [_frac(i, prog) for i, _, prog in running]
+        frac = min(1.0, sum(subs) / n) if n else 1.0
+        ctx.status.update(
+            stage_progress=frac,
+            message=f"tracking {len(running) or 1}/{n} angles · {frac*100:.0f}%")
+        if pending or running:
+            time.sleep(2)
 
 
 def _load_track_rows(angle_dir: Path) -> dict:
@@ -598,7 +665,9 @@ def main(argv: list[str] | None = None) -> int:
         ctx.log_fh = log_fh
         try:
             status.update(state="running", force=True)
-            run_stages(ctx, names)
+            with job_slot(workdir_for(project_dir), status=status,
+                          log=ctx.log):
+                run_stages(ctx, names)
             if "render" in names:
                 from highlights.multiangle.cuts import snapshot_cut
                 cr = None
