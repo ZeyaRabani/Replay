@@ -23,6 +23,13 @@ def test_probe_dims_retries_empty_stdout_then_valid():
     assert s.call_count == 1
 
 
+def test_probe_dims_tolerates_trailing_comma():
+    # observed in production: "2320,1080,\n" on a stream with side data
+    with patch.object(trackfeat.subprocess, "run",
+                      return_value=_res(rc=0, out="2320,1080,\n")):
+        assert trackfeat._probe_dims("v.mp4") == (2320, 1080)
+
+
 def test_probe_dims_retries_unparseable_then_valid():
     calls = [
         _res(rc=0, out="1920,\n"),       # non-empty but broken fields

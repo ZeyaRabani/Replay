@@ -59,8 +59,12 @@ def _probe_dims(video: str, tries: int = 3, delay: float = 2.0):
         probe = subprocess.run(cmd, capture_output=True, text=True)
         if probe.returncode == 0 and probe.stdout.strip():
             try:
-                w, h = (int(x) for x in probe.stdout.strip().split(","))
-                return w, h
+                # tolerate stray empty fields, e.g. "2320,1080,\n"
+                vals = [int(x) for x in probe.stdout.strip().split(",")
+                        if x.strip()]
+                if len(vals) >= 2:
+                    return vals[0], vals[1]
+                raise ValueError
             except ValueError:
                 last = f"unparseable ffprobe output {probe.stdout!r}"
         else:
