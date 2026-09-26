@@ -186,6 +186,7 @@ export default function ProjectPage() {
             {tab === "stats" && (
               <ProjectStats
                 key={gen}
+                multiangle={project.mode === "multiangle"}
                 onSeek={(t) => {
                   setSeekRequest((s) => ({ t, n: (s?.n ?? 0) + 1 }));
                   setTab("review");

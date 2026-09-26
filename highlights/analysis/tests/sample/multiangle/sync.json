@@ -1,0 +1,60 @@
+{
+ "reference": 0,
+ "method": "manual",
+ "offsets": [
+  0.0,
+  -748.2,
+  -520.2
+ ],
+ "pairs": [
+  {
+   "a": 0,
+   "b": 1,
+   "offset": -748.2,
+   "pnr": 5.1,
+   "r2": 0.384,
+   "refine_spread_s": 0.233,
+   "confident": true,
+   "accepted_by": "manual",
+   "consistent": true,
+   "manual": true
+  },
+  {
+   "a": 0,
+   "b": 2,
+   "offset": -520.2,
+   "pnr": 3.13,
+   "r2": 0.654,
+   "refine_spread_s": 0.421,
+   "confident": true,
+   "accepted_by": "manual",
+   "consistent": true,
+   "manual": true
+  },
+  {
+   "a": 1,
+   "b": 2,
+   "offset": 228.0,
+   "pnr": 2.66,
+   "r2": 0.762,
+   "refine_spread_s": 0.579,
+   "confident": true,
+   "accepted_by": "manual",
+   "consistent": true,
+   "manual": true
+  }
+ ],
+ "triangle_residual_s": 0.0,
+ "needs_manual": [],
+ "coverage": {
+  "intersection": [
+   0.0,
+   5109.281
+  ],
+  "union": [
+   -748.2,
+   5414.341
+  ]
+ },
+ "confidence_note": "offsets entered manually"
+}

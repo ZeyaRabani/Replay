@@ -1,0 +1,6747 @@
+{
+ "source": "multiangle",
+ "events": [
+  {
+   "t": 3141.2,
+   "t_start": 3138.2,
+   "t_end": 3146.2,
+   "type": "shot",
+   "confidence": 0.95,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.801,
+     "0": 0.9
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_001",
+   "rank": 1
+  },
+  {
+   "t": 5704.8,
+   "t_start": 5701.8,
+   "t_end": 5709.8,
+   "type": "attack",
+   "confidence": 0.945,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.892,
+     "0": 0.488
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_002",
+   "rank": 2
+  },
+  {
+   "t": 3759.1,
+   "t_start": 3756.1,
+   "t_end": 3764.1,
+   "type": "shot",
+   "confidence": 0.942,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.53,
+     "0": 0.877
+    },
+    "disputed": true,
+    "types": [
+     "goalmouth",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_003",
+   "rank": 3
+  },
+  {
+   "t": 2419.6,
+   "t_start": 2416.6,
+   "t_end": 2424.6,
+   "type": "attack",
+   "confidence": 0.932,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.809,
+     "2": 0.642
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_004",
+   "rank": 4
+  },
+  {
+   "t": 3983.3,
+   "t_start": 3980.3,
+   "t_end": 3988.3,
+   "type": "shot",
+   "confidence": 0.93,
+   "signals": {
+    "angles": [
+     1,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.495,
+     "1": 0.862
+    }
+   },
+   "notes": "cross-confirmed by angles 1,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_005",
+   "rank": 5
+  },
+  {
+   "t": 4441.1,
+   "t_start": 4438.1,
+   "t_end": 4446.1,
+   "type": "goal",
+   "confidence": 0.928,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.45,
+     "0": 0.87
+    },
+    "disputed": true,
+    "types": [
+     "goal",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_006",
+   "rank": 6
+  },
+  {
+   "t": 3310.5,
+   "t_start": 3307.5,
+   "t_end": 3315.5,
+   "type": "shot",
+   "confidence": 0.911,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.801,
+     "1": 0.554
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_007",
+   "rank": 7
+  },
+  {
+   "t": 2296.6,
+   "t_start": 2293.6,
+   "t_end": 2301.6,
+   "type": "shot",
+   "confidence": 0.88,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.63,
+     "1": 0.675
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_008",
+   "rank": 8
+  },
+  {
+   "t": 4745.6,
+   "t_start": 4742.6,
+   "t_end": 4750.6,
+   "type": "shot",
+   "confidence": 0.855,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.652,
+     "0": 0.582
+    },
+    "disputed": true,
+    "types": [
+     "crowd",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_009",
+   "rank": 9
+  },
+  {
+   "t": 4370.1,
+   "t_start": 4367.1,
+   "t_end": 4375.1,
+   "type": "shot",
+   "confidence": 0.792,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.459,
+     "0": 0.615
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_010",
+   "rank": 10
+  },
+  {
+   "t": 3682.9,
+   "t_start": 3679.9,
+   "t_end": 3687.9,
+   "type": "shot",
+   "confidence": 0.788,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.649,
+     "2": 0.396
+    },
+    "disputed": true,
+    "types": [
+     "crowd",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_011",
+   "rank": 11
+  },
+  {
+   "t": 1.0,
+   "t_start": 748.2,
+   "t_end": 6.0,
+   "type": "shot",
+   "confidence": 0.765,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.9
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_012",
+   "rank": 12
+  },
+  {
+   "t": 5848.0,
+   "t_start": 5845.0,
+   "t_end": 5853.0,
+   "type": "shot",
+   "confidence": 0.765,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.9
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_013",
+   "rank": 13
+  },
+  {
+   "t": 4815.1,
+   "t_start": 4812.1,
+   "t_end": 4820.1,
+   "type": "shot",
+   "confidence": 0.76,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.45,
+     "0": 0.564
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_014",
+   "rank": 14
+  },
+  {
+   "t": 14.0,
+   "t_start": 748.2,
+   "t_end": 19.0,
+   "type": "shot",
+   "confidence": 0.759,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.893
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_015",
+   "rank": 15
+  },
+  {
+   "t": 5298.2,
+   "t_start": 5295.2,
+   "t_end": 5303.2,
+   "type": "shot",
+   "confidence": 0.758,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.892
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_016",
+   "rank": 16
+  },
+  {
+   "t": 3487.1,
+   "t_start": 3484.1,
+   "t_end": 3492.1,
+   "type": "shot",
+   "confidence": 0.754,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.463,
+     "0": 0.541
+    },
+    "disputed": true,
+    "types": [
+     "goalmouth",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_017",
+   "rank": 17
+  },
+  {
+   "t": 27.0,
+   "t_start": 748.2,
+   "t_end": 32.0,
+   "type": "shot",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.885
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_018",
+   "rank": 18
+  },
+  {
+   "t": 4701.2,
+   "t_start": 4698.2,
+   "t_end": 4706.2,
+   "type": "goal",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.885
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_019",
+   "rank": 19
+  },
+  {
+   "t": 5690.0,
+   "t_start": 5687.0,
+   "t_end": 5695.0,
+   "type": "attack",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.885
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_020",
+   "rank": 20
+  },
+  {
+   "t": 5315.8,
+   "t_start": 5312.8,
+   "t_end": 5320.8,
+   "type": "shot",
+   "confidence": 0.751,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.622,
+     "2": 0.341
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_021",
+   "rank": 21
+  },
+  {
+   "t": 897.0,
+   "t_start": 894.0,
+   "t_end": 902.0,
+   "type": "shot",
+   "confidence": 0.745,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.877
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_022",
+   "rank": 22
+  },
+  {
+   "t": 3712.0,
+   "t_start": 3709.0,
+   "t_end": 3717.0,
+   "type": "shot",
+   "confidence": 0.745,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.877
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_023",
+   "rank": 23
+  },
+  {
+   "t": 2499.3,
+   "t_start": 2496.3,
+   "t_end": 2504.3,
+   "type": "shot",
+   "confidence": 0.742,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.432,
+     "1": 0.546
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_024",
+   "rank": 24
+  },
+  {
+   "t": 1538.0,
+   "t_start": 1535.0,
+   "t_end": 1543.0,
+   "type": "shot",
+   "confidence": 0.739,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.87
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_025",
+   "rank": 25
+  },
+  {
+   "t": 3878.0,
+   "t_start": 3875.0,
+   "t_end": 3883.0,
+   "type": "shot",
+   "confidence": 0.739,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.87
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_026",
+   "rank": 26
+  },
+  {
+   "t": 3443.2,
+   "t_start": 3440.2,
+   "t_end": 3448.2,
+   "type": "shot",
+   "confidence": 0.733,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.862
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_027",
+   "rank": 27
+  },
+  {
+   "t": 3814.0,
+   "t_start": 3811.0,
+   "t_end": 3819.0,
+   "type": "attack",
+   "confidence": 0.733,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.862
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_028",
+   "rank": 28
+  },
+  {
+   "t": 2968.0,
+   "t_start": 2965.0,
+   "t_end": 2973.0,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.855
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_029",
+   "rank": 29
+  },
+  {
+   "t": 3586.2,
+   "t_start": 3583.2,
+   "t_end": 3591.2,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.855
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_030",
+   "rank": 30
+  },
+  {
+   "t": 5880.0,
+   "t_start": 5877.0,
+   "t_end": 5885.0,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.855
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_031",
+   "rank": 31
+  },
+  {
+   "t": 6156.0,
+   "t_start": 6153.0,
+   "t_end": 6161.0,
+   "type": "goalmouth",
+   "confidence": 0.721,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.848
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_032",
+   "rank": 32
+  },
+  {
+   "t": 3527.0,
+   "t_start": 3524.0,
+   "t_end": 3532.0,
+   "type": "attack",
+   "confidence": 0.72,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.847
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_033",
+   "rank": 33
+  },
+  {
+   "t": 4199.2,
+   "t_start": 4196.2,
+   "t_end": 4204.2,
+   "type": "attack",
+   "confidence": 0.72,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.847
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_034",
+   "rank": 34
+  },
+  {
+   "t": 510.0,
+   "t_start": 748.2,
+   "t_end": 515.0,
+   "type": "shot",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.84
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_035",
+   "rank": 35
+  },
+  {
+   "t": 2244.2,
+   "t_start": 2241.2,
+   "t_end": 2249.2,
+   "type": "shot",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.84
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_036",
+   "rank": 36
+  },
+  {
+   "t": 3697.0,
+   "t_start": 3694.0,
+   "t_end": 3702.0,
+   "type": "attack",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.84
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_037",
+   "rank": 37
+  },
+  {
+   "t": 1441.0,
+   "t_start": 1438.0,
+   "t_end": 1446.0,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.832
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_038",
+   "rank": 38
+  },
+  {
+   "t": 2221.0,
+   "t_start": 2218.0,
+   "t_end": 2226.0,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.832
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_039",
+   "rank": 39
+  },
+  {
+   "t": 3394.2,
+   "t_start": 3391.2,
+   "t_end": 3399.2,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.832
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_040",
+   "rank": 40
+  },
+  {
+   "t": 1552.0,
+   "t_start": 1549.0,
+   "t_end": 1557.0,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.825
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_041",
+   "rank": 41
+  },
+  {
+   "t": 2479.0,
+   "t_start": 2476.0,
+   "t_end": 2484.0,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.825
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_042",
+   "rank": 42
+  },
+  {
+   "t": 2540.2,
+   "t_start": 2537.2,
+   "t_end": 2545.2,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.825
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_043",
+   "rank": 43
+  },
+  {
+   "t": 3128.2,
+   "t_start": 3125.2,
+   "t_end": 3133.2,
+   "type": "attack",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.817
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_044",
+   "rank": 44
+  },
+  {
+   "t": 3829.0,
+   "t_start": 3826.0,
+   "t_end": 3834.0,
+   "type": "attack",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.817
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_045",
+   "rank": 45
+  },
+  {
+   "t": 5893.0,
+   "t_start": 5890.0,
+   "t_end": 5898.0,
+   "type": "shot",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.817
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_046",
+   "rank": 46
+  },
+  {
+   "t": 6076.0,
+   "t_start": 6073.0,
+   "t_end": 6081.0,
+   "type": "shot",
+   "confidence": 0.689,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.81
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_047",
+   "rank": 47
+  },
+  {
+   "t": 4300.0,
+   "t_start": 4297.0,
+   "t_end": 4305.0,
+   "type": "shot",
+   "confidence": 0.688,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.809
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_048",
+   "rank": 48
+  },
+  {
+   "t": 1495.0,
+   "t_start": 1492.0,
+   "t_end": 1500.0,
+   "type": "shot",
+   "confidence": 0.682,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.802
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_049",
+   "rank": 49
+  },
+  {
+   "t": 5840.0,
+   "t_start": 5837.0,
+   "t_end": 5845.0,
+   "type": "attack",
+   "confidence": 0.676,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.795
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_050",
+   "rank": 50
+  },
+  {
+   "t": 3048.2,
+   "t_start": 3045.2,
+   "t_end": 3053.2,
+   "type": "crowd",
+   "confidence": 0.674,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.793
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_051",
+   "rank": 51
+  },
+  {
+   "t": 4390.0,
+   "t_start": 4387.0,
+   "t_end": 4395.0,
+   "type": "goal",
+   "confidence": 0.674,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.793
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_052",
+   "rank": 52
+  },
+  {
+   "t": 1144.0,
+   "t_start": 1141.0,
+   "t_end": 1149.0,
+   "type": "shot",
+   "confidence": 0.669,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.787
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_053",
+   "rank": 53
+  },
+  {
+   "t": 2610.0,
+   "t_start": 2607.0,
+   "t_end": 2615.0,
+   "type": "shot",
+   "confidence": 0.667,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.785
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_054",
+   "rank": 54
+  },
+  {
+   "t": 5064.2,
+   "t_start": 5061.2,
+   "t_end": 5069.2,
+   "type": "shot",
+   "confidence": 0.667,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.785
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_055",
+   "rank": 55
+  },
+  {
+   "t": 865.0,
+   "t_start": 862.0,
+   "t_end": 870.0,
+   "type": "attack",
+   "confidence": 0.663,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.78
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_056",
+   "rank": 56
+  },
+  {
+   "t": 2284.0,
+   "t_start": 2281.0,
+   "t_end": 2289.0,
+   "type": "shot",
+   "confidence": 0.66,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.777
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_057",
+   "rank": 57
+  },
+  {
+   "t": 4989.2,
+   "t_start": 4986.2,
+   "t_end": 4994.2,
+   "type": "shot",
+   "confidence": 0.66,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.777
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_058",
+   "rank": 58
+  },
+  {
+   "t": 1513.0,
+   "t_start": 1510.0,
+   "t_end": 1518.0,
+   "type": "attack",
+   "confidence": 0.656,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.772
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_059",
+   "rank": 59
+  },
+  {
+   "t": 2464.2,
+   "t_start": 2461.2,
+   "t_end": 2469.2,
+   "type": "shot",
+   "confidence": 0.654,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.769
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_060",
+   "rank": 60
+  },
+  {
+   "t": 3373.0,
+   "t_start": 3370.0,
+   "t_end": 3378.0,
+   "type": "shot",
+   "confidence": 0.654,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.769
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_061",
+   "rank": 61
+  },
+  {
+   "t": 1477.0,
+   "t_start": 1474.0,
+   "t_end": 1482.0,
+   "type": "shot",
+   "confidence": 0.65,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.765
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_062",
+   "rank": 62
+  },
+  {
+   "t": 3062.2,
+   "t_start": 3059.2,
+   "t_end": 3067.2,
+   "type": "shot",
+   "confidence": 0.647,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.761
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_063",
+   "rank": 63
+  },
+  {
+   "t": 4338.0,
+   "t_start": 4335.0,
+   "t_end": 4343.0,
+   "type": "attack",
+   "confidence": 0.647,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.761
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_064",
+   "rank": 64
+  },
+  {
+   "t": 3896.0,
+   "t_start": 3893.0,
+   "t_end": 3901.0,
+   "type": "attack",
+   "confidence": 0.643,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.757
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_065",
+   "rank": 65
+  },
+  {
+   "t": 2448.2,
+   "t_start": 2445.2,
+   "t_end": 2453.2,
+   "type": "shot",
+   "confidence": 0.64,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.753
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_066",
+   "rank": 66
+  },
+  {
+   "t": 4113.0,
+   "t_start": 4110.0,
+   "t_end": 4118.0,
+   "type": "attack",
+   "confidence": 0.64,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.753
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_067",
+   "rank": 67
+  },
+  {
+   "t": 678.0,
+   "t_start": 748.2,
+   "t_end": 683.0,
+   "type": "shot",
+   "confidence": 0.637,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.75
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_068",
+   "rank": 68
+  },
+  {
+   "t": 5517.0,
+   "t_start": 5514.0,
+   "t_end": 5522.0,
+   "type": "crowd",
+   "confidence": 0.633,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.745
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_069",
+   "rank": 69
+  },
+  {
+   "t": 4623.2,
+   "t_start": 4620.2,
+   "t_end": 4628.2,
+   "type": "shot",
+   "confidence": 0.632,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.744
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_070",
+   "rank": 70
+  },
+  {
+   "t": 5867.0,
+   "t_start": 5864.0,
+   "t_end": 5872.0,
+   "type": "shot",
+   "confidence": 0.631,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.742
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_071",
+   "rank": 71
+  },
+  {
+   "t": 4505.0,
+   "t_start": 4502.0,
+   "t_end": 4510.0,
+   "type": "shot",
+   "confidence": 0.626,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.736
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_072",
+   "rank": 72
+  },
+  {
+   "t": 2527.2,
+   "t_start": 2524.2,
+   "t_end": 2532.2,
+   "type": "shot",
+   "confidence": 0.625,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.735
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_073",
+   "rank": 73
+  },
+  {
+   "t": 6018.0,
+   "t_start": 6015.0,
+   "t_end": 6023.0,
+   "type": "shot",
+   "confidence": 0.625,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.735
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_074",
+   "rank": 74
+  },
+  {
+   "t": 2207.0,
+   "t_start": 2204.0,
+   "t_end": 2212.0,
+   "type": "shot",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.727
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_075",
+   "rank": 75
+  },
+  {
+   "t": 4167.2,
+   "t_start": 4164.2,
+   "t_end": 4172.2,
+   "type": "attack",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.727
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_076",
+   "rank": 76
+  },
+  {
+   "t": 6052.0,
+   "t_start": 6049.0,
+   "t_end": 6057.0,
+   "type": "shot",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.727
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_077",
+   "rank": 77
+  },
+  {
+   "t": 1333.0,
+   "t_start": 1330.0,
+   "t_end": 1338.0,
+   "type": "shot",
+   "confidence": 0.612,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.72
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_078",
+   "rank": 78
+  },
+  {
+   "t": 2813.2,
+   "t_start": 2810.2,
+   "t_end": 2818.2,
+   "type": "goalmouth",
+   "confidence": 0.61,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.718
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_079",
+   "rank": 79
+  },
+  {
+   "t": 3473.0,
+   "t_start": 3470.0,
+   "t_end": 3478.0,
+   "type": "attack",
+   "confidence": 0.61,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.718
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_080",
+   "rank": 80
+  },
+  {
+   "t": 1626.0,
+   "t_start": 1623.0,
+   "t_end": 1631.0,
+   "type": "shot",
+   "confidence": 0.605,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.712
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_081",
+   "rank": 81
+  },
+  {
+   "t": 2907.0,
+   "t_start": 2904.0,
+   "t_end": 2912.0,
+   "type": "attack",
+   "confidence": 0.603,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.709
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_082",
+   "rank": 82
+  },
+  {
+   "t": 4598.2,
+   "t_start": 4595.2,
+   "t_end": 4603.2,
+   "type": "shot",
+   "confidence": 0.603,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.709
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_083",
+   "rank": 83
+  },
+  {
+   "t": 6129.0,
+   "t_start": 6126.0,
+   "t_end": 6134.0,
+   "type": "shot",
+   "confidence": 0.599,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.705
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_084",
+   "rank": 84
+  },
+  {
+   "t": 5346.0,
+   "t_start": 5343.0,
+   "t_end": 5351.0,
+   "type": "shot",
+   "confidence": 0.596,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.701
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_085",
+   "rank": 85
+  },
+  {
+   "t": 5491.2,
+   "t_start": 5488.2,
+   "t_end": 5496.2,
+   "type": "shot",
+   "confidence": 0.596,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.701
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_086",
+   "rank": 86
+  },
+  {
+   "t": 5997.0,
+   "t_start": 5994.0,
+   "t_end": 6002.0,
+   "type": "shot",
+   "confidence": 0.592,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.697
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_087",
+   "rank": 87
+  },
+  {
+   "t": 5684.2,
+   "t_start": 5681.2,
+   "t_end": 5689.2,
+   "type": "shot",
+   "confidence": 0.587,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.691
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_088",
+   "rank": 88
+  },
+  {
+   "t": 1428.0,
+   "t_start": 1425.0,
+   "t_end": 1433.0,
+   "type": "goalmouth",
+   "confidence": 0.586,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.69
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_089",
+   "rank": 89
+  },
+  {
+   "t": 2854.0,
+   "t_start": 2851.0,
+   "t_end": 2859.0,
+   "type": "shot",
+   "confidence": 0.586,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.689
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_090",
+   "rank": 90
+  },
+  {
+   "t": 5719.2,
+   "t_start": 5716.2,
+   "t_end": 5724.2,
+   "type": "attack",
+   "confidence": 0.58,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.682
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_091",
+   "rank": 91
+  },
+  {
+   "t": 5973.0,
+   "t_start": 5970.0,
+   "t_end": 5978.0,
+   "type": "shot",
+   "confidence": 0.58,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.682
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_092",
+   "rank": 92
+  },
+  {
+   "t": 3917.0,
+   "t_start": 3914.0,
+   "t_end": 3922.0,
+   "type": "shot",
+   "confidence": 0.579,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.681
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_093",
+   "rank": 93
+  },
+  {
+   "t": 5540.2,
+   "t_start": 5537.2,
+   "t_end": 5545.2,
+   "type": "shot",
+   "confidence": 0.568,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.668
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_094",
+   "rank": 94
+  },
+  {
+   "t": 5799.0,
+   "t_start": 5796.0,
+   "t_end": 5804.0,
+   "type": "shot",
+   "confidence": 0.567,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.667
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_095",
+   "rank": 95
+  },
+  {
+   "t": 3608.0,
+   "t_start": 3605.0,
+   "t_end": 3613.0,
+   "type": "shot",
+   "confidence": 0.565,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.665
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_096",
+   "rank": 96
+  },
+  {
+   "t": 5908.0,
+   "t_start": 5905.0,
+   "t_end": 5913.0,
+   "type": "shot",
+   "confidence": 0.561,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.66
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_097",
+   "rank": 97
+  },
+  {
+   "t": 5741.2,
+   "t_start": 5738.2,
+   "t_end": 5746.2,
+   "type": "shot",
+   "confidence": 0.558,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.657
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_098",
+   "rank": 98
+  },
+  {
+   "t": 2118.0,
+   "t_start": 2115.0,
+   "t_end": 2123.0,
+   "type": "attack",
+   "confidence": 0.557,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.655
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_099",
+   "rank": 99
+  },
+  {
+   "t": 3735.0,
+   "t_start": 3732.0,
+   "t_end": 3740.0,
+   "type": "shot",
+   "confidence": 0.548,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.645
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_100",
+   "rank": 100
+  },
+  {
+   "t": 3003.2,
+   "t_start": 3000.2,
+   "t_end": 3008.2,
+   "type": "shot",
+   "confidence": 0.545,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.641
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_101",
+   "rank": 101
+  },
+  {
+   "t": 1457.0,
+   "t_start": 1454.0,
+   "t_end": 1462.0,
+   "type": "shot",
+   "confidence": 0.541,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.637
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_102",
+   "rank": 102
+  },
+  {
+   "t": 563.0,
+   "t_start": 748.2,
+   "t_end": 568.0,
+   "type": "shot",
+   "confidence": 0.535,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.63
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_103",
+   "rank": 103
+  },
+  {
+   "t": 4000.0,
+   "t_start": 3997.0,
+   "t_end": 4005.0,
+   "type": "shot",
+   "confidence": 0.535,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.629
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_104",
+   "rank": 104
+  },
+  {
+   "t": 5260.0,
+   "t_start": 5257.0,
+   "t_end": 5265.0,
+   "type": "attack",
+   "confidence": 0.529,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.622
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_105",
+   "rank": 105
+  },
+  {
+   "t": 4098.0,
+   "t_start": 4095.0,
+   "t_end": 4103.0,
+   "type": "crowd",
+   "confidence": 0.527,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.62
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_106",
+   "rank": 106
+  },
+  {
+   "t": 6089.0,
+   "t_start": 6086.0,
+   "t_end": 6094.0,
+   "type": "shot",
+   "confidence": 0.523,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.615
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_107",
+   "rank": 107
+  },
+  {
+   "t": 3948.0,
+   "t_start": 3945.0,
+   "t_end": 3953.0,
+   "type": "shot",
+   "confidence": 0.52,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.612
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_108",
+   "rank": 108
+  },
+  {
+   "t": 1565.0,
+   "t_start": 1562.0,
+   "t_end": 1570.0,
+   "type": "attack",
+   "confidence": 0.516,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.607
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_109",
+   "rank": 109
+  },
+  {
+   "t": 4918.2,
+   "t_start": 4915.2,
+   "t_end": 4923.2,
+   "type": "shot",
+   "confidence": 0.513,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.604
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_110",
+   "rank": 110
+  },
+  {
+   "t": 2041.0,
+   "t_start": 2038.0,
+   "t_end": 2046.0,
+   "type": "attack",
+   "confidence": 0.51,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.6
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_111",
+   "rank": 111
+  },
+  {
+   "t": 5931.0,
+   "t_start": 5928.0,
+   "t_end": 5936.0,
+   "type": "shot",
+   "confidence": 0.51,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.6
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_112",
+   "rank": 112
+  },
+  {
+   "t": 1263.0,
+   "t_start": 1260.0,
+   "t_end": 1268.0,
+   "type": "attack",
+   "confidence": 0.503,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.592
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_113",
+   "rank": 113
+  },
+  {
+   "t": 2693.2,
+   "t_start": 2690.2,
+   "t_end": 2698.2,
+   "type": "goalmouth",
+   "confidence": 0.503,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.592
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_114",
+   "rank": 114
+  },
+  {
+   "t": 3264.0,
+   "t_start": 3261.0,
+   "t_end": 3269.0,
+   "type": "attack",
+   "confidence": 0.5,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.588
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_115",
+   "rank": 115
+  },
+  {
+   "t": 3431.0,
+   "t_start": 3428.0,
+   "t_end": 3436.0,
+   "type": "goalmouth",
+   "confidence": 0.496,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.584
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_116",
+   "rank": 116
+  },
+  {
+   "t": 4018.0,
+   "t_start": 4015.0,
+   "t_end": 4023.0,
+   "type": "attack",
+   "confidence": 0.492,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.579
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_117",
+   "rank": 117
+  },
+  {
+   "t": 1070.0,
+   "t_start": 1067.0,
+   "t_end": 1075.0,
+   "type": "attack",
+   "confidence": 0.49,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.577
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_118",
+   "rank": 118
+  },
+  {
+   "t": 2435.0,
+   "t_start": 2432.0,
+   "t_end": 2440.0,
+   "type": "shot",
+   "confidence": 0.486,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.572
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_119",
+   "rank": 119
+  },
+  {
+   "t": 2830.2,
+   "t_start": 2827.2,
+   "t_end": 2835.2,
+   "type": "shot",
+   "confidence": 0.486,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.572
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_120",
+   "rank": 120
+  },
+  {
+   "t": 6032.0,
+   "t_start": 6029.0,
+   "t_end": 6037.0,
+   "type": "shot",
+   "confidence": 0.484,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.569
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_121",
+   "rank": 121
+  },
+  {
+   "t": 5572.0,
+   "t_start": 5569.0,
+   "t_end": 5577.0,
+   "type": "shot",
+   "confidence": 0.479,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.563
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_122",
+   "rank": 122
+  },
+  {
+   "t": 1159.0,
+   "t_start": 1156.0,
+   "t_end": 1164.0,
+   "type": "shot",
+   "confidence": 0.477,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.561
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_123",
+   "rank": 123
+  },
+  {
+   "t": 2343.2,
+   "t_start": 2340.2,
+   "t_end": 2348.2,
+   "type": "shot",
+   "confidence": 0.473,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.557
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_124",
+   "rank": 124
+  },
+  {
+   "t": 4735.0,
+   "t_start": 4732.0,
+   "t_end": 4740.0,
+   "type": "goalmouth",
+   "confidence": 0.468,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.551
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_125",
+   "rank": 125
+  },
+  {
+   "t": 2514.2,
+   "t_start": 2511.2,
+   "t_end": 2519.2,
+   "type": "shot",
+   "confidence": 0.466,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.548
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_126",
+   "rank": 126
+  },
+  {
+   "t": 5169.0,
+   "t_start": 5166.0,
+   "t_end": 5174.0,
+   "type": "shot",
+   "confidence": 0.46,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.541
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_127",
+   "rank": 127
+  },
+  {
+   "t": 1639.0,
+   "t_start": 1636.0,
+   "t_end": 1644.0,
+   "type": "attack",
+   "confidence": 0.457,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.538
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_128",
+   "rank": 128
+  },
+  {
+   "t": 4314.0,
+   "t_start": 4311.0,
+   "t_end": 4319.0,
+   "type": "goal",
+   "confidence": 0.452,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.532
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_129",
+   "rank": 129
+  },
+  {
+   "t": 2102.2,
+   "t_start": 2099.2,
+   "t_end": 2107.2,
+   "type": "goalmouth",
+   "confidence": 0.451,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.53
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_130",
+   "rank": 130
+  },
+  {
+   "t": 665.0,
+   "t_start": 748.2,
+   "t_end": 670.0,
+   "type": "shot",
+   "confidence": 0.445,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.523
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_131",
+   "rank": 131
+  },
+  {
+   "t": 2595.0,
+   "t_start": 2592.0,
+   "t_end": 2600.0,
+   "type": "attack",
+   "confidence": 0.445,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.524
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_132",
+   "rank": 132
+  },
+  {
+   "t": 4839.2,
+   "t_start": 4836.2,
+   "t_end": 4844.2,
+   "type": "shot",
+   "confidence": 0.439,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.517
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_133",
+   "rank": 133
+  },
+  {
+   "t": 4403.0,
+   "t_start": 4400.0,
+   "t_end": 4408.0,
+   "type": "shot",
+   "confidence": 0.438,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.515
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_134",
+   "rank": 134
+  },
+  {
+   "t": 1609.0,
+   "t_start": 1606.0,
+   "t_end": 1614.0,
+   "type": "attack",
+   "confidence": 0.437,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.514
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_135",
+   "rank": 135
+  },
+  {
+   "t": 5819.0,
+   "t_start": 5816.0,
+   "t_end": 5824.0,
+   "type": "shot",
+   "confidence": 0.43,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.506
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_136",
+   "rank": 136
+  },
+  {
+   "t": 4273.2,
+   "t_start": 4270.2,
+   "t_end": 4278.2,
+   "type": "crowd",
+   "confidence": 0.428,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.503
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_137",
+   "rank": 137
+  },
+  {
+   "t": 1809.0,
+   "t_start": 1806.0,
+   "t_end": 1814.0,
+   "type": "shot",
+   "confidence": 0.424,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.499
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_138",
+   "rank": 138
+  },
+  {
+   "t": 5853.0,
+   "t_start": 5850.0,
+   "t_end": 5858.0,
+   "type": "shot",
+   "confidence": 0.417,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.491
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_139",
+   "rank": 139
+  },
+  {
+   "t": 465.0,
+   "t_start": 748.2,
+   "t_end": 470.0,
+   "type": "shot",
+   "confidence": 0.41,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.482
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_140",
+   "rank": 140
+  },
+  {
+   "t": 4127.0,
+   "t_start": 4124.0,
+   "t_end": 4132.0,
+   "type": "shot",
+   "confidence": 0.408,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.48
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_141",
+   "rank": 141
+  },
+  {
+   "t": 1720.0,
+   "t_start": 1717.0,
+   "t_end": 1725.0,
+   "type": "attack",
+   "confidence": 0.404,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.475
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_142",
+   "rank": 142
+  },
+  {
+   "t": 3155.2,
+   "t_start": 3152.2,
+   "t_end": 3160.2,
+   "type": "attack",
+   "confidence": 0.4,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.471
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_143",
+   "rank": 143
+  },
+  {
+   "t": 4902.0,
+   "t_start": 4899.0,
+   "t_end": 4907.0,
+   "type": "attack",
+   "confidence": 0.4,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.471
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_144",
+   "rank": 144
+  },
+  {
+   "t": 1676.0,
+   "t_start": 1673.0,
+   "t_end": 1681.0,
+   "type": "attack",
+   "confidence": 0.397,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.467
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_145",
+   "rank": 145
+  },
+  {
+   "t": 5602.2,
+   "t_start": 5599.2,
+   "t_end": 5607.2,
+   "type": "goalmouth",
+   "confidence": 0.387,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.455
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_146",
+   "rank": 146
+  },
+  {
+   "t": 4644.2,
+   "t_start": 4641.2,
+   "t_end": 4649.2,
+   "type": "goalmouth",
+   "confidence": 0.379,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.446
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_147",
+   "rank": 147
+  },
+  {
+   "t": 5429.0,
+   "t_start": 5426.0,
+   "t_end": 5434.0,
+   "type": "goalmouth",
+   "confidence": 0.372,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.438
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_148",
+   "rank": 148
+  },
+  {
+   "t": 3209.2,
+   "t_start": 3206.2,
+   "t_end": 3214.2,
+   "type": "goalmouth",
+   "confidence": 0.36,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.423
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_149",
+   "rank": 149
+  },
+  {
+   "t": 2145.0,
+   "t_start": 2142.0,
+   "t_end": 2150.0,
+   "type": "attack",
+   "confidence": 0.359,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.422
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_150",
+   "rank": 150
+  },
+  {
+   "t": 4984.0,
+   "t_start": 4981.0,
+   "t_end": 4989.0,
+   "type": "crowd",
+   "confidence": 0.349,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.411
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_151",
+   "rank": 151
+  },
+  {
+   "t": 5632.2,
+   "t_start": 5629.2,
+   "t_end": 5637.2,
+   "type": "shot",
+   "confidence": 0.345,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.406
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_152",
+   "rank": 152
+  },
+  {
+   "t": 3641.2,
+   "t_start": 3638.2,
+   "t_end": 3646.2,
+   "type": "shot",
+   "confidence": 0.337,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.397
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_153",
+   "rank": 153
+  },
+  {
+   "t": 3112.2,
+   "t_start": 3109.2,
+   "t_end": 3117.2,
+   "type": "attack",
+   "confidence": 0.331,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.389
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_154",
+   "rank": 154
+  },
+  {
+   "t": 3028.0,
+   "t_start": 3025.0,
+   "t_end": 3033.0,
+   "type": "attack",
+   "confidence": 0.325,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.382
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_155",
+   "rank": 155
+  },
+  {
+   "t": 3551.2,
+   "t_start": 3548.2,
+   "t_end": 3556.2,
+   "type": "goalmouth",
+   "confidence": 0.323,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.38
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_156",
+   "rank": 156
+  },
+  {
+   "t": 4949.2,
+   "t_start": 4946.2,
+   "t_end": 4954.2,
+   "type": "attack",
+   "confidence": 0.315,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.371
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_157",
+   "rank": 157
+  },
+  {
+   "t": 4954.0,
+   "t_start": 4951.0,
+   "t_end": 4959.0,
+   "type": "goalmouth",
+   "confidence": 0.314,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.369
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_158",
+   "rank": 158
+  },
+  {
+   "t": 2131.0,
+   "t_start": 2128.0,
+   "t_end": 2136.0,
+   "type": "attack",
+   "confidence": 0.306,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.36
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_159",
+   "rank": 159
+  },
+  {
+   "t": 4417.2,
+   "t_start": 4414.2,
+   "t_end": 4422.2,
+   "type": "shot",
+   "confidence": 0.303,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.357
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_160",
+   "rank": 160
+  },
+  {
+   "t": 5478.0,
+   "t_start": 5475.0,
+   "t_end": 5483.0,
+   "type": "attack",
+   "confidence": 0.298,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.351
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_161",
+   "rank": 161
+  },
+  {
+   "t": 3805.2,
+   "t_start": 3802.2,
+   "t_end": 3810.2,
+   "type": "shot",
+   "confidence": 0.292,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.343
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_162",
+   "rank": 162
+  },
+  {
+   "t": 3599.2,
+   "t_start": 3596.2,
+   "t_end": 3604.2,
+   "type": "goalmouth",
+   "confidence": 0.279,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.328
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_163",
+   "rank": 163
+  },
+  {
+   "t": 4934.0,
+   "t_start": 4931.0,
+   "t_end": 4939.0,
+   "type": "shot",
+   "confidence": 0.278,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.327
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_164",
+   "rank": 164
+  },
+  {
+   "t": 4467.0,
+   "t_start": 4464.0,
+   "t_end": 4472.0,
+   "type": "attack",
+   "confidence": 0.269,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.317
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_165",
+   "rank": 165
+  }
+ ],
+ "candidates": [
+  {
+   "t": 3141.2,
+   "t_start": 3138.2,
+   "t_end": 3146.2,
+   "type": "shot",
+   "confidence": 0.95,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.801,
+     "0": 0.9
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_001",
+   "rank": 1
+  },
+  {
+   "t": 5704.8,
+   "t_start": 5701.8,
+   "t_end": 5709.8,
+   "type": "attack",
+   "confidence": 0.945,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.892,
+     "0": 0.488
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_002",
+   "rank": 2
+  },
+  {
+   "t": 3759.1,
+   "t_start": 3756.1,
+   "t_end": 3764.1,
+   "type": "shot",
+   "confidence": 0.942,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.53,
+     "0": 0.877
+    },
+    "disputed": true,
+    "types": [
+     "goalmouth",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_003",
+   "rank": 3
+  },
+  {
+   "t": 2419.6,
+   "t_start": 2416.6,
+   "t_end": 2424.6,
+   "type": "attack",
+   "confidence": 0.932,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.809,
+     "2": 0.642
+    }
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_004",
+   "rank": 4
+  },
+  {
+   "t": 3983.3,
+   "t_start": 3980.3,
+   "t_end": 3988.3,
+   "type": "shot",
+   "confidence": 0.93,
+   "signals": {
+    "angles": [
+     1,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.495,
+     "1": 0.862
+    }
+   },
+   "notes": "cross-confirmed by angles 1,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_005",
+   "rank": 5
+  },
+  {
+   "t": 4441.1,
+   "t_start": 4438.1,
+   "t_end": 4446.1,
+   "type": "goal",
+   "confidence": 0.928,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.45,
+     "0": 0.87
+    },
+    "disputed": true,
+    "types": [
+     "goal",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_006",
+   "rank": 6
+  },
+  {
+   "t": 3310.5,
+   "t_start": 3307.5,
+   "t_end": 3315.5,
+   "type": "shot",
+   "confidence": 0.911,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.801,
+     "1": 0.554
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_007",
+   "rank": 7
+  },
+  {
+   "t": 2296.6,
+   "t_start": 2293.6,
+   "t_end": 2301.6,
+   "type": "shot",
+   "confidence": 0.88,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.63,
+     "1": 0.675
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_008",
+   "rank": 8
+  },
+  {
+   "t": 4745.6,
+   "t_start": 4742.6,
+   "t_end": 4750.6,
+   "type": "shot",
+   "confidence": 0.855,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.652,
+     "0": 0.582
+    },
+    "disputed": true,
+    "types": [
+     "crowd",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_009",
+   "rank": 9
+  },
+  {
+   "t": 4370.1,
+   "t_start": 4367.1,
+   "t_end": 4375.1,
+   "type": "shot",
+   "confidence": 0.792,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "1": 0.459,
+     "0": 0.615
+    }
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_010",
+   "rank": 10
+  },
+  {
+   "t": 3682.9,
+   "t_start": 3679.9,
+   "t_end": 3687.9,
+   "type": "shot",
+   "confidence": 0.788,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.649,
+     "2": 0.396
+    },
+    "disputed": true,
+    "types": [
+     "crowd",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_011",
+   "rank": 11
+  },
+  {
+   "t": 1.0,
+   "t_start": 748.2,
+   "t_end": 6.0,
+   "type": "shot",
+   "confidence": 0.765,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.9
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_012",
+   "rank": 12
+  },
+  {
+   "t": 5848.0,
+   "t_start": 5845.0,
+   "t_end": 5853.0,
+   "type": "shot",
+   "confidence": 0.765,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.9
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_013",
+   "rank": 13
+  },
+  {
+   "t": 4815.1,
+   "t_start": 4812.1,
+   "t_end": 4820.1,
+   "type": "shot",
+   "confidence": 0.76,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.45,
+     "0": 0.564
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_014",
+   "rank": 14
+  },
+  {
+   "t": 14.0,
+   "t_start": 748.2,
+   "t_end": 19.0,
+   "type": "shot",
+   "confidence": 0.759,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.893
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_015",
+   "rank": 15
+  },
+  {
+   "t": 5298.2,
+   "t_start": 5295.2,
+   "t_end": 5303.2,
+   "type": "shot",
+   "confidence": 0.758,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.892
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_016",
+   "rank": 16
+  },
+  {
+   "t": 3487.1,
+   "t_start": 3484.1,
+   "t_end": 3492.1,
+   "type": "shot",
+   "confidence": 0.754,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "2": 0.463,
+     "0": 0.541
+    },
+    "disputed": true,
+    "types": [
+     "goalmouth",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_017",
+   "rank": 17
+  },
+  {
+   "t": 27.0,
+   "t_start": 748.2,
+   "t_end": 32.0,
+   "type": "shot",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.885
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_018",
+   "rank": 18
+  },
+  {
+   "t": 4701.2,
+   "t_start": 4698.2,
+   "t_end": 4706.2,
+   "type": "goal",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.885
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_019",
+   "rank": 19
+  },
+  {
+   "t": 5690.0,
+   "t_start": 5687.0,
+   "t_end": 5695.0,
+   "type": "attack",
+   "confidence": 0.752,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.885
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_020",
+   "rank": 20
+  },
+  {
+   "t": 5315.8,
+   "t_start": 5312.8,
+   "t_end": 5320.8,
+   "type": "shot",
+   "confidence": 0.751,
+   "signals": {
+    "angles": [
+     0,
+     2
+    ],
+    "angle_conf": {
+     "0": 0.622,
+     "2": 0.341
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,2",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_021",
+   "rank": 21
+  },
+  {
+   "t": 897.0,
+   "t_start": 894.0,
+   "t_end": 902.0,
+   "type": "shot",
+   "confidence": 0.745,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.877
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_022",
+   "rank": 22
+  },
+  {
+   "t": 3712.0,
+   "t_start": 3709.0,
+   "t_end": 3717.0,
+   "type": "shot",
+   "confidence": 0.745,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.877
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_023",
+   "rank": 23
+  },
+  {
+   "t": 2499.3,
+   "t_start": 2496.3,
+   "t_end": 2504.3,
+   "type": "shot",
+   "confidence": 0.742,
+   "signals": {
+    "angles": [
+     0,
+     1
+    ],
+    "angle_conf": {
+     "0": 0.432,
+     "1": 0.546
+    },
+    "disputed": true,
+    "types": [
+     "attack",
+     "shot"
+    ]
+   },
+   "notes": "cross-confirmed by angles 0,1",
+   "cross_validation": "confirmed",
+   "status": "pending",
+   "id": "event_024",
+   "rank": 24
+  },
+  {
+   "t": 1538.0,
+   "t_start": 1535.0,
+   "t_end": 1543.0,
+   "type": "shot",
+   "confidence": 0.739,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.87
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_025",
+   "rank": 25
+  },
+  {
+   "t": 3878.0,
+   "t_start": 3875.0,
+   "t_end": 3883.0,
+   "type": "shot",
+   "confidence": 0.739,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.87
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_026",
+   "rank": 26
+  },
+  {
+   "t": 3443.2,
+   "t_start": 3440.2,
+   "t_end": 3448.2,
+   "type": "shot",
+   "confidence": 0.733,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.862
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_027",
+   "rank": 27
+  },
+  {
+   "t": 3814.0,
+   "t_start": 3811.0,
+   "t_end": 3819.0,
+   "type": "attack",
+   "confidence": 0.733,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.862
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_028",
+   "rank": 28
+  },
+  {
+   "t": 2968.0,
+   "t_start": 2965.0,
+   "t_end": 2973.0,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.855
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_029",
+   "rank": 29
+  },
+  {
+   "t": 3586.2,
+   "t_start": 3583.2,
+   "t_end": 3591.2,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.855
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_030",
+   "rank": 30
+  },
+  {
+   "t": 5880.0,
+   "t_start": 5877.0,
+   "t_end": 5885.0,
+   "type": "shot",
+   "confidence": 0.727,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.855
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_031",
+   "rank": 31
+  },
+  {
+   "t": 6156.0,
+   "t_start": 6153.0,
+   "t_end": 6161.0,
+   "type": "goalmouth",
+   "confidence": 0.721,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.848
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_032",
+   "rank": 32
+  },
+  {
+   "t": 3527.0,
+   "t_start": 3524.0,
+   "t_end": 3532.0,
+   "type": "attack",
+   "confidence": 0.72,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.847
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_033",
+   "rank": 33
+  },
+  {
+   "t": 4199.2,
+   "t_start": 4196.2,
+   "t_end": 4204.2,
+   "type": "attack",
+   "confidence": 0.72,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.847
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_034",
+   "rank": 34
+  },
+  {
+   "t": 510.0,
+   "t_start": 748.2,
+   "t_end": 515.0,
+   "type": "shot",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.84
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_035",
+   "rank": 35
+  },
+  {
+   "t": 2244.2,
+   "t_start": 2241.2,
+   "t_end": 2249.2,
+   "type": "shot",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.84
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_036",
+   "rank": 36
+  },
+  {
+   "t": 3697.0,
+   "t_start": 3694.0,
+   "t_end": 3702.0,
+   "type": "attack",
+   "confidence": 0.714,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.84
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_037",
+   "rank": 37
+  },
+  {
+   "t": 1441.0,
+   "t_start": 1438.0,
+   "t_end": 1446.0,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.832
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_038",
+   "rank": 38
+  },
+  {
+   "t": 2221.0,
+   "t_start": 2218.0,
+   "t_end": 2226.0,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.832
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_039",
+   "rank": 39
+  },
+  {
+   "t": 3394.2,
+   "t_start": 3391.2,
+   "t_end": 3399.2,
+   "type": "shot",
+   "confidence": 0.707,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.832
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_040",
+   "rank": 40
+  },
+  {
+   "t": 1552.0,
+   "t_start": 1549.0,
+   "t_end": 1557.0,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.825
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_041",
+   "rank": 41
+  },
+  {
+   "t": 2479.0,
+   "t_start": 2476.0,
+   "t_end": 2484.0,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.825
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_042",
+   "rank": 42
+  },
+  {
+   "t": 2540.2,
+   "t_start": 2537.2,
+   "t_end": 2545.2,
+   "type": "shot",
+   "confidence": 0.701,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.825
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_043",
+   "rank": 43
+  },
+  {
+   "t": 3128.2,
+   "t_start": 3125.2,
+   "t_end": 3133.2,
+   "type": "attack",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.817
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_044",
+   "rank": 44
+  },
+  {
+   "t": 3829.0,
+   "t_start": 3826.0,
+   "t_end": 3834.0,
+   "type": "attack",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.817
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_045",
+   "rank": 45
+  },
+  {
+   "t": 5893.0,
+   "t_start": 5890.0,
+   "t_end": 5898.0,
+   "type": "shot",
+   "confidence": 0.694,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.817
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_046",
+   "rank": 46
+  },
+  {
+   "t": 6076.0,
+   "t_start": 6073.0,
+   "t_end": 6081.0,
+   "type": "shot",
+   "confidence": 0.689,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.81
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_047",
+   "rank": 47
+  },
+  {
+   "t": 4300.0,
+   "t_start": 4297.0,
+   "t_end": 4305.0,
+   "type": "shot",
+   "confidence": 0.688,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.809
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_048",
+   "rank": 48
+  },
+  {
+   "t": 1495.0,
+   "t_start": 1492.0,
+   "t_end": 1500.0,
+   "type": "shot",
+   "confidence": 0.682,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.802
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_049",
+   "rank": 49
+  },
+  {
+   "t": 5840.0,
+   "t_start": 5837.0,
+   "t_end": 5845.0,
+   "type": "attack",
+   "confidence": 0.676,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.795
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_050",
+   "rank": 50
+  },
+  {
+   "t": 3048.2,
+   "t_start": 3045.2,
+   "t_end": 3053.2,
+   "type": "crowd",
+   "confidence": 0.674,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.793
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_051",
+   "rank": 51
+  },
+  {
+   "t": 4390.0,
+   "t_start": 4387.0,
+   "t_end": 4395.0,
+   "type": "goal",
+   "confidence": 0.674,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.793
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_052",
+   "rank": 52
+  },
+  {
+   "t": 1144.0,
+   "t_start": 1141.0,
+   "t_end": 1149.0,
+   "type": "shot",
+   "confidence": 0.669,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.787
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_053",
+   "rank": 53
+  },
+  {
+   "t": 2610.0,
+   "t_start": 2607.0,
+   "t_end": 2615.0,
+   "type": "shot",
+   "confidence": 0.667,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.785
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_054",
+   "rank": 54
+  },
+  {
+   "t": 5064.2,
+   "t_start": 5061.2,
+   "t_end": 5069.2,
+   "type": "shot",
+   "confidence": 0.667,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.785
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_055",
+   "rank": 55
+  },
+  {
+   "t": 865.0,
+   "t_start": 862.0,
+   "t_end": 870.0,
+   "type": "attack",
+   "confidence": 0.663,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.78
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_056",
+   "rank": 56
+  },
+  {
+   "t": 2284.0,
+   "t_start": 2281.0,
+   "t_end": 2289.0,
+   "type": "shot",
+   "confidence": 0.66,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.777
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_057",
+   "rank": 57
+  },
+  {
+   "t": 4989.2,
+   "t_start": 4986.2,
+   "t_end": 4994.2,
+   "type": "shot",
+   "confidence": 0.66,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.777
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_058",
+   "rank": 58
+  },
+  {
+   "t": 1513.0,
+   "t_start": 1510.0,
+   "t_end": 1518.0,
+   "type": "attack",
+   "confidence": 0.656,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.772
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_059",
+   "rank": 59
+  },
+  {
+   "t": 2464.2,
+   "t_start": 2461.2,
+   "t_end": 2469.2,
+   "type": "shot",
+   "confidence": 0.654,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.769
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_060",
+   "rank": 60
+  },
+  {
+   "t": 3373.0,
+   "t_start": 3370.0,
+   "t_end": 3378.0,
+   "type": "shot",
+   "confidence": 0.654,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.769
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_061",
+   "rank": 61
+  },
+  {
+   "t": 1477.0,
+   "t_start": 1474.0,
+   "t_end": 1482.0,
+   "type": "shot",
+   "confidence": 0.65,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.765
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_062",
+   "rank": 62
+  },
+  {
+   "t": 3062.2,
+   "t_start": 3059.2,
+   "t_end": 3067.2,
+   "type": "shot",
+   "confidence": 0.647,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.761
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_063",
+   "rank": 63
+  },
+  {
+   "t": 4338.0,
+   "t_start": 4335.0,
+   "t_end": 4343.0,
+   "type": "attack",
+   "confidence": 0.647,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.761
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_064",
+   "rank": 64
+  },
+  {
+   "t": 3896.0,
+   "t_start": 3893.0,
+   "t_end": 3901.0,
+   "type": "attack",
+   "confidence": 0.643,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.757
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_065",
+   "rank": 65
+  },
+  {
+   "t": 2448.2,
+   "t_start": 2445.2,
+   "t_end": 2453.2,
+   "type": "shot",
+   "confidence": 0.64,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.753
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_066",
+   "rank": 66
+  },
+  {
+   "t": 4113.0,
+   "t_start": 4110.0,
+   "t_end": 4118.0,
+   "type": "attack",
+   "confidence": 0.64,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.753
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_067",
+   "rank": 67
+  },
+  {
+   "t": 678.0,
+   "t_start": 748.2,
+   "t_end": 683.0,
+   "type": "shot",
+   "confidence": 0.637,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.75
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_068",
+   "rank": 68
+  },
+  {
+   "t": 5517.0,
+   "t_start": 5514.0,
+   "t_end": 5522.0,
+   "type": "crowd",
+   "confidence": 0.633,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.745
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_069",
+   "rank": 69
+  },
+  {
+   "t": 4623.2,
+   "t_start": 4620.2,
+   "t_end": 4628.2,
+   "type": "shot",
+   "confidence": 0.632,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.744
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_070",
+   "rank": 70
+  },
+  {
+   "t": 5867.0,
+   "t_start": 5864.0,
+   "t_end": 5872.0,
+   "type": "shot",
+   "confidence": 0.631,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.742
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_071",
+   "rank": 71
+  },
+  {
+   "t": 4505.0,
+   "t_start": 4502.0,
+   "t_end": 4510.0,
+   "type": "shot",
+   "confidence": 0.626,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.736
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_072",
+   "rank": 72
+  },
+  {
+   "t": 2527.2,
+   "t_start": 2524.2,
+   "t_end": 2532.2,
+   "type": "shot",
+   "confidence": 0.625,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.735
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_073",
+   "rank": 73
+  },
+  {
+   "t": 6018.0,
+   "t_start": 6015.0,
+   "t_end": 6023.0,
+   "type": "shot",
+   "confidence": 0.625,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.735
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_074",
+   "rank": 74
+  },
+  {
+   "t": 2207.0,
+   "t_start": 2204.0,
+   "t_end": 2212.0,
+   "type": "shot",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.727
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_075",
+   "rank": 75
+  },
+  {
+   "t": 4167.2,
+   "t_start": 4164.2,
+   "t_end": 4172.2,
+   "type": "attack",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.727
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_076",
+   "rank": 76
+  },
+  {
+   "t": 6052.0,
+   "t_start": 6049.0,
+   "t_end": 6057.0,
+   "type": "shot",
+   "confidence": 0.618,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.727
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_077",
+   "rank": 77
+  },
+  {
+   "t": 1333.0,
+   "t_start": 1330.0,
+   "t_end": 1338.0,
+   "type": "shot",
+   "confidence": 0.612,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.72
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_078",
+   "rank": 78
+  },
+  {
+   "t": 2813.2,
+   "t_start": 2810.2,
+   "t_end": 2818.2,
+   "type": "goalmouth",
+   "confidence": 0.61,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.718
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_079",
+   "rank": 79
+  },
+  {
+   "t": 3473.0,
+   "t_start": 3470.0,
+   "t_end": 3478.0,
+   "type": "attack",
+   "confidence": 0.61,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.718
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_080",
+   "rank": 80
+  },
+  {
+   "t": 1626.0,
+   "t_start": 1623.0,
+   "t_end": 1631.0,
+   "type": "shot",
+   "confidence": 0.605,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.712
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_081",
+   "rank": 81
+  },
+  {
+   "t": 2907.0,
+   "t_start": 2904.0,
+   "t_end": 2912.0,
+   "type": "attack",
+   "confidence": 0.603,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.709
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_082",
+   "rank": 82
+  },
+  {
+   "t": 4598.2,
+   "t_start": 4595.2,
+   "t_end": 4603.2,
+   "type": "shot",
+   "confidence": 0.603,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.709
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_083",
+   "rank": 83
+  },
+  {
+   "t": 6129.0,
+   "t_start": 6126.0,
+   "t_end": 6134.0,
+   "type": "shot",
+   "confidence": 0.599,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.705
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_084",
+   "rank": 84
+  },
+  {
+   "t": 5346.0,
+   "t_start": 5343.0,
+   "t_end": 5351.0,
+   "type": "shot",
+   "confidence": 0.596,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.701
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_085",
+   "rank": 85
+  },
+  {
+   "t": 5491.2,
+   "t_start": 5488.2,
+   "t_end": 5496.2,
+   "type": "shot",
+   "confidence": 0.596,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.701
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_086",
+   "rank": 86
+  },
+  {
+   "t": 5997.0,
+   "t_start": 5994.0,
+   "t_end": 6002.0,
+   "type": "shot",
+   "confidence": 0.592,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.697
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_087",
+   "rank": 87
+  },
+  {
+   "t": 5684.2,
+   "t_start": 5681.2,
+   "t_end": 5689.2,
+   "type": "shot",
+   "confidence": 0.587,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.691
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_088",
+   "rank": 88
+  },
+  {
+   "t": 1428.0,
+   "t_start": 1425.0,
+   "t_end": 1433.0,
+   "type": "goalmouth",
+   "confidence": 0.586,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.69
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_089",
+   "rank": 89
+  },
+  {
+   "t": 2854.0,
+   "t_start": 2851.0,
+   "t_end": 2859.0,
+   "type": "shot",
+   "confidence": 0.586,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.689
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_090",
+   "rank": 90
+  },
+  {
+   "t": 5719.2,
+   "t_start": 5716.2,
+   "t_end": 5724.2,
+   "type": "attack",
+   "confidence": 0.58,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.682
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_091",
+   "rank": 91
+  },
+  {
+   "t": 5973.0,
+   "t_start": 5970.0,
+   "t_end": 5978.0,
+   "type": "shot",
+   "confidence": 0.58,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.682
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_092",
+   "rank": 92
+  },
+  {
+   "t": 3917.0,
+   "t_start": 3914.0,
+   "t_end": 3922.0,
+   "type": "shot",
+   "confidence": 0.579,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.681
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_093",
+   "rank": 93
+  },
+  {
+   "t": 5540.2,
+   "t_start": 5537.2,
+   "t_end": 5545.2,
+   "type": "shot",
+   "confidence": 0.568,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.668
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_094",
+   "rank": 94
+  },
+  {
+   "t": 5799.0,
+   "t_start": 5796.0,
+   "t_end": 5804.0,
+   "type": "shot",
+   "confidence": 0.567,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.667
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_095",
+   "rank": 95
+  },
+  {
+   "t": 3608.0,
+   "t_start": 3605.0,
+   "t_end": 3613.0,
+   "type": "shot",
+   "confidence": 0.565,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.665
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_096",
+   "rank": 96
+  },
+  {
+   "t": 5908.0,
+   "t_start": 5905.0,
+   "t_end": 5913.0,
+   "type": "shot",
+   "confidence": 0.561,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.66
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_097",
+   "rank": 97
+  },
+  {
+   "t": 5741.2,
+   "t_start": 5738.2,
+   "t_end": 5746.2,
+   "type": "shot",
+   "confidence": 0.558,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.657
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_098",
+   "rank": 98
+  },
+  {
+   "t": 2118.0,
+   "t_start": 2115.0,
+   "t_end": 2123.0,
+   "type": "attack",
+   "confidence": 0.557,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.655
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_099",
+   "rank": 99
+  },
+  {
+   "t": 3735.0,
+   "t_start": 3732.0,
+   "t_end": 3740.0,
+   "type": "shot",
+   "confidence": 0.548,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.645
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_100",
+   "rank": 100
+  },
+  {
+   "t": 3003.2,
+   "t_start": 3000.2,
+   "t_end": 3008.2,
+   "type": "shot",
+   "confidence": 0.545,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.641
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_101",
+   "rank": 101
+  },
+  {
+   "t": 1457.0,
+   "t_start": 1454.0,
+   "t_end": 1462.0,
+   "type": "shot",
+   "confidence": 0.541,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.637
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_102",
+   "rank": 102
+  },
+  {
+   "t": 563.0,
+   "t_start": 748.2,
+   "t_end": 568.0,
+   "type": "shot",
+   "confidence": 0.535,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.63
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_103",
+   "rank": 103
+  },
+  {
+   "t": 4000.0,
+   "t_start": 3997.0,
+   "t_end": 4005.0,
+   "type": "shot",
+   "confidence": 0.535,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.629
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_104",
+   "rank": 104
+  },
+  {
+   "t": 5260.0,
+   "t_start": 5257.0,
+   "t_end": 5265.0,
+   "type": "attack",
+   "confidence": 0.529,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.622
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_105",
+   "rank": 105
+  },
+  {
+   "t": 4098.0,
+   "t_start": 4095.0,
+   "t_end": 4103.0,
+   "type": "crowd",
+   "confidence": 0.527,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.62
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_106",
+   "rank": 106
+  },
+  {
+   "t": 6089.0,
+   "t_start": 6086.0,
+   "t_end": 6094.0,
+   "type": "shot",
+   "confidence": 0.523,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.615
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_107",
+   "rank": 107
+  },
+  {
+   "t": 3948.0,
+   "t_start": 3945.0,
+   "t_end": 3953.0,
+   "type": "shot",
+   "confidence": 0.52,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.612
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_108",
+   "rank": 108
+  },
+  {
+   "t": 1565.0,
+   "t_start": 1562.0,
+   "t_end": 1570.0,
+   "type": "attack",
+   "confidence": 0.516,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.607
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_109",
+   "rank": 109
+  },
+  {
+   "t": 4918.2,
+   "t_start": 4915.2,
+   "t_end": 4923.2,
+   "type": "shot",
+   "confidence": 0.513,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.604
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_110",
+   "rank": 110
+  },
+  {
+   "t": 2041.0,
+   "t_start": 2038.0,
+   "t_end": 2046.0,
+   "type": "attack",
+   "confidence": 0.51,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.6
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_111",
+   "rank": 111
+  },
+  {
+   "t": 5931.0,
+   "t_start": 5928.0,
+   "t_end": 5936.0,
+   "type": "shot",
+   "confidence": 0.51,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.6
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_112",
+   "rank": 112
+  },
+  {
+   "t": 1263.0,
+   "t_start": 1260.0,
+   "t_end": 1268.0,
+   "type": "attack",
+   "confidence": 0.503,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.592
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_113",
+   "rank": 113
+  },
+  {
+   "t": 2693.2,
+   "t_start": 2690.2,
+   "t_end": 2698.2,
+   "type": "goalmouth",
+   "confidence": 0.503,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.592
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_114",
+   "rank": 114
+  },
+  {
+   "t": 3264.0,
+   "t_start": 3261.0,
+   "t_end": 3269.0,
+   "type": "attack",
+   "confidence": 0.5,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.588
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_115",
+   "rank": 115
+  },
+  {
+   "t": 3431.0,
+   "t_start": 3428.0,
+   "t_end": 3436.0,
+   "type": "goalmouth",
+   "confidence": 0.496,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.584
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_116",
+   "rank": 116
+  },
+  {
+   "t": 4018.0,
+   "t_start": 4015.0,
+   "t_end": 4023.0,
+   "type": "attack",
+   "confidence": 0.492,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.579
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_117",
+   "rank": 117
+  },
+  {
+   "t": 1070.0,
+   "t_start": 1067.0,
+   "t_end": 1075.0,
+   "type": "attack",
+   "confidence": 0.49,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.577
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_118",
+   "rank": 118
+  },
+  {
+   "t": 2435.0,
+   "t_start": 2432.0,
+   "t_end": 2440.0,
+   "type": "shot",
+   "confidence": 0.486,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.572
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_119",
+   "rank": 119
+  },
+  {
+   "t": 2830.2,
+   "t_start": 2827.2,
+   "t_end": 2835.2,
+   "type": "shot",
+   "confidence": 0.486,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.572
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_120",
+   "rank": 120
+  },
+  {
+   "t": 6032.0,
+   "t_start": 6029.0,
+   "t_end": 6037.0,
+   "type": "shot",
+   "confidence": 0.484,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.569
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_121",
+   "rank": 121
+  },
+  {
+   "t": 5572.0,
+   "t_start": 5569.0,
+   "t_end": 5577.0,
+   "type": "shot",
+   "confidence": 0.479,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.563
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_122",
+   "rank": 122
+  },
+  {
+   "t": 1159.0,
+   "t_start": 1156.0,
+   "t_end": 1164.0,
+   "type": "shot",
+   "confidence": 0.477,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.561
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_123",
+   "rank": 123
+  },
+  {
+   "t": 2343.2,
+   "t_start": 2340.2,
+   "t_end": 2348.2,
+   "type": "shot",
+   "confidence": 0.473,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.557
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_124",
+   "rank": 124
+  },
+  {
+   "t": 4735.0,
+   "t_start": 4732.0,
+   "t_end": 4740.0,
+   "type": "goalmouth",
+   "confidence": 0.468,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.551
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_125",
+   "rank": 125
+  },
+  {
+   "t": 2514.2,
+   "t_start": 2511.2,
+   "t_end": 2519.2,
+   "type": "shot",
+   "confidence": 0.466,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.548
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_126",
+   "rank": 126
+  },
+  {
+   "t": 5169.0,
+   "t_start": 5166.0,
+   "t_end": 5174.0,
+   "type": "shot",
+   "confidence": 0.46,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.541
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_127",
+   "rank": 127
+  },
+  {
+   "t": 1639.0,
+   "t_start": 1636.0,
+   "t_end": 1644.0,
+   "type": "attack",
+   "confidence": 0.457,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.538
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_128",
+   "rank": 128
+  },
+  {
+   "t": 4314.0,
+   "t_start": 4311.0,
+   "t_end": 4319.0,
+   "type": "goal",
+   "confidence": 0.452,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.532
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_129",
+   "rank": 129
+  },
+  {
+   "t": 2102.2,
+   "t_start": 2099.2,
+   "t_end": 2107.2,
+   "type": "goalmouth",
+   "confidence": 0.451,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.53
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_130",
+   "rank": 130
+  },
+  {
+   "t": 665.0,
+   "t_start": 748.2,
+   "t_end": 670.0,
+   "type": "shot",
+   "confidence": 0.445,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.523
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_131",
+   "rank": 131
+  },
+  {
+   "t": 2595.0,
+   "t_start": 2592.0,
+   "t_end": 2600.0,
+   "type": "attack",
+   "confidence": 0.445,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.524
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_132",
+   "rank": 132
+  },
+  {
+   "t": 4839.2,
+   "t_start": 4836.2,
+   "t_end": 4844.2,
+   "type": "shot",
+   "confidence": 0.439,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.517
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_133",
+   "rank": 133
+  },
+  {
+   "t": 4403.0,
+   "t_start": 4400.0,
+   "t_end": 4408.0,
+   "type": "shot",
+   "confidence": 0.438,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.515
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_134",
+   "rank": 134
+  },
+  {
+   "t": 1609.0,
+   "t_start": 1606.0,
+   "t_end": 1614.0,
+   "type": "attack",
+   "confidence": 0.437,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.514
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_135",
+   "rank": 135
+  },
+  {
+   "t": 5819.0,
+   "t_start": 5816.0,
+   "t_end": 5824.0,
+   "type": "shot",
+   "confidence": 0.43,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.506
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_136",
+   "rank": 136
+  },
+  {
+   "t": 4273.2,
+   "t_start": 4270.2,
+   "t_end": 4278.2,
+   "type": "crowd",
+   "confidence": 0.428,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.503
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_137",
+   "rank": 137
+  },
+  {
+   "t": 1809.0,
+   "t_start": 1806.0,
+   "t_end": 1814.0,
+   "type": "shot",
+   "confidence": 0.424,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.499
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_138",
+   "rank": 138
+  },
+  {
+   "t": 5853.0,
+   "t_start": 5850.0,
+   "t_end": 5858.0,
+   "type": "shot",
+   "confidence": 0.417,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.491
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_139",
+   "rank": 139
+  },
+  {
+   "t": 465.0,
+   "t_start": 748.2,
+   "t_end": 470.0,
+   "type": "shot",
+   "confidence": 0.41,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.482
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_140",
+   "rank": 140
+  },
+  {
+   "t": 4127.0,
+   "t_start": 4124.0,
+   "t_end": 4132.0,
+   "type": "shot",
+   "confidence": 0.408,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.48
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_141",
+   "rank": 141
+  },
+  {
+   "t": 1720.0,
+   "t_start": 1717.0,
+   "t_end": 1725.0,
+   "type": "attack",
+   "confidence": 0.404,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.475
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_142",
+   "rank": 142
+  },
+  {
+   "t": 3155.2,
+   "t_start": 3152.2,
+   "t_end": 3160.2,
+   "type": "attack",
+   "confidence": 0.4,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.471
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_143",
+   "rank": 143
+  },
+  {
+   "t": 4902.0,
+   "t_start": 4899.0,
+   "t_end": 4907.0,
+   "type": "attack",
+   "confidence": 0.4,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.471
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_144",
+   "rank": 144
+  },
+  {
+   "t": 1676.0,
+   "t_start": 1673.0,
+   "t_end": 1681.0,
+   "type": "attack",
+   "confidence": 0.397,
+   "signals": {
+    "angles": [
+     1
+    ],
+    "angle_conf": {
+     "1": 0.467
+    }
+   },
+   "notes": "single-angle (angle 1: a1)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_145",
+   "rank": 145
+  },
+  {
+   "t": 5602.2,
+   "t_start": 5599.2,
+   "t_end": 5607.2,
+   "type": "goalmouth",
+   "confidence": 0.387,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.455
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_146",
+   "rank": 146
+  },
+  {
+   "t": 4644.2,
+   "t_start": 4641.2,
+   "t_end": 4649.2,
+   "type": "goalmouth",
+   "confidence": 0.379,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.446
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_147",
+   "rank": 147
+  },
+  {
+   "t": 5429.0,
+   "t_start": 5426.0,
+   "t_end": 5434.0,
+   "type": "goalmouth",
+   "confidence": 0.372,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.438
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_148",
+   "rank": 148
+  },
+  {
+   "t": 3209.2,
+   "t_start": 3206.2,
+   "t_end": 3214.2,
+   "type": "goalmouth",
+   "confidence": 0.36,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.423
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_149",
+   "rank": 149
+  },
+  {
+   "t": 2145.0,
+   "t_start": 2142.0,
+   "t_end": 2150.0,
+   "type": "attack",
+   "confidence": 0.359,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.422
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_150",
+   "rank": 150
+  },
+  {
+   "t": 4984.0,
+   "t_start": 4981.0,
+   "t_end": 4989.0,
+   "type": "crowd",
+   "confidence": 0.349,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.411
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_151",
+   "rank": 151
+  },
+  {
+   "t": 5632.2,
+   "t_start": 5629.2,
+   "t_end": 5637.2,
+   "type": "shot",
+   "confidence": 0.345,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.406
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_152",
+   "rank": 152
+  },
+  {
+   "t": 3641.2,
+   "t_start": 3638.2,
+   "t_end": 3646.2,
+   "type": "shot",
+   "confidence": 0.337,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.397
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_153",
+   "rank": 153
+  },
+  {
+   "t": 3112.2,
+   "t_start": 3109.2,
+   "t_end": 3117.2,
+   "type": "attack",
+   "confidence": 0.331,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.389
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_154",
+   "rank": 154
+  },
+  {
+   "t": 3028.0,
+   "t_start": 3025.0,
+   "t_end": 3033.0,
+   "type": "attack",
+   "confidence": 0.325,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.382
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_155",
+   "rank": 155
+  },
+  {
+   "t": 3551.2,
+   "t_start": 3548.2,
+   "t_end": 3556.2,
+   "type": "goalmouth",
+   "confidence": 0.323,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.38
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_156",
+   "rank": 156
+  },
+  {
+   "t": 4949.2,
+   "t_start": 4946.2,
+   "t_end": 4954.2,
+   "type": "attack",
+   "confidence": 0.315,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.371
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_157",
+   "rank": 157
+  },
+  {
+   "t": 4954.0,
+   "t_start": 4951.0,
+   "t_end": 4959.0,
+   "type": "goalmouth",
+   "confidence": 0.314,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.369
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_158",
+   "rank": 158
+  },
+  {
+   "t": 2131.0,
+   "t_start": 2128.0,
+   "t_end": 2136.0,
+   "type": "attack",
+   "confidence": 0.306,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.36
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_159",
+   "rank": 159
+  },
+  {
+   "t": 4417.2,
+   "t_start": 4414.2,
+   "t_end": 4422.2,
+   "type": "shot",
+   "confidence": 0.303,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.357
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_160",
+   "rank": 160
+  },
+  {
+   "t": 5478.0,
+   "t_start": 5475.0,
+   "t_end": 5483.0,
+   "type": "attack",
+   "confidence": 0.298,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.351
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_161",
+   "rank": 161
+  },
+  {
+   "t": 3805.2,
+   "t_start": 3802.2,
+   "t_end": 3810.2,
+   "type": "shot",
+   "confidence": 0.292,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.343
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_162",
+   "rank": 162
+  },
+  {
+   "t": 3599.2,
+   "t_start": 3596.2,
+   "t_end": 3604.2,
+   "type": "goalmouth",
+   "confidence": 0.279,
+   "signals": {
+    "angles": [
+     0
+    ],
+    "angle_conf": {
+     "0": 0.328
+    }
+   },
+   "notes": "single-angle (angle 0: a0)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_163",
+   "rank": 163
+  },
+  {
+   "t": 4934.0,
+   "t_start": 4931.0,
+   "t_end": 4939.0,
+   "type": "shot",
+   "confidence": 0.278,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.327
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_164",
+   "rank": 164
+  },
+  {
+   "t": 4467.0,
+   "t_start": 4464.0,
+   "t_end": 4472.0,
+   "type": "attack",
+   "confidence": 0.269,
+   "signals": {
+    "angles": [
+     2
+    ],
+    "angle_conf": {
+     "2": 0.317
+    }
+   },
+   "notes": "single-angle (angle 2: a2)",
+   "cross_validation": "pipeline_only",
+   "status": "pending",
+   "id": "event_165",
+   "rank": 165
+  }
+ ]
+}

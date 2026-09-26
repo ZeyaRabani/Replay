@@ -284,6 +284,97 @@ export interface Stats {
   };
 }
 
+export interface AnalysisStatus {
+  state: "queued" | "running" | "done" | "failed";
+  stage: string | null;
+  progress: number;
+  message?: string;
+  error: string | null;
+  started_at?: number | null;
+  finished_at?: number | null;
+}
+
+export interface AnalysisTimes {
+  t_shared: number;
+  t_out: number;
+  t_file: number;
+}
+
+export interface AnalysisTeamInfo {
+  name: string;
+  hex: string;
+}
+
+export interface AnalysisHalfTeam {
+  possession_pct: number;
+  attacking_third_s: number;
+  shots: number;
+  goals_confirmed: number;
+  goals_estimated: number;
+  attacks_right: boolean | null;
+}
+
+export interface AnalysisHalf {
+  index: number;
+  start: number;
+  end: number;
+  start_out: number;
+  start_file: number;
+  ball_visible_pct: number;
+  contested_pct: number;
+  teams: { A: AnalysisHalfTeam; B: AnalysisHalfTeam };
+}
+
+export interface AnalysisTotals {
+  possession_pct: number;
+  attacking_third_s: number;
+  shots: number;
+  goals_confirmed: number;
+  goals_estimated: number;
+  distance_norm: number;
+  distance_m_est: number;
+  sprints: number;
+  tracked_player_seconds: number;
+}
+
+export interface AnalysisShot extends AnalysisTimes {
+  type: string;
+  confidence: number;
+  status: string;
+  team: "A" | "B" | null;
+  half: number;
+}
+
+export interface AnalysisMatchStats {
+  generated_at?: number;
+  match_window: [number, number];
+  lo_out: number;
+  ref_angle: number;
+  offsets: number[];
+  pitch_type: number | null;
+  teams: { A: AnalysisTeamInfo; B: AnalysisTeamInfo };
+  team_confidence: number | null;
+  halves: AnalysisHalf[];
+  ends_swapped: boolean;
+  totals: { A: AnalysisTotals; B: AnalysisTotals };
+  shots: AnalysisShot[];
+  caveats: string[];
+  distance_norm_2d_total?: number;
+}
+
+export interface MatchSummary {
+  text: string;
+  bullets: { t_shared: number; t_out: number; t_file: number; label: string }[];
+  generated_at: number | string;
+}
+
+export interface AnalysisResponse {
+  status: AnalysisStatus | null;
+  stats: AnalysisMatchStats | null;
+  summary: MatchSummary | null;
+  estimate_min: number;
+}
+
 export interface CutMeta {
   id: string;
   label: string;
