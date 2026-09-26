@@ -106,7 +106,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
 
   if (!data) {
     return (
-      <div className="flex-1 min-h-0 overflow-auto p-4">
+      <div className="flex flex-col gap-3">
         <div className="text-sm text-zinc-500 flex items-center gap-2">
           {!error && <Loader2 size={14} className="animate-spin" />}
           {error ?? "Loading…"}
@@ -123,8 +123,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
   if (live && status) {
     const pct = Math.round((status.progress ?? 0) * 100);
     return (
-      <div className="flex-1 min-h-0 overflow-auto p-4">
-        <div className="max-w-4xl mx-auto flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
           <div className={card}>
             <div className={head}>Match analysis</div>
             <div className="flex items-center gap-3 text-xs">
@@ -148,7 +147,6 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
             </div>
           </div>
           {error && <div className="text-xs text-red-300">{error}</div>}
-        </div>
       </div>
     );
   }
@@ -157,8 +155,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
   if (!stats) {
     const failed = status?.state === "failed";
     return (
-      <div className="flex-1 min-h-0 overflow-auto p-4">
-        <div className="max-w-4xl mx-auto flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
           {error && <div className="text-xs text-red-300">{error}</div>}
           <div className={card}>
             <div className={head}>Match analysis</div>
@@ -181,7 +178,6 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
               {failed ? "Retry analysis" : "Analyse match"} (~{data.estimate_min} min)
             </button>
           </div>
-        </div>
       </div>
     );
   }
@@ -225,8 +221,10 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto p-4">
-      <div className="max-w-4xl mx-auto flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Match analysis
+        </div>
         {error && <div className="text-xs text-red-300">{error}</div>}
 
         {/* team header */}
@@ -248,7 +246,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
               className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 disabled:opacity-40 shrink-0"
             >
               {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-              Re-run
+              Re-analyse
             </button>
           </div>
           {stats.team_confidence != null && (
@@ -439,7 +437,6 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
             </ul>
           </div>
         )}
-      </div>
     </div>
   );
 }

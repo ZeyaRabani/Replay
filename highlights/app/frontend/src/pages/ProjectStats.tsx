@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import { useProjectApi } from "../api";
+import MatchAnalysis from "../components/MatchAnalysis";
 import { TYPE_COLORS, TYPE_LABEL } from "../components/Timeline";
 import { fmtClock } from "../lib/time";
 import type { MatchStats, Stats, TopMoment } from "../types";
@@ -39,6 +40,7 @@ const TYPE_ORDER = [
 
 interface Props {
   onSeek: (t: number) => void;
+  multiangle?: boolean;
 }
 
 interface ChartClickState {
@@ -166,7 +168,7 @@ function MatchStatsCard({ ms, onSeek }: { ms: MatchStats; onSeek: (t: number) =>
   );
 }
 
-export default function ProjectStats({ onSeek }: Props) {
+export default function ProjectStats({ onSeek, multiangle = false }: Props) {
   const api = useProjectApi();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,18 +198,24 @@ export default function ProjectStats({ onSeek }: Props) {
     return TYPE_ORDER.filter((k) => ks.has(k));
   }, [stats]);
 
-  if (error)
+  if (error || !stats) {
     return (
-      <div className="p-6 text-sm text-zinc-400">
-        Stats not available: <span className="text-red-300">{error}</span>
+      <div className="flex-1 min-h-0 overflow-auto p-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+          {multiangle && <MatchAnalysis onSeek={onSeek} />}
+          {error ? (
+            <div className="p-6 text-sm text-zinc-400">
+              Stats not available: <span className="text-red-300">{error}</span>
+            </div>
+          ) : (
+            <div className="p-6 text-sm text-zinc-500 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Loading stats…
+            </div>
+          )}
+        </div>
       </div>
     );
-  if (!stats)
-    return (
-      <div className="p-6 text-sm text-zinc-500 flex items-center gap-2">
-        <Loader2 size={14} className="animate-spin" /> Loading stats…
-      </div>
-    );
+  }
 
   const seekFromChart = (s: ChartClickState) => {
     if (s.activeLabel !== undefined && s.activeLabel !== null) {
@@ -229,6 +237,7 @@ export default function ProjectStats({ onSeek }: Props) {
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
+        {multiangle && <MatchAnalysis onSeek={onSeek} />}
         {ms && <MatchStatsCard ms={ms} onSeek={onSeek} />}
         <div className="grid grid-cols-2 dsk:md:grid-cols-3 dsk:xl:grid-cols-6 gap-3">
           <Kpi icon={<Activity size={18} />} label="Mean motion" value={pct(stats.activity.mean_motion)} />
