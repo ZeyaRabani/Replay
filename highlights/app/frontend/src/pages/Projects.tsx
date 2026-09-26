@@ -5,6 +5,7 @@ import { configApi, getUser, meApi, mediaUrl, projectApi, projectsApi } from "..
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
+import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
 import type { ProjectMeta, ProjectSummary } from "../types";
 
@@ -53,6 +54,7 @@ function ProjectCard({
   onSetupCookies,
   onUploadInstead,
   onPurge,
+  onRename,
 }: {
   p: ProjectSummary;
   onDelete: (p: ProjectSummary) => void;
@@ -61,6 +63,7 @@ function ProjectCard({
   onSetupCookies: () => void;
   onUploadInstead: () => void;
   onPurge: (p: ProjectSummary) => void;
+  onRename: (p: ProjectSummary, title: string) => void;
 }) {
   const [thumbErr, setThumbErr] = useState(false);
   return (
@@ -84,6 +87,7 @@ function ProjectCard({
           <Link to={`/projects/${p.id}`} className="font-medium text-sm truncate hover:text-amber-300 flex-1">
             {p.title}
           </Link>
+          <TitleEdit value={p.title} onSave={(t) => onRename(p, t)} />
           <button
             className="text-zinc-500 hover:text-red-300 p-1"
             title="Delete project"
@@ -760,6 +764,15 @@ export default function Projects() {
     projectsApi.storage().then(setStorage).catch(() => setStorage(null));
   }, [projects?.length]);
 
+  const rename = async (p: ProjectSummary, title: string) => {
+    try {
+      await projectsApi.rename(p.id, title);
+      setProjects((ps) => ps?.map((x) => (x.id === p.id ? { ...x, title } : x)) ?? null);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const purge = async (p: ProjectSummary) => {
     if (!window.confirm(
       `Delete the original angle videos for "${p.title}"? The director cut, candidates and stats are kept; re-cut will be disabled.`))
@@ -831,6 +844,7 @@ export default function Projects() {
                 onSetupCookies={openCookiesPanel}
                 onUploadInstead={uploadInstead}
                 onPurge={purge}
+                onRename={rename}
               />
             ))
           )}

@@ -1,10 +1,11 @@
 import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ProjectApiContext, projectApi } from "../api";
+import { ProjectApiContext, projectApi, projectsApi } from "../api";
 import DirectorCut from "../components/DirectorCut";
 import PipelineProgress from "../components/PipelineProgress";
 import StatusPill from "../components/StatusPill";
+import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
 import type { PipelineStatus, ProjectDetail } from "../types";
 import ProjectReview from "./ProjectReview";
@@ -103,6 +104,19 @@ export default function ProjectPage() {
             <ChevronLeft size={16} />
           </Link>
           <span className="text-sm truncate">{project?.title ?? "…"}</span>
+          {project && (
+            <TitleEdit
+              value={project.title}
+              onSave={async (t) => {
+                try {
+                  await projectsApi.rename(project.id, t);
+                  setProject({ ...project, title: t });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            />
+          )}
           {project && <StatusPill state={project.pipeline_state} progress={project.progress} />}
           {project && !showPipeline && (
             <div className="flex items-center gap-1 ml-3 bg-zinc-800/60 rounded p-0.5 overflow-x-auto whitespace-nowrap min-w-0">

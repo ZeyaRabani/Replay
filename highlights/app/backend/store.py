@@ -286,6 +286,10 @@ class ProjectStore:
             return c
 
 
+MERGE_USERS = {"demo": "admin", "john": "admin", "yusuf": "zeya"}
+DROP_USERS = {"watch", "qa", "testing"}
+
+
 class Registry:
     """Users + projects rooted at a workdir. Thread-safe."""
 
@@ -296,6 +300,39 @@ class Registry:
         self.users_path = root / "users.json"
         self.lock = threading.RLock()
         self._projects: dict[str, ProjectStore] = {}
+        self._migrate_users()
+
+    def _migrate_users(self) -> None:
+        """One-off profile cleanup: demo/john profiles merge into admin
+        (their projects keep ownership via reassignment); throwaway test
+        profiles are dropped unless they still own projects."""
+        with self.lock:
+            users = self._read_users()
+            projects = self.list_projects()
+            if (not any(u["name"] in MERGE_USERS or u["name"] in DROP_USERS
+                        for u in users)
+                    and not any(p.owner in MERGE_USERS for p in projects)):
+                return
+            for p in projects:
+                if p.owner in MERGE_USERS:
+                    p.owner = MERGE_USERS[p.owner]
+                    p.save()
+            owners = {p.owner for p in self.list_projects()}
+            have = {u["name"] for u in users}
+            keep = []
+            for u in users:
+                n = u["name"]
+                if n in MERGE_USERS:
+                    if MERGE_USERS[n] not in have:
+                        keep.append({"name": MERGE_USERS[n],
+                                     "created_at": u.get("created_at",
+                                                         time.time())})
+                        have.add(MERGE_USERS[n])
+                    continue
+                if n in DROP_USERS and n not in owners:
+                    continue
+                keep.append(u)
+            self._write_users(keep)
 
     # ---------- users ----------
 

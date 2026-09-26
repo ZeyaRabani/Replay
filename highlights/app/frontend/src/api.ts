@@ -114,6 +114,8 @@ export const projectsApi = {
     return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
   },
   remove: (id: string) => req<void>(`/api/projects/${id}`, { method: "DELETE" }),
+  rename: (id: string, title: string) =>
+    req<{ id: string; title: string }>(`/api/projects/${id}`, json({ title }, "PATCH")),
   storage: () =>
     req<{
       total_bytes: number;

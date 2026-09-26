@@ -44,7 +44,7 @@ def test_users(client):
     assert client.post("/api/users", json={"name": "x" * 41}).status_code == 422
     users = client.get("/api/users").json()
     names = {u["name"] for u in users}
-    assert {"demo", "tester", "alice"} <= names
+    assert {"admin", "tester", "alice"} <= names
     assert all("n_projects" in u for u in users)
 
 
@@ -294,10 +294,10 @@ def test_owner_isolation_and_delete(client, sample_video):
 
 
 def test_legacy_404_without_demo(client):
-    # remove the seeded demo project so legacy routes have nothing to map to
-    demo = client.get("/api/projects", headers={"X-User": "demo"}).json()
+    # remove the seeded admin project so legacy routes have nothing to map to
+    demo = client.get("/api/projects", headers={"X-User": "admin"}).json()
     for d in demo:
-        client.delete(scoped(d["id"], ""), headers={"X-User": "demo"})
+        client.delete(scoped(d["id"], ""), headers={"X-User": "admin"})
     r = client.get("/api/video")
     assert r.status_code == 404
     assert "legacy" in r.json()["detail"]
@@ -310,15 +310,15 @@ def test_demo_project(client, sample_video, tmp_path, monkeypatch):
     m.reset_registry()
     from fastapi.testclient import TestClient
     c = TestClient(m.app)
-    assert any(u["name"] == "demo" for u in c.get("/api/users").json())
-    projects = c.get("/api/projects", headers={"X-User": "demo"}).json()
+    assert any(u["name"] == "admin" for u in c.get("/api/users").json())
+    projects = c.get("/api/projects", headers={"X-User": "admin"}).json()
     assert len(projects) == 1
     d = projects[0]
     assert d["title"] == "Demo match (5qj_nsQSzvQ)"
     assert d["n_candidates"] == 47
     assert d["pipeline_state"] == "done"
     pid = d["id"]
-    st = c.get(scoped(pid, "/stats"), headers={"X-User": "demo"}).json()
+    st = c.get(scoped(pid, "/stats"), headers={"X-User": "admin"}).json()
     assert set(st.keys()) == STATS_KEYS
     for row in st["timeline"]:
         assert 0 <= row["motion"] <= 1
