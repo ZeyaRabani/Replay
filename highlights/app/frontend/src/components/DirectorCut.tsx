@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
 import ZoneEditor, { zoneStillTimes } from "./ZoneEditor";
-import { fmtClock } from "../lib/time";
+import { fmtClock, parseClock } from "../lib/time";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
@@ -66,6 +66,10 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [useWindow, setUseWindow] = useState(true);
   const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
+  const [maWinEdit, setMaWinEdit] = useState(false);
+  const [maWinIn, setMaWinIn] = useState("");
+  const [maWinOut, setMaWinOut] = useState("");
+  const [maWinBusy, setMaWinBusy] = useState(false);
   const zonesLoaded = useRef(false);
   const timer = useRef<number | null>(null);
 
@@ -163,6 +167,29 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
       return false;
     } finally {
       setZoneBusy(false);
+    }
+  };
+
+  const saveMaWindow = async (clear = false) => {
+    setMaWinBusy(true);
+    try {
+      if (clear) {
+        await api.putMatchWindowMa(null, null);
+      } else {
+        const s = parseClock(maWinIn);
+        const e = parseClock(maWinOut);
+        if (s === null || e === null || s >= e) {
+          setError("match window needs valid m:ss start < end");
+          return;
+        }
+        await api.putMatchWindowMa(s, e);
+      }
+      setMaWinEdit(false);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setMaWinBusy(false);
     }
   };
 
@@ -343,6 +370,79 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   </div>
                 </>
               )}
+            </div>
+
+            {/* match window (Angle-1 time; tracking + director read it) */}
+            <div className={card}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Match window
+                </div>
+                <span className="text-[11px] text-zinc-400">Angle 1 time</span>
+                {info.match_window && !maWinEdit ? (
+                  <span className="text-xs font-mono text-zinc-200">
+                    {fmtClock(info.match_window[0])}–{fmtClock(info.match_window[1])}
+                  </span>
+                ) : !maWinEdit ? (
+                  <span className="text-[11px] text-zinc-500">full video</span>
+                ) : null}
+                {maWinEdit ? (
+                  <>
+                    <input
+                      className={`${input} w-16`}
+                      placeholder="0:00"
+                      value={maWinIn}
+                      onChange={(e) => setMaWinIn(e.target.value)}
+                    />
+                    –
+                    <input
+                      className={`${input} w-16`}
+                      placeholder="0:00"
+                      value={maWinOut}
+                      onChange={(e) => setMaWinOut(e.target.value)}
+                    />
+                    <button
+                      disabled={maWinBusy}
+                      onClick={() => void saveMaWindow()}
+                      className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Save
+                    </button>
+                    <button
+                      disabled={maWinBusy}
+                      onClick={() => setMaWinEdit(false)}
+                      className="text-[11px] text-zinc-400 hover:text-zinc-200 px-1 py-0.5"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <span className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setMaWinIn(info.match_window ? fmtClock(info.match_window[0]) : "");
+                        setMaWinOut(info.match_window ? fmtClock(info.match_window[1]) : "");
+                        setMaWinEdit(true);
+                      }}
+                      className="text-[11px] text-amber-300 hover:text-amber-200 underline"
+                    >
+                      {info.match_window ? "Edit" : "Set"}
+                    </button>
+                    {info.match_window && (
+                      <button
+                        disabled={maWinBusy}
+                        onClick={() => void saveMaWindow(true)}
+                        className="text-[11px] text-zinc-400 hover:text-zinc-200"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 text-[11px] text-zinc-500">
+                Tracking and the director only analyse this span on the next run (30 s padding is added per angle).
+              </div>
             </div>
 
             {/* rule ratios */}

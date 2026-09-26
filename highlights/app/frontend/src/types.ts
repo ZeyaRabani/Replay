@@ -184,6 +184,8 @@ export interface MultiangleInfo {
   status: PipelineStatus | null;
   cut_style?: string;
   sources_purged?: boolean;
+  /** [lo, hi] in Angle-1 file seconds, or null when unset */
+  match_window?: [number, number] | null;
 }
 
 export interface PipelineStatus {

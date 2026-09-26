@@ -214,17 +214,49 @@ def stage_sync(ctx: Ctx) -> dict:
     return out
 
 
+TRACK_PAD = 30.0
+
+
+def angle_track_window(lo: float, hi: float, offset: float,
+                       duration: float, pad: float = TRACK_PAD
+                       ) -> tuple[float, float]:
+    """Shared-T window [lo, hi] -> angle file-time range, padded and
+    clamped to [0, duration]. Returns (lo_f, hi_f) with hi_f >= lo_f."""
+    lo_f = max(0.0, lo - offset - pad)
+    hi_f = min(max(0.0, duration), hi - offset + pad)
+    return lo_f, max(lo_f, hi_f)
+
+
 def stage_track(ctx: Ctx) -> None:
     """Run trackfeat as a subprocess per angle, HL_TRACK_WORKERS (2) at
     a time. OMP/TORCH threads capped at 2 so two workers fit the box.
     Each child writes <out>.progress {t, frames} every 30 frames; the
-    stage's stage_progress is the mean of per-angle fractions."""
+    stage's stage_progress is the mean of per-angle fractions.
+    When multiangle/cut_range.json exists (shared-T == angle-0 file time,
+    offsets[0]==0), each angle only tracks its overlap with the match
+    window, padded by TRACK_PAD."""
     workers = int(os.environ.get("HL_TRACK_WORKERS", "2"))
     model = os.environ.get("HL_MA_MODEL",
                            str(Path(__file__).parent / "models" / "yolov8n.pt"))
     env = {**os.environ, "OMP_NUM_THREADS": "2", "TORCH_NUM_THREADS": "2"}
     n = len(ctx.angles)
-    pending = []          # (i, vid, out, prog_file)
+    # match window in shared-T (cut_range.json), applied per angle
+    win = None
+    try:
+        cr = json.loads((ctx.pipe / "cut_range.json").read_text())
+        w_lo, w_hi = float(cr["lo"]), float(cr["hi"])
+        if w_hi > w_lo >= 0:
+            win = (w_lo, w_hi)
+    except Exception:
+        win = None
+    offsets = [0.0] * n
+    if win is not None:
+        try:
+            offsets = [float(o) for o in
+                       json.loads((ctx.pipe / "sync.json").read_text())["offsets"]]
+        except Exception:
+            win = None      # no sync yet — track the full videos
+    pending = []          # (i, vid, out, prog_file, lo_f, hi_f)
     n_done = 0
     for i, a in enumerate(ctx.angles):
         vid = ctx.angle_video(i)
@@ -236,37 +268,53 @@ def stage_track(ctx: Ctx) -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         prog = out.with_suffix(".progress")
         prog.unlink(missing_ok=True)
-        pending.append((i, vid, out, prog))
+        dur = ctx.duration(i)
+        if win is None:
+            lo_f, hi_f = 0.0, dur
+        else:
+            lo_f, hi_f = angle_track_window(
+                win[0], win[1], offsets[i] if i < len(offsets) else 0.0, dur)
+            ctx.log(f"track: a{i} window {lo_f:.0f}-{hi_f:.0f} s "
+                    f"(of {dur:.0f})")
+        pending.append((i, vid, out, prog, lo_f, hi_f))
 
-    def _frac(i: int, prog: Path) -> float:
+    def _frac(i: int, prog: Path, lo_f: float, hi_f: float) -> float:
         try:
             t = float(json.loads(prog.read_text()).get("t", 0.0))
         except Exception:
             t = 0.0
-        d = ctx.duration(i)
-        return min(1.0, t / d) if d else 0.0
+        span = hi_f - lo_f
+        if span <= 0:
+            span = ctx.duration(i) or 1.0
+            lo_f = 0.0
+        return min(1.0, max(0.0, (t - lo_f) / span))
 
-    def _spawn(i: int, vid, out, prog):
+    def _spawn(i: int, vid, out, prog, lo_f: float, hi_f: float):
         ctx.log(f"track: angle {i+1}/{n} {ctx.angles[i]['label']}")
+        cmd = [sys.executable, "-m", "highlights.multiangle.trackfeat",
+               "--video", str(vid), "--out", str(out), "--model", model,
+               "--imgsz", "960", "--fps", "1",
+               "--progress-file", str(prog)]
+        if win is not None:
+            cmd += ["--start-s", f"{lo_f:.3f}", "--end-s", f"{hi_f:.3f}"]
         return subprocess.Popen(
-            [sys.executable, "-m", "highlights.multiangle.trackfeat",
-             "--video", str(vid), "--out", str(out), "--model", model,
-             "--imgsz", "960", "--fps", "1",
-             "--progress-file", str(prog)],
+            cmd,
             stdout=ctx.log_fh or subprocess.DEVNULL,
             stderr=subprocess.STDOUT, env=env)
 
-    running = []          # (i, vid, out, proc, prog)
+    running = []          # (i, vid, out, proc, prog, lo_f, hi_f)
     retried = set()       # angles already retried once after a non-zero exit
     while pending or running:
         while pending and len(running) < workers:
-            i, vid, out, prog = pending.pop(0)
-            running.append((i, vid, out, _spawn(i, vid, out, prog), prog))
+            i, vid, out, prog, lo_f, hi_f = pending.pop(0)
+            running.append((i, vid, out,
+                            _spawn(i, vid, out, prog, lo_f, hi_f),
+                            prog, lo_f, hi_f))
         still = []
-        for i, vid, out, proc, prog in running:
+        for i, vid, out, proc, prog, lo_f, hi_f in running:
             rc = proc.poll()
             if rc is None:
-                still.append((i, vid, out, proc, prog))
+                still.append((i, vid, out, proc, prog, lo_f, hi_f))
             elif rc == 0:
                 n_done += 1
                 ctx.log(f"track: a{i} done")
@@ -276,14 +324,17 @@ def stage_track(ctx: Ctx) -> None:
                 retried.add(i)
                 prog.unlink(missing_ok=True)
                 ctx.log(f"track: a{i} failed ({rc}), retrying once")
-                still.append((i, vid, out, _spawn(i, vid, out, prog), prog))
+                still.append((i, vid, out,
+                              _spawn(i, vid, out, prog, lo_f, hi_f),
+                              prog, lo_f, hi_f))
             else:
-                for _, _, _, q, _ in running:
+                for _, _, _, q, _, _, _ in running:
                     if q is not proc and q.poll() is None:
                         q.terminate()
                 raise PipelineError(f"track angle {i} failed ({rc})")
         running = still
-        subs = [1.0] * n_done + [_frac(i, prog) for i, _, prog in running]
+        subs = [1.0] * n_done + [_frac(i, prog, lo_f, hi_f)
+                                 for i, _, _, _, prog, lo_f, hi_f in running]
         frac = min(1.0, sum(subs) / n) if n else 1.0
         ctx.status.update(
             stage_progress=frac,
@@ -293,21 +344,29 @@ def stage_track(ctx: Ctx) -> None:
 
 
 def _load_track_rows(angle_dir: Path) -> dict:
-    """Per-second track arrays keyed by file-time second."""
+    """Per-second track arrays indexed by FILE second (t rounded to int):
+    rows may start at t>0 when tracking was windowed, so arrays are
+    densified to length max(t)+1 with zeros (or [] for players_xy)."""
     f = angle_dir / "track" / "features_1s.json"
     if not f.exists():
         return {}
     d = json.loads(f.read_text())
     cols = d["columns"]
     rows = d["rows"]
+    if not rows:
+        return {}
+    ti = cols.index("t")
+    n = round(float(rows[-1][ti])) + 1
     out = {}
     for c in cols:
-        vals = [r[cols.index(c)] for r in rows]
-        if c == "players_xy":
-            out[c] = [json.loads(v) if isinstance(v, str) else v
-                      for v in vals]
-        else:
-            out[c] = np.asarray(vals, dtype=float)
+        idx = cols.index(c)
+        arr = [[] for _ in range(n)] if c == "players_xy" else np.zeros(n)
+        for r in rows:
+            v = r[idx]
+            if c == "players_xy" and isinstance(v, str):
+                v = json.loads(v)
+            arr[round(float(r[ti]))] = v
+        out[c] = arr
     return out
 
 

@@ -70,17 +70,23 @@ def _probe_dims(video: str, tries: int = 3, delay: float = 2.0):
     raise RuntimeError(f"ffprobe failed for {video}: {last}")
 
 
-def _frame_reader(video: str, fps: float, width: int):
-    """Yield (t_seconds, bgr frame) via an ffmpeg rawvideo pipe at scale w=width."""
+def _frame_reader(video: str, fps: float, width: int,
+                  start_s: float = 0.0, end_s: float | None = None):
+    """Yield (t_seconds, bgr frame) via an ffmpeg rawvideo pipe at scale
+    w=width. t counts FILE seconds starting at start_s. -ss goes before -i
+    (fast seek), -t bounds the decode to [start_s, end_s)."""
     w_in, h_in = _probe_dims(video)
     w = width & ~1
     h = round(width * h_in / w_in) & ~1
-    cmd = ["ffmpeg", "-v", "error", "-i", video, "-vf", f"fps={fps},scale={w}:{h}",
-           "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
+    cmd = ["ffmpeg", "-v", "error", "-ss", f"{start_s:.3f}", "-i", video]
+    if end_s is not None:
+        cmd += ["-t", f"{end_s - start_s:.3f}"]
+    cmd += ["-vf", f"fps={fps},scale={w}:{h}",
+            "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL)
     frame_bytes = w * h * 3
-    t = 0.0
+    t = float(start_s)
     while True:
         buf = proc.stdout.read(frame_bytes)
         if len(buf) < frame_bytes:
@@ -92,7 +98,9 @@ def _frame_reader(video: str, fps: float, width: int):
 
 def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
                  max_seconds: float | None, log=print,
-                 progress_file: Path | None = None) -> tuple[list[list], int, int]:
+                 progress_file: Path | None = None,
+                 start_s: float = 0.0, end_s: float | None = None
+                 ) -> tuple[list[list], int, int]:
     import torch
     from ultralytics import YOLO
 
@@ -102,10 +110,10 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
     rows: list[list] = []
     frames = 0
     fh = None
-    for t, frame in _frame_reader(video, fps, FRAME_W):
+    for t, frame in _frame_reader(video, fps, FRAME_W, start_s, end_s):
         if fh is None:
             fh = frame.shape[0]
-        if max_seconds is not None and t >= max_seconds:
+        if max_seconds is not None and t - start_s >= max_seconds:
             break
         res = model.predict(frame, imgsz=imgsz, conf=CONF, classes=CLASSES,
                             verbose=False)[0]
@@ -163,6 +171,10 @@ def main(argv=None) -> int:
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--fps", type=float, default=1.0)
     ap.add_argument("--max-seconds", type=float, default=None)
+    ap.add_argument("--start-s", type=float, default=0.0,
+                    help="start decoding at this file second")
+    ap.add_argument("--end-s", type=float, default=None,
+                    help="stop decoding at this file second")
     ap.add_argument("--progress-file", type=Path, default=None,
                     help="write {t, frames} here every 30 frames")
     args = ap.parse_args(argv)
@@ -170,13 +182,15 @@ def main(argv=None) -> int:
     model = _ensure_model(args.model)
     rows, frames, ball_rate = compute_rows(
         args.video, model, args.imgsz, args.fps, args.max_seconds,
-        progress_file=args.progress_file)
+        progress_file=args.progress_file,
+        start_s=args.start_s, end_s=args.end_s)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     from highlights.io import write_json_atomic
     write_json_atomic(args.out, {
         "fps": args.fps, "model": str(model), "imgsz": args.imgsz,
         "columns": COLS, "rows": rows,
-        "meta": {"ball_rate": round(ball_rate, 4), "n_frames": frames},
+        "meta": {"ball_rate": round(ball_rate, 4), "n_frames": frames,
+                 "start_s": args.start_s, "end_s": args.end_s},
     }, indent=0)
     print(f"trackfeat: {frames} frames -> {args.out} (ball_rate {ball_rate:.2f})")
     return 0

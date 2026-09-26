@@ -119,6 +119,8 @@ class MultiangleCreate(BaseModel):
     pitch_type: str | None = None
     camera: str | None = None
     cut_style: str | None = None
+    # Angle-1 (reference) file seconds; written to multiangle/cut_range.json
+    match_window: list[float] | None = None
 
 
 class OffsetsPut(BaseModel):
@@ -134,6 +136,12 @@ class RecutPut(BaseModel):
 class MatchWindowPut(BaseModel):
     start_s: float
     end_s: float
+
+
+class MaMatchWindowPut(BaseModel):
+    # Angle-1 (reference) file seconds; both null/absent -> clear
+    start: float | None = None
+    end: float | None = None
 
 
 class ZonesPut(BaseModel):
@@ -1066,12 +1074,21 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
     for i, a in enumerate(angles):
         if not a["url"]:
             raise HTTPException(422, f"angle {i} has no url")
+    if body.match_window is not None and not (
+            len(body.match_window) == 2 and
+            0 <= body.match_window[0] < body.match_window[1]):
+        raise HTTPException(422, "match_window must be [start, end] with 0 <= start < end")
     p = get_registry().create_project(
         owner=user,
         title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
         source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
         meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
     )
+    if body.match_window:
+        p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(p.multiangle_dir / "cut_range.json",
+                          {"lo": float(body.match_window[0]),
+                           "hi": float(body.match_window[1])}, indent=1)
     if body.cookies_text:
         cookies = _save_cookies(p, body.cookies_text)
         _save_user_cookies(user, body.cookies_text)
@@ -1284,6 +1301,9 @@ def get_multiangle(p: ScopedP) -> dict:
     director = _read_json(p.multiangle_dir / "director.json")
     if director:
         director = {k: v for k, v in director.items() if k != "segments"}
+    cr = _read_json(p.multiangle_dir / "cut_range.json")
+    match_window = ([float(cr["lo"]), float(cr["hi"])]
+                    if cr and cr.get("hi", 0) > cr.get("lo", 0) else None)
     return {
         "sync": _read_json(p.multiangle_dir / "sync.json"),
         "director": director,
@@ -1292,7 +1312,29 @@ def get_multiangle(p: ScopedP) -> dict:
         "status": pipeline.read_status(p),
         "cut_style": p.meta.get("cut_style", "normal"),
         "sources_purged": bool(p.meta.get("sources_purged")),
+        "match_window": match_window,
     }
+
+
+@scoped.put("/multiangle/match-window")
+def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
+    """Set/clear the match window in Angle-1 (reference) file seconds.
+    Stored as multiangle/cut_range.json {lo, hi}; the track/director/
+    render stages read it on their next run."""
+    _require_multiangle(p)
+    cr_path = p.multiangle_dir / "cut_range.json"
+    if body.start is None and body.end is None:
+        cr_path.unlink(missing_ok=True)
+        return {"match_window": None}
+    if body.start is None or body.end is None:
+        raise HTTPException(422, "provide both start and end, or neither")
+    if not (0.0 <= body.start < body.end):
+        raise HTTPException(422, "need 0 <= start < end")
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(cr_path, {"lo": float(body.start), "hi": float(body.end)},
+                      indent=1)
+    p.save()
+    return {"match_window": [float(body.start), float(body.end)]}
 
 
 @scoped.post("/purge-sources")

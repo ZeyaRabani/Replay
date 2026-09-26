@@ -2,6 +2,7 @@ import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtu
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configApi, getUser, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TopBar from "../components/TopBar";
@@ -335,6 +336,8 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
   const [cutStyle, setCutStyle] = useState<"normal" | "fast">("normal");
+  const [maWinStart, setMaWinStart] = useState("");
+  const [maWinEnd, setMaWinEnd] = useState("");
 
   useEffect(() => {
     configApi
@@ -356,7 +359,12 @@ function NewProject({ onCreated, onError, tab, setTab }: {
       if (mode === "multi") {
         if (maTab === "links") {
           const angles = maRows.map((r, i) => ({ url: r.url.trim(), label: r.label.trim() || `Angle ${i + 1}` }));
-          p = await projectsApi.createMultiangle(title.trim() || undefined, angles, undefined, meta);
+          const ws = parseClock(maWinStart);
+          const we = parseClock(maWinEnd);
+          if ((maWinStart || maWinEnd) && !(ws !== null && we !== null && ws < we))
+            throw new Error("match window needs valid m:ss start < end");
+          const mw = ws !== null && we !== null ? ([ws, we] as [number, number]) : undefined;
+          p = await projectsApi.createMultiangle(title.trim() || undefined, angles, undefined, meta, mw);
         } else {
           p = await projectsApi.createMultiangleUpload(
             maFiles.map((r) => r.file as File),
@@ -568,6 +576,21 @@ function NewProject({ onCreated, onError, tab, setTab }: {
               <option value="normal">Cuts: Normal — broadcast-style holds</option>
               <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
             </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-zinc-500 shrink-0">Match window (Angle 1 time, optional)</span>
+            <input
+              className={`${input} font-mono`}
+              placeholder="start m:ss"
+              value={maWinStart}
+              onChange={(e) => setMaWinStart(e.target.value)}
+            />
+            <input
+              className={`${input} font-mono`}
+              placeholder="end m:ss"
+              value={maWinEnd}
+              onChange={(e) => setMaWinEnd(e.target.value)}
+            />
           </div>
           <button
             disabled={busy || !canSubmit}
