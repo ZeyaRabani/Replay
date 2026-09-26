@@ -1,4 +1,6 @@
+import { GalleryVertical } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProjectApi } from "../api";
 import CandidateList from "../components/CandidateList";
 import Navbar from "../components/Navbar";
@@ -37,6 +39,7 @@ export default function ProjectReview({ seekRequest }: Props) {
   const [candVersion, setCandVersion] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const proxyTimer = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   const showError = (msg: string) => {
     setError(msg);
@@ -242,6 +245,14 @@ export default function ProjectReview({ seekRequest }: Props) {
       )}
       <div className="flex flex-1 min-h-0 gap-3 p-3 mob:flex-col mob:overflow-y-auto">
         <div className="flex flex-col gap-3 dsk:w-[62%] mob:w-full min-w-0">
+          {candidates.length > 0 && (
+            <button
+              onClick={() => navigate(`/projects/${api.id}/swipe`)}
+              className="mob:flex mob:items-center mob:justify-center mob:gap-2 mob:w-full mob:py-2.5 mob:rounded mob:bg-amber-500 mob:text-zinc-900 mob:font-semibold mob:text-sm dsk:hidden"
+            >
+              <GalleryVertical size={16} /> Swipe review
+            </button>
+          )}
           {video && videoSrc ? (
             <div className="flex items-center gap-2 justify-end mob:flex-col mob:items-stretch">
               <div className="flex rounded overflow-hidden border border-zinc-700 text-[11px] mob:w-full [&>button]:mob:flex-1">
@@ -327,6 +338,15 @@ export default function ProjectReview({ seekRequest }: Props) {
                 <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700">
                   {cutLabel}
                 </span>
+              )}
+              {candidates.length > 0 && (
+                <button
+                  onClick={() => navigate(`/projects/${api.id}/swipe`)}
+                  className="dsk:flex mob:hidden items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5"
+                  title="Swipe-style review"
+                >
+                  <GalleryVertical size={11} /> Swipe review
+                </button>
               )}
               {win && (
                 <button
