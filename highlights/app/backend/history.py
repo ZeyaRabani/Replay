@@ -23,6 +23,7 @@ import sqlite3
 import time
 from contextlib import contextmanager, suppress
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from .store import ProjectStore, workdir
 
@@ -365,6 +366,102 @@ def archive_project(p: ProjectStore) -> list[str]:
     log(p.id, "deleted", artefacts=kept)
     mark_deleted(p.id)
     return kept
+
+
+_YT_HOSTS = ("youtu.be", "youtube.com", "www.youtube.com",
+             "m.youtube.com", "music.youtube.com", "youtube-nocookie.com",
+             "www.youtube-nocookie.com")
+
+
+def video_id(url: str | None) -> str | None:
+    """Canonical YouTube video id from any url form (youtu.be/ID,
+    watch?v=ID, shorts/ID, embed/ID); params/fragments stripped."""
+    if not url:
+        return None
+    u = url.strip()
+    if "://" not in u:
+        u = "https://" + u
+    try:
+        p = urlparse(u)
+    except Exception:
+        return None
+    host = p.netloc.lower()
+    path = p.path.strip("/")
+    vid = None
+    if "youtu.be" in host:
+        vid = path.split("/")[0]
+    elif any(h == host or host.endswith("." + h) for h in _YT_HOSTS):
+        vid = (parse_qs(p.query).get("v") or [None])[0]
+        if not vid and "/" in path:
+            head, rest = path.split("/", 1)
+            if head in ("shorts", "embed", "live", "v"):
+                vid = rest.split("/")[0]
+    return vid or None
+
+
+def download_counts(owner: str | None = None) -> dict[str, dict]:
+    """{vid: {count, projects: [{id,title,deleted}]}} — how many times
+    each YouTube video was downloaded, counting distinct
+    (match, angle-slot) uses over all matches incl. deleted. Sources:
+    match records (angles[*].url / single source.url) plus
+    source_added events that carry a url (angle replacement)."""
+    uses: dict[str, set[tuple[str, str]]] = {}
+    projs: dict[str, dict[str, dict]] = {}
+
+    def add(vid: str | None, match_id: str, slot: str,
+            title: str, deleted: bool) -> None:
+        if not vid:
+            return
+        uses.setdefault(vid, set()).add((match_id, slot))
+        projs.setdefault(vid, {})[match_id] = {
+            "id": match_id, "title": title, "deleted": deleted}
+
+    with _conn() as db:
+        _init(db)
+        q = "SELECT id, owner, title, deleted_at, record FROM matches"
+        args: list = []
+        if owner is not None:
+            q += " WHERE owner=?"
+            args.append(owner)
+        rows = db.execute(q, args).fetchall()
+        ev = db.execute(
+            "SELECT match_id, detail FROM events WHERE kind='source_added'"
+        ).fetchall()
+    owners = {r["id"]: (r["title"], r["deleted_at"] is not None)
+              for r in rows}
+    for r in rows:
+        try:
+            src = (json.loads(r["record"] or "{}") or {}).get(
+                "sources") or {}
+        except Exception:
+            continue
+        deleted = r["deleted_at"] is not None
+        angles = src.get("angles")
+        if angles:
+            for i, a in enumerate(angles):
+                add(video_id(a.get("url")), r["id"], f"a{i}",
+                    r["title"], deleted)
+        else:
+            add(video_id(src.get("url")), r["id"], "single",
+                r["title"], deleted)
+    for e in ev:
+        if e["match_id"] not in owners:
+            continue
+        try:
+            det = json.loads(e["detail"] or "{}")
+        except Exception:
+            continue
+        url = det.get("url")
+        if not url:
+            continue
+        title, deleted = owners[e["match_id"]]
+        slot = (f"a{det['index']}" if det.get("index") is not None
+                else f"url:{url}")
+        add(video_id(url), e["match_id"], slot, title, deleted)
+    return {vid: {"count": len(slots),
+                  "projects": sorted(projs[vid].values(),
+                                     key=lambda x: x["title"])}
+            for vid, slots in uses.items()}
 
 
 _ART_RE = re.compile(

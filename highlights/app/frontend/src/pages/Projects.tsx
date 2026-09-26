@@ -1,13 +1,13 @@
 import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi, ytId } from "../api";
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
-import type { HistoryMatch, ProjectMeta, ProjectSummary } from "../types";
+import type { DownloadInfo, HistoryMatch, ProjectMeta, ProjectSummary } from "../types";
 
 const fmtDate = (v: number | string) =>
   new Date(typeof v === "number" ? v * 1000 : v).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -46,6 +46,33 @@ function SourceBadge({ p }: { p: ProjectSummary }) {
 const isBotBlock = (msg?: string | null) =>
   !!msg && /bot check|sign in/i.test(msg);
 
+function DownloadCount({ url, downloads }: { url: string | null | undefined; downloads: Record<string, DownloadInfo> }) {
+  const id = ytId(url);
+  const info = id ? downloads[id] : undefined;
+  if (!id || !info) return null;
+  const titles = info.projects.map((x) => x.title).join(", ");
+  return (
+    <span
+      className={info.count > 1 ? "text-amber-400" : "text-zinc-600"}
+      title={`downloaded in: ${titles}`}
+    >
+      · downloaded {info.count}×
+    </span>
+  );
+}
+
+function DupNote({ url, downloads }: { url: string; downloads: Record<string, DownloadInfo> }) {
+  const id = ytId(url);
+  const info = id ? downloads[id] : undefined;
+  if (!url.trim() || !id || !info) return null;
+  const titles = info.projects.map((x) => x.title).join(", ");
+  return (
+    <div className="text-[11px] text-amber-400">
+      Already downloaded in {titles} — the video will be downloaded again.
+    </div>
+  );
+}
+
 function ProjectCard({
   p,
   onDelete,
@@ -55,8 +82,10 @@ function ProjectCard({
   onUploadInstead,
   onPurge,
   onRename,
+  downloads,
 }: {
   p: ProjectSummary;
+  downloads: Record<string, DownloadInfo>;
   onDelete: (p: ProjectSummary) => void;
   cookiesSaved: boolean;
   onRetry: (p: ProjectSummary) => void;
@@ -181,6 +210,29 @@ function ProjectCard({
         {p.source.url && (
           <div className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
             <Link2 size={10} /> {p.source.url}
+            <DownloadCount url={p.source.url} downloads={downloads ?? {}} />
+          </div>
+        )}
+        {p.mode === "multiangle" && (p.source.angles ?? []).length > 0 && (
+          <div className="flex flex-col gap-0.5">
+            {(p.source.angles ?? []).map((a, i) => {
+              const vid = ytId(a.url);
+              return a.url ? (
+                <div key={i} className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
+                  <Link2 size={10} className="shrink-0" />
+                  {a.label || `Angle ${i + 1}`} ·{" "}
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-zinc-400 hover:text-amber-300 underline"
+                  >
+                    youtu.be/{vid ?? a.url}
+                  </a>
+                  <DownloadCount url={a.url} downloads={downloads ?? {}} />
+                </div>
+              ) : null;
+            })}
           </div>
         )}
         {p.source.filename && <div className="text-[11px] text-zinc-500 truncate">{p.source.filename}</div>}
@@ -316,11 +368,12 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
   );
 }
 
-function NewProject({ onCreated, onError, tab, setTab }: {
+function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   onCreated: (p: ProjectSummary) => void;
   onError: (m: string) => void;
   tab: "youtube" | "upload";
   setTab: (t: "youtube" | "upload") => void;
+  downloads: Record<string, DownloadInfo>;
 }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -460,6 +513,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
                         setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))
                       }
                     />
+                    <DupNote url={r.url} downloads={downloads} />
                     {maRows.length > 2 && (
                       <button
                         className="text-zinc-500 hover:text-red-300 p-1 shrink-0"
@@ -623,12 +677,15 @@ function NewProject({ onCreated, onError, tab, setTab }: {
           </div>
           <div className="flex flex-col gap-2">
         {tab === "youtube" ? (
-          <input
-            className={input}
-            placeholder="https://www.youtube.com/watch?v=…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
+          <>
+            <input
+              className={input}
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <DupNote url={url} downloads={downloads} />
+          </>
         ) : foreignUpload ? (
           <div className="text-xs text-zinc-300 rounded border border-zinc-700 bg-zinc-800/60 p-3">
             Large uploads must go directly to your server:
@@ -802,6 +859,7 @@ export default function Projects() {
   const [error, setError] = useState<string | null>(null);
   const [cookieStatus, setCookieStatus] = useState<CookieStatus | null>(null);
   const [storage, setStorage] = useState<Awaited<ReturnType<typeof projectsApi.storage>> | null>(null);
+  const [downloads, setDownloads] = useState<Record<string, DownloadInfo>>({});
   const [newTab, setNewTab] = useState<"youtube" | "upload">("youtube");
   const cookiesPanel = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
@@ -866,6 +924,7 @@ export default function Projects() {
 
   useEffect(() => {
     projectsApi.storage().then(setStorage).catch(() => setStorage(null));
+    downloadsApi.get().then(setDownloads).catch(() => setDownloads({}));
   }, [projects?.length]);
 
   const rename = async (p: ProjectSummary, title: string) => {
@@ -949,6 +1008,7 @@ export default function Projects() {
                 onUploadInstead={uploadInstead}
                 onPurge={purge}
                 onRename={rename}
+                downloads={downloads}
               />
             ))
           )}
@@ -970,6 +1030,7 @@ export default function Projects() {
             onError={showError}
             tab={newTab}
             setTab={setNewTab}
+            downloads={downloads}
           />
         </div>
       </div>

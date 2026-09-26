@@ -163,3 +163,52 @@ def test_archive_keeps_active_cut_video_only(client, short_video):
     assert history.artefact_path(pid, "cuts/../../x") is None
     r = client.get(f"/api/history/{pid}/artefacts/cuts/cutA/meta.json")
     assert r.status_code == 200
+
+
+def test_video_id_forms():
+    v = history.video_id
+    assert v("https://youtu.be/abc123_xY-z") == "abc123_xY-z"
+    assert v("youtu.be/abc123?si=tUCsa3FalgdJCc2u") == "abc123"
+    assert v("https://www.youtube.com/watch?v=QkWw5SSzrwk&list=x") == "QkWw5SSzrwk"
+    assert v("https://youtube.com/shorts/AbC_dEf123") == "AbC_dEf123"
+    assert v("https://m.youtube.com/watch?v=zzZ&v=x") == "zzZ"
+    assert v("https://vimeo.com/12345") is None
+    assert v(None) is None
+    assert v("") is None
+
+
+def test_download_counts_live_deleted_replace(client, short_video):
+    """Live match + deleted match + angle replace sharing one video →
+    count 2 for that video, projects list has both matches."""
+    body = {"title": "liveMA", "angles": [
+        {"url": "https://youtu.be/SHARED01", "label": "A"},
+        {"url": "https://youtu.be/onlyOne1", "label": "B"}]}
+    pid1 = client.post("/api/projects/multiangle", json=body).json()["id"]
+    import time as _t
+    for _ in range(60):
+        if client.get(f"/api/projects/{pid1}").json()["pipeline_state"] \
+                not in ("queued", "running"):
+            break
+        _t.sleep(0.25)
+    # second project, later deleted, using the same a0 video
+    body2 = {"title": "deadMA", "angles": [
+        {"url": "https://youtube.com/watch?v=SHARED01&t=9", "label": "X"},
+        {"url": "https://youtu.be/other333", "label": "Y"}]}
+    pid2 = client.post("/api/projects/multiangle", json=body2).json()["id"]
+    assert client.delete(f"/api/projects/{pid2}").status_code == 204
+    # angle replace on the live project — re-pointing a0 at the same
+    # video must reuse its (match, angle) slot, not count again
+    r = client.put(f"/api/projects/{pid1}/multiangle/angles/0",
+                   json={"url": "https://youtu.be/SHARED01"})
+    assert r.status_code == 200, r.text
+    counts = history.download_counts()
+    shared = counts["SHARED01"]
+    assert shared["count"] == 2          # live a0 + deleted a0 (replace slot reused)
+    titles = {p["title"] for p in shared["projects"]}
+    assert titles == {"liveMA", "deadMA"}
+    assert {p["id"]: p["deleted"] for p in shared["projects"]}[pid2] is True
+    # singles/others counted once each
+    assert counts["onlyOne1"]["count"] == 1
+    # endpoint owner-scoped
+    r = client.get("/api/history/downloads")
+    assert r.status_code == 200 and "SHARED01" in r.json()

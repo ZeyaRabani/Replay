@@ -2040,6 +2040,11 @@ def get_history(user: UserDep, include_deleted: bool = False) -> list:
     return history.list_matches(user, include_deleted=include_deleted)
 
 
+@app.get("/api/history/downloads")
+def get_downloads(user: UserDep) -> dict:
+    return history.download_counts(None if _is_admin(user) else user)
+
+
 @app.get("/api/history/{match_id}/events")
 def get_history_events(match_id: str, user: UserDep) -> list:
     _match_or_404(match_id, user)

@@ -333,3 +333,8 @@ export interface HistoryCut {
   active?: boolean;
   archived_video?: boolean;
 }
+
+export interface DownloadInfo {
+  count: number;
+  projects: { id: string; title: string; deleted: boolean }[];
+}
