@@ -1980,6 +1980,10 @@ def l_stats(p: LegacyP) -> dict:
 app.include_router(scoped)
 app.include_router(legacy)
 
+from .analysis_api import make_router as _analysis_router  # noqa: E402
+
+app.include_router(_analysis_router(ScopedP))
+
 
 # ---------- frontend ----------
 
