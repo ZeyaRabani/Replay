@@ -243,8 +243,8 @@ export default function ProjectReview({ seekRequest }: Props) {
       <div className="flex flex-1 min-h-0 gap-3 p-3 mob:flex-col mob:overflow-y-auto">
         <div className="flex flex-col gap-3 dsk:w-[62%] mob:w-full min-w-0">
           {video && videoSrc ? (
-            <div className="flex items-center gap-2 justify-end">
-              <div className="flex rounded overflow-hidden border border-zinc-700 text-[11px]">
+            <div className="flex items-center gap-2 justify-end mob:flex-col mob:items-stretch">
+              <div className="flex rounded overflow-hidden border border-zinc-700 text-[11px] mob:w-full [&>button]:mob:flex-1">
                 <button
                   disabled={!proxyReady}
                   onClick={() => setQ("fast")}
@@ -318,9 +318,9 @@ export default function ProjectReview({ seekRequest }: Props) {
                 <a
                   href={api.videoUrl("source", String(video.registered_at))}
                   download
-                  className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5"
+                  className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 mob:text-center"
                 >
-                  Download director cut (full match, MP4)
+                  Download director cut<span className="mob:hidden"> (full match, MP4)</span>
                 </a>
               )}
               {isMultiangle && cutLabel && (
@@ -336,7 +336,7 @@ export default function ProjectReview({ seekRequest }: Props) {
                 >
                   {trimProg !== null
                     ? `Trimming… ${Math.round(trimProg * 100)}%`
-                    : "Download trimmed match (MP4)"}
+                    : <>Download trimmed match<span className="mob:hidden"> (MP4)</span></>}
                 </button>
               )}
             </div>

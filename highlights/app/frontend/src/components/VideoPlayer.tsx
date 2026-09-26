@@ -75,7 +75,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, Props>(function VideoPlayer(pro
   return (
     <div className="bg-black rounded-lg overflow-hidden">
       <video ref={setRefs} src={props.src} controls className="w-full aspect-video bg-black" />
-      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-900">
+      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-900 mob:flex-wrap">
         <span className="text-xs font-mono text-zinc-300">{fmt(time)}</span>
         <span className="flex-1" />
         <button className={btn} disabled={!props.selected} onClick={() => props.onSetIn(time)}>

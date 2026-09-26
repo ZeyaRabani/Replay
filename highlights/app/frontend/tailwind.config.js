@@ -7,7 +7,7 @@ export default {
   plugins: [
     function ({ addVariant }) {
       addVariant("mob", ".mobile &");
-      addVariant("dsk", ":not(.mobile) &");
+      addVariant("dsk", "html:not(.mobile) &");
     },
   ],
 };

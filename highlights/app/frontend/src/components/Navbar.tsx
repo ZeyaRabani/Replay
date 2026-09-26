@@ -20,7 +20,7 @@ export default function Navbar(props: Props) {
     "flex items-center gap-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 rounded px-2.5 py-1 text-xs font-medium";
 
   return (
-    <nav className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
+    <nav className="mob:hidden flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
       <span className="text-xs text-zinc-500 mr-1">Advanced</span>
       <input
         className={input}

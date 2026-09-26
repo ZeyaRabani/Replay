@@ -24,7 +24,9 @@ export default function StatusPill({ state, progress }: { state: PipelineState; 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${STYLE[state]}`}>
       {icon}
-      {state === "needs_input" ? "needs sync offsets" : state}
+      <span className="mob:hidden">
+        {state === "needs_input" ? "needs sync offsets" : state}
+      </span>
       {state === "running" && progress !== undefined && <span>{Math.round(progress * 100)}%</span>}
     </span>
   );
