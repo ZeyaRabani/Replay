@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { getUser } from "./api";
+import { LayoutProvider } from "./lib/layout";
 import Login from "./pages/Login";
 import ProjectPage from "./pages/ProjectPage";
 import Projects from "./pages/Projects";
@@ -11,6 +12,7 @@ function RequireUser() {
 export default function App() {
   return (
     <BrowserRouter>
+      <LayoutProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<RequireUser />}>
@@ -19,6 +21,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
+      </LayoutProvider>
     </BrowserRouter>
   );
 }

@@ -240,8 +240,8 @@ export default function ProjectReview({ seekRequest }: Props) {
       {error && (
         <div className="bg-red-900/80 text-red-100 text-sm px-4 py-2 border-b border-red-700">{error}</div>
       )}
-      <div className="flex flex-1 min-h-0 gap-3 p-3">
-        <div className="flex flex-col gap-3 w-[62%] min-w-0">
+      <div className="flex flex-1 min-h-0 gap-3 p-3 mob:flex-col mob:overflow-y-auto">
+        <div className="flex flex-col gap-3 dsk:w-[62%] mob:w-full min-w-0">
           {video && videoSrc ? (
             <div className="flex items-center gap-2 justify-end">
               <div className="flex rounded overflow-hidden border border-zinc-700 text-[11px]">

@@ -767,7 +767,7 @@ export default function Projects() {
     <div className="flex flex-col min-h-screen">
       <TopBar />
       {error && <div className="bg-red-900/80 text-red-100 text-sm px-4 py-2 border-b border-red-700">{error}</div>}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 p-4 max-w-7xl w-full mx-auto">
+      <div className="flex-1 grid grid-cols-1 dsk:lg:grid-cols-[1fr_360px] gap-4 p-4 max-w-7xl w-full mx-auto">
         <div className="flex flex-col gap-3 min-w-0">
           {storage && (
             <div>

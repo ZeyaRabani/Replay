@@ -59,7 +59,7 @@ export default function ZoneEditor({ angle, zones, onChange }: Props) {
   const [draft, setDraft] = useState<Rect | null>(null);
   const [t1, t2, t3] = zoneStillTimes(angle.duration);
 
-  const norm = (e: React.MouseEvent): [number, number] => {
+  const norm = (e: React.PointerEvent): [number, number] => {
     const r = box.current!.getBoundingClientRect();
     return [
       Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
@@ -67,11 +67,12 @@ export default function ZoneEditor({ angle, zones, onChange }: Props) {
     ];
   };
 
-  const onDown = (e: React.MouseEvent) => {
+  const onDown = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     const [x, y] = norm(e);
     setDraft({ x1: x, y1: y, x2: x, y2: y });
   };
-  const onMove = (e: React.MouseEvent) => {
+  const onMove = (e: React.PointerEvent) => {
     if (!draft) return;
     const [x, y] = norm(e);
     setDraft((d) => (d ? { ...d, x2: x, y2: y } : d));
@@ -90,11 +91,11 @@ export default function ZoneEditor({ angle, zones, onChange }: Props) {
     <div
       key={t}
       ref={interactive ? box : undefined}
-      className={`relative flex-1 min-w-0 select-none ${interactive ? "cursor-crosshair" : ""}`}
-      onMouseDown={interactive ? onDown : undefined}
-      onMouseMove={interactive ? onMove : undefined}
-      onMouseUp={interactive ? onUp : undefined}
-      onMouseLeave={interactive ? onUp : undefined}
+      className={`relative flex-1 min-w-0 select-none touch-none ${interactive ? "cursor-crosshair" : ""}`}
+      onPointerDown={interactive ? onDown : undefined}
+      onPointerMove={interactive ? onMove : undefined}
+      onPointerUp={interactive ? onUp : undefined}
+      onPointerCancel={interactive ? onUp : undefined}
     >
       <img
         src={api.angleFrameUrl(angle.index, t)}
@@ -121,7 +122,7 @@ export default function ZoneEditor({ angle, zones, onChange }: Props) {
           Clear ({zones.length})
         </button>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 mob:flex-col">
         {still(t1, true)}
         {still(t2, false)}
         {still(t3, false)}

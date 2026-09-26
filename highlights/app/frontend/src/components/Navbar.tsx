@@ -15,7 +15,7 @@ export default function Navbar(props: Props) {
   const [candPath, setCandPath] = useState("");
 
   const input =
-    "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs w-64 placeholder:text-zinc-500";
+    "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs dsk:w-64 mob:w-full placeholder:text-zinc-500";
   const btn =
     "flex items-center gap-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 rounded px-2.5 py-1 text-xs font-medium";
 

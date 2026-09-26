@@ -53,11 +53,11 @@ export default function Timeline(props: Props) {
   const fmt = fmtClock;
 
   return (
-    <div className="bg-zinc-900 rounded-lg p-2">
+    <div className="bg-zinc-900 rounded-lg p-2 overflow-x-auto">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full cursor-pointer"
+        className="w-full mob:min-w-[640px] cursor-pointer"
         onClick={(e) => props.onSeek(toTime(e.clientX))}
       >
         {ticks.map((t) => (

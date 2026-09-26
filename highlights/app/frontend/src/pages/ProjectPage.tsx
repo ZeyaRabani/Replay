@@ -105,7 +105,7 @@ export default function ProjectPage() {
           <span className="text-sm truncate">{project?.title ?? "…"}</span>
           {project && <StatusPill state={project.pipeline_state} progress={project.progress} />}
           {project && !showPipeline && (
-            <div className="flex items-center gap-1 ml-3 bg-zinc-800/60 rounded p-0.5">
+            <div className="flex items-center gap-1 ml-3 bg-zinc-800/60 rounded p-0.5 overflow-x-auto whitespace-nowrap min-w-0">
               <button className={tabCls(tab === "review")} onClick={() => setTab("review")}>
                 <ListVideo size={13} /> Review
               </button>
