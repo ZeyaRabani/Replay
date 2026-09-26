@@ -129,6 +129,11 @@ def test_render_fails_loud_when_segment_stays_bad(tmp_path, monkeypatch):
     instead of handing the concat demuxer an empty file."""
     monkeypatch.setattr(render, "run",
                         lambda cmd, log=None: Path(cmd[-1]).write_bytes(b"junk"))
+    monkeypatch.setattr(render, "_run_progress",
+                        lambda cmd, dur_s, tag, log=None:
+                        Path(cmd[-1]).write_bytes(b"junk"))
+    monkeypatch.setattr(render, "_seg_ok",
+                        lambda p: "mezz" in str(p))
     segs = [{"t_start": 0.0, "t_end": 3.0, "angle": 0}]
     with pytest.raises(RuntimeError, match="still invalid"):
         render.render(videos=["v.mp4"], offsets=[0.0], segments=segs,
@@ -136,3 +141,30 @@ def test_render_fails_loud_when_segment_stays_bad(tmp_path, monkeypatch):
                       out_path=tmp_path / "o.mp4", ref_video="v.mp4",
                       log=lambda *a: None)
     assert not (tmp_path / "o.mp4").exists()
+
+
+@pytest.mark.skipif(
+    subprocess.run(["which", "ffmpeg"], capture_output=True).returncode != 0,
+    reason="ffmpeg missing")
+def test_mezzanine_render_exact_frames(tmp_path):
+    """20 s source -> mezzanine -> 3 extracted segments: cut boundaries
+    land on the 1 s keyframe grid, so total duration and frame count are
+    exact."""
+    v0 = _mkvideo(tmp_path / "a0.mp4", 20.0, size="640x360")
+    segs = [{"t_start": 0.0, "t_end": 5.0, "angle": 0},
+            {"t_start": 7.0, "t_end": 12.0, "angle": 0},
+            {"t_start": 14.0, "t_end": 19.0, "angle": 0}]
+    logs: list[str] = []
+    render.render([str(v0)], [0.0], segs, 0.0, 19.0, tmp_path / "work",
+                  tmp_path / "out.mp4", str(v0),
+                  durations=[20.0], log=lambda m, *a: logs.append(str(m)))
+    assert any("mezzanine" in m for m in logs)
+    total = sum(s["t_end"] - s["t_start"] for s in segs)
+    info = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format=duration:stream=codec_type,nb_frames", "-of", "json",
+         str(tmp_path / "out.mp4")],
+        capture_output=True, text=True, check=True).stdout)
+    assert abs(float(info["format"]["duration"]) - total) <= 0.1
+    v = next(s for s in info["streams"] if s["codec_type"] == "video")
+    assert int(v["nb_frames"]) == 30 * total
