@@ -88,7 +88,7 @@ def build_summary(stats: dict) -> dict:
         phrases = []
         for s in top:
             phrases.append(
-                f"{mmss(s['t_shared'])} ({mmss(s['t_file'])} on the "
+                f"{mmss(s['t_out'])} ({mmss(s['t_file'])} on the "
                 f"main camera)")
             bullets.append({**times(float(s["t_shared"])),
                             "label": f"{s['type']} "
