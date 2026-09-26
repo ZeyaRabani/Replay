@@ -391,3 +391,41 @@ export interface CutsList {
   cuts: CutMeta[];
   range?: [number, number] | null;
 }
+
+export interface HistoryMatch {
+  id: string;
+  owner: string;
+  title: string;
+  mode: string;
+  created_at: number | null;
+  deleted_at: number | null;
+  n_angles: number;
+  style: string | null;
+  artefacts: string[];
+  cuts: HistoryCut[];
+  deleted: boolean;
+}
+
+export interface HistoryEvent {
+  id: number;
+  ts: number;
+  kind: string;
+  stage: string | null;
+  status: string | null;
+  detail: Record<string, unknown>;
+}
+
+export interface HistoryCut {
+  id: string;
+  label?: string;
+  style?: string;
+  n_cuts?: number | null;
+  created_at?: number;
+  active?: boolean;
+  archived_video?: boolean;
+}
+
+export interface DownloadInfo {
+  count: number;
+  projects: { id: string; title: string; deleted: boolean }[];
+}

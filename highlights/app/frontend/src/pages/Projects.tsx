@@ -1,13 +1,13 @@
 import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configApi, getUser, meApi, mediaUrl, projectApi, projectsApi } from "../api";
+import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi, ytId } from "../api";
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
-import type { ProjectMeta, ProjectSummary } from "../types";
+import type { DownloadInfo, HistoryMatch, ProjectMeta, ProjectSummary } from "../types";
 
 const fmtDate = (v: number | string) =>
   new Date(typeof v === "number" ? v * 1000 : v).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -46,6 +46,33 @@ function SourceBadge({ p }: { p: ProjectSummary }) {
 const isBotBlock = (msg?: string | null) =>
   !!msg && /bot check|sign in/i.test(msg);
 
+function DownloadCount({ url, downloads }: { url: string | null | undefined; downloads: Record<string, DownloadInfo> }) {
+  const id = ytId(url);
+  const info = id ? downloads[id] : undefined;
+  if (!id || !info) return null;
+  const titles = info.projects.map((x) => x.title).join(", ");
+  return (
+    <span
+      className={info.count > 1 ? "text-amber-400" : "text-zinc-600"}
+      title={`downloaded in: ${titles}`}
+    >
+      · downloaded {info.count}×
+    </span>
+  );
+}
+
+function DupNote({ url, downloads }: { url: string; downloads: Record<string, DownloadInfo> }) {
+  const id = ytId(url);
+  const info = id ? downloads[id] : undefined;
+  if (!url.trim() || !id || !info) return null;
+  const titles = info.projects.map((x) => x.title).join(", ");
+  return (
+    <div className="text-[11px] text-amber-400">
+      Already downloaded in {titles} — the video will be downloaded again.
+    </div>
+  );
+}
+
 function ProjectCard({
   p,
   onDelete,
@@ -55,8 +82,10 @@ function ProjectCard({
   onUploadInstead,
   onPurge,
   onRename,
+  downloads,
 }: {
   p: ProjectSummary;
+  downloads: Record<string, DownloadInfo>;
   onDelete: (p: ProjectSummary) => void;
   cookiesSaved: boolean;
   onRetry: (p: ProjectSummary) => void;
@@ -181,6 +210,29 @@ function ProjectCard({
         {p.source.url && (
           <div className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
             <Link2 size={10} /> {p.source.url}
+            <DownloadCount url={p.source.url} downloads={downloads ?? {}} />
+          </div>
+        )}
+        {p.mode === "multiangle" && (p.source.angles ?? []).length > 0 && (
+          <div className="flex flex-col gap-0.5">
+            {(p.source.angles ?? []).map((a, i) => {
+              const vid = ytId(a.url);
+              return a.url ? (
+                <div key={i} className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
+                  <Link2 size={10} className="shrink-0" />
+                  {a.label || `Angle ${i + 1}`} ·{" "}
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-zinc-400 hover:text-amber-300 underline"
+                  >
+                    youtu.be/{vid ?? a.url}
+                  </a>
+                  <DownloadCount url={a.url} downloads={downloads ?? {}} />
+                </div>
+              ) : null;
+            })}
           </div>
         )}
         {p.source.filename && <div className="text-[11px] text-zinc-500 truncate">{p.source.filename}</div>}
@@ -316,11 +368,12 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
   );
 }
 
-function NewProject({ onCreated, onError, tab, setTab }: {
+function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   onCreated: (p: ProjectSummary) => void;
   onError: (m: string) => void;
   tab: "youtube" | "upload";
   setTab: (t: "youtube" | "upload") => void;
+  downloads: Record<string, DownloadInfo>;
 }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -460,6 +513,7 @@ function NewProject({ onCreated, onError, tab, setTab }: {
                         setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))
                       }
                     />
+                    <DupNote url={r.url} downloads={downloads} />
                     {maRows.length > 2 && (
                       <button
                         className="text-zinc-500 hover:text-red-300 p-1 shrink-0"
@@ -623,12 +677,15 @@ function NewProject({ onCreated, onError, tab, setTab }: {
           </div>
           <div className="flex flex-col gap-2">
         {tab === "youtube" ? (
-          <input
-            className={input}
-            placeholder="https://www.youtube.com/watch?v=…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
+          <>
+            <input
+              className={input}
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <DupNote url={url} downloads={downloads} />
+          </>
         ) : foreignUpload ? (
           <div className="text-xs text-zinc-300 rounded border border-zinc-700 bg-zinc-800/60 p-3">
             Large uploads must go directly to your server:
@@ -693,11 +750,116 @@ function NewProject({ onCreated, onError, tab, setTab }: {
   );
 }
 
+function ArchiveSection({ onRestart, onDelete, onError }: {
+  onRestart: (p: ProjectSummary) => void;
+  onDelete: () => void;
+  onError: (m: string) => void;
+}) {
+  const [items, setItems] = useState<HistoryMatch[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    historyApi.list(true)
+      .then((ms) => setItems(ms.filter((m) => m.deleted)))
+      .catch(() => setItems(null));
+  }, []);
+
+  useEffect(() => { load(); }, [load, onDelete]);
+
+  if (!items?.length) return null;
+  const restart = async (m: HistoryMatch) => {
+    setBusy(m.id);
+    try {
+      onRestart(await historyApi.restart(m.id));
+      load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const remove = async (m: HistoryMatch) => {
+    if (!window.confirm(`Delete "${m.title}" forever? The archived record and kept files are removed.`)) return;
+    setBusy(m.id);
+    try {
+      await historyApi.remove(m.id);
+      setItems((ms) => ms?.filter((x) => x.id !== m.id) ?? null);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="mt-6">
+      <h2 className="font-semibold mb-2">Archive</h2>
+      <div className="flex flex-col gap-2">
+        {items.map((m) => (
+          <div key={m.id} className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium flex-1 min-w-0 truncate">{m.title}</span>
+              <span className="text-[11px] text-zinc-500">
+                deleted {m.deleted_at ? fmtDate(m.deleted_at) : ""}
+              </span>
+            </div>
+            {m.cuts.length > 0 && (
+              <div className="flex flex-col gap-1 mt-2">
+                {m.cuts.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2 text-[11px] text-zinc-400">
+                    <span className="text-zinc-300">{c.label || c.id}</span>
+                    {c.style && <span className="rounded bg-zinc-800 px-1 py-0.5">{c.style}</span>}
+                    {c.n_cuts != null && <span>{c.n_cuts} cuts</span>}
+                    {c.created_at && <span>{fmtDate(c.created_at)}</span>}
+                    {c.archived_video && (
+                      <span className="rounded bg-emerald-900/60 text-emerald-300 px-1 py-0.5">video kept</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {m.artefacts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {m.artefacts.map((a) => (
+                  <a
+                    key={a}
+                    href={historyApi.artefactUrl(m.id, a)}
+                    download
+                    className="text-[10px] bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-0.5 text-sky-300"
+                  >
+                    {a}
+                  </a>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button
+                disabled={busy === m.id}
+                onClick={() => void restart(m)}
+                className="flex items-center gap-1 text-[11px] bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded px-2 py-1 disabled:opacity-40"
+              >
+                <RotateCcw size={11} /> Restart
+              </button>
+              <button
+                disabled={busy === m.id}
+                onClick={() => void remove(m)}
+                className="flex items-center gap-1 text-[11px] bg-red-900/50 hover:bg-red-800 text-red-200 rounded px-2 py-1 disabled:opacity-40"
+              >
+                <Trash2 size={11} /> Delete forever
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cookieStatus, setCookieStatus] = useState<CookieStatus | null>(null);
   const [storage, setStorage] = useState<Awaited<ReturnType<typeof projectsApi.storage>> | null>(null);
+  const [downloads, setDownloads] = useState<Record<string, DownloadInfo>>({});
   const [newTab, setNewTab] = useState<"youtube" | "upload">("youtube");
   const cookiesPanel = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
@@ -762,6 +924,7 @@ export default function Projects() {
 
   useEffect(() => {
     projectsApi.storage().then(setStorage).catch(() => setStorage(null));
+    downloadsApi.get().then(setDownloads).catch(() => setDownloads({}));
   }, [projects?.length]);
 
   const rename = async (p: ProjectSummary, title: string) => {
@@ -845,9 +1008,15 @@ export default function Projects() {
                 onUploadInstead={uploadInstead}
                 onPurge={purge}
                 onRename={rename}
+                downloads={downloads}
               />
             ))
           )}
+          <ArchiveSection
+            onRestart={(p) => setProjects((ps) => [p, ...(ps ?? [])])}
+            onDelete={() => undefined}
+            onError={showError}
+          />
         </div>
         <div>
           <YouTubeAccess
@@ -861,6 +1030,7 @@ export default function Projects() {
             onError={showError}
             tab={newTab}
             setTab={setNewTab}
+            downloads={downloads}
           />
         </div>
       </div>

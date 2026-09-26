@@ -1,8 +1,9 @@
-import { BarChart3, ChevronLeft, Clapperboard, ListVideo, Loader2, PieChart, XCircle } from "lucide-react";
+import { BarChart3, ChevronLeft, Clapperboard, History, ListVideo, Loader2, PieChart, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectApiContext, projectApi, projectsApi } from "../api";
 import DirectorCut from "../components/DirectorCut";
+import HistoryPanel from "../components/HistoryPanel";
 import MatchAnalysis from "../components/MatchAnalysis";
 import PipelineProgress from "../components/PipelineProgress";
 import StatusPill from "../components/StatusPill";
@@ -12,7 +13,7 @@ import type { PipelineStatus, ProjectDetail } from "../types";
 import ProjectReview from "./ProjectReview";
 import ProjectStats from "./ProjectStats";
 
-type Tab = "review" | "stats" | "director" | "analysis";
+type Tab = "review" | "stats" | "director" | "analysis" | "history";
 
 export default function ProjectPage() {
   const { id = "" } = useParams();
@@ -137,6 +138,9 @@ export default function ProjectPage() {
                   </button>
                 </>
               )}
+              <button className={tabCls(tab === "history")} onClick={() => setTab("history")}>
+                <History size={13} /> History
+              </button>
             </div>
           )}
         </TopBar>
@@ -203,6 +207,7 @@ export default function ProjectPage() {
                 }}
               />
             )}
+            {tab === "history" && <HistoryPanel projectId={id} />}
             {tab === "director" && (
               <DirectorCut
                 key={gen}

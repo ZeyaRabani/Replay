@@ -5,6 +5,9 @@ import type {
   Candidate,
   CutsList,
   DirectorFull,
+  DownloadInfo,
+  HistoryEvent,
+  HistoryMatch,
   MultiangleInfo,
   PipelineStatus,
   ProjectDetail,
@@ -224,4 +227,43 @@ export function useProjectApi(): ProjectApi {
   const api = useContext(ProjectApiContext);
   if (!api) throw new Error("useProjectApi outside ProjectApiContext");
   return api;
+}
+
+export const historyApi = {
+  list: (includeDeleted = true) =>
+    req<HistoryMatch[]>(`/api/history?include_deleted=${includeDeleted ? 1 : 0}`),
+  events: (id: string) => req<HistoryEvent[]>(`/api/history/${id}/events`),
+  artefactUrl: (id: string, name: string) =>
+    mediaUrl(`/api/history/${id}/artefacts/${encodeURIComponent(name)}`),
+  restart: (id: string) =>
+    req<ProjectSummary>(`/api/history/${id}/restart`, json({})),
+  remove: (id: string) =>
+    req<void>(`/api/history/${id}`, { method: "DELETE" }),
+};
+
+export const downloadsApi = {
+  get: () => req<Record<string, DownloadInfo>>("/api/history/downloads"),
+};
+
+/** Canonical YouTube video id (same forms as backend history.video_id). */
+export function ytId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  let u = url.trim();
+  if (!u.includes("://")) u = "https://" + u;
+  let p: URL;
+  try {
+    p = new URL(u);
+  } catch {
+    return null;
+  }
+  const host = p.hostname.toLowerCase();
+  const path = p.pathname.replace(/^\/+/, "");
+  if (host.includes("youtu.be")) return path.split("/")[0] || null;
+  if (host.includes("youtube.com") || host.includes("youtube-nocookie.com")) {
+    const v = p.searchParams.get("v");
+    if (v) return v;
+    const [head, ...rest] = path.split("/");
+    if (["shorts", "embed", "live", "v"].includes(head) && rest[0]) return rest[0];
+  }
+  return null;
 }
