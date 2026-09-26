@@ -64,6 +64,25 @@ def test_match_window_post_sync_writes_both(client, sample_video, monkeypatch):
     assert got["match_window"] == [152.0, 1252.0]
     assert got["match_window_src"]["angle"] == 2
 
+    # a changed window must invalidate director/fuse/render outputs —
+    # director segments are output-time and would remap onto the new
+    # union otherwise
+    (p.multiangle_dir / "director.json").write_text("{}")
+    (p.multiangle_dir / "fused_candidates.json").write_text("[]")
+    (p.pipeline_dir / "candidates.json").write_text("[]")
+    r = client.put(scoped(pid, "/multiangle/match-window"),
+                   json={"angle": 2, "start": 950.0, "end": 2000.0})
+    assert r.status_code == 200
+    assert not (p.multiangle_dir / "director.json").exists()
+    assert not (p.multiangle_dir / "fused_candidates.json").exists()
+    assert not (p.pipeline_dir / "candidates.json").exists()
+    # same window again -> no churn (files stay absent, no error)
+    (p.multiangle_dir / "director.json").write_text("{}")
+    client.put(scoped(pid, "/multiangle/match-window"),
+               json={"angle": 2, "start": 950.0, "end": 2000.0})
+    assert (p.multiangle_dir / "director.json").exists()
+    (p.multiangle_dir / "director.json").unlink()
+
     # angle omitted -> resolves to the longest angle (fake per-angle
     # durations: a1 is longest below)
     for i, dur in enumerate((5000.0, 6200.0, 4000.0)):

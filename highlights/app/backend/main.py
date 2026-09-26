@@ -1334,9 +1334,23 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
     _require_multiangle(p)
     src_path = p.multiangle_dir / "match_window_src.json"
     cr_path = p.multiangle_dir / "cut_range.json"
+
+    def _invalidate_downstream() -> None:
+        # director segments are in OUTPUT time (0 = union_lo); a changed
+        # union remaps every segment — director/fuse/render must re-run
+        for f in ("director.json", "concat.txt", "fused_candidates.json"):
+            (p.multiangle_dir / f).unlink(missing_ok=True)
+        (p.pipeline_dir / "candidates.json").unlink(missing_ok=True)
+        (p.pipeline_dir / "stats.json").unlink(missing_ok=True)
+        if p.video and Path(p.video.path).exists():
+            Path(p.video.path).unlink()
+
     if body.start is None and body.end is None:
+        had = src_path.exists() or cr_path.exists()
         src_path.unlink(missing_ok=True)
         cr_path.unlink(missing_ok=True)
+        if had:
+            _invalidate_downstream()
         return {"match_window": None, "match_window_src": None}
     if body.start is None or body.end is None:
         raise HTTPException(422, "provide both start and end, or neither")
@@ -1362,7 +1376,11 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
         try:
             off = float(sync["offsets"][resolved])
             mw = [max(0.0, float(body.start) + off), float(body.end) + off]
-            write_json_atomic(cr_path, {"lo": mw[0], "hi": mw[1]}, indent=1)
+            old = _read_json(cr_path)
+            if not old or [old.get("lo"), old.get("hi")] != mw:
+                write_json_atomic(cr_path, {"lo": mw[0], "hi": mw[1]},
+                                  indent=1)
+                _invalidate_downstream()
         except Exception:
             mw = None
     p.save()
