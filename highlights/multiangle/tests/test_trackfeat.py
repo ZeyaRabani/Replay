@@ -23,6 +23,18 @@ def test_probe_dims_retries_empty_stdout_then_valid():
     assert s.call_count == 1
 
 
+def test_probe_dims_retries_unparseable_then_valid():
+    calls = [
+        _res(rc=0, out="1920,\n"),       # non-empty but broken fields
+        _res(rc=0, out="1920,1080\n"),
+    ]
+    with patch.object(trackfeat.subprocess, "run", side_effect=calls) as m, \
+         patch.object(trackfeat.time, "sleep"):
+        w, h = trackfeat._probe_dims("v.mp4", tries=3, delay=0.01)
+    assert (w, h) == (1920, 1080)
+    assert m.call_count == 2
+
+
 def test_probe_dims_retries_nonzero_rc_then_valid():
     calls = [
         _res(rc=1, out="", err="boom"),
