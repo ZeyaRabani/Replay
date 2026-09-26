@@ -218,6 +218,9 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     for f in mezz_dir.glob("*.mp4"):
         if f.name not in live:
             f.unlink()
+    mezz_bytes = sum(mp.stat().st_size for mp, *_ in mezzs.values()
+                     if mp.exists())
+    log(f"render: mezzanines {mezz_bytes / 1e9:.1f} GB")
 
     files = []
     used: set[str] = set()

@@ -225,7 +225,7 @@ app.add_middleware(
 
 def ensure_demo(reg: Registry) -> None:
     """Seed a demo user + demo project from committed fusion outputs."""
-    reg.add_user("demo")
+    reg.add_user("admin")
     if reg.list_projects():
         return
     cands_path = REPO_ROOT / "highlights" / "fusion" / "outputs" / "candidates.json"
@@ -237,7 +237,7 @@ def ensure_demo(reg: Registry) -> None:
         else "/home/ubuntu/match/match.mp4"
     )
     p = reg.create_project(
-        owner="demo",
+        owner="admin",
         title="Demo match (5qj_nsQSzvQ)",
         source={"kind": "path", "url": "https://youtu.be/5qj_nsQSzvQ", "filename": "match.mp4"},
     )
@@ -306,7 +306,7 @@ def project_public(project_id: str) -> ProjectStore:
 
 def legacy_project() -> ProjectStore:
     """Legacy unscoped routes map to user demo's newest project."""
-    p = get_registry().newest_for("demo")
+    p = get_registry().newest_for("admin")
     if p is None:
         raise HTTPException(
             404,
@@ -1267,6 +1267,20 @@ scoped = APIRouter(prefix="/api/projects/{project_id}")
 legacy = APIRouter(prefix="/api")
 
 
+class TitlePatch(BaseModel):
+    title: str
+
+
+@scoped.patch("")
+def patch_project(body: TitlePatch, p: ScopedP) -> dict:
+    t = body.title.strip()
+    if not (1 <= len(t) <= 120):
+        raise HTTPException(422, "title must be 1-120 characters")
+    p.title = t
+    p.save()
+    return {"id": p.id, "title": p.title}
+
+
 @scoped.get("")
 def get_project(p: ScopedP) -> dict:
     return {**summary(p), "pipeline": pipeline.refresh(p)}
@@ -1447,23 +1461,14 @@ def put_multiangle_angle(index: int, body: MaAnglePut, p: ScopedP) -> dict:
     if adir.is_dir():
         shutil.rmtree(adir)
     ma = p.multiangle_dir
-    # cached segments of this angle are stale (seg_key is keyed by angle
-    # index + file time — same key, different video): drop them
-    try:
-        sync = _read_json(ma / "sync.json") or {}
-        director = _read_json(ma / "director.json") or {}
-        offs = [float(x) for x in sync.get("offsets") or []]
-        union = sync.get("coverage", {}).get("union") or [0.0, 0.0]
-        if offs and director.get("segments"):
-            from highlights.multiangle.render import plan_segments, seg_key
-            for pl in plan_segments(director["segments"], offs,
-                                    float(union[0]), float(union[1]), []):
-                if pl.get("angle") == index and not pl.get("skip"):
-                    (ma / "segs" /
-                     f"{seg_key(index, pl['t_file'], pl['dur'])}.mp4"
-                     ).unlink(missing_ok=True)
-    except Exception:
-        pass
+    # cached segments + this angle's mezzanine are stale (the seg_key is
+    # keyed by angle index + file time, so same key = different video).
+    # seg_key now also mixes in the mezzanine key, so computing the stale
+    # names is impractical — clear the whole seg cache instead (other
+    # angles' segs re-extract in seconds) plus this angle's mezz file.
+    shutil.rmtree(ma / "segs", ignore_errors=True)
+    for f in (ma / "mezz").glob(f"{index}_*.mp4"):
+        f.unlink(missing_ok=True)
     for name in ("sync.json", "director.json", "concat.txt",
                  "fused_candidates.json"):
         (ma / name).unlink(missing_ok=True)
@@ -1494,6 +1499,14 @@ def purge_sources(p: ScopedP) -> dict:
         if td.is_dir():
             for f in td.iterdir():
                 if f.is_file() and f.suffix.lower() in video_exts | {".wav"}:
+                    freed += f.stat().st_size
+                    f.unlink()
+    # render intermediates (mezzanines are re-built on the next re-cut)
+    for dname in ("mezz", "segs"):
+        sd = p.multiangle_dir / dname
+        if sd.is_dir():
+            for f in sd.iterdir():
+                if f.is_file():
                     freed += f.stat().st_size
                     f.unlink()
     p.meta["sources_purged"] = True

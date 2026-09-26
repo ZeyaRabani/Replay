@@ -173,6 +173,9 @@ def test_put_angle_url_swaps_and_clears_outputs(client, sample_video, monkeypatc
             (ma / "segs" /
              f"{seg_key(pl['angle'], pl['t_file'], pl['dur'])}.mp4"
              ).write_bytes(b"s")
+    (ma / "mezz").mkdir(exist_ok=True)
+    (ma / "mezz" / "2_abc123.mp4").write_bytes(b"m")
+    (ma / "mezz" / "0_def456.mp4").write_bytes(b"m")
 
     r = client.put(scoped(pid, "/multiangle/angles/2"),
                    json={"url": "https://youtu.be/NEWURL"})
@@ -184,9 +187,10 @@ def test_put_angle_url_swaps_and_clears_outputs(client, sample_video, monkeypatc
     assert not (ma / "sync.json").exists()
     assert not (ma / "director.json").exists()
     assert not (ma / "fused_candidates.json").exists()
-    # only angle-2's segment was evicted
-    left = list((ma / "segs").glob("*.mp4"))
-    assert len(left) == 1
+    # the whole seg cache + angle-2's mezzanine were evicted
+    assert not (ma / "segs").exists()
+    assert not (ma / "mezz" / "2_abc123.mp4").exists()
+    assert (ma / "mezz" / "0_def456.mp4").exists()
     # 404 / 409
     assert client.put(scoped(pid, "/multiangle/angles/9"),
                       json={"url": "x"}).status_code == 404
