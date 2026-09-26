@@ -285,6 +285,77 @@ def test_zone_keyframe_switch():
     assert all(t0 >= 190 for t0, _ in zone_segs)
 
 
+def test_zone_no_return_blocks_pingpong():
+    """Density candidates alternating every 2 s: a zone cut back to the
+    angle we just left inside ZONE_NO_RETURN_S is blocked."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    # both angles always zone-eligible via density; winner alternates
+    # every 2 s via ball_conf score (ball is never inside a zone)
+    win0 = np.array([0.6 if (t // 2) % 2 == 0 else 0.4 for t in range(T)])
+    tr[0]["ball_conf"] = win0
+    tr[1]["ball_conf"] = 1.0 - win0
+    feet = [[0.2, 0.5]] * 4
+    for i in (0, 1):
+        tr[i]["players_xy"] = [feet] * T
+    zones = [[_kf([POLY])], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert len(starts) >= 2
+    # no two consecutive zone cuts closer than the no-return window
+    import itertools
+    assert all(b - a >= 6 for a, b in itertools.pairwise(starts))
+
+
+def test_zone_density_needs_streak():
+    """A density candidate flipping every second never confirms — at most
+    one zone cut total."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    win0 = np.array([0.6 if t % 2 == 0 else 0.4 for t in range(T)])
+    tr[0]["ball_conf"] = win0
+    tr[1]["ball_conf"] = 1.0 - win0
+    feet = [[0.2, 0.5]] * 4
+    for i in (0, 1):
+        tr[i]["players_xy"] = [feet] * T
+    zones = [[_kf([POLY])], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert len(starts) <= 1
+
+
+def test_zone_ball_driven_still_quick():
+    """Ball-driven zone hits keep the short hold (cut right at the sighting)."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    tr[1]["ball_conf"][100:121] = 0.8
+    tr[1]["ball_x"][100:121] = 0.2
+    tr[1]["ball_y"][100:121] = 0.5
+    zones = [[], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert starts and starts[0] <= 102
+
+
+def test_zone_density_steady_cuts():
+    """A steady density candidate cuts once streak>=2 and hold>=4."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    tr[1]["ball_conf"][:] = 0.6
+    feet = [[0.2, 0.5]] * 4
+    tr[1]["players_xy"] = [feet if 100 <= t < 150 else [] for t in range(T)]
+    zones = [[], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert starts
+    # first eligible second is 100; confirm streak needs one more second
+    assert 101 <= starts[0] <= 104
+
+
 def test_normalize_and_zones_at():
     from highlights.multiangle.zones import kf_index, normalize_zones, zones_at
 

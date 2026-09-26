@@ -56,7 +56,11 @@ SMOOTH_MEAN = 9
 BASELINE_Q = 90
 ZONE_BALL_OK = 0.2     # ball_conf needed for a zone hit (lower than BALL_OK)
 ZONE_LINGER = 8        # seconds an angle stays zone-eligible after last hit
-ZONE_MIN_HOLD = 2      # min hold before cutting TO a zone angle
+ZONE_MIN_HOLD_BALL = 2  # min hold before cutting TO a ball-driven zone angle
+ZONE_MIN_HOLD = ZONE_MIN_HOLD_BALL  # legacy alias
+ZONE_MIN_HOLD_DENS = 4  # min hold before cutting TO a density-driven zone angle
+ZONE_CONFIRM_DENS = 2  # consecutive seconds a density candidate must repeat
+ZONE_NO_RETURN_S = 6   # no density zone cut back to the previous angle within this
 ZONE_PLAYERS_MIN = 3   # player-density proxy: feet points inside a zone
 ZONE_PLAYERS_FRAC = 0.5  # ... that are also >= this share of detected players
 ZONE_DENSITY_SCORE = 0.3  # score floor for density-driven zone eligibility
@@ -132,7 +136,9 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
     elig = ball inside a zone (conf >= ZONE_BALL_OK) OR >= ZONE_PLAYERS_MIN
     player feet inside a zone that are >= ZONE_PLAYERS_FRAC of the detected
     players, extended ZONE_LINGER seconds after the last hit of either kind.
-    ball_hits / dens_hits are the raw per-source hits (for diagnostics).
+    The second return is the linger-extended ball_hits (viewcheck-masked
+    when zone_ok is given) — True where eligibility is ball-driven;
+    dens_hits stays raw for diagnostics.
 
     zones[i] is that angle's keyframe list [{"t": .., "zones": [poly..]}];
     zone_kf[i][t] selects which keyframe's polygons apply at each second
@@ -184,14 +190,19 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                 if kk >= ZONE_PLAYERS_MIN and \
                         kk >= ZONE_PLAYERS_FRAC * len(pts):
                     dens_hits[i, t] = True
-    hits = ball_hits | dens_hits
     # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
-    elig = hits.copy()
-    for s in range(1, ZONE_LINGER + 1):
-        elig[:, s:] |= hits[:, :T - s]
+    def _linger(h: np.ndarray) -> np.ndarray:
+        out = h.copy()
+        for s in range(1, ZONE_LINGER + 1):
+            out[:, s:] |= h[:, :T - s]
+        return out
+
+    ball_linger = _linger(ball_hits)
+    elig = ball_linger | _linger(dens_hits)
     if zone_ok is not None:
         elig &= zone_ok
-    return elig, ball_hits, dens_hits
+        ball_linger &= zone_ok
+    return elig, ball_linger, dens_hits
 
 
 def per_second(track: list[dict], available: np.ndarray,
@@ -203,8 +214,11 @@ def per_second(track: list[dict], available: np.ndarray,
 
     Returns best_angles (-1 none), scores, rules (0 hold, 1 cluster,
     2 ball, 3 event, 4 zone),
-    S[n_angles, T] (each angle's score under the active rule), and the
-    per-angle cluster baselines used for normalisation.
+    S[n_angles, T] (each angle's score under the active rule), the
+    per-angle cluster baselines used for normalisation, zone share
+    diagnostics (None without zones), and zone_ball[n_angles, T] — True
+    where a zone hit is ball-driven (linger-extended, viewcheck-masked);
+    None without zones.
     """
     from scipy.ndimage import maximum_filter
 
@@ -214,6 +228,7 @@ def per_second(track: list[dict], available: np.ndarray,
     best_s = np.zeros(T)
     best_r = np.zeros(T, dtype=int)
     S = np.zeros((n_angles, T))
+    zone_ball = None
 
     event = np.stack([
         np.asarray(track[i].get("event", np.zeros(T)), dtype=float)
@@ -226,11 +241,13 @@ def per_second(track: list[dict], available: np.ndarray,
     zone_shares: dict | None = None
     zone_elig = None
     if zones:
-        zone_elig, zb, zp = _zone_eligible(track, available, zones, zone_ok,
-                                           zone_kf)
+        zone_elig, zone_ball, zp = _zone_eligible(
+            track, available, zones, zone_ok, zone_kf)
         zone_shares = {
-            "zone_ball_share": round(float((zb & available).any(axis=0).mean()), 4),
-            "zone_players_share": round(float((zp & available).any(axis=0).mean()), 4),
+            "zone_ball_share": round(
+                float((zone_ball & available).any(axis=0).mean()), 4),
+            "zone_players_share": round(
+                float((zp & available).any(axis=0).mean()), 4),
         }
 
     # sighting: >= BALL_MIN_SIGHTINGS hits of ball_conf >= BALL_OK in the
@@ -278,7 +295,7 @@ def per_second(track: list[dict], available: np.ndarray,
             else:
                 best_a[t] = int(np.argmax(av.astype(int)))
                 best_s[t] = 0.0
-    return best_a, best_s, best_r, S, baselines, zone_shares
+    return best_a, best_s, best_r, S, baselines, zone_shares, zone_ball
 
 
 def cut_director(track: list[dict], available: np.ndarray,
@@ -294,7 +311,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     sty = STYLES[style]
     T = available.shape[1]
     n_angles = len(track)
-    cand_a, _cand_s, cand_r, S, baselines, zone_shares = per_second(
+    cand_a, _cand_s, cand_r, S, baselines, zone_shares, zone_ball = per_second(
         track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf)
     sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
@@ -310,6 +327,10 @@ def cut_director(track: list[dict], available: np.ndarray,
     streak = 0
     zero_run = 0
     propose = -1
+    zone_streak = 0
+    zone_prop = -1
+    prev_zone_angle = -1
+    last_zone_cut_t = -1 << 30
 
     def open_seg(start_t: int, angle: int, rule: str, score: float,
                  runner: dict | None):
@@ -331,18 +352,21 @@ def cut_director(track: list[dict], available: np.ndarray,
             open_seg(t, j, "coverage", float(sm[j, t]),
                      {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
             cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
+            zone_streak, zone_prop = 0, -1
             continue
 
         j = cand_a[t]
         if j < 0:
             rule_counts["hold"] += 1
             zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
+            zone_streak, zone_prop = 0, -1
             continue
         rule_counts[{4: "zone", 3: "event", 2: "ball", 1: "cluster",
                      0: "coverage"}[cand_r[t]]] += 1
         if j == cur:
             streak = 0
             propose = -1
+            zone_streak, zone_prop = 0, -1
             zero_run = zero_run + 1 if sm[cur, t] <= 0 else 0
             continue
 
@@ -354,19 +378,31 @@ def cut_director(track: list[dict], available: np.ndarray,
             open_seg(t, j, "event", float(S[j, t]),
                      {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
             cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
+            zone_streak, zone_prop = 0, -1
             continue
 
         if cand_r[t] == 4:
-            # zone rule: ball inside a painted zone -> cut to that camera
-            # immediately like an event, after a short min hold; while the
-            # hold is short just keep waiting (never use the margin path)
-            if hold >= ZONE_MIN_HOLD:
+            # zone rule: ball inside a painted zone cuts after a short hold;
+            # density-driven candidates need a confirm streak, a longer
+            # hold, and can't immediately undo a zone cut (ping-pong guard)
+            ball_driven = zone_ball is not None and bool(zone_ball[j, t])
+            zone_streak = zone_streak + 1 if j == zone_prop else 1
+            zone_prop = j
+            no_return = (not ball_driven and j == prev_zone_angle
+                         and t - last_zone_cut_t < ZONE_NO_RETURN_S)
+            fire = (hold >= ZONE_MIN_HOLD_BALL if ball_driven else
+                    zone_streak >= ZONE_CONFIRM_DENS
+                    and hold >= ZONE_MIN_HOLD_DENS and not no_return)
+            if fire:
                 segs[-1]["t_end"] = float(t)
                 open_seg(t, j, "zone", float(S[j, t]),
                          {"angle": int(cur), "score": round(float(sm[cur, t]), 4)})
+                prev_zone_angle, last_zone_cut_t = cur, t
                 cur, hold, streak, zero_run, propose = j, 0, 0, 0, -1
+                zone_streak, zone_prop = 0, -1
             continue
 
+        zone_streak, zone_prop = 0, -1
         cur_score = sm[cur, t]
         # dead-feed recovery: incumbent scoreless for >= DEAD_SCORE_S while a
         # challenger shows real signal -> margin waived
@@ -396,6 +432,7 @@ def cut_director(track: list[dict], available: np.ndarray,
                      sm[j, t],
                      {"angle": int(cur), "score": round(float(cur_score), 4)})
             cur, hold, streak, zero_run, propose = j, max(0, t - cut_t), 0, 0, -1
+            zone_streak, zone_prop = 0, -1
 
     durs = [s["t_end"] - s["t_start"] for s in segs]
     total_dur = sum(durs)
