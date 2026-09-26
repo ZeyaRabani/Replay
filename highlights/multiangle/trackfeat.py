@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -48,13 +49,30 @@ def _ensure_model(model: Path) -> Path:
     return model if model.exists() else Path("yolov8n.pt")
 
 
+def _probe_dims(video: str, tries: int = 3, delay: float = 2.0):
+    """ffprobe (w, h) of v:0; retry on non-zero rc or empty stdout —
+    observed to fail transiently under load right after a render finishes."""
+    cmd = ["ffprobe", "-v", "error", "-select_streams", "v:0",
+           "-show_entries", "stream=width,height", "-of", "csv=p=0", video]
+    last = ""
+    for attempt in range(tries):
+        probe = subprocess.run(cmd, capture_output=True, text=True)
+        if probe.returncode == 0 and probe.stdout.strip():
+            try:
+                return (int(x) for x in probe.stdout.strip().split(","))
+            except ValueError:
+                last = f"unparseable ffprobe output {probe.stdout!r}"
+        else:
+            last = (f"ffprobe rc={probe.returncode} "
+                    f"stderr={probe.stderr.strip()!r}")
+        if attempt < tries - 1:
+            time.sleep(delay)
+    raise RuntimeError(f"ffprobe failed for {video}: {last}")
+
+
 def _frame_reader(video: str, fps: float, width: int):
     """Yield (t_seconds, bgr frame) via an ffmpeg rawvideo pipe at scale w=width."""
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
-         "-show_entries", "stream=width,height", "-of", "csv=p=0", video],
-        capture_output=True, text=True, check=True)
-    w_in, h_in = (int(x) for x in probe.stdout.strip().split(","))
+    w_in, h_in = _probe_dims(video)
     w = width & ~1
     h = round(width * h_in / w_in) & ~1
     cmd = ["ffmpeg", "-v", "error", "-i", video, "-vf", f"fps={fps},scale={w}:{h}",

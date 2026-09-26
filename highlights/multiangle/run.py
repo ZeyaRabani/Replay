@@ -246,28 +246,39 @@ def stage_track(ctx: Ctx) -> None:
         d = ctx.duration(i)
         return min(1.0, t / d) if d else 0.0
 
-    running = []          # (i, proc, prog)
+    def _spawn(i: int, vid, out, prog):
+        ctx.log(f"track: angle {i+1}/{n} {ctx.angles[i]['label']}")
+        return subprocess.Popen(
+            [sys.executable, "-m", "highlights.multiangle.trackfeat",
+             "--video", str(vid), "--out", str(out), "--model", model,
+             "--imgsz", "960", "--fps", "1",
+             "--progress-file", str(prog)],
+            stdout=ctx.log_fh or subprocess.DEVNULL,
+            stderr=subprocess.STDOUT, env=env)
+
+    running = []          # (i, vid, out, proc, prog)
+    retried = set()       # angles already retried once after a non-zero exit
     while pending or running:
         while pending and len(running) < workers:
             i, vid, out, prog = pending.pop(0)
-            ctx.log(f"track: angle {i+1}/{n} {ctx.angles[i]['label']}")
-            running.append((i, subprocess.Popen(
-                [sys.executable, "-m", "highlights.multiangle.trackfeat",
-                 "--video", str(vid), "--out", str(out), "--model", model,
-                 "--imgsz", "960", "--fps", "1",
-                 "--progress-file", str(prog)],
-                stdout=ctx.log_fh or subprocess.DEVNULL,
-                stderr=subprocess.STDOUT, env=env), prog))
+            running.append((i, vid, out, _spawn(i, vid, out, prog), prog))
         still = []
-        for i, proc, prog in running:
+        for i, vid, out, proc, prog in running:
             rc = proc.poll()
             if rc is None:
-                still.append((i, proc, prog))
+                still.append((i, vid, out, proc, prog))
             elif rc == 0:
                 n_done += 1
                 ctx.log(f"track: a{i} done")
+            elif i not in retried:
+                # transient child failure (e.g. empty ffprobe output under
+                # load) — retry this angle once before failing the stage
+                retried.add(i)
+                prog.unlink(missing_ok=True)
+                ctx.log(f"track: a{i} failed ({rc}), retrying once")
+                still.append((i, vid, out, _spawn(i, vid, out, prog), prog))
             else:
-                for _, q, _ in running:
+                for _, _, _, q, _ in running:
                     if q is not proc and q.poll() is None:
                         q.terminate()
                 raise PipelineError(f"track angle {i} failed ({rc})")
