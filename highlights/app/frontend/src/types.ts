@@ -131,6 +131,11 @@ export interface SyncInfo {
 
 export type ZonePolygon = number[][];
 
+export interface ZoneKeyframe {
+  t: number;
+  zones: ZonePolygon[];
+}
+
 export interface DirectorSummary {
   style?: string;
   zones_used?: boolean;

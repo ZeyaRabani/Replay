@@ -148,9 +148,39 @@ class MaMatchWindowPut(BaseModel):
     end: float | None = None
 
 
+class ZoneKeyframe(BaseModel):
+    t: float = 0.0
+    zones: list[list[list[float]]] = []
+
+
 class ZonesPut(BaseModel):
-    angles: list[list[list[list[float]]]]
+    # v2: per-angle list of keyframes; legacy: per-angle list of polys
+    angles: list[list[ZoneKeyframe | list[list[float]]]]
     ref_t: list[float | None] | None = None
+
+
+def _zones_to_v2(body: ZonesPut, n: int,
+                 durations: list[float]) -> list[list[dict]]:
+    """Normalise a PUT body into v2 keyframes per angle."""
+    out: list[list[dict]] = []
+    for ai, entry in enumerate(body.angles):
+        kfs: list[dict] = []
+        if entry and all(isinstance(k, ZoneKeyframe) for k in entry):
+            for kf in entry:
+                if kf.t < 0:
+                    raise HTTPException(422, f"angle {ai}: keyframe t < 0")
+                kfs.append({"t": float(kf.t), "zones": kf.zones})
+        elif entry:
+            # legacy flat polygon list -> single keyframe
+            rt = (body.ref_t[ai] if body.ref_t and ai < len(body.ref_t)
+                  and body.ref_t[ai] is not None else None)
+            dur = durations[ai] if ai < len(durations) else 0.0
+            t = float(rt) if rt is not None else (dur * 0.3 if dur else 0.0)
+            kfs.append({"t": t,
+                        "zones": [p for p in entry if isinstance(p, list)]})
+        kfs.sort(key=lambda k: k["t"])
+        out.append(kfs)
+    return out
 
 
 class TrimRequest(BaseModel):
@@ -1558,9 +1588,14 @@ def get_multiangle_zones(p: PublicP) -> dict:
     n = len(p.source_info.get("angles") or [])
     z = _read_json(p.multiangle_dir / "zones.json")
     if z and isinstance(z.get("angles"), list):
-        z.setdefault("ref_t", [None] * len(z["angles"]))
-        return z
-    return {"angles": [[] for _ in range(n)], "ref_t": [None] * n}
+        if z.get("version") == 2:
+            return z
+        # legacy file -> convert on read (t = ref_t or 0.3*duration)
+        from highlights.multiangle.zones import normalize_zones
+        durs = [float(a.get("duration") or 0.0) for a in _angles_info(p)]
+        return {"version": 2,
+                "angles": normalize_zones(z, durs)}
+    return {"version": 2, "angles": [[] for _ in range(n)]}
 
 
 @scoped.put("/multiangle/zones")
@@ -1569,16 +1604,19 @@ def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
     n = len(p.source_info.get("angles") or [])
     if len(body.angles) != n:
         raise HTTPException(422, f"expected {n} angle entries, got {len(body.angles)}")
-    for ai, polys in enumerate(body.angles):
-        for poly in polys:
-            if len(poly) < 3:
-                raise HTTPException(422, f"angle {ai}: polygon needs >= 3 points")
-            for pt in poly:
-                if len(pt) != 2 or not all(0.0 <= float(v) <= 1.0 for v in pt):
-                    raise HTTPException(422, f"angle {ai}: coords must be [x,y] in 0..1")
     if body.ref_t is not None and len(body.ref_t) != n:
         raise HTTPException(422, f"ref_t must have {n} entries")
-    out = {"angles": body.angles, "ref_t": body.ref_t or [None] * n}
+    durs = [float(a.get("duration") or 0.0) for a in _angles_info(p)]
+    kfs = _zones_to_v2(body, n, durs)
+    for ai, entry in enumerate(kfs):
+        for kf in entry:
+            for poly in kf["zones"]:
+                if len(poly) < 3:
+                    raise HTTPException(422, f"angle {ai}: polygon needs >= 3 points")
+                for pt in poly:
+                    if len(pt) != 2 or not all(0.0 <= float(v) <= 1.0 for v in pt):
+                        raise HTTPException(422, f"angle {ai}: coords must be [x,y] in 0..1")
+    out = {"version": 2, "angles": kfs}
     p.multiangle_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(p.multiangle_dir / "zones.json", out, indent=1)
     return out

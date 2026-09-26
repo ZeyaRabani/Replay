@@ -123,8 +123,9 @@ def _in_poly(pts: np.ndarray, poly: list[list[float]]) -> np.ndarray:
 
 
 def _zone_eligible(track: list[dict], available: np.ndarray,
-                   zones: list[list[list[list[float]]]],
-                   zone_ok: np.ndarray | None = None
+                   zones: list[list[dict]],
+                   zone_ok: np.ndarray | None = None,
+                   zone_kf: list[np.ndarray] | None = None
                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(elig, ball_hits, dens_hits): [n_angles, T] bools.
 
@@ -132,31 +133,46 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
     player feet inside a zone that are >= ZONE_PLAYERS_FRAC of the detected
     players, extended ZONE_LINGER seconds after the last hit of either kind.
     ball_hits / dens_hits are the raw per-source hits (for diagnostics).
+
+    zones[i] is that angle's keyframe list [{"t": .., "zones": [poly..]}];
+    zone_kf[i][t] selects which keyframe's polygons apply at each second
+    (all zeros = single keyframe, the old behaviour).
     """
     n = len(track)
     T = available.shape[1]
     ball_hits = np.zeros((n, T), dtype=bool)
     dens_hits = np.zeros((n, T), dtype=bool)
     for i in range(n):
-        if not zones[i]:
+        kfs = zones[i] or []
+        polys_per_k = [[p for p in (kf.get("zones") or []) if len(p) >= 3]
+                       for kf in kfs]
+        if not any(polys_per_k):
             continue
+        kidx = (zone_kf[i] if zone_kf and i < len(zone_kf)
+                and zone_kf[i] is not None else np.zeros(T, dtype=int))
         bx = np.asarray(track[i].get("ball_x", np.zeros(T)), dtype=float)
         by = np.asarray(track[i].get("ball_y", np.zeros(T)), dtype=float)
         bc = np.asarray(track[i].get("ball_conf", np.zeros(T)), dtype=float)
         seen = available[i] & (bc >= ZONE_BALL_OK) & (bx > 0) & (by > 0)
-        polys = [p for p in zones[i] if len(p) >= 3]
-        if seen.any():
-            pts = np.stack([bx, by], axis=1)
-            in_any = np.zeros(T, dtype=bool)
-            for poly in polys:
-                in_any |= _in_poly(pts, poly)
-            ball_hits[i] = seen & in_any
-        # player-density proxy (only for tracks carrying per-player feet)
+        pts_ball = np.stack([bx, by], axis=1)
         pxy = track[i].get("players_xy")
-        if pxy is not None:
-            for t in range(T):
-                if not available[i, t]:
-                    continue
+        for k, polys in enumerate(polys_per_k):
+            if not polys:
+                continue
+            m = kidx == k
+            if not m.any():
+                continue
+            if (seen & m).any():
+                in_any = np.zeros(int(m.sum()), dtype=bool)
+                for poly in polys:
+                    in_any |= _in_poly(pts_ball[m], poly)
+                hit = np.zeros(T, dtype=bool)
+                hit[m] = in_any
+                ball_hits[i] |= seen & hit
+            # player-density proxy (only for tracks carrying feet)
+            if pxy is None:
+                continue
+            for t in np.nonzero(m & available[i])[0]:
                 feet = pxy[t] if t < len(pxy) else []
                 if len(feet) < ZONE_PLAYERS_MIN:
                     continue
@@ -164,8 +180,9 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                 in_any = np.zeros(len(pts), dtype=bool)
                 for poly in polys:
                     in_any |= _in_poly(pts, poly)
-                k = int(in_any.sum())
-                if k >= ZONE_PLAYERS_MIN and k >= ZONE_PLAYERS_FRAC * len(pts):
+                kk = int(in_any.sum())
+                if kk >= ZONE_PLAYERS_MIN and \
+                        kk >= ZONE_PLAYERS_FRAC * len(pts):
                     dens_hits[i, t] = True
     hits = ball_hits | dens_hits
     # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
@@ -179,7 +196,8 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
 
 def per_second(track: list[dict], available: np.ndarray,
                zones: list | None = None,
-               zone_ok: np.ndarray | None = None
+               zone_ok: np.ndarray | None = None,
+               zone_kf: list[np.ndarray] | None = None
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
@@ -208,7 +226,8 @@ def per_second(track: list[dict], available: np.ndarray,
     zone_shares: dict | None = None
     zone_elig = None
     if zones:
-        zone_elig, zb, zp = _zone_eligible(track, available, zones, zone_ok)
+        zone_elig, zb, zp = _zone_eligible(track, available, zones, zone_ok,
+                                           zone_kf)
         zone_shares = {
             "zone_ball_share": round(float((zb & available).any(axis=0).mean()), 4),
             "zone_players_share": round(float((zp & available).any(axis=0).mean()), 4),
@@ -265,7 +284,8 @@ def per_second(track: list[dict], available: np.ndarray,
 def cut_director(track: list[dict], available: np.ndarray,
                  motion: list[np.ndarray], style: str = "normal",
                  zones: list | None = None,
-                 zone_ok: np.ndarray | None = None) -> dict:
+                 zone_ok: np.ndarray | None = None,
+                 zone_kf: list[np.ndarray] | None = None) -> dict:
     """Full decision. track[i]: {"ball_conf","ball_size","cluster",
     "ball_x","ball_y"} 1 Hz arrays on the shared timeline;
     available[i, t]; motion[i] shared-timeline motion. zones (optional):
@@ -275,7 +295,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     T = available.shape[1]
     n_angles = len(track)
     cand_a, _cand_s, cand_r, S, baselines, zone_shares = per_second(
-        track, available, zones=zones, zone_ok=zone_ok)
+        track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf)
     sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
@@ -388,7 +408,8 @@ def cut_director(track: list[dict], available: np.ndarray,
     span_min = max(total_dur / 60.0, 1e-9)
     return {
         "style": style,
-        "zones_used": zones is not None and any(len(z) for z in zones),
+        "zones_used": zones is not None and any(
+            any(kf.get("zones") for kf in z) for z in zones),
         "segments": segs,
         "per_second_rule": rule_counts,
         "ratios": {k: round(v / tot, 4) for k, v in rule_counts.items()},

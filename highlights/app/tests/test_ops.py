@@ -148,26 +148,42 @@ def test_admin_shared_cookies(client):
 
 def test_zones_roundtrip_and_validation(client):
     pid = _multi_done(client)
-    zones = {"angles": [[[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]], []],
-             "ref_t": [30.0, None]}
+    poly = [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]
+    # v2 body: per-angle keyframes
+    zones = {"version": 2,
+             "angles": [[{"t": 30.0, "zones": [poly]},
+                         {"t": 1500.0, "zones": [poly]}], []]}
     r = client.put(scoped(pid, "/multiangle/zones"), json=zones)
     assert r.status_code == 200, r.text
     r = client.get(scoped(pid, "/multiangle/zones"))
     assert r.status_code == 200
-    assert r.json()["angles"][0][0][0] == [0.1, 0.1]
-    assert r.json()["ref_t"][0] == 30.0
+    got = r.json()
+    assert got["version"] == 2
+    assert got["angles"][0][0]["t"] == 30.0
+    assert got["angles"][0][0]["zones"][0][0] == [0.1, 0.1]
+    assert len(got["angles"][0]) == 2
+
+    # legacy body (flat polys + ref_t) -> stored as v2
+    r = client.put(scoped(pid, "/multiangle/zones"),
+                   json={"angles": [[poly], []], "ref_t": [45.0, None]})
+    assert r.status_code == 200, r.text
+    got = client.get(scoped(pid, "/multiangle/zones")).json()
+    assert got["version"] == 2
+    assert got["angles"][0] == [{"t": 45.0, "zones": [poly]}]
 
     # wrong number of angle entries -> 422
     r = client.put(scoped(pid, "/multiangle/zones"),
                    json={"angles": [[]]})
     assert r.status_code == 422
-    # polygon with <3 points -> 422
+    # polygon with <3 points -> 422 (inside a v2 keyframe)
     r = client.put(scoped(pid, "/multiangle/zones"),
-                   json={"angles": [[[[0, 0], [1, 1]]], []]})
+                   json={"angles": [[{"t": 0, "zones": [[[0, 0], [1, 1]]]}],
+                                    []]})
     assert r.status_code == 422
     # coord out of range -> 422
     r = client.put(scoped(pid, "/multiangle/zones"),
-                   json={"angles": [[[[0, 0], [1.5, 0], [1, 1]]], []]})
+                   json={"angles": [[{"t": 0, "zones":
+                                      [[[0, 0], [1.5, 0], [1, 1]]]}], []]})
     assert r.status_code == 422
 
 

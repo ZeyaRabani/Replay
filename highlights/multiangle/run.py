@@ -488,51 +488,72 @@ def stage_director(ctx: Ctx) -> dict:
                 for k in range(T)]
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
-    zones, zone_ok = None, None
+    zones, zone_ok, zone_kf = None, None, None
     zf = ctx.pipe / "zones.json"
     if zf.exists():
         try:
+            from highlights.multiangle.zones import kf_index, normalize_zones
             zd = json.loads(zf.read_text()) or {}
-            zones = zd.get("angles")
-            ref_ts = zd.get("ref_t") or []
-            if zones:
-                ctx.log("director: zones on angles "
-                        f"{[i for i, z in enumerate(zones) if z]}")
+            zones = normalize_zones(
+                zd, [ctx.duration(i) for i in range(len(ctx.angles))])
+            has = [i for i, kfs in enumerate(zones)
+                   if any(k.get("zones") for k in kfs)]
+            if zones and has:
+                ctx.log("director: zones on angles/keyframes "
+                        f"{[(i, [k for k, kf in enumerate(zones[i]) if kf.get('zones')]) for i in has]}")
+                zone_kf = [np.zeros(T, dtype=int)
+                           for _ in range(len(ctx.angles))]
                 zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
                 suspended = [0.0] * len(ctx.angles)
                 for i, a in enumerate(ctx.angles):
-                    if not zones[i]:
+                    off = offsets[i]
+                    dur = ctx.duration(i)
+                    zone_kf[i] = kf_index(zones[i], T, lo, off, dur)
+                    if i not in has:
                         continue
                     vid = ctx.angle_video(i)
                     if vid is None:
                         continue
-                    off = offsets[i]
-                    dur = ctx.duration(i)
-                    ref_t = (ref_ts[i] if i < len(ref_ts)
-                             and ref_ts[i] is not None else dur * 0.3)
-                    ctx.status.update(
-                        stage_progress=(i + 0.5) / len(ctx.angles),
-                        message=f"director: viewcheck angle {i}")
-                    try:
-                        ok = _zone_view_ok(ctx, a["dir"], vid, ref_t)
-                    except Exception as e:
-                        ctx.log(f"director: viewcheck a{i} failed ({e})")
-                        continue
-                    times, okarr = ok
-                    zone_ok[i] = _map_view_ok(times, okarr, T, lo, off, dur)
-                    suspended[i] = float(
-                        (~zone_ok[i] & avail[i]).sum() / max(1, avail[i].sum()))
+                    ok_by_k: dict[int, np.ndarray] = {}
+                    for k, kf in enumerate(zones[i]):
+                        if not (kf.get("zones") or []):
+                            continue  # no polys -> no hits anyway
+                        ctx.status.update(
+                            stage_progress=(i + 0.5) / len(ctx.angles),
+                            message=f"director: viewcheck angle {i} "
+                                    f"keyframe {k}")
+                        try:
+                            times, okarr = _zone_view_ok(
+                                ctx, a["dir"], vid, float(kf["t"]))
+                        except Exception as e:
+                            ctx.log(f"director: viewcheck a{i} k{k} "
+                                    f"failed ({e})")
+                            continue
+                        ok_by_k[k] = _map_view_ok(times, okarr, T, lo,
+                                                  off, dur)
+                    if ok_by_k:
+                        row = np.ones(T, dtype=bool)
+                        for k, okk in ok_by_k.items():
+                            m = zone_kf[i] == k
+                            row[m] = okk[m]
+                        zone_ok[i] = row
+                        suspended[i] = float(
+                            (~zone_ok[i] & avail[i]).sum()
+                            / max(1, avail[i].sum()))
                 if any(s > 0 for s in suspended):
                     ctx.log("director: zones suspended "
                             f"{[round(s, 3) for s in suspended]} "
                             "(view differs from reference)")
+            else:
+                zones = None
         except Exception as e:
             ctx.log(f"director: ignoring bad zones.json ({e})")
-            zones, zone_ok = None, None
+            zones, zone_ok, zone_kf = None, None, None
     out = cut_director(tracks, avail, motion, ctx.style,
-                       zones=zones, zone_ok=zone_ok)
+                       zones=zones, zone_ok=zone_ok, zone_kf=zone_kf)
     if zones:
         out["zone_suspended_share"] = [round(s, 4) for s in suspended]
+        out["zone_keyframes"] = [len(kfs) for kfs in zones]
     write_json_atomic(ctx.pipe / "director.json", out, indent=1,
                       default=_np_json)
     ctx.log(f"director: {out['n_cuts']} cuts, ratios {out['ratios']}")

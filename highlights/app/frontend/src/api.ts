@@ -13,7 +13,7 @@ import type {
   Team,
   User,
   VideoInfo,
-  ZonePolygon,
+  ZoneKeyframe,
 } from "./types";
 
 const USER_KEY = "hl_user";
@@ -188,11 +188,11 @@ export function projectApi(id: string) {
             match_window_src: { angle: number; start: number; end: number } | null }>(
         `${base}/multiangle/match-window`, json({ start, end, angle }, "PUT")),
     getZones: () =>
-      req<{ angles: ZonePolygon[][]; ref_t?: (number | null)[] }>(
+      req<{ version: 2; angles: ZoneKeyframe[][] }>(
         `${base}/multiangle/zones`),
-    putZones: (angles: ZonePolygon[][], ref_t?: (number | null)[]) =>
-      req<{ angles: ZonePolygon[][] }>(`${base}/multiangle/zones`,
-        json({ angles, ref_t }, "PUT")),
+    putZones: (angles: ZoneKeyframe[][]) =>
+      req<{ version: 2; angles: ZoneKeyframe[][] }>(
+        `${base}/multiangle/zones`, json({ angles }, "PUT")),
     angleFrameUrl: (i: number, t?: number) =>
       mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`,
         t == null ? {} : { t: String(t) }),

@@ -5,6 +5,14 @@ import numpy as np
 from highlights.multiangle.director import _in_poly, cut_director
 
 
+def _kf(polys, t=0.0):
+    return {"t": t, "zones": polys}
+
+
+POLY = [[0, 0], [0.5, 0], [0.5, 1], [0, 1]]
+POLY_RIGHT = [[0.5, 0], [1, 0], [1, 1], [0.5, 1]]
+
+
 def _track(T, cluster=1.0, ball_conf=0.0, ball_xy=(0.0, 0.0)):
     return {
         "ball_conf": np.full(T, ball_conf),
@@ -16,7 +24,7 @@ def _track(T, cluster=1.0, ball_conf=0.0, ball_xy=(0.0, 0.0)):
     }
 
 
-def _run(zones, T=300, zone_ok=None):
+def _run(zones, T=300, zone_ok=None, zone_kf=None):
     avail = np.ones((2, T), dtype=bool)
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
     # angle 1 sees the ball at (.2,.5) during t=100..200
@@ -25,11 +33,12 @@ def _run(zones, T=300, zone_ok=None):
     tr[1]["ball_x"][100:201] = 0.2
     tr[1]["ball_y"][100:201] = 0.5
     motion = [np.ones(T), np.ones(T)]
-    return cut_director(tr, avail, motion, zones=zones, zone_ok=zone_ok)
+    return cut_director(tr, avail, motion, zones=zones, zone_ok=zone_ok,
+                        zone_kf=zone_kf)
 
 
 def test_zone_cut_overrides_cluster():
-    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    zones = [[], [_kf([POLY])]]
     d = _run(zones)
     zone_segs = [s for s in d["segments"] if s["rule"] == "zone"]
     assert zone_segs, "expected zone segments"
@@ -57,7 +66,7 @@ def test_zones_none_identical():
 
 
 def test_zone_ok_suspends():
-    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    zones = [[], [_kf([POLY])]]
     ok = np.ones((2, 300), dtype=bool)
     ok[1, 120:] = False          # camera moved at t=120
     d = _run(zones, zone_ok=ok)
@@ -188,7 +197,7 @@ def test_zone_low_ball_conf_fires():
     tr[1]["ball_conf"][100:201] = 0.25
     tr[1]["ball_x"][100:201] = 0.2
     tr[1]["ball_y"][100:201] = 0.5
-    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    zones = [[], [_kf([POLY])]]
     d = cut_director(tr, avail, [np.ones(300)] * 2, zones=zones)
     assert _seg_times(d), "expected zone segments at ball_conf 0.25"
     assert d["zone_ball_share"] > 0
@@ -203,7 +212,7 @@ def test_zone_linger_is_8s():
     tr[1]["ball_conf"][100] = 0.6
     tr[1]["ball_x"][100] = 0.2
     tr[1]["ball_y"][100] = 0.5
-    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    zones = [[], [_kf([POLY])]]
     elig, _, _ = _zone_eligible(tr, avail, zones)
     assert elig[1, 100]
     assert elig[1, 108]                # linger 8 covers the hit + 8 s
@@ -212,7 +221,7 @@ def test_zone_linger_is_8s():
 
 def test_zone_player_density():
     """>=3 feet inside a zone AND >= half of detected players -> eligible."""
-    zone = [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]
+    zone = [_kf([POLY])]
     inside = [[0.2, 0.5]] * 4
     outside = [[0.9, 0.9]]
     avail = np.ones((2, 300), dtype=bool)
@@ -235,7 +244,69 @@ def test_zone_no_players_xy_unchanged():
     """Tracks without players_xy behave exactly as before."""
     avail = np.ones((2, 300), dtype=bool)
     tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
-    zones = [[], [[[0, 0], [0.5, 0], [0.5, 1], [0, 1]]]]
+    zones = [[], [_kf([POLY])]]
     d = cut_director(tr, avail, [np.ones(300)] * 2, zones=zones)
     assert not _seg_times(d)              # no ball sighting, no players_xy
     assert d["zone_players_share"] == 0.0
+
+
+def test_zone_keyframe_switch():
+    """Two keyframes: each second is scored against the keyframe active at
+    that time — a sighting inside kf1's poly while kf0 rules must NOT be
+    eligible; the same sighting after the switch must be."""
+    from highlights.multiangle.director import _zone_eligible
+
+    tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+    # ball at (.8,.5) during t=100..120 — inside kf1's right poly but kf0
+    # still active; identical sighting at t=200..240 under kf1
+    tr[1]["ball_conf"][100:121] = 0.8
+    tr[1]["ball_x"][100:121] = 0.8
+    tr[1]["ball_y"][100:121] = 0.5
+    tr[1]["ball_conf"][200:241] = 0.8
+    tr[1]["ball_x"][200:241] = 0.8
+    tr[1]["ball_y"][200:241] = 0.5
+    zones = [[], [_kf([POLY], t=0.0), _kf([POLY_RIGHT], t=150.0)]]
+    kf = np.zeros(300, dtype=int)
+    kf[150:] = 1
+    elig, ball, _ = _zone_eligible(
+        tr, np.ones((2, 300), dtype=bool), zones,
+        zone_kf=[np.zeros(300, dtype=int), kf])
+    assert not ball[1, :150].any()     # kf0's poly never sees the ball
+    assert ball[1, 200:241].all()      # every sighting second under kf1
+    assert elig[1, 248] and not elig[1, 249]   # + linger, nothing before
+
+    # and the cut only fires inside the active keyframe's window
+    d = cut_director(tr, np.ones((2, 300), dtype=bool),
+                     [np.ones(300), np.ones(300)], zones=zones,
+                     zone_kf=[np.zeros(300, dtype=int), kf])
+    zone_segs = [(s["t_start"], s["t_end"]) for s in d["segments"]
+                 if s["rule"] == "zone"]
+    assert zone_segs, "expected zone segments"
+    assert all(t0 >= 190 for t0, _ in zone_segs)
+
+
+def test_normalize_and_zones_at():
+    from highlights.multiangle.zones import kf_index, normalize_zones, zones_at
+
+    # legacy conversion: flat polys + ref_t -> one keyframe at ref_t
+    legacy = {"angles": [[POLY], []], "ref_t": [30.0, None]}
+    kfs = normalize_zones(legacy, [6000.0, 0.0])
+    assert kfs[0] == [{"t": 30.0, "zones": [POLY]}]
+    assert kfs[1] == []
+    # no ref_t -> 0.3 * duration
+    kfs = normalize_zones({"angles": [[POLY]]}, [6000.0])
+    assert kfs[0][0]["t"] == 1800.0
+    # v2 sorts keyframes
+    v2 = {"version": 2, "angles": [
+        [{"t": 500.0, "zones": [POLY_RIGHT]},
+         {"t": 10.0, "zones": [POLY]}]]}
+    kfs = normalize_zones(v2, [6000.0])
+    assert [k["t"] for k in kfs[0]] == [10.0, 500.0]
+    # zones_at: before first -> first; after -> last kf <= t
+    assert zones_at(kfs[0], 0.0) == [POLY]
+    assert zones_at(kfs[0], 499.0) == [POLY]
+    assert zones_at(kfs[0], 500.0) == [POLY_RIGHT]
+    assert zones_at([], 0.0) == []
+    # kf_index maps output seconds to the active keyframe via file time
+    idx = kf_index(kfs[0], T=600, lo=0.0, off=0.0, dur=6000.0)
+    assert (idx[:500] == 0).all() and (idx[500:] == 1).all()

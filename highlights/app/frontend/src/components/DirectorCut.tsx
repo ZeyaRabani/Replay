@@ -1,8 +1,8 @@
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
-import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZonePolygon } from "../types";
-import ZoneEditor, { zoneStillTimes } from "./ZoneEditor";
+import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZoneKeyframe } from "../types";
+import ZoneEditor from "./ZoneEditor";
 import { fmtClock, parseClock } from "../lib/time";
 
 export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
@@ -64,7 +64,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [matchWin, setMatchWin] = useState<[number, number] | null>(null);
   const [videoDur, setVideoDur] = useState(0);
   const [useWindow, setUseWindow] = useState(true);
-  const [zones, setZones] = useState<ZonePolygon[][] | null>(null);
+  const [zones, setZones] = useState<ZoneKeyframe[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
   const [maWinEdit, setMaWinEdit] = useState(false);
   const [maWinIn, setMaWinIn] = useState("");
@@ -159,7 +159,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     if (!info || zones === null) return false;
     setZoneBusy(true);
     try {
-      await api.putZones(zones, info.angles.map((a) => zoneStillTimes(a.duration)[0]));
+      await api.putZones(zones);
       await refresh();
       return true;
     } catch (e) {
@@ -672,12 +672,13 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   </div>
                 </div>
                 <div className="text-[11px] text-zinc-500 mb-3">
-                  Drag on the first frame to paint a zone (drawn zones show
-                  read-only on the other stills so you can spot camera drift) —
-                  when the ball is inside an angle&apos;s zone the director cuts
-                  to that angle; otherwise the AI rules apply. &quot;Save zones &amp;
-                  re-cut (Fast)&quot; re-cuts the whole match with your zones and fast
-                  switching (~15 min, no re-analysis).
+                  Paint zones on each of the three stills — each one applies
+                  from that moment until the next, so a camera that gets moved
+                  mid-match keeps working — when the ball is inside an
+                  angle&apos;s zone the director cuts to that angle; otherwise the
+                  AI rules apply. &quot;Save zones &amp; re-cut (Fast)&quot; re-cuts the
+                  whole match with your zones and fast switching (~15 min, no
+                  re-analysis).
                   {info.director?.zones_used && (" Current cut used zones.")}
                   {!info.director && (" Will be used by the first cut.")}
                 </div>
@@ -686,7 +687,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     <ZoneEditor
                       key={a.index}
                       angle={a}
-                      zones={zones[a.index] ?? []}
+                      keyframes={zones[a.index] ?? []}
                       onChange={(z) =>
                         setZones((cur) => {
                           const next = [...(cur ?? [])];
