@@ -329,6 +329,27 @@ def stage_track(ctx: Ctx) -> None:
                     f"(of {dur:.0f})")
         pending.append((i, vid, out, prog, lo_f, hi_f))
 
+    # 480p analysis proxies for the pending angles (parallel; falls back
+    # to the original when neither download nor transcode works)
+    proxies: dict[int, tuple[str, float, str]] = {}
+    if os.environ.get("HL_TRACK_PROXY", "1") != "0" and pending:
+        from concurrent.futures import ThreadPoolExecutor
+
+        from highlights.multiangle.proxy import ensure_analysis_proxy
+
+        def _mk(item):
+            i, vid, _out, _prog, lo_f, hi_f = item
+            w = (lo_f, hi_f) if win is not None else None
+            pi = ensure_analysis_proxy(
+                ctx.angles[i]["dir"], vid,
+                url=ctx.angles[i].get("url"), cookies=ctx.cookies,
+                window=w, log=ctx.log)
+            return i, pi
+
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for i, pi in ex.map(_mk, pending):
+                proxies[i] = (str(pi.path), pi.offset, pi.src)
+
     def _frac(i: int, prog: Path, lo_f: float, hi_f: float) -> float:
         try:
             t = float(json.loads(prog.read_text()).get("t", 0.0))
@@ -348,6 +369,10 @@ def stage_track(ctx: Ctx) -> None:
                "--progress-file", str(prog)]
         if win is not None:
             cmd += ["--start-s", f"{lo_f:.3f}", "--end-s", f"{hi_f:.3f}"]
+        pp, off, src = proxies.get(i, (None, 0.0, "original"))
+        if pp:
+            cmd += ["--proxy", pp, "--proxy-offset", f"{off:.3f}"]
+        cmd += ["--analysis-src", src]
         return subprocess.Popen(
             cmd,
             stdout=ctx.log_fh or subprocess.DEVNULL,

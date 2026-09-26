@@ -1501,6 +1501,11 @@ def purge_sources(p: ScopedP) -> dict:
                 if f.is_file() and f.suffix.lower() in video_exts | {".wav"}:
                     freed += f.stat().st_size
                     f.unlink()
+        # 480p analysis proxy (rebuilt on the next track run)
+        for f in p.angle_dir(i).glob("analysis_480p.*"):
+            if f.is_file():
+                freed += f.stat().st_size
+                f.unlink()
     # render intermediates (mezzanines are re-built on the next re-cut)
     for dname in ("mezz", "segs"):
         sd = p.multiangle_dir / dname
