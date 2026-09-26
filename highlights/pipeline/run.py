@@ -30,6 +30,7 @@ import pandas as pd
 
 from highlights.io import write_json_atomic, write_parquet_atomic
 from highlights.pipeline.errors import PipelineError
+from highlights.pipeline.joblock import job_slot, workdir_for
 from highlights.pipeline.probe import probe as ffprobe
 from highlights.pipeline.status import StatusWriter
 
@@ -52,6 +53,7 @@ class Ctx:
     match_window: tuple = (0.0, 0.0)
     halves: list = field(default_factory=list)
     mw_warning: str | None = None
+    no_job_lock: bool = False
 
     def log(self, msg: str) -> None:
         line = f"[{time.strftime('%H:%M:%S')}] {msg}"
@@ -346,6 +348,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="comma-separated stage subset, in pipeline order")
     ap.add_argument("--cookies")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--no-job-lock", action="store_true",
+                    help="skip the global job slot (child of a pipeline that "
+                         "already holds one)")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -354,7 +359,8 @@ def main(argv: list[str] | None = None) -> int:
     status = StatusWriter(pipe / "status.json")
     ctx = Ctx(project_dir=project_dir, pipe=pipe, status=status,
               youtube_url=args.youtube_url, video_arg=args.video,
-              cookies=args.cookies, force=args.force)
+              cookies=args.cookies, force=args.force,
+              no_job_lock=args.no_job_lock)
 
     names = [s.strip() for s in args.stages.split(",") if s.strip()]
     unknown = [n for n in names if n not in STAGES]
@@ -391,7 +397,12 @@ def _run(ctx: Ctx, names: list[str]) -> int:
         _resolve_video(ctx)
         ctx.status.update(video_path=str(ctx.video_path))
         _load_duration(ctx)
-        run_stages(ctx, names)
+        if ctx.no_job_lock:
+            run_stages(ctx, names)
+        else:
+            with job_slot(workdir_for(ctx.project_dir), status=status,
+                          log=ctx.log):
+                run_stages(ctx, names)
     except PipelineError as e:
         ctx.log(f"FAILED: {e}")
         status.update(state="failed", error=str(e),
