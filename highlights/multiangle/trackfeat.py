@@ -105,8 +105,8 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
         else:
             bconf, ball_size, ball_x, ball_y = 0.0, 0.0, 0.0, 0.0
         if persons:
-            pfeet = [[round((b[0][0] + b[0][2]) / 2 / frame.shape[1], 3),
-                      round(b[0][3] / frame.shape[0], 3)] for b in persons]
+            pfeet = [[round(float(b[0][0] + b[0][2]) / 2 / frame.shape[1], 3),
+                      round(float(b[0][3]) / frame.shape[0], 3)] for b in persons]
             cx = np.array([(b[0][0] + b[0][2]) / 2 / frame.shape[1] for b in persons])
             cy = np.array([(b[0][1] + b[0][3]) / 2 / frame.shape[0] for b in persons])
             hh = np.array([(b[0][3] - b[0][1]) / frame.shape[0] for b in persons])
