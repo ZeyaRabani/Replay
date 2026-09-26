@@ -154,7 +154,7 @@ export default function ZoneEditor({ angle, keyframes, onChange }: Props) {
   const total = assigned.reduce((n, z) => n + z.length, 0);
 
   const emit = (next: ZonePolygon[][]) =>
-    onChange(times.map((t, i) => ({ t, zones: next[i] })));
+    onChange(times.map((t, i) => ({ t, zones: next[i] })).filter((kf) => kf.zones.length > 0));
 
   return (
     <div className="flex flex-col gap-1.5">
