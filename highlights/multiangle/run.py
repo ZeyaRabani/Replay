@@ -16,6 +16,7 @@ Stages: download, angles, sync, track, director, render, fuse, stats.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -205,6 +206,7 @@ def stage_sync(ctx: Ctx) -> dict:
     ctx.log(f"sync: offsets {out['offsets']} method={out['method']} "
             f"needs_manual={out['needs_manual']}")
     ctx.log(f"sync: {out.get('confidence_note', '')}")
+    apply_match_window_src(ctx, out)
     if out["needs_manual"]:
         ctx.status.update(state="needs_input",
                           message=f"Sync confidence low for angle(s) "
@@ -215,6 +217,40 @@ def stage_sync(ctx: Ctx) -> dict:
 
 
 TRACK_PAD = 30.0
+
+
+def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
+    """Apply multiangle/match_window_src.json {angle, start, end} (file
+    seconds of that angle) to cut_range.json in shared-T
+    (shared-T = file_t + offsets[angle]). Idempotent; called after sync
+    and at the start of stages that consume cut_range."""
+    try:
+        src = json.loads((ctx.pipe / "match_window_src.json").read_text())
+    except Exception:
+        return
+    try:
+        ang = src.get("angle")
+        if ang is None:
+            # "measured on the longest video" — resolve by duration and
+            # persist so downstream readers see the concrete angle
+            durs = [ctx.duration(i) for i in range(len(ctx.angles))]
+            ang = int(max(range(len(durs)), key=lambda i: durs[i]))
+            with contextlib.suppress(Exception):
+                write_json_atomic(
+                    ctx.pipe / "match_window_src.json",
+                    {**src, "angle": ang}, indent=1)
+        ang = int(ang)
+        s, e = float(src["start"]), float(src["end"])
+        off = float(sync["offsets"][ang])
+        lo, hi = max(0.0, s + off), e + off
+        cr_path = ctx.pipe / "cut_range.json"
+        cur = json.loads(cr_path.read_text()) if cr_path.exists() else None
+        if cur != {"lo": lo, "hi": hi}:
+            write_json_atomic(cr_path, {"lo": lo, "hi": hi}, indent=1)
+            ctx.log(f"match window: a{ang} {s:.0f}-{e:.0f} -> "
+                    f"shared-T {lo:.0f}-{hi:.0f}")
+    except Exception as exc:
+        ctx.log(f"match window: could not apply src ({exc})")
 
 
 def angle_track_window(lo: float, hi: float, offset: float,
@@ -240,7 +276,16 @@ def stage_track(ctx: Ctx) -> None:
                            str(Path(__file__).parent / "models" / "yolov8n.pt"))
     env = {**os.environ, "OMP_NUM_THREADS": "2", "TORCH_NUM_THREADS": "2"}
     n = len(ctx.angles)
-    # match window in shared-T (cut_range.json), applied per angle
+    # match window in shared-T (cut_range.json), applied per angle;
+    # match_window_src.json (file-time on a chosen angle) is converted
+    # with the current sync offsets first
+    sync = None
+    try:
+        sync = json.loads((ctx.pipe / "sync.json").read_text())
+    except Exception:
+        sync = None
+    if sync is not None:
+        apply_match_window_src(ctx, sync)
     win = None
     try:
         cr = json.loads((ctx.pipe / "cut_range.json").read_text())
@@ -250,12 +295,13 @@ def stage_track(ctx: Ctx) -> None:
     except Exception:
         win = None
     offsets = [0.0] * n
-    if win is not None:
+    if win is not None and sync is not None:
         try:
-            offsets = [float(o) for o in
-                       json.loads((ctx.pipe / "sync.json").read_text())["offsets"]]
+            offsets = [float(o) for o in sync["offsets"]]
         except Exception:
-            win = None      # no sync yet — track the full videos
+            win = None
+    elif win is not None:
+        win = None      # no sync yet — track the full videos
     pending = []          # (i, vid, out, prog_file, lo_f, hi_f)
     n_done = 0
     for i, a in enumerate(ctx.angles):
@@ -392,6 +438,7 @@ def stage_director(ctx: Ctx) -> dict:
     from highlights.multiangle.director import cut_director
 
     sync = json.loads((ctx.pipe / "sync.json").read_text())
+    apply_match_window_src(ctx, sync)
     offsets = sync["offsets"]
     lo, hi = ctx.union(sync)
     T = int(np.ceil(hi - lo))

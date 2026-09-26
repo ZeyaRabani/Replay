@@ -578,7 +578,9 @@ function NewProject({ onCreated, onError, tab, setTab }: {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-500 shrink-0">Match window (Angle 1 time, optional)</span>
+            <span className="text-[11px] text-zinc-500 shrink-0">
+              Match window (times as on the longest video, optional)
+            </span>
             <input
               className={`${input} font-mono`}
               placeholder="start m:ss"

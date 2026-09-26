@@ -101,8 +101,8 @@ export const projectsApi = {
     if (meta?.cut_style) fd.append("cut_style", meta.cut_style);
     return req<ProjectSummary>("/api/projects", { method: "POST", body: fd });
   },
-  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string, meta?: ProjectMeta, match_window?: [number, number]) =>
-    req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text, ...meta, match_window })),
+  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string, meta?: ProjectMeta, match_window?: [number, number], match_window_angle?: number) =>
+    req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text, ...meta, match_window, match_window_angle })),
   createMultiangleUpload: (files: File[], labels: string[], title?: string, meta?: ProjectMeta) => {
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
@@ -183,9 +183,10 @@ export function projectApi(id: string) {
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
     recut: (style: "normal" | "fast", window?: [number, number] | null) =>
       req<PipelineStatus>(`${base}/multiangle/recut`, json({ style, window })),
-    putMatchWindowMa: (start: number | null, end: number | null) =>
-      req<{ match_window: [number, number] | null }>(
-        `${base}/multiangle/match-window`, json({ start, end }, "PUT")),
+    putMatchWindowMa: (start: number | null, end: number | null, angle = 0) =>
+      req<{ match_window: [number, number] | null;
+            match_window_src: { angle: number; start: number; end: number } | null }>(
+        `${base}/multiangle/match-window`, json({ start, end, angle }, "PUT")),
     getZones: () =>
       req<{ angles: ZonePolygon[][]; ref_t?: (number | null)[] }>(
         `${base}/multiangle/zones`),

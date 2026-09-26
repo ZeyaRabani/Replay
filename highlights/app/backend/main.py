@@ -119,8 +119,10 @@ class MultiangleCreate(BaseModel):
     pitch_type: str | None = None
     camera: str | None = None
     cut_style: str | None = None
-    # Angle-1 (reference) file seconds; written to multiangle/cut_range.json
+    # file seconds on match_window_angle (null = the longest angle,
+    # resolved at conversion); written to match_window_src.json
     match_window: list[float] | None = None
+    match_window_angle: int | None = None
 
 
 class OffsetsPut(BaseModel):
@@ -139,7 +141,9 @@ class MatchWindowPut(BaseModel):
 
 
 class MaMatchWindowPut(BaseModel):
-    # Angle-1 (reference) file seconds; both null/absent -> clear
+    # file seconds of `angle`; null/absent = measured on the longest
+    # angle, resolved at conversion time. both start/end null -> clear
+    angle: int | None = None
     start: float | None = None
     end: float | None = None
 
@@ -1078,6 +1082,9 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
             len(body.match_window) == 2 and
             0 <= body.match_window[0] < body.match_window[1]):
         raise HTTPException(422, "match_window must be [start, end] with 0 <= start < end")
+    if body.match_window is not None and body.match_window_angle is not None and not (
+            0 <= body.match_window_angle < len(angles)):
+        raise HTTPException(422, f"match_window_angle must be 0..{len(angles) - 1}")
     p = get_registry().create_project(
         owner=user,
         title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
@@ -1086,9 +1093,10 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
     )
     if body.match_window:
         p.multiangle_dir.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(p.multiangle_dir / "cut_range.json",
-                          {"lo": float(body.match_window[0]),
-                           "hi": float(body.match_window[1])}, indent=1)
+        write_json_atomic(p.multiangle_dir / "match_window_src.json",
+                          {"angle": body.match_window_angle,
+                           "start": float(body.match_window[0]),
+                           "end": float(body.match_window[1])}, indent=1)
     if body.cookies_text:
         cookies = _save_cookies(p, body.cookies_text)
         _save_user_cookies(user, body.cookies_text)
@@ -1313,28 +1321,54 @@ def get_multiangle(p: ScopedP) -> dict:
         "cut_style": p.meta.get("cut_style", "normal"),
         "sources_purged": bool(p.meta.get("sources_purged")),
         "match_window": match_window,
+        "match_window_src": _read_json(p.multiangle_dir / "match_window_src.json"),
     }
 
 
 @scoped.put("/multiangle/match-window")
 def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
-    """Set/clear the match window in Angle-1 (reference) file seconds.
-    Stored as multiangle/cut_range.json {lo, hi}; the track/director/
-    render stages read it on their next run."""
+    """Set/clear the match window measured in file seconds of `body.angle`.
+    Always writes match_window_src.json; when sync.json exists it is also
+    converted to shared-T cut_range.json (shared-T = file_t + offset).
+    The runner re-derives cut_range on the next sync/track/director."""
     _require_multiangle(p)
+    src_path = p.multiangle_dir / "match_window_src.json"
     cr_path = p.multiangle_dir / "cut_range.json"
     if body.start is None and body.end is None:
+        src_path.unlink(missing_ok=True)
         cr_path.unlink(missing_ok=True)
-        return {"match_window": None}
+        return {"match_window": None, "match_window_src": None}
     if body.start is None or body.end is None:
         raise HTTPException(422, "provide both start and end, or neither")
     if not (0.0 <= body.start < body.end):
         raise HTTPException(422, "need 0 <= start < end")
+    n_angles = len(p.source_info.get("angles") or [])
+    if body.angle is not None and not (0 <= body.angle < max(1, n_angles)):
+        raise HTTPException(422, f"angle must be 0..{n_angles - 1}")
+    # resolve "measured on the longest angle" when durations are known
+    resolved = body.angle
+    if resolved is None:
+        durs = [float(a.get("duration") or 0.0) for a in _angles_info(p)]
+        if any(durs):
+            resolved = int(max(range(len(durs)), key=lambda i: durs[i]))
     p.multiangle_dir.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(cr_path, {"lo": float(body.start), "hi": float(body.end)},
-                      indent=1)
+    write_json_atomic(src_path, {"angle": resolved,
+                               "start": float(body.start),
+                               "end": float(body.end)}, indent=1)
+    # convert now if sync already exists; the runner re-applies otherwise
+    sync = _read_json(p.multiangle_dir / "sync.json")
+    mw = None
+    if sync and resolved is not None:
+        try:
+            off = float(sync["offsets"][resolved])
+            mw = [max(0.0, float(body.start) + off), float(body.end) + off]
+            write_json_atomic(cr_path, {"lo": mw[0], "hi": mw[1]}, indent=1)
+        except Exception:
+            mw = None
     p.save()
-    return {"match_window": [float(body.start), float(body.end)]}
+    return {"match_window": mw, "match_window_src":
+            {"angle": resolved, "start": float(body.start),
+             "end": float(body.end)}}
 
 
 @scoped.post("/purge-sources")

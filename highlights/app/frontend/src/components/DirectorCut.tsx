@@ -378,8 +378,16 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Match window
                 </div>
-                <span className="text-[11px] text-zinc-400">Angle 1 time</span>
-                {info.match_window && !maWinEdit ? (
+                <span className="text-[11px] text-zinc-400">
+                  {info.match_window_src?.angle != null
+                    ? `measured on Angle ${info.match_window_src.angle + 1} (longest)`
+                    : "times as on the longest video"}
+                </span>
+                {info.match_window_src && !maWinEdit ? (
+                  <span className="text-xs font-mono text-zinc-200">
+                    {fmtClock(info.match_window_src.start)}–{fmtClock(info.match_window_src.end)}
+                  </span>
+                ) : info.match_window && !maWinEdit ? (
                   <span className="text-xs font-mono text-zinc-200">
                     {fmtClock(info.match_window[0])}–{fmtClock(info.match_window[1])}
                   </span>
@@ -420,8 +428,9 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   <span className="ml-auto flex items-center gap-2">
                     <button
                       onClick={() => {
-                        setMaWinIn(info.match_window ? fmtClock(info.match_window[0]) : "");
-                        setMaWinOut(info.match_window ? fmtClock(info.match_window[1]) : "");
+                        const src = info.match_window_src;
+                        setMaWinIn(src ? fmtClock(src.start) : (info.match_window ? fmtClock(info.match_window[0]) : ""));
+                        setMaWinOut(src ? fmtClock(src.end) : (info.match_window ? fmtClock(info.match_window[1]) : ""));
                         setMaWinEdit(true);
                       }}
                       className="text-[11px] text-amber-300 hover:text-amber-200 underline"
