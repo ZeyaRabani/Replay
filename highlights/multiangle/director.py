@@ -78,11 +78,18 @@ class Style:
     margin_cluster: float
     smooth_mean: int
     dead_score_s: int
+    # density-driven zone cuts: min hold, confirm streak, no-return window
+    zone_hold_dens: int = ZONE_MIN_HOLD_DENS
+    zone_confirm_dens: int = ZONE_CONFIRM_DENS
+    zone_no_return_s: int = ZONE_NO_RETURN_S
 
 
 STYLES = {
     "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9, DEAD_SCORE_S),
-    "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2),
+    # fast: zones switch as often as the ball/density says (no settle rule)
+    "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2,
+                  zone_hold_dens=ZONE_MIN_HOLD_BALL, zone_confirm_dens=1,
+                  zone_no_return_s=0),
 }
 
 
@@ -389,10 +396,10 @@ def cut_director(track: list[dict], available: np.ndarray,
             zone_streak = zone_streak + 1 if j == zone_prop else 1
             zone_prop = j
             no_return = (not ball_driven and j == prev_zone_angle
-                         and t - last_zone_cut_t < ZONE_NO_RETURN_S)
+                         and t - last_zone_cut_t < sty.zone_no_return_s)
             fire = (hold >= ZONE_MIN_HOLD_BALL if ball_driven else
-                    zone_streak >= ZONE_CONFIRM_DENS
-                    and hold >= ZONE_MIN_HOLD_DENS and not no_return)
+                    zone_streak >= sty.zone_confirm_dens
+                    and hold >= sty.zone_hold_dens and not no_return)
             if fire:
                 segs[-1]["t_end"] = float(t)
                 open_seg(t, j, "zone", float(S[j, t]),
