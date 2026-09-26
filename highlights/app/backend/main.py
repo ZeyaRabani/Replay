@@ -1371,6 +1371,60 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
              "end": float(body.end)}}
 
 
+class MaAnglePut(BaseModel):
+    url: str
+
+
+@scoped.put("/multiangle/angles/{index}")
+def put_multiangle_angle(index: int, body: MaAnglePut, p: ScopedP) -> dict:
+    """Replace one angle's source URL. Deletes that angle's downloaded
+    files + track outputs and everything derived downstream (sync,
+    director, fused candidates, rendered video, this angle's cached
+    segments) so the next run redownloads/resyncs/rerenders it."""
+    _require_multiangle(p)
+    angles = p.source_info.get("angles") or []
+    if not (0 <= index < len(angles)):
+        raise HTTPException(404, f"no angle {index}")
+    st = (pipeline.read_status(p) or {}).get("state")
+    if st in {"queued", "running"}:
+        raise HTTPException(409, f"cannot change angles while a job is {st}")
+    url = body.url.strip()
+    if not url:
+        raise HTTPException(422, "url required")
+    angles[index]["url"] = url
+    angles[index].pop("filename", None)
+    adir = p.angle_dir(index)
+    if adir.is_dir():
+        shutil.rmtree(adir)
+    ma = p.multiangle_dir
+    # cached segments of this angle are stale (seg_key is keyed by angle
+    # index + file time — same key, different video): drop them
+    try:
+        sync = _read_json(ma / "sync.json") or {}
+        director = _read_json(ma / "director.json") or {}
+        offs = [float(x) for x in sync.get("offsets") or []]
+        union = sync.get("coverage", {}).get("union") or [0.0, 0.0]
+        if offs and director.get("segments"):
+            from highlights.multiangle.render import plan_segments, seg_key
+            for pl in plan_segments(director["segments"], offs,
+                                    float(union[0]), float(union[1]), []):
+                if pl.get("angle") == index and not pl.get("skip"):
+                    (ma / "segs" /
+                     f"{seg_key(index, pl['t_file'], pl['dur'])}.mp4"
+                     ).unlink(missing_ok=True)
+    except Exception:
+        pass
+    for name in ("sync.json", "director.json", "concat.txt",
+                 "fused_candidates.json"):
+        (ma / name).unlink(missing_ok=True)
+    (p.pipeline_dir / "candidates.json").unlink(missing_ok=True)
+    (p.pipeline_dir / "stats.json").unlink(missing_ok=True)
+    if p.video and Path(p.video.path).exists():
+        Path(p.video.path).unlink()
+    p.save()
+    return {"index": index, "url": url, "angles": angles}
+
+
 @scoped.post("/purge-sources")
 def purge_sources(p: ScopedP) -> dict:
     """Delete the original angle videos + track intermediates; keep the cut."""

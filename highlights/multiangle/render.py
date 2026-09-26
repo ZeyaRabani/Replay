@@ -57,6 +57,18 @@ def run(cmd: list[str], log=print) -> None:
         raise RuntimeError(f"ffmpeg failed: {' '.join(cmd)}\n{proc.stderr[-2000:]}")
 
 
+def _seg_ok(path: Path) -> bool:
+    """A written segment is usable iff it exists, is non-empty and
+    actually carries at least one stream (ffmpeg can exit 0 yet leave a
+    truncated header-only file — e.g. killed mid-mux)."""
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    proc = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
+         "-of", "csv=p=0", str(path)], capture_output=True, text=True)
+    return proc.returncode == 0 and bool(proc.stdout.strip())
+
+
 def plan_segments(segments: list[dict], offsets: list[float],
                   union_lo: float, union_hi: float,
                   durations: list[float]) -> list[dict]:
@@ -116,24 +128,44 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     # fine: the work is in ffmpeg subprocesses); cache hits keep order
     from concurrent.futures import ThreadPoolExecutor
     workers = int(os.environ.get("HL_RENDER_WORKERS", "2"))
-    done_n = 0
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = []
-        for p, out in to_encode:
-            def _enc(p=p, out=out):
-                tmp = out.with_name(out.stem + ".part.mp4")
-                tmp.unlink(missing_ok=True)
-                run(segment_cmd(videos[p["angle"]], p["t_file"],
-                                p["dur"], str(tmp)), log)
-                os.replace(tmp, out)
-            futs.append((p, ex.submit(_enc)))
-        for p, fut in futs:
-            fut.result()
-            done_n += 1
-            if p["seg_index"] % 10 == 0 or done_n == len(futs):
-                log(f"render: seg {p['seg_index']}/{len(segments)} "
-                    f"({100*p['t0']/total:.0f}%)")
-    log(f"render: reused {reused}/{reused + len(futs)} segments")
+
+    def _enc(p: dict, out: Path) -> None:
+        tmp = out.with_name(out.stem + ".part.mp4")
+        tmp.unlink(missing_ok=True)
+        run(segment_cmd(videos[p["angle"]], p["t_file"],
+                        p["dur"], str(tmp)), log)
+        os.replace(tmp, out)
+
+    def _encode_all(jobs: list[tuple[dict, Path]], log_progress: bool) -> None:
+        done_n = 0
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = [(p, ex.submit(_enc, p, out)) for p, out in jobs]
+            for p, fut in futs:
+                fut.result()
+                done_n += 1
+                if log_progress and (
+                        p["seg_index"] % 10 == 0 or done_n == len(futs)):
+                    log(f"render: seg {p['seg_index']}/{len(segments)} "
+                        f"({100*p['t0']/total:.0f}%)")
+
+    _encode_all(to_encode, log_progress=True)
+    log(f"render: reused {reused}/{reused + len(to_encode)} segments")
+    # verify every referenced segment before concat: a failed or
+    # truncated encode must never reach the concat demuxer
+    plan_by_name = {
+        seg_key(p["angle"], p["t_file"], p["dur"]) + ".mp4":
+        (p, seg_dir / (seg_key(p["angle"], p["t_file"], p["dur"]) + ".mp4"))
+        for p in plans if not p.get("skip")}
+    bad = [n for n in plan_by_name if not _seg_ok(seg_dir / n)]
+    if bad:
+        log(f"render: {len(bad)} invalid segment(s) "
+            f"({', '.join(bad[:5])}{'...' if len(bad) > 5 else ''}) - re-encoding")
+        _encode_all([plan_by_name[n] for n in bad], log_progress=False)
+        still = [n for n in bad if not _seg_ok(seg_dir / n)]
+        if still:
+            raise RuntimeError(
+                f"render: {len(still)} segment(s) still invalid after "
+                f"re-encode: {', '.join(still[:5])}")
     # prune cache entries not referenced by this render
     for f in seg_dir.glob("*.mp4"):
         if f.name not in used and f.suffix == ".mp4":

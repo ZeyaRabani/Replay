@@ -108,3 +108,55 @@ def test_match_window_at_create(client, sample_video, monkeypatch):
     assert _create(client, 2, match_window=[300.0, 60.0]).status_code == 422
     assert _create(client, 2, match_window=[1.0, 60.0],
                    match_window_angle=5).status_code == 422
+
+
+def test_put_angle_url_swaps_and_clears_outputs(client, sample_video, monkeypatch):
+    monkeypatch.setenv("FAKE_MA_SLEEP", "0.5")
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(sample_video))
+    pid = _create(client, 3).json()["id"]
+    _wait(client, pid)
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    ma = p.multiangle_dir
+    (ma / "sync.json").write_text(json.dumps(
+        {"offsets": [0.0, 5.0, -748.0],
+         "coverage": {"union": [0.0, 6000.0]}}))
+    (ma / "director.json").write_text(json.dumps({"segments": [
+        {"t_start": 0.0, "t_end": 5.0, "angle": 2},
+        {"t_start": 5.0, "t_end": 10.0, "angle": 0}]}))
+    (ma / "fused_candidates.json").write_text("[]")
+    (ma / "concat.txt").write_text("x")
+    adir = p.angle_dir(2)
+    adir.mkdir(parents=True, exist_ok=True)
+    (adir / "match.mp4").write_bytes(b"v")
+    # the stale cached segment for angle 2, plus one from angle 0
+    from highlights.multiangle.render import plan_segments, seg_key
+    (ma / "segs").mkdir(exist_ok=True)
+    for pl in plan_segments(
+            json.loads((ma / "director.json").read_text())["segments"],
+            [0.0, 5.0, -748.0], 0.0, 6000.0, []):
+        if not pl.get("skip"):
+            (ma / "segs" /
+             f"{seg_key(pl['angle'], pl['t_file'], pl['dur'])}.mp4"
+             ).write_bytes(b"s")
+
+    r = client.put(scoped(pid, "/multiangle/angles/2"),
+                   json={"url": "https://youtu.be/NEWURL"})
+    assert r.status_code == 200, r.text
+    assert json.loads((p.root / "project.json").read_text()
+                      )["source"]["angles"][2]["url"] \
+        == "https://youtu.be/NEWURL"
+    assert not adir.exists()
+    assert not (ma / "sync.json").exists()
+    assert not (ma / "director.json").exists()
+    assert not (ma / "fused_candidates.json").exists()
+    # only angle-2's segment was evicted
+    left = list((ma / "segs").glob("*.mp4"))
+    assert len(left) == 1
+    # 404 / 409
+    assert client.put(scoped(pid, "/multiangle/angles/9"),
+                      json={"url": "x"}).status_code == 404
+    (p.multiangle_dir / "status.json").write_text(
+        json.dumps({"state": "running", "stage": "track"}))
+    assert client.put(scoped(pid, "/multiangle/angles/0"),
+                      json={"url": "x"}).status_code == 409
