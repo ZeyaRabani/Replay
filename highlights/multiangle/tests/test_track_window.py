@@ -94,3 +94,21 @@ def test_apply_match_window_src_resolves_longest_angle(tmp_path):
         == {"lo": 905.0, "hi": 2005.0}
     # resolved angle persisted back into the src file
     assert json.loads((tmp_path / "match_window_src.json").read_text())["angle"] == 1
+
+
+def test_apply_match_window_src_waits_for_all_durations(tmp_path):
+    # angle null with an angle still unprobed (duration 0) must NOT
+    # resolve to a wrong index — no cut_range until all durations known
+    (tmp_path / "match_window_src.json").write_text(
+        json.dumps({"angle": None, "start": 1080.0, "end": 4200.0}))
+    ctx = _ctx(tmp_path, durs=(5048.0, 5158.0, 0.0))  # a2 not downloaded
+    apply_match_window_src(ctx, {"offsets": [0.0, 5.0, -748.0]})
+    assert not (tmp_path / "cut_range.json").exists()
+    assert json.loads((tmp_path / "match_window_src.json").read_text()
+                      )["angle"] is None
+    # once a2 has a duration, resolution picks the longest
+    ctx = _ctx(tmp_path, durs=(5048.0, 5158.0, 6200.0))
+    apply_match_window_src(ctx, {"offsets": [0.0, 5.0, -748.0]})
+    assert json.loads((tmp_path / "cut_range.json").read_text()) \
+        == {"lo": 332.0, "hi": 3452.0}
+    assert json.loads((tmp_path / "match_window_src.json").read_text())["angle"] == 2

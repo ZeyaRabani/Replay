@@ -1359,11 +1359,13 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
     n_angles = len(p.source_info.get("angles") or [])
     if body.angle is not None and not (0 <= body.angle < max(1, n_angles)):
         raise HTTPException(422, f"angle must be 0..{n_angles - 1}")
-    # resolve "measured on the longest angle" when durations are known
+    # resolve "measured on the longest angle" only once EVERY angle has a
+    # known duration — resolving early picks the wrong angle when a later
+    # angle hasn't been downloaded/probed yet
     resolved = body.angle
     if resolved is None:
         durs = [float(a.get("duration") or 0.0) for a in _angles_info(p)]
-        if any(durs):
+        if durs and len(durs) == n_angles and all(d > 0 for d in durs):
             resolved = int(max(range(len(durs)), key=lambda i: durs[i]))
     p.multiangle_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(src_path, {"angle": resolved,

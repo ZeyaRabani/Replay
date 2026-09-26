@@ -83,8 +83,23 @@ def test_match_window_post_sync_writes_both(client, sample_video, monkeypatch):
     assert (p.multiangle_dir / "director.json").exists()
     (p.multiangle_dir / "director.json").unlink()
 
-    # angle omitted -> resolves to the longest angle (fake per-angle
-    # durations: a1 is longest below)
+    # angle omitted with one angle unprobed -> stays null, no cut_range.
+    # Make a2 look undownloaded: no status/probe and no video file
+    cr.unlink(missing_ok=True)
+    a2p = p.angle_dir(2)
+    for f in (a2p / "pipeline" / "status.json",
+              a2p / "pipeline" / "probe.json"):
+        f.unlink(missing_ok=True)
+    for f in a2p.glob("match.*"):
+        f.unlink()
+    r = client.put(scoped(pid, "/multiangle/match-window"),
+                   json={"start": 900.0, "end": 2000.0})
+    assert r.status_code == 200, r.text
+    assert r.json()["match_window_src"]["angle"] is None
+    assert r.json()["match_window"] is None
+    assert not cr.exists()
+
+    # all durations known -> resolves to the longest angle (a1 below)
     for i, dur in enumerate((5000.0, 6200.0, 4000.0)):
         pr = p.angle_dir(i) / "pipeline"
         pr.mkdir(parents=True, exist_ok=True)

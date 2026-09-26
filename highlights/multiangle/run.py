@@ -231,9 +231,14 @@ def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
     try:
         ang = src.get("angle")
         if ang is None:
-            # "measured on the longest video" — resolve by duration and
-            # persist so downstream readers see the concrete angle
+            # "measured on the longest video" — resolve only once every
+            # angle has a known duration (an undownloaded angle would
+            # resolve to the wrong index); leave angle null until then
             durs = [ctx.duration(i) for i in range(len(ctx.angles))]
+            if not durs or any(not d or d <= 0 for d in durs):
+                ctx.log("match window: waiting for all angle durations "
+                        "before resolving the longest")
+                return
             ang = int(max(range(len(durs)), key=lambda i: durs[i]))
             with contextlib.suppress(Exception):
                 write_json_atomic(
