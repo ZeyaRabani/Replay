@@ -385,7 +385,7 @@ function SwipeReviewInner() {
         )}
         {/* end card */}
         <div data-card-index={candidates.length} className="h-[100dvh] snap-start flex flex-col items-center justify-center gap-5 px-8 text-center">
-          <div className="text-xl font-semibold">All reviewed</div>
+          <div className="text-xl font-semibold">{nPend === 0 ? "All reviewed" : "End of highlights"}</div>
           <div className="text-sm text-zinc-400">
             <b className="text-emerald-400">{nConf}</b> confirmed ·{" "}
             <b className="text-red-400">{nRej}</b> rejected ·{" "}
