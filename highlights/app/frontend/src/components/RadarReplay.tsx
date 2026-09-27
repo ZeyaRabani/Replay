@@ -82,6 +82,10 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   const [speed, setSpeed] = useState(1);
   const [t, setT] = useState(0);
   const cvRef = useRef<HTMLCanvasElement>(null);
+  const pickRef = useRef<HTMLCanvasElement>(null);
+  const pickImg = useRef<HTMLImageElement | null>(null);
+  const dragIdx = useRef<number | null>(null);
+  const [pickReady, setPickReady] = useState(false);
   const smooth = useRef(new Map<number, [number, number]>());
   const lastTs = useRef(0);
 
@@ -204,11 +208,91 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
-  const clickStill = (e: React.MouseEvent<HTMLDivElement>) => {
+  // corner-picker: image drawn centred with 50% padding on every side,
+  // so clicks can land off-image -> normalised coords in [-0.5, 1.5]
+  const IMG_FRAC = 0.5; // image occupies the middle half of each axis
+
+  useEffect(() => {
+    if (!setting || !paths) return;
+    setPickReady(false);
+    const img = new Image();
+    img.onload = () => { pickImg.current = img; setPickReady(true); };
+    img.src = api.angleFrameUrl(paths.ref_angle, paths.frame_t ?? undefined);
+  }, [setting, paths, api]);
+
+  useEffect(() => {
+    const cv = pickRef.current;
+    const img = pickImg.current;
+    if (!cv || !img || !setting) return;
+    const W = cv.clientWidth || 800;
+    const iw = W * IMG_FRAC, ih = iw * (img.naturalHeight / img.naturalWidth);
+    const ox = W * ((1 - IMG_FRAC) / 2), oy = ih / 2;
+    if (cv.width !== W) cv.width = W;
+    cv.height = 2 * ih;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#18181b";
+    ctx.fillRect(0, 0, W, cv.height);
+    ctx.drawImage(img, ox, oy, iw, ih);
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.strokeRect(ox, oy, iw, ih);
+    const SX = (fx: number) => ox + fx * iw, SY = (fy: number) => oy + fy * ih;
+    if (picked.length >= 2) {
+      ctx.beginPath();
+      picked.forEach(([x, y], i) =>
+        i ? ctx.lineTo(SX(x), SY(y)) : ctx.moveTo(SX(x), SY(y)));
+      if (picked.length === 4) ctx.closePath();
+      ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 1.5; ctx.stroke();
+      if (picked.length === 4) {
+        ctx.fillStyle = "rgba(251,191,36,0.12)"; ctx.fill();
+      }
+    }
+    picked.forEach(([x, y], i) => {
+      ctx.beginPath();
+      ctx.arc(SX(x), SY(y), 7, 0, Math.PI * 2);
+      ctx.fillStyle = "#fbbf24"; ctx.fill();
+      ctx.strokeStyle = "#18181b"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#18181b";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(i + 1), SX(x), SY(y));
+    });
+  }, [picked, setting, pickReady]);
+
+  const pickPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const cv = e.currentTarget;
+    const r = cv.getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width;
+    const fy = (e.clientY - r.top) / r.height;
+    // canvas -> image-normalised coords (padding is 50% of the image)
+    const ix = (fx - (1 - IMG_FRAC) / 2) / IMG_FRAC;
+    const iy = (fy - (1 - IMG_FRAC) / 2) / IMG_FRAC;
+    return [ix, iy] as [number, number];
+  };
+
+  const onPickDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const [ix, iy] = pickPos(e);
+    const hit = picked.findIndex(([x, y]) =>
+      Math.hypot(x - ix, y - iy) < 0.06);
+    if (hit >= 0) {
+      dragIdx.current = hit;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+  };
+  const onPickMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (dragIdx.current == null) return;
+    const [ix, iy] = pickPos(e);
+    setPicked((v) => v.map((p, i) =>
+      i === dragIdx.current ? [ix, iy] as [number, number] : p));
+  };
+  const onPickUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (dragIdx.current != null) {
+      dragIdx.current = null;
+      return;
+    }
     if (picked.length >= 4) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    setPicked((v) => [...v, [(e.clientX - r.left) / r.width,
-                            (e.clientY - r.top) / r.height]]);
+    const [ix, iy] = pickPos(e);
+    setPicked((v) => [...v, [ix, iy]]);
   };
 
   const headerBtn = (
@@ -243,47 +327,33 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 <span className="text-xs text-zinc-400">
                   {corners ? "Pitch corners set." : "No pitch corners set — using the full frame (distorted)."}
                 </span>
-                <button className={btnGhost} onClick={() => { setSetting((s) => !s); setPicked([]); }}>
+                <button className={btnGhost}
+                  onClick={() => {
+                    setSetting((s) => !s);
+                    setPicked(corners ? [...corners] as [number, number][] : []);
+                  }}>
                   {setting ? "Cancel" : corners ? "Re-set corners" : "Set pitch corners"}
                 </button>
               </div>
               {setting && (
                 <div className="flex flex-col gap-1.5">
                   <div className="text-[11px] text-zinc-400">
-                    Click the 4 pitch corners: {CORNER_LABELS[picked.length] ?? "done"}
-                    {picked.length === 4 && (
-                      <>
-                        {" "}
-                        <button className="text-amber-300 hover:text-amber-200" onClick={saveCorners}>Save</button>
-                        {" "}
-                        <button className="text-zinc-400 hover:text-zinc-200" onClick={() => setPicked([])}>Reset</button>
-                      </>
-                    )}
+                    Click the 4 pitch corners in order — they may be outside
+                    the picture; click where they would be.
+                    Next: {CORNER_LABELS[picked.length] ?? "done — drag a marker to adjust"}
+                    {" "}
+                    <button className="text-amber-300 hover:text-amber-200 disabled:opacity-40"
+                      disabled={picked.length !== 4} onClick={saveCorners}>Save</button>
+                    {" "}
+                    <button className="text-zinc-400 hover:text-zinc-200 disabled:opacity-40"
+                      disabled={!picked.length} onClick={() => setPicked([])}>Reset</button>
                   </div>
-                  <div className="relative cursor-crosshair max-w-xl" onClick={clickStill}>
-                    <img
-                      src={api.angleFrameUrl(paths.ref_angle, paths.frame_t ?? undefined)}
-                      alt="reference angle still"
-                      className="w-full rounded border border-zinc-800"
-                    />
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                      {picked.map(([x, y], i) => (
-                        <g key={i}>
-                          <circle cx={`${x * 100}%`} cy={`${y * 100}%`} r={4} fill="#fbbf24" />
-                          <text x={`${x * 100}%`} y={`${y * 100}%`} dx={7} dy={3}
-                            fontSize={11} fill="#fbbf24">{i + 1}</text>
-                        </g>
-                      ))}
-                      {picked.length >= 2 && (
-                        <polyline
-                          points={[...picked, ...(picked.length === 4 ? [picked[0]] : [])]
-                            .map(([x, y]) => `${x * 100}%,${y * 100}%`).join(" ")}
-                          fill="none" stroke="#fbbf24" strokeWidth={1.5}
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      )}
-                    </svg>
-                  </div>
+                  <canvas ref={pickRef}
+                    className="w-full max-w-[960px] rounded cursor-crosshair touch-none"
+                    onPointerDown={onPickDown}
+                    onPointerMove={onPickMove}
+                    onPointerUp={onPickUp}
+                  />
                 </div>
               )}
 

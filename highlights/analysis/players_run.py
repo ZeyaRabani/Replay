@@ -17,6 +17,7 @@ import sys
 import time
 from pathlib import Path
 
+from highlights.io import write_json_atomic
 from highlights.pipeline.errors import PipelineError
 from highlights.pipeline.joblock import job_slot, workdir_for
 from highlights.pipeline.run import _stdout_is
@@ -63,6 +64,18 @@ def run_players(project_dir: Path, log=print, force: bool = False,
             shared_offset=ctx["shared_offset"],
             teams=teams, pitch_type=ctx.get("pitch_type"),
             log=log, status=status, tracker=tracker)
+        # tracklet ids are renumbered on every re-run — clear the
+        # roster's stale assignments but keep names/teams/scorers
+        roster_path = adir / "roster.json"
+        roster = _load_json(roster_path)
+        if roster:
+            clean = {"players": [dict(pl, tracklet_ids=[])
+                                 for pl in roster.get("players") or []],
+                     "scorers": roster.get("scorers") or {},
+                     "hidden_tracklet_ids": []}
+            write_json_atomic(roster_path, clean)
+            log(f"roster: {len(clean['players'])} players kept, "
+                "tracklet assignments cleared (ids renumbered)")
 
     _upd(stage="players", progress=0.95, message="grouping tracklets")
     try:

@@ -203,7 +203,7 @@ def test_radar_pitch_endpoints(client, monkeypatch):
     d = client.get(scoped(pid, "/analysis/radar/pitch")).json()
     assert d["corners"][2] == [0.95, 0.1] and d["t"] == 12.5
     for bad in ({"corners": [[0.5, 0.5]] * 3, "t": 0.0},
-                {"corners": [[0.0, 0.0], [1.2, 0.5], [0.5, 0.5],
+                {"corners": [[0.0, 0.0], [2.2, 0.5], [0.5, 0.5],
                              [0.1, 0.1]], "t": 0.0}):
         assert client.put(scoped(pid, "/analysis/radar/pitch"),
                           json=bad).status_code == 422

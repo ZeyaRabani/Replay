@@ -385,10 +385,10 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         if (not isinstance(corners, list) or len(corners) != 4
                 or any(not isinstance(pt, list) or len(pt) != 2
                        or not all(isinstance(v, (int, float))
-                                and 0.0 <= v <= 1.0 for v in pt)
+                                and -1.0 <= v <= 2.0 for v in pt)
                        for pt in corners)):
             raise HTTPException(422, "corners must be 4 [fx, fy] points "
-                                   "in [0, 1] (near-left, near-right, "
+                                   "in [-1, 2] (near-left, near-right, "
                                    "far-right, far-left)")
         doc = {"corners": [[round(float(x), 4), round(float(y), 4)]
                            for x, y in corners],
