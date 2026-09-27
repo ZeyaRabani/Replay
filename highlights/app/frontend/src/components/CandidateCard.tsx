@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useProjectApi } from "../api";
 import { fmtClock, parseClock } from "../lib/time";
 import type { Candidate, Team } from "../types";
+import ScorerSelect from "./ScorerSelect";
 import { TYPE_COLORS, TYPE_LABEL } from "./Timeline";
 
 const XV_STYLE: Record<string, string> = {
@@ -166,6 +167,7 @@ export default function CandidateCard(props: Props) {
           <RotateCcw size={12} />
         </button>
         <span className="flex-1" />
+        {(c.type === "goal" || c.status === "confirmed") && <ScorerSelect candidateId={c.id} />}
         {c.type === "goal" && Array.isArray(c.signals.angles) && (
           <select
             className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-[10px]"
