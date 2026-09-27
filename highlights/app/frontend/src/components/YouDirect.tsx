@@ -3,12 +3,38 @@ import { ChevronDown, ChevronRight, Loader2, Maximize, Pause, Play, RotateCcw, S
 import { useProjectApi } from "../api";
 import { fmtClock, parseClock } from "../lib/time";
 import { ANGLE_COLORS } from "./DirectorCut";
-import type { DirectComparison, DirectSession, DirectSuggest } from "../types";
+import type { DirectComparison, DirectLearnResult, DirectSession, DirectSuggest } from "../types";
 
 const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const input =
   "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs font-mono placeholder:text-zinc-500 focus:outline-none focus:border-amber-400";
+
+// fast-style defaults for the plain-words diff
+const FAST_DEFAULTS: Record<string, number> = {
+  zone_linger: 3, smooth_median: 3, margin_cluster: 0.10, min_hold: 2,
+};
+
+function describeOverrides(best: Record<string, number>): string {
+  const parts: string[] = [];
+  if ("zone_linger" in best)
+    parts.push(`leave a camera ${best.zone_linger} s after the ball is lost`);
+  if ("smooth_median" in best)
+    parts.push(best.smooth_median <= 3
+      ? "react faster to crowd moves"
+      : "smooth crowd moves more");
+  if ("margin_cluster" in best)
+    parts.push(`switch on a ${Math.round(best.margin_cluster * 100)}% edge`);
+  if ("min_hold" in best)
+    parts.push(`hold each shot ${best.min_hold} s minimum`);
+  const changed = parts.length
+    ? parts.join(" · ")
+    : "your defaults already match best";
+  const diffs = Object.entries(best)
+    .filter(([k, v]) => FAST_DEFAULTS[k] !== v)
+    .map(([k, v]) => `${k}=${v}`);
+  return diffs.length ? changed : "no changes from the fast defaults won";
+}
 
 function CompareStrip({ cmp }: { cmp: DirectComparison }) {
   const W = 100 / Math.max(1, cmp.rows.length);
@@ -54,6 +80,9 @@ export default function YouDirect() {
   const [choices, setChoices] = useState<Map<number, number>>(new Map());
   const [result, setResult] = useState<DirectComparison | null>(null);
   const [ready, setReady] = useState(false);
+  const [learnRes, setLearnRes] = useState<DirectLearnResult | null>(null);
+  const [learnBusy, setLearnBusy] = useState(false);
+  const [learnMsg, setLearnMsg] = useState<string | null>(null);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
   const stage = useRef<HTMLDivElement | null>(null);
 
@@ -81,6 +110,20 @@ export default function YouDirect() {
     }
     return () => { cancelled = true; };
   }, [sug]);
+
+  const doLearn = () => {
+    setLearnBusy(true); setLearnMsg(null); setError(null);
+    void api.learnDirect(true)
+      .then((r) => {
+        setLearnRes(r.learn);
+        const st = (r.job as { state?: string } | null)?.state;
+        setLearnMsg(st === "queued" || st === "running"
+          ? "re-cut queued with your style — watch the status bar above"
+          : "learn saved");
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setLearnBusy(false));
+  };
 
   const load = (t?: [number, number]) => {
     setBusy(true); setError(null); setResult(null); setChoices(new Map());
@@ -196,12 +239,30 @@ export default function YouDirect() {
       </button>
       {!open ? null : (
         <div className="mt-3 flex flex-col gap-3">
+          {sessions.length >= 2 && !learnRes && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-violet-700/50 bg-violet-950/40 px-3 py-2">
+              <span className="text-xs text-violet-200">
+                You've directed {sessions.length} stretches — ready to
+                analyse your directing and re-cut.
+              </span>
+              <button
+                disabled={learnBusy}
+                onClick={doLearn}
+                className="text-[11px] font-semibold text-violet-300 hover:text-violet-200 border border-violet-700/60 rounded px-2 py-0.5 disabled:opacity-40">
+                {learnBusy
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : null}
+                Analyse my directing &amp; re-cut
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <button disabled={busy}
               onClick={() => load()}
               className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-0.5 disabled:opacity-40">
               {busy ? <Loader2 size={11} className="animate-spin" /> : null}
-              Load suggested stretch
+              {(sug?.n_sessions_saved ?? 0) > 0
+                ? "Load next suggested stretch" : "Load suggested stretch"}
             </button>
             <span className="text-[11px] text-zinc-500">or</span>
             <input className={`${input} w-16`} value={fromIn}
@@ -356,6 +417,48 @@ export default function YouDirect() {
               ))}
             </div>
           )}
+
+          {/* learn from my directing */}
+          <div className="border-t border-zinc-800 pt-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className={head}>Learn from my directing</span>
+              <span className="text-[10px] text-zinc-500">
+                {sessions.length} session{sessions.length === 1 ? "" : "s"} saved
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                disabled={learnBusy || sessions.length === 0}
+                onClick={doLearn}
+                className="text-[11px] font-semibold text-violet-300 hover:text-violet-200 border border-violet-700/60 rounded px-2 py-0.5 disabled:opacity-40">
+                {learnBusy
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : null}
+                Analyse my directing &amp; re-cut
+              </button>
+              {sessions.length === 0 && (
+                <span className="text-[10px] text-zinc-600">
+                  direct a stretch and save it first
+                </span>
+              )}
+            </div>
+            {learnRes && (
+              <div className="text-xs text-zinc-300 flex flex-col gap-1">
+                <div>
+                  agreement {learnRes.agreement_pct_before ?? "—"}% →{" "}
+                  <span className="text-amber-300 font-semibold">
+                    {learnRes.agreement_pct_after ?? "—"}%
+                  </span>
+                </div>
+                <div className="text-[10px] text-zinc-500">
+                  {describeOverrides(learnRes.best)}
+                </div>
+                {learnMsg && (
+                  <div className="text-[10px] text-emerald-400">{learnMsg}</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

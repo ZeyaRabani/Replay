@@ -109,6 +109,59 @@ def test_direct_suggest_and_sessions(client, short_video, monkeypatch):
     assert sess[0]["t_start"] == 4.0
 
 
+def test_direct_suggest_excludes_saved_and_learn(client, short_video, monkeypatch):
+    """suggest skips candidates inside saved sessions; learn 409 with
+    none, saves params + returns result with a cheap replay."""
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(short_video))
+    pid = _multi_done(client)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    fused = {"events": [
+        {"t": 10.0, "type": "goal", "status": "confirmed",
+         "confidence": 0.9, "id": "e1"},
+        {"t": 15.0, "type": "shot", "status": "pending",
+         "confidence": 0.5, "id": "e2"}]}
+    (p.multiangle_dir / "fused_candidates.json").write_text(
+        json.dumps(fused))
+
+    # suggest picks the confirmed goal at t=10 -> stretch [0,20]
+    r = client.get(scoped(pid, "/multiangle/direct/suggest"))
+    assert r.json()["candidate"]["t"] == 10.0
+    assert r.json()["n_sessions_saved"] == 0
+
+    # learn with no sessions -> 409
+    r = client.post(scoped(pid, "/multiangle/direct/learn"), json={})
+    assert r.status_code == 409
+
+    # save a session covering the goal's stretch -> suggest falls back
+    # to the pending shot at t=15 (the only uncovered candidate)
+    r = client.post(scoped(pid, "/multiangle/direct/sessions"),
+                    json={"t_start": 4.0, "t_end": 12.0,
+                          "choices": [{"t": 4, "angle": 0}]})
+    assert r.status_code == 200, r.text
+    r = client.get(scoped(pid, "/multiangle/direct/suggest"))
+    d = r.json()
+    assert d["n_sessions_saved"] == 1
+    assert d["candidate"]["t"] == 15.0
+
+    # learn with a cheap replay: best overrides saved, result returned
+    fake = {"best": {"min_hold": 3},
+            "agreement_pct_before": 50.0, "agreement_pct_after": 80.0,
+            "n_sessions": 1, "n_seconds": 8, "grid": []}
+    monkeypatch.setattr(m, "_run_direct_learn", lambda p_, s_: fake)
+    r = client.post(scoped(pid, "/multiangle/direct/learn"), json={})
+    assert r.status_code == 200, r.text
+    assert r.json()["learn"]["best"]["min_hold"] == 3
+    assert json.loads(
+        (p.multiangle_dir / "director_params.json").read_text()
+    )["style_overrides"] == {"min_hold": 3}
+    assert (p.multiangle_dir / "direct_learn.json").exists()
+    r = client.get(scoped(pid, "/multiangle/direct/learn"))
+    assert r.status_code == 200
+    assert r.json()["agreement_pct_after"] == 80.0
+
+
 def test_match_window_get_put(client, sample_video):
     pid = new_project(client, sample_video)
     r = client.get(scoped(pid, "/match-window"))

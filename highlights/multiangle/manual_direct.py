@@ -116,3 +116,69 @@ def compare(choices: dict[int, int], rows: list[dict]) -> dict:
             sorted(by_pair.items(), key=lambda kv: -kv[1])),
         "rows": out_rows,
     }
+
+
+# learn-from-my-directing: fast-style knobs searched per saved session
+LEARN_GRID = {
+    "zone_linger": [3, 5, 8],
+    "smooth_median": [3, 5],
+    "margin_cluster": [0.05, 0.10, 0.20],
+    "min_hold": [2, 3],
+}
+
+
+def learn(sessions: list[dict], replay_fn, range_lo: float) -> dict:
+    """Grid-search fast-style overrides to maximise agreement with the
+    user's saved you-direct sessions.
+
+    sessions: [{t_start, t_end, choices:[{t,angle}]}] (shared seconds).
+    replay_fn(overrides: dict) -> director segments (range-relative,
+    like director.json). Scoring = total agreeing seconds across all
+    sessions; ties prefer the candidate closest to the fast defaults.
+    """
+    from highlights.multiangle.director import STYLES
+
+    fast = STYLES["fast"]
+    keys = list(LEARN_GRID)
+    combos = [
+        dict(zip(keys, vals))
+        for vals in itertools.product(*(LEARN_GRID[k] for k in keys))]
+
+    def deviations(o: dict) -> int:
+        return sum(1 for k, v in o.items() if v != getattr(fast, k))
+
+    def score(segments: list[dict]) -> tuple[int, int]:
+        agree = total = 0
+        for s in sessions:
+            rows = director_rows(segments, range_lo,
+                                 s["t_start"], s["t_end"])
+            choices = {int(c["t"]): int(c["angle"]) for c in s["choices"]}
+            cmp = compare(choices, rows)
+            for r in cmp["rows"]:
+                if r["user"] is not None:
+                    total += 1
+                    agree += 1 if r["agree"] else 0
+        return agree, total
+
+    results = []
+    for o in combos:
+        agree, _ = score(replay_fn(o))
+        results.append({"overrides": o, "agree_s": agree,
+                        "deviations": deviations(o)})
+    base_agree, base_total = score(replay_fn({}))
+    results.sort(key=lambda r: (-r["agree_s"], r["deviations"]))
+    best = results[0]
+    return {
+        "best": best["overrides"],
+        "agreement_pct_before": round(
+            base_agree / base_total * 100, 1) if base_total else None,
+        "agreement_pct_after": round(
+            best["agree_s"] / base_total * 100, 1) if base_total else None,
+        "n_sessions": len(sessions),
+        "n_seconds": base_total,
+        "grid": [{"overrides": r["overrides"],
+                  "agree_s": r["agree_s"],
+                  "agreement_pct": round(r["agree_s"] / base_total * 100, 1)
+                  if base_total else None}
+                 for r in results[:5]],
+    }

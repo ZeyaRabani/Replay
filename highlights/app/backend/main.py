@@ -1726,6 +1726,18 @@ def _active_cut_meta(p: ProjectStore) -> dict:
     return {}
 
 
+def _direct_sessions(p: ProjectStore) -> list[dict]:
+    """Saved you-direct session docs, newest first."""
+    sdir = p.multiangle_dir / "manual_direct"
+    sessions = []
+    if sdir.is_dir():
+        for f in sorted(sdir.glob("*.json"), reverse=True):
+            doc = _read_json(f)
+            if doc:
+                sessions.append(doc)
+    return sessions
+
+
 def _direct_stretch(p: ProjectStore, t_start: float | None,
                     t_end: float | None) -> dict:
     """Build the /direct/suggest payload for a stretch (or the busiest
@@ -1763,7 +1775,17 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     else:
         fused = (_read_json(ma / "fused_candidates.json")
                  or _read_json(p.pipeline_dir / "candidates.json") or {})
-        cand = pick_candidate(fused, (lo, hi))
+        # suggest the next busiest stretch: candidates inside a saved
+        # session's span only count as fallback
+        covered = _direct_sessions(p)
+        def inside(c):
+            t = float(c.get("t", 0))
+            return any(float(s.get("t_start", -1)) <= t
+                       <= float(s.get("t_end", -1)) for s in covered)
+        evs = (fused.get("candidates") or fused.get("events") or [])
+        fresh = [c for c in evs if not inside(c)]
+        cand = (pick_candidate({"candidates": fresh}, (lo, hi))
+                or pick_candidate(fused, (lo, hi)))
         if cand is None:
             raise HTTPException(404, "no candidates inside the match window")
         s, e = suggest_stretch(float(cand["t"]), (lo, hi))
@@ -1774,6 +1796,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
         "offsets": [round(s - o, 2) for o in offsets],
         "match_window": [round(lo, 2), round(hi, 2)],
         "n_angles": n_angles,
+        "n_sessions_saved": len(_direct_sessions(p)),
         "director": rows,
         "candidate": ({"t": round(float(cand["t"]), 2),
                        "type": cand.get("type"),
@@ -1850,14 +1873,90 @@ def post_direct_session(body: DirectSessionPut, p: ScopedP) -> dict:
 def get_direct_sessions(p: ScopedP) -> dict:
     """List saved you-direct sessions with their comparisons."""
     _require_multiangle(p)
-    sdir = p.multiangle_dir / "manual_direct"
-    sessions = []
-    if sdir.is_dir():
-        for f in sorted(sdir.glob("*.json"), reverse=True):
-            doc = _read_json(f)
-            if doc:
-                sessions.append(doc)
-    return {"sessions": sessions}
+    return {"sessions": _direct_sessions(p)}
+
+
+class _StatusStub:
+    """StatusWriter duck-type for load_director_inputs outside a job."""
+    def update(self, *a, **k):
+        return None
+
+
+def _direct_ctx(p: ProjectStore):
+    """Minimal run.Ctx over the project's real files (learn replay)."""
+    from highlights.multiangle.run import Ctx
+    adir = p.root / "angles"
+    dirs = sorted(d for d in adir.iterdir() if d.is_dir()) \
+        if adir.is_dir() else []
+    return Ctx(project_dir=p.root, pipe=p.multiangle_dir,
+               status=_StatusStub(),
+               angles=[{"dir": d} for d in dirs],
+               style=str(p.meta.get("cut_style") or "fast"))
+
+
+def _run_direct_learn(p: ProjectStore, sessions: list[dict]) -> dict:
+    """Replay the director on this project's real inputs and
+    grid-search the style overrides that best match the user."""
+    from highlights.multiangle.director import cut_director
+    from highlights.multiangle.manual_direct import learn
+    from highlights.multiangle.run import load_director_inputs
+    ctx = _direct_ctx(p)
+    inp = load_director_inputs(ctx)
+
+    def replay(overrides):
+        return cut_director(
+            inp["tracks"], inp["avail"], inp["motion"], ctx.style,
+            zones=inp["zones"], zone_ok=inp["zone_ok"],
+            zone_kf=inp["zone_kf"],
+            style_overrides=overrides or None)["segments"]
+
+    return learn(sessions, replay, range_lo=inp["lo"])
+
+
+class DirectLearnPut(BaseModel):
+    recut: bool = False
+
+
+@scoped.post("/multiangle/direct/learn")
+def post_direct_learn(p: ScopedP, body: DirectLearnPut | None = None,
+                      user: UserDep = "") -> dict:
+    """Learn style overrides from the saved you-direct sessions and
+    optionally enqueue a re-cut that uses them."""
+    _require_multiangle(p)
+    sessions = _direct_sessions(p)
+    if not sessions:
+        raise HTTPException(409, "save a you-direct session first")
+    res = _run_direct_learn(p, sessions)
+    ma = p.multiangle_dir
+    write_json_atomic(ma / "direct_learn.json",
+                      {**res, "created_at": time.time()}, indent=1)
+    write_json_atomic(ma / "director_params.json",
+                      {"style_overrides": res["best"]}, indent=1)
+    _hist(p, "manual_direct_learned",
+          agreement_before=res["agreement_pct_before"],
+          agreement_after=res["agreement_pct_after"],
+          overrides=res["best"], n_sessions=res["n_sessions"])
+    job = None
+    if body and body.recut:
+        _ensure_cut_snapshot(p)
+        ck = _user_default_cookies(p, user) or _project_cookies(p)
+        try:
+            job = pipeline.spawn_multiangle(
+                p, stages=["director", "render", "fuse"], force=True,
+                style=str(p.meta.get("cut_style") or "fast"), cookies=ck)
+        except pipeline.PipelineBusy as e:
+            raise HTTPException(409, str(e)) from e
+    return {"learn": res, "job": job}
+
+
+@scoped.get("/multiangle/direct/learn")
+def get_direct_learn(p: ScopedP) -> dict:
+    """Last saved learn result."""
+    _require_multiangle(p)
+    d = _read_json(p.multiangle_dir / "direct_learn.json")
+    if d is None:
+        raise HTTPException(404, "no learn result yet")
+    return d
 
 
 def _ensure_cut_snapshot(p: ProjectStore) -> None:

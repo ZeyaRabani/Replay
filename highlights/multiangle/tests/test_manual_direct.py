@@ -1,6 +1,6 @@
 """manual_direct: pick_candidate / suggest_stretch / director_rows / compare."""
 
-from highlights.multiangle.manual_direct import compare, director_rows, pick_candidate, suggest_stretch
+from highlights.multiangle.manual_direct import compare, director_rows, learn, pick_candidate, suggest_stretch
 
 SEGS = [
     {"t_start": 0.0, "t_end": 5.0, "angle": 0, "rule": "start"},
@@ -61,3 +61,27 @@ def test_director_rows_and_compare():
     cmp3 = compare({16: 1}, rows)
     assert cmp3["n_seconds"] == 3
     assert cmp3["rows"][0]["user"] is None
+
+
+def test_learn_grid_picks_matching_overrides():
+    """Fake replay: overrides 0 returns segments the user copied poorly,
+    overrides with min_hold=3 returns segments the user followed."""
+    sessions = [{"t_start": 10.0, "t_end": 19.0,
+                 "choices": [{"t": 10, "angle": 0}, {"t": 15, "angle": 1}]}]
+
+    def replay(overrides):
+        # director cuts to angle 1 at rel 5 (=shared 15) only when
+        # min_hold >= 3 in this toy world
+        cut = 5 if overrides.get("min_hold") == 3 else 8
+        return [{"t_start": 0.0, "t_end": cut, "angle": 0, "rule": "s"},
+                {"t_start": cut, "t_end": 20.0, "angle": 1, "rule": "s"}]
+
+    res = learn(sessions, replay, range_lo=10.0)
+    assert res["n_sessions"] == 1 and res["n_seconds"] == 9
+    # default replay cuts at shared 18: agrees 10-14 + 18 = 6/9
+    assert res["agreement_pct_before"] == round(6 / 9 * 100, 1)
+    # with the cut at 15 the replay matches the user's switch: 9/9
+    assert res["agreement_pct_after"] == 100.0
+    assert res["best"]["min_hold"] == 3
+    assert len(res["grid"]) == 5
+    assert all(g["agree_s"] >= 0 for g in res["grid"])

@@ -504,6 +504,7 @@ export interface DirectSuggest {
   offsets: number[];          // per-angle file_t of t_start
   match_window: [number, number];
   n_angles: number;
+  n_sessions_saved: number;
   director: DirectRow[];
   candidate: { t: number; type: string; confidence: number } | null;
 }
@@ -524,6 +525,16 @@ export interface DirectComparison {
   disagree_by_rule: Record<string, { n: number; of: number }>;
   disagree_by_pair: Record<string, number>;
   rows: DirectCompareRow[];
+}
+
+export interface DirectLearnResult {
+  best: Record<string, number>;
+  agreement_pct_before: number | null;
+  agreement_pct_after: number | null;
+  n_sessions: number;
+  n_seconds: number;
+  grid: { overrides: Record<string, number>; agree_s: number;
+          agreement_pct: number | null }[];
 }
 
 export interface DirectSession {

@@ -4,6 +4,7 @@ import type {
   AnalysisStatus,
   Candidate,
   CutsList,
+  DirectLearnResult,
   DirectSession,
   DirectSuggest,
   DirectorFull,
@@ -234,6 +235,11 @@ export function projectApi(id: string) {
                         choices: { t: number; angle: number }[]) =>
       req<DirectSession>(`${base}/multiangle/direct/sessions`,
                          json({ t_start, t_end, choices })),
+    learnDirect: (recut: boolean) =>
+      req<{ learn: DirectLearnResult; job: unknown }>(
+        `${base}/multiangle/direct/learn`, json({ recut })),
+    getDirectLearn: () =>
+      req<DirectLearnResult>(`${base}/multiangle/direct/learn`),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

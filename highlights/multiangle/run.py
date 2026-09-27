@@ -464,15 +464,21 @@ def _np_json(o):
     raise TypeError(f"not JSON serializable: {type(o).__name__}")
 
 
-def stage_director(ctx: Ctx) -> dict:
-    from highlights.multiangle.director import cut_director
+def load_director_inputs(ctx: Ctx) -> dict:
+    """Build every array stage_director feeds cut_director, so a recut
+    and the you-direct learner replay identical inputs.
+
+    Returns {tracks, avail, motion, zones, zone_ok, zone_kf, lo, hi, T}:
+    tracks[i] has ball_conf/ball_size/ball_x/ball_y/cluster/event (and
+    players_xy when the track file carries it); avail/motion on the
+    shared [lo,hi) timeline; zones None when unusable/absent."""
+    from highlights.multiangle.director import EVENT_POST, EVENT_PRE, EVENT_TYPES
 
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     apply_match_window_src(ctx, sync)
     offsets = sync["offsets"]
     lo, hi = ctx.union(sync)
     T = int(np.ceil(hi - lo))
-    from highlights.multiangle.director import EVENT_POST, EVENT_PRE, EVENT_TYPES
 
     tracks, motion, avail = [], [], np.zeros((len(ctx.angles), T), dtype=bool)
     for i, a in enumerate(ctx.angles):
@@ -513,7 +519,9 @@ def stage_director(ctx: Ctx) -> dict:
                 for k in range(T)]
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
+
     zones, zone_ok, zone_kf = None, None, None
+    suspended = [0.0] * len(ctx.angles)
     zf = ctx.pipe / "zones.json"
     if zf.exists():
         try:
@@ -529,7 +537,6 @@ def stage_director(ctx: Ctx) -> dict:
                 zone_kf = [np.zeros(T, dtype=int)
                            for _ in range(len(ctx.angles))]
                 zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
-                suspended = [0.0] * len(ctx.angles)
                 for i, a in enumerate(ctx.angles):
                     off = offsets[i]
                     dur = ctx.duration(i)
@@ -574,10 +581,40 @@ def stage_director(ctx: Ctx) -> dict:
         except Exception as e:
             ctx.log(f"director: ignoring bad zones.json ({e})")
             zones, zone_ok, zone_kf = None, None, None
-    out = cut_director(tracks, avail, motion, ctx.style,
-                       zones=zones, zone_ok=zone_ok, zone_kf=zone_kf)
+    return {"tracks": tracks, "avail": avail, "motion": motion,
+            "zones": zones, "zone_ok": zone_ok, "zone_kf": zone_kf,
+            "lo": lo, "hi": hi, "T": T, "suspended": suspended}
+
+
+def director_style_overrides(ctx: Ctx) -> dict | None:
+    """Learned knobs for this project: multiangle/director_params.json
+    {"style_overrides": {...}} — validated against the Style fields."""
+    try:
+        ov = json.loads((ctx.pipe / "director_params.json").read_text())
+        ov = (ov or {}).get("style_overrides") or None
+        if ov:
+            from highlights.multiangle.director import resolve_style
+            resolve_style(ctx.style, ov)        # raises on bad keys
+        return ov
+    except FileNotFoundError:
+        return None
+    except ValueError as e:
+        ctx.log(f"director: ignoring bad director_params.json ({e})")
+        return None
+
+
+def stage_director(ctx: Ctx) -> dict:
+    from highlights.multiangle.director import cut_director
+
+    inp = load_director_inputs(ctx)
+    zones, zone_ok, zone_kf = inp["zones"], inp["zone_ok"], inp["zone_kf"]
+    out = cut_director(inp["tracks"], inp["avail"], inp["motion"],
+                       ctx.style,
+                       zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
+                       style_overrides=director_style_overrides(ctx))
     if zones:
-        out["zone_suspended_share"] = [round(s, 4) for s in suspended]
+        out["zone_suspended_share"] = [round(s, 4)
+                                       for s in inp["suspended"]]
         out["zone_keyframes"] = [len(kfs) for kfs in zones]
     write_json_atomic(ctx.pipe / "director.json", out, indent=1,
                       default=_np_json)

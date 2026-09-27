@@ -33,7 +33,7 @@ Segment semantics: each segment describes the angle SHOWN in
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, replace
 
 import numpy as np
 
@@ -83,21 +83,42 @@ class Style:
     zone_hold_dens: int = ZONE_MIN_HOLD_DENS
     zone_confirm_dens: int = ZONE_CONFIRM_DENS
     zone_no_return_s: int = ZONE_NO_RETURN_S
+    # seconds an angle stays zone-eligible after the last zone hit
+    zone_linger: int = ZONE_LINGER
+    # median half-window of the score smoother
+    smooth_median: int = SMOOTH_MEDIAN
 
 
 STYLES = {
     "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9, DEAD_SCORE_S),
-    # fast: zones switch as often as the ball/density says (no settle rule)
+    # fast: zones switch as often as the ball/density says (no settle
+    # rule); short linger + median follow the user tighter
     "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2,
                   zone_hold_dens=ZONE_MIN_HOLD_BALL, zone_confirm_dens=1,
-                  zone_no_return_s=3),
+                  zone_no_return_s=3, zone_linger=3, smooth_median=3),
 }
 
 
-def _smooth(x: np.ndarray, mean: int = SMOOTH_MEAN) -> np.ndarray:
+STYLE_FIELDS = {f.name for f in fields(Style)}
+
+
+def resolve_style(style: str,
+                  overrides: dict | None = None) -> Style:
+    """STYLES[style] with validated knob overrides applied."""
+    sty = STYLES[style]
+    if overrides:
+        bad = set(overrides) - STYLE_FIELDS
+        if bad:
+            raise ValueError(f"unknown style overrides: {sorted(bad)}")
+        sty = replace(sty, **overrides)
+    return sty
+
+
+def _smooth(x: np.ndarray, mean: int = SMOOTH_MEAN,
+            median: int = SMOOTH_MEDIAN) -> np.ndarray:
     from scipy.ndimage import median_filter, uniform_filter1d
     return uniform_filter1d(
-        median_filter(x, size=SMOOTH_MEDIAN, mode="nearest"),
+        median_filter(x, size=median, mode="nearest"),
         size=mean, mode="nearest")
 
 
@@ -137,7 +158,8 @@ def _in_poly(pts: np.ndarray, poly: list[list[float]]) -> np.ndarray:
 def _zone_eligible(track: list[dict], available: np.ndarray,
                    zones: list[list[dict]],
                    zone_ok: np.ndarray | None = None,
-                   zone_kf: list[np.ndarray] | None = None
+                   zone_kf: list[np.ndarray] | None = None,
+                   linger: int = ZONE_LINGER
                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(elig, ball_hits, dens_hits, dens_strength): [n_angles, T].
 
@@ -203,10 +225,10 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                         kk >= ZONE_PLAYERS_FRAC * len(pts):
                     dens_hits[i, t] = True
                     dens_raw[i, t] = kk / len(pts)
-    # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
+    # linger: eligible at t if any hit in [t-linger, t]
     def _linger(h: np.ndarray) -> np.ndarray:
         out = h.copy()
-        for s in range(1, ZONE_LINGER + 1):
+        for s in range(1, linger + 1):
             out[:, s:] |= h[:, :T - s]
         return out
 
@@ -214,8 +236,8 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
     elig = ball_linger | _linger(dens_hits)
     # density strength fades linearly to 0 over the linger window
     dens_strength = dens_raw.copy()
-    for s in range(1, ZONE_LINGER):
-        carry = dens_raw[:, :T - s] * (1.0 - s / ZONE_LINGER)
+    for s in range(1, linger):
+        carry = dens_raw[:, :T - s] * (1.0 - s / linger)
         dens_strength[:, s:] = np.maximum(dens_strength[:, s:], carry)
     if zone_ok is not None:
         elig &= zone_ok
@@ -227,7 +249,8 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
 def per_second(track: list[dict], available: np.ndarray,
                zones: list | None = None,
                zone_ok: np.ndarray | None = None,
-               zone_kf: list[np.ndarray] | None = None
+               zone_kf: list[np.ndarray] | None = None,
+               linger: int = ZONE_LINGER
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
@@ -262,7 +285,7 @@ def per_second(track: list[dict], available: np.ndarray,
     zone_str = None
     if zones:
         zone_elig, zone_ball, zp, zone_str = _zone_eligible(
-            track, available, zones, zone_ok, zone_kf)
+            track, available, zones, zone_ok, zone_kf, linger=linger)
         zone_shares = {
             "zone_ball_share": round(
                 float((zone_ball & available).any(axis=0).mean()), 4),
@@ -332,18 +355,22 @@ def cut_director(track: list[dict], available: np.ndarray,
                  motion: list[np.ndarray], style: str = "normal",
                  zones: list | None = None,
                  zone_ok: np.ndarray | None = None,
-                 zone_kf: list[np.ndarray] | None = None) -> dict:
+                 zone_kf: list[np.ndarray] | None = None,
+                 style_overrides: dict | None = None) -> dict:
     """Full decision. track[i]: {"ball_conf","ball_size","cluster",
     "ball_x","ball_y"} 1 Hz arrays on the shared timeline;
     available[i, t]; motion[i] shared-timeline motion. zones (optional):
     per-angle lists of normalised polygons; a ball inside a zone cuts to
-    that angle immediately. Returns the director.json dict."""
-    sty = STYLES[style]
+    that angle immediately. style_overrides replaces validated Style
+    knobs on top of the named style. Returns the director.json dict."""
+    sty = resolve_style(style, style_overrides)
     T = available.shape[1]
     n_angles = len(track)
     cand_a, _cand_s, cand_r, S, baselines, zone_shares, zone_ball = per_second(
-        track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf)
-    sm = np.stack([_smooth(S[i], sty.smooth_mean) for i in range(n_angles)])
+        track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
+        linger=sty.zone_linger)
+    sm = np.stack([_smooth(S[i], sty.smooth_mean, sty.smooth_median)
+                   for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
 
     rule_counts = {"event": 0, "zone": 0, "ball": 0, "cluster": 0,
@@ -481,6 +508,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     span_min = max(total_dur / 60.0, 1e-9)
     return {
         "style": style,
+        "style_overrides": dict(style_overrides or {}),
         "zones_used": zones is not None and any(
             any(kf.get("zones") for kf in z) for z in zones),
         "segments": segs,
