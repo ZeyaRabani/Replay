@@ -30,8 +30,9 @@ MIN_OVERLAP_S = 1.0
 
 def _region_hist(img_bgr: np.ndarray, y0: int, y1: int) -> np.ndarray:
     """L1-normalised HxS joint histogram of a horizontal band."""
+    import cv2
     band = img_bgr[y0:y1]
-    hsv = __import__("cv2").cvtColor(band, __import__("cv2").COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(band, cv2.COLOR_BGR2HSV)
     hist, _, _ = np.histogram2d(
         hsv[:, :, 0].ravel(), hsv[:, :, 1].ravel(),
         bins=(H_BINS, S_BINS), range=((0, 180), (0, 256)))

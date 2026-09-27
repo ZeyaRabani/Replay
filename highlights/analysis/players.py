@@ -149,6 +149,9 @@ def _finish_track(tid: int, tr: dict, crops_dir: Path, len_m: float,
     t_end = tr["last_t"]
     if t_end - tr["t_start"] < MIN_TRACKLET_S:
         return
+    # ByteTrack reuses ids after a track dies; give each kept tracklet a
+    # fresh sequential id (finish order) so crops/roster keys stay unique.
+    oid = len(tracklets) + 1
     votes = tr["votes"]
     team = None
     if votes["A"] > 0 or votes["B"] > 0:
@@ -160,13 +163,14 @@ def _finish_track(tid: int, tr: dict, crops_dir: Path, len_m: float,
         img = tr["crops"].get(key)
         if img is None:
             continue
-        name = f"{tid}_{i}.jpg"
+        name = f"{oid}_{i}.jpg"
         crops_dir.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(crops_dir / name), img,
                     [int(cv2.IMWRITE_JPEG_QUALITY), 80])
         crops.append(name)
     tracklets.append({
-        "id": int(tid),
+        "id": oid,
+        "track_id": int(tid),
         "team": team,
         "t_start": round(tr["t_start"], 3),
         "t_end": round(t_end, 3),

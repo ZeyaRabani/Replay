@@ -195,3 +195,31 @@ def test_players_stats():
     assert st["unassigned"]["tracked_s"] == 8.0
     assert [p["team"] for p in st["players"]] == ["A", "B"]
     assert "not official" in st["caveat"]
+
+
+def test_tracklet_ids_unique_when_tracker_reuses_ids(tmp_path):
+    """ByteTrack reuses a tid after the gap: two finished tracklets must
+    still get distinct ids (crops and roster keys would collide)."""
+    frames, dets = [], []
+    for i in range(60):                     # 30 s at 2 fps
+        t = i * 0.5
+        f = np.full((240, 320, 3), GREEN, dtype=np.uint8)
+        det = []
+        if i < 20 or i >= 40:               # tid 1: 0-10s and 20-30s
+            b = _box(30 + i, 60)
+            _paint(f, b, ORANGE)
+            det.append((1, b))
+        frames.append((t, f))
+        dets.append(det)
+    doc = run_players_pass(
+        None, tmp_path,
+        window_file=(0.0, 30.0), shared_offset=0.0,
+        teams=TEAMS, frames=iter(frames), tracker=_fake_tracker(dets),
+        log=lambda m: None)
+    ids = [t["id"] for t in doc["tracklets"]]
+    assert len(ids) == len(set(ids)) == 2   # same tracker id, two tracklets
+    assert all(t["track_id"] == 1 for t in doc["tracklets"])
+    # crops named by the fresh ids, not the recycled tracker id
+    names = sorted(p.name for p in (tmp_path / "crops").glob("*.jpg"))
+    assert names == sorted(
+        f"{t['id']}_{i}.jpg" for t in doc["tracklets"] for i in range(3))
