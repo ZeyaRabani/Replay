@@ -24,6 +24,20 @@ TRACK_STEP = 0.05
 SPRINT_STEP = 0.03
 
 
+def density_peak_x(xs: list[float]) -> float | None:
+    """Where play is concentrated: argmax of a smoothed 20-bin histogram
+    of player x positions. Needs >= 4 players; ties -> mean of centres."""
+    if len(xs) < 4:
+        return None
+    hist = np.zeros(20)
+    for x in xs:
+        hist[min(int(x * 20), 19)] += 1.0
+    sm = np.convolve(hist, [0.25, 0.5, 0.25], mode="same")
+    peak = sm.max()
+    centres = [(i + 0.5) / 20 for i in range(20) if sm[i] == peak]
+    return float(np.mean(centres))
+
+
 def _f(x: Any, nd: int = 4) -> float:
     x = float(x)
     if not math.isfinite(x):
@@ -47,14 +61,11 @@ def _teams_rows(teams: dict) -> dict[int, dict]:
         b_xs = [float(x) for x in (r[idx["teamB_xs"]] or [])]
         bconf = float(r[idx["ball_conf"]])
         # play_x: where play is — the ball when confidently tracked, else
-        # the mean player x (the ball is rarely visible in grassroots
-        # wide shots, so the players' centroid is the honest proxy)
-        if bconf >= BALL_OK:
-            play_x = float(r[idx["ball_x"]])
-        elif a_xs or b_xs:
-            play_x = float(np.mean(a_xs + b_xs))
-        else:
-            play_x = None
+        # the player-density peak (the ball is rarely visible in
+        # grassroots wide shots; the mean sits at mid-pitch on any
+        # whole-pitch shot, so the densest cluster is the honest proxy)
+        play_x = (float(r[idx["ball_x"]]) if bconf >= BALL_OK
+                  else density_peak_x(a_xs + b_xs))
         out[sec] = {
             "ball_x": float(r[idx["ball_x"]]),
             "ball_y": float(r[idx["ball_y"]]),

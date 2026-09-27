@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from highlights.analysis.stats import compute_match_stats
+from highlights.analysis.stats import compute_match_stats, density_peak_x
 
 COLS = ["t_shared", "ball_x", "ball_y", "ball_conf",
         "teamA_xs", "teamB_xs", "teamA_n", "teamB_n"]
@@ -119,6 +119,16 @@ def test_territory_and_momentum():
     assert m[0]["n"] > 0
 
 
+def test_density_peak_x():
+    # cluster at ~0.15 with two stragglers -> peak at the cluster
+    xs = [0.14, 0.15, 0.15, 0.16, 0.15, 0.14, 0.80, 0.82]
+    px = density_peak_x(xs)
+    assert px is not None and abs(px - 0.15) < 0.05
+    # too few players -> no estimate
+    assert density_peak_x([0.2, 0.5, 0.7]) is None
+    assert density_peak_x([]) is None
+
+
 def test_play_x_fallback_when_ball_invisible():
     """ball_conf 0 everywhere: territory/momentum still work off player
     positions; possession is gated to null with a caveat."""
@@ -136,9 +146,10 @@ def test_play_x_fallback_when_ball_invisible():
     assert tA is not None and tA["mid"] > 0.9
     tB = h1["B"]["territory"]
     assert tB is not None and tB["mid"] > 0.9
-    # momentum bins still carry values (centre-pitch -> ~0)
+    # momentum bins still carry values: the two equal density peaks
+    # (0.325/0.725) tie-break to 0.525 -> A's attacking half -> +1
     m = st["momentum"]
-    assert m[0]["value"] is not None and abs(m[0]["value"]) < 0.1
+    assert m[0]["value"] is not None and abs(m[0]["value"]) == 1.0
     assert m[0]["n"] > 0
     assert any("ball rarely visible" in c for c in st["caveats"])
     assert any("territory/momentum estimated" in c for c in st["caveats"])
