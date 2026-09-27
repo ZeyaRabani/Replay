@@ -439,3 +439,59 @@ def test_normalize_and_zones_at():
     # kf_index maps output seconds to the active keyframe via file time
     idx = kf_index(kfs[0], T=600, lo=0.0, off=0.0, dur=6000.0)
     assert (idx[:500] == 0).all() and (idx[500:] == 1).all()
+
+
+def test_zone_confirmed_hit_required_fast():
+    """Under fast, a lone weak hit (0.3) in a zone is NOT eligible; a
+    strong hit (0.7) is; two weak hits within zone_linger confirm."""
+    from highlights.multiangle.director import _zone_eligible
+
+    avail = np.ones((2, 300), dtype=bool)
+    zones = [[], [_kf([POLY])]]
+
+    def elig_at(conf_span):
+        tr = [_track(300, cluster=8.0), _track(300, cluster=2.0)]
+        for t, c in conf_span.items():
+            tr[1]["ball_conf"][t] = c
+            tr[1]["ball_x"][t] = 0.2
+            tr[1]["ball_y"][t] = 0.5
+        _, ball, _, _ = _zone_eligible(tr, avail, zones,
+                                       linger=3, strong=0.5)
+        return ball[1]
+
+    # lone weak hit: no eligibility at all
+    b = elig_at({100: 0.3})
+    assert not b[95:115].any()
+    # lone strong hit: eligible at the hit + linger
+    b = elig_at({100: 0.7})
+    assert b[100] and b[103] and not b[104]
+    # two weak hits 2 s apart: the second confirms itself
+    b = elig_at({100: 0.3, 102: 0.3})
+    assert not b[100]                 # first hit alone was not confirmed
+    assert b[102] and b[105] and not b[106]
+
+
+def test_zone_incumbent_sees_ball_blocks_cut():
+    """A ball-driven zone cut is blocked while the incumbent also sees
+    the ball (conf >= ZONE_BALL_OK)."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    # a1 (incumbent, strong cluster) sees the ball continuously
+    tr[0]["ball_conf"][50:] = 0.6     # incumbent a0 sees it too
+    tr[0]["ball_x"][50:] = 0.9        # outside any zone
+    tr[0]["ball_y"][50:] = 0.5
+    tr[1]["ball_conf"][100:121] = 0.8
+    tr[1]["ball_x"][100:121] = 0.2
+    tr[1]["ball_y"][100:121] = 0.5
+    zones = [[], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    # start on a0 (cluster 8 vs 2); a0 sees the ball so a1's zone hit
+    # can't displace it -> no zone segments
+    assert not _seg_times(d)
+    # and when the incumbent's sighting ends, the same sighting fires
+    tr[0]["ball_conf"][95:] = 0.0
+    tr[0]["ball_x"][95:] = 0.0
+    d2 = cut_director(tr, np.ones((2, T), dtype=bool),
+                      [np.ones(T)] * 2, zones=zones)
+    assert _seg_times(d2)

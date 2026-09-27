@@ -120,6 +120,7 @@ def compare(choices: dict[int, int], rows: list[dict]) -> dict:
 
 # learn-from-my-directing: fast-style knobs searched per saved session
 LEARN_GRID = {
+    "zone_ball_strong": [0.2, 0.5],
     "zone_linger": [3, 5, 8],
     "smooth_median": [3, 5],
     "margin_cluster": [0.05, 0.10, 0.20],

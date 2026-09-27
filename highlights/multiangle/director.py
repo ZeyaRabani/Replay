@@ -87,10 +87,14 @@ class Style:
     zone_linger: int = ZONE_LINGER
     # median half-window of the score smoother
     smooth_median: int = SMOOTH_MEDIAN
+    # ball_conf a single zone hit needs on its own; weaker hits need a
+    # second hit within zone_linger s to count
+    zone_ball_strong: float = 0.5
 
 
 STYLES = {
-    "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9, DEAD_SCORE_S),
+    "normal": Style(20, 10, 6, 3, 0.25, 0.50, 9, DEAD_SCORE_S,
+                    zone_ball_strong=ZONE_BALL_OK),
     # fast: zones switch as often as the ball/density says (no settle
     # rule); short linger + median follow the user tighter
     "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2,
@@ -159,7 +163,8 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                    zones: list[list[dict]],
                    zone_ok: np.ndarray | None = None,
                    zone_kf: list[np.ndarray] | None = None,
-                   linger: int = ZONE_LINGER
+                   linger: int = ZONE_LINGER,
+                   strong: float = ZONE_BALL_OK
                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(elig, ball_hits, dens_hits, dens_strength): [n_angles, T].
 
@@ -172,6 +177,10 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
     kk/len(pts) of feet inside a zone on hit seconds, linger-extended by
     carrying the last value forward with linear decay to 0 over
     ZONE_LINGER s — so eligibility strength fades instead of flickering.
+
+    A ball hit is confirmed at conf >= strong, or when another weak hit
+    (>= ZONE_BALL_OK) for the same angle/zone sits within the previous
+    linger seconds — a lone weak sighting never makes an angle eligible.
 
     zones[i] is that angle's keyframe list [{"t": .., "zones": [poly..]}];
     zone_kf[i][t] selects which keyframe's polygons apply at each second
@@ -208,7 +217,13 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                     in_any |= _in_poly(pts_ball[m], poly)
                 hit = np.zeros(T, dtype=bool)
                 hit[m] = in_any
-                ball_hits[i] |= seen & hit
+                raw = seen & hit
+                strong_h = raw & (bc >= strong)
+                weak_h = raw & ~strong_h
+                prev = np.zeros(T, dtype=bool)
+                for s in range(1, linger + 1):
+                    prev[s:] |= weak_h[:T - s]
+                ball_hits[i] |= strong_h | (weak_h & prev)
             # player-density proxy (only for tracks carrying feet)
             if pxy is None:
                 continue
@@ -250,7 +265,8 @@ def per_second(track: list[dict], available: np.ndarray,
                zones: list | None = None,
                zone_ok: np.ndarray | None = None,
                zone_kf: list[np.ndarray] | None = None,
-               linger: int = ZONE_LINGER
+               linger: int = ZONE_LINGER,
+               strong: float = ZONE_BALL_OK
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
@@ -285,7 +301,8 @@ def per_second(track: list[dict], available: np.ndarray,
     zone_str = None
     if zones:
         zone_elig, zone_ball, zp, zone_str = _zone_eligible(
-            track, available, zones, zone_ok, zone_kf, linger=linger)
+            track, available, zones, zone_ok, zone_kf, linger=linger,
+            strong=strong)
         zone_shares = {
             "zone_ball_share": round(
                 float((zone_ball & available).any(axis=0).mean()), 4),
@@ -368,7 +385,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     n_angles = len(track)
     cand_a, _cand_s, cand_r, S, baselines, zone_shares, zone_ball = per_second(
         track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
-        linger=sty.zone_linger)
+        linger=sty.zone_linger, strong=sty.zone_ball_strong)
     sm = np.stack([_smooth(S[i], sty.smooth_mean, sty.smooth_median)
                    for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
@@ -452,7 +469,12 @@ def cut_director(track: list[dict], available: np.ndarray,
             # incumbent isn't zone-eligible at t its score is 0 and the
             # check passes trivially — switch as before.
             dens_ok = S[j, t] > S[cur, t] * (1 + ZONE_DENS_MARGIN)
-            fire = (hold >= ZONE_MIN_HOLD_BALL if ball_driven else
+            # incumbent already sees the ball -> the play is here, don't
+            # chase a ball-driven zone candidate elsewhere
+            inc_ball = ball_driven and float(
+                np.asarray(track[cur]["ball_conf"])[t]) >= ZONE_BALL_OK
+            fire = ((hold >= ZONE_MIN_HOLD_BALL and not inc_ball)
+                    if ball_driven else
                     zone_streak >= sty.zone_confirm_dens
                     and hold >= sty.zone_hold_dens and not no_return
                     and dens_ok)
