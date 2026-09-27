@@ -169,7 +169,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     try {
       const ok = await saveZones();
       if (!ok) return;
-      await api.recut("fast", [s, e], true);
+      await api.recut(info?.cut_style === "normal" ? "normal" : "fast", [s, e], true);
       await refresh();
     } catch (er) {
       setError(er instanceof Error ? er.message : String(er));
