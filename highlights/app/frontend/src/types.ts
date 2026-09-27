@@ -406,6 +406,69 @@ export interface AnalysisResponse {
   estimate_min: number;
 }
 
+export type PlayerTeam = "A" | "B" | null;
+
+export interface PlayerTracklet {
+  id: number;
+  team: PlayerTeam;
+  t_start: number;
+  t_end: number;
+  t_start_out: number;
+  t_end_out: number;
+  duration_s: number;
+  n_samples: number;
+  distance_m: number;
+  sprints: number;
+  crops: string[];
+}
+
+export interface RosterPlayer {
+  id: string;
+  name: string;
+  team: PlayerTeam;
+  tracklet_ids: number[];
+}
+
+export interface PlayersRoster {
+  players: RosterPlayer[];
+  scorers: Record<string, string>;
+}
+
+export interface PlayerStatsRow {
+  id: string;
+  name: string;
+  team: PlayerTeam;
+  n_tracklets: number;
+  tracked_s: number;
+  distance_m: number;
+  sprints: number;
+  goals: number;
+}
+
+export interface PlayerTeamTotals {
+  n_players: number;
+  tracked_s: number;
+  distance_m: number;
+  sprints: number;
+  goals: number;
+}
+
+export interface PlayersStats {
+  players: PlayerStatsRow[];
+  teams: { A: PlayerTeamTotals; B: PlayerTeamTotals };
+  unassigned: { n_tracklets: number; tracked_s: number; distance_m: number; sprints: number };
+  caveat: string;
+}
+
+export interface PlayersResponse {
+  status: AnalysisStatus | null;
+  teams: { A: AnalysisTeamInfo; B: AnalysisTeamInfo } | null;
+  tracklets: PlayerTracklet[];
+  roster: PlayersRoster;
+  players_stats: PlayersStats;
+  estimate_min: number;
+}
+
 export interface CutInfo {
   zones_angles: number;
   zones_total: number;
