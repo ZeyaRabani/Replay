@@ -388,7 +388,6 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 min={lo} max={hi} step={0.1}
                 value={t}
                 onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }}
-                onMouseUp={() => onSeek?.(t - lo)}
                 aria-label="scrub radar"
               />
             </>
