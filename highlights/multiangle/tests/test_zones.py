@@ -213,7 +213,7 @@ def test_zone_linger_is_8s():
     tr[1]["ball_x"][100] = 0.2
     tr[1]["ball_y"][100] = 0.5
     zones = [[], [_kf([POLY])]]
-    elig, _, _ = _zone_eligible(tr, avail, zones)
+    elig, _, _, _ = _zone_eligible(tr, avail, zones)
     assert elig[1, 100]
     assert elig[1, 108]                # linger 8 covers the hit + 8 s
     assert not elig[1, 109]
@@ -268,7 +268,7 @@ def test_zone_keyframe_switch():
     zones = [[], [_kf([POLY], t=0.0), _kf([POLY_RIGHT], t=150.0)]]
     kf = np.zeros(300, dtype=int)
     kf[150:] = 1
-    elig, ball, _ = _zone_eligible(
+    elig, ball, _, _ = _zone_eligible(
         tr, np.ones((2, 300), dtype=bool), zones,
         zone_kf=[np.zeros(300, dtype=int), kf])
     assert not ball[1, :150].any()     # kf0's poly never sees the ball
@@ -285,20 +285,31 @@ def test_zone_keyframe_switch():
     assert all(t0 >= 190 for t0, _ in zone_segs)
 
 
+def _feet(n_in, n_out):
+    """n_in feet inside POLY (x<0.5) plus n_out outside."""
+    return [[0.2, 0.5]] * n_in + [[0.9, 0.9]] * n_out
+
+
 def test_zone_no_return_blocks_pingpong():
-    """Density candidates alternating every 2 s: a zone cut back to the
-    angle we just left inside ZONE_NO_RETURN_S is blocked."""
+    """A density cut back to the angle we just left inside ZONE_NO_RETURN_S
+    is blocked; cuts further than that window apart go through."""
     T = 300
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
-    # both angles always zone-eligible via density; winner alternates
-    # every 2 s via ball_conf score (ball is never inside a zone)
-    win0 = np.array([0.6 if (t // 2) % 2 == 0 else 0.4 for t in range(T)])
-    tr[0]["ball_conf"] = win0
-    tr[1]["ball_conf"] = 1.0 - win0
-    feet = [[0.2, 0.5]] * 4
     for i in (0, 1):
-        tr[i]["players_xy"] = [feet] * T
+        tr[i]["players_xy"] = [[]] * T
     zones = [[_kf([POLY])], [_kf([POLY])]]
+    # a1 decisively stronger at 10-30 -> cut to 1; a0 stronger 40-60 ->
+    # cut back (>6 s later); a1 strong again 80+ -> a third cut
+    for t in range(T):
+        if 10 <= t < 40:
+            tr[0]["players_xy"][t] = _feet(10, 10)   # 0.5
+            tr[1]["players_xy"][t] = _feet(16, 4)   # 0.8
+        elif 40 <= t < 80:
+            tr[0]["players_xy"][t] = _feet(16, 4)
+            tr[1]["players_xy"][t] = _feet(10, 10)
+        else:
+            tr[0]["players_xy"][t] = _feet(10, 10)
+            tr[1]["players_xy"][t] = _feet(16, 4) if t >= 80 else _feet(10, 10)
     d = cut_director(tr, np.ones((2, T), dtype=bool),
                      [np.ones(T)] * 2, zones=zones)
     starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
@@ -313,12 +324,15 @@ def test_zone_density_needs_streak():
     one zone cut total."""
     T = 300
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
-    win0 = np.array([0.6 if t % 2 == 0 else 0.4 for t in range(T)])
-    tr[0]["ball_conf"] = win0
-    tr[1]["ball_conf"] = 1.0 - win0
-    feet = [[0.2, 0.5]] * 4
+    # winner alternates every second via density STRENGTH (16/20 vs
+    # 10/20 inside): proposals flip so the confirm streak never holds
     for i in (0, 1):
-        tr[i]["players_xy"] = [feet] * T
+        tr[i]["players_xy"] = [[]] * T
+    for t in range(T):
+        strong = _feet(16, 4) if t % 2 == 0 else _feet(10, 10)
+        weak = _feet(10, 10) if t % 2 == 0 else _feet(16, 4)
+        tr[0]["players_xy"][t] = strong
+        tr[1]["players_xy"][t] = weak
     zones = [[_kf([POLY])], [_kf([POLY])]]
     d = cut_director(tr, np.ones((2, T), dtype=bool),
                      [np.ones(T)] * 2, zones=zones)
@@ -344,7 +358,6 @@ def test_zone_density_steady_cuts():
     """A steady density candidate cuts once streak>=2 and hold>=4."""
     T = 300
     tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
-    tr[1]["ball_conf"][:] = 0.6
     feet = [[0.2, 0.5]] * 4
     tr[1]["players_xy"] = [feet if 100 <= t < 150 else [] for t in range(T)]
     zones = [[], [_kf([POLY])]]
@@ -354,6 +367,51 @@ def test_zone_density_steady_cuts():
     assert starts
     # first eligible second is 100; confirm streak needs one more second
     assert 101 <= starts[0] <= 104
+
+
+def test_zone_density_margin_holds_incumbent():
+    """Both angles density-eligible with strengths alternating 0.6/0.55
+    each second: the 15% incumbent margin means zero switches after the
+    first cut."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    for i in (0, 1):
+        tr[i]["players_xy"] = [[]] * T
+    for t in range(T):
+        if t % 2 == 0:
+            tr[0]["players_xy"][t] = _feet(12, 8)   # 0.6
+            tr[1]["players_xy"][t] = _feet(11, 9)   # 0.55
+        else:
+            tr[0]["players_xy"][t] = _feet(11, 9)
+            tr[1]["players_xy"][t] = _feet(12, 8)
+    zones = [[_kf([POLY])], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert len(starts) <= 1
+
+
+def test_zone_density_decisive_switch_holds():
+    """Strength moves decisively (incumbent 0.3 vs challenger 0.8):
+    exactly one switch and it holds."""
+    T = 300
+    tr = [_track(T, cluster=8.0), _track(T, cluster=2.0)]
+    for i in (0, 1):
+        tr[i]["players_xy"] = [[]] * T
+    for t in range(T):
+        if t < 100:
+            tr[0]["players_xy"][t] = _feet(16, 4)  # incumbent starts strong
+            tr[1]["players_xy"][t] = _feet(6, 14)
+        else:
+            tr[0]["players_xy"][t] = _feet(6, 14)  # then drops to 0.3
+            tr[1]["players_xy"][t] = _feet(16, 4)  # challenger 0.8
+    zones = [[_kf([POLY])], [_kf([POLY])]]
+    d = cut_director(tr, np.ones((2, T), dtype=bool),
+                     [np.ones(T)] * 2, zones=zones)
+    starts = [s["t_start"] for s in d["segments"] if s["rule"] == "zone"]
+    assert len(starts) == 1
+    # after the cut the stronger camera holds to the end
+    assert d["segments"][-1]["angle"] == 1
 
 
 def test_normalize_and_zones_at():

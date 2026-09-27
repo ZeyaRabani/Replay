@@ -21,6 +21,17 @@ const polyBounds = (p: ZonePolygon): Rect => {
 
 const clamp = (v: number, hi: number) => Math.min(Math.max(0, v), Math.max(0, hi));
 
+/** Shoelace area of a normalised polygon, as a fraction of the frame. */
+const polyArea = (p: ZonePolygon): number => {
+  let a = 0;
+  for (let i = 0; i < p.length; i++) {
+    const [x1, y1] = p[i];
+    const [x2, y2] = p[(i + 1) % p.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+};
+
 export function zoneStillTimes(duration: number | null): [number, number, number] {
   const d = duration ?? 120;
   return [clamp(60, d - 1), clamp(d / 2, d - 1), clamp(d - 300, d - 1)];
@@ -152,6 +163,8 @@ export default function ZoneEditor({ angle, keyframes, onChange }: Props) {
     assigned[bi] = [...assigned[bi], ...(kf.zones ?? [])];
   });
   const total = assigned.reduce((n, z) => n + z.length, 0);
+  const painted = assigned.reduce(
+    (a, zs) => a + zs.reduce((s, p) => s + polyArea(p), 0), 0);
 
   const emit = (next: ZonePolygon[][]) =>
     onChange(times.map((t, i) => ({ t, zones: next[i] })).filter((kf) => kf.zones.length > 0));
@@ -183,6 +196,12 @@ export default function ZoneEditor({ angle, keyframes, onChange }: Props) {
           />
         ))}
       </div>
+      {painted > 0.4 && (
+        <div className="text-[10px] text-amber-400">
+          Large zones can't tell the cameras apart — paint only the area
+          where this camera is the best view.
+        </div>
+      )}
     </div>
   );
 }

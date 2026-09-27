@@ -64,6 +64,7 @@ ZONE_NO_RETURN_S = 6   # no density zone cut back to the previous angle within t
 ZONE_PLAYERS_MIN = 3   # player-density proxy: feet points inside a zone
 ZONE_PLAYERS_FRAC = 0.5  # ... that are also >= this share of detected players
 ZONE_DENSITY_SCORE = 0.3  # score floor for density-driven zone eligibility
+ZONE_DENS_MARGIN = 0.15  # challenger must beat an eligible incumbent by this
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ STYLES = {
     # fast: zones switch as often as the ball/density says (no settle rule)
     "fast": Style(2, 1, 1, 1, 0.02, 0.10, 1, 2,
                   zone_hold_dens=ZONE_MIN_HOLD_BALL, zone_confirm_dens=1,
-                  zone_no_return_s=0),
+                  zone_no_return_s=3),
 }
 
 
@@ -138,14 +139,17 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                    zone_ok: np.ndarray | None = None,
                    zone_kf: list[np.ndarray] | None = None
                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """(elig, ball_hits, dens_hits): [n_angles, T] bools.
+    """(elig, ball_hits, dens_hits, dens_strength): [n_angles, T].
 
     elig = ball inside a zone (conf >= ZONE_BALL_OK) OR >= ZONE_PLAYERS_MIN
     player feet inside a zone that are >= ZONE_PLAYERS_FRAC of the detected
     players, extended ZONE_LINGER seconds after the last hit of either kind.
     The second return is the linger-extended ball_hits (viewcheck-masked
     when zone_ok is given) — True where eligibility is ball-driven;
-    dens_hits stays raw for diagnostics.
+    dens_hits stays raw for diagnostics. dens_strength is the fraction
+    kk/len(pts) of feet inside a zone on hit seconds, linger-extended by
+    carrying the last value forward with linear decay to 0 over
+    ZONE_LINGER s — so eligibility strength fades instead of flickering.
 
     zones[i] is that angle's keyframe list [{"t": .., "zones": [poly..]}];
     zone_kf[i][t] selects which keyframe's polygons apply at each second
@@ -155,6 +159,7 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
     T = available.shape[1]
     ball_hits = np.zeros((n, T), dtype=bool)
     dens_hits = np.zeros((n, T), dtype=bool)
+    dens_raw = np.zeros((n, T), dtype=float)
     for i in range(n):
         kfs = zones[i] or []
         polys_per_k = [[p for p in (kf.get("zones") or []) if len(p) >= 3]
@@ -197,6 +202,7 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
                 if kk >= ZONE_PLAYERS_MIN and \
                         kk >= ZONE_PLAYERS_FRAC * len(pts):
                     dens_hits[i, t] = True
+                    dens_raw[i, t] = kk / len(pts)
     # linger: eligible at t if any hit in [t-ZONE_LINGER, t]
     def _linger(h: np.ndarray) -> np.ndarray:
         out = h.copy()
@@ -206,10 +212,16 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
 
     ball_linger = _linger(ball_hits)
     elig = ball_linger | _linger(dens_hits)
+    # density strength fades linearly to 0 over the linger window
+    dens_strength = dens_raw.copy()
+    for s in range(1, ZONE_LINGER):
+        carry = dens_raw[:, :T - s] * (1.0 - s / ZONE_LINGER)
+        dens_strength[:, s:] = np.maximum(dens_strength[:, s:], carry)
     if zone_ok is not None:
         elig &= zone_ok
         ball_linger &= zone_ok
-    return elig, ball_linger, dens_hits
+        dens_strength = np.where(zone_ok, dens_strength, 0.0)
+    return elig, ball_linger, dens_hits, dens_strength
 
 
 def per_second(track: list[dict], available: np.ndarray,
@@ -247,8 +259,9 @@ def per_second(track: list[dict], available: np.ndarray,
     cluster_n = cluster / baselines[:, None]
     zone_shares: dict | None = None
     zone_elig = None
+    zone_str = None
     if zones:
-        zone_elig, zone_ball, zp = _zone_eligible(
+        zone_elig, zone_ball, zp, zone_str = _zone_eligible(
             track, available, zones, zone_ok, zone_kf)
         zone_shares = {
             "zone_ball_share": round(
@@ -281,10 +294,20 @@ def per_second(track: list[dict], available: np.ndarray,
         if zone_elig is not None:
             ze = zone_elig[:, t]
             if ze.any():
-                # lingering / density-driven eligibility has no ball
-                # signal at t — floor the score so the cut still happens
+                # ball-driven eligibility always outranks density
+                # (1.0 + conf); density candidates score by how much of
+                # the detected crowd sits in the zone — floor at a fifth
+                # of ZONE_DENSITY_SCORE for linger-only eligibility so
+                # the cut can still happen.
+                zb = (zone_ball[:, t] if zone_ball is not None
+                      else np.zeros(n_angles, dtype=bool))
                 S[:, t] = np.where(
-                    ze, np.maximum(ball_conf[:, t], ZONE_DENSITY_SCORE), 0.0)
+                    ze,
+                    np.where(zb, 1.0 + ball_conf[:, t],
+                             np.maximum(zone_str[:, t]
+                                        * ZONE_DENSITY_SCORE,
+                                        ZONE_DENSITY_SCORE * 0.2)),
+                    0.0)
                 j = int(np.argmax(S[:, t]))
                 if S[j, t] > 0:
                     best_a[t], best_s[t], best_r[t] = j, S[j, t], 4
@@ -397,9 +420,15 @@ def cut_director(track: list[dict], available: np.ndarray,
             zone_prop = j
             no_return = (not ball_driven and j == prev_zone_angle
                          and t - last_zone_cut_t < sty.zone_no_return_s)
+            # incumbent bias for density candidates: the challenger must
+            # beat the incumbent's score by ZONE_DENS_MARGIN. When the
+            # incumbent isn't zone-eligible at t its score is 0 and the
+            # check passes trivially — switch as before.
+            dens_ok = S[j, t] > S[cur, t] * (1 + ZONE_DENS_MARGIN)
             fire = (hold >= ZONE_MIN_HOLD_BALL if ball_driven else
                     zone_streak >= sty.zone_confirm_dens
-                    and hold >= sty.zone_hold_dens and not no_return)
+                    and hold >= sty.zone_hold_dens and not no_return
+                    and dens_ok)
             if fire:
                 segs[-1]["t_end"] = float(t)
                 open_seg(t, j, "zone", float(S[j, t]),
