@@ -63,31 +63,61 @@ def test_quiet_stretch_split():
     assert any("half-time break" in c for c in st["caveats"])
 
 
-def test_shot_attribution_and_goals():
+def test_confirmed_events_only_in_headline():
+    """Headline shots/goals count confirmed candidates only; pending and
+    rejected land in the unreviewed list (top 10 by confidence)."""
     cands = [
         {"t_shared": 280.0, "type": "shot", "status": "pending",
-         "confidence": 0.7},
+         "confidence": 0.7, "id": "c-pend"},
         {"t_shared": 100.0, "type": "goal", "status": "confirmed",
-         "confidence": 0.95},
+         "confidence": 0.95, "id": "c-goal"},
         {"t_shared": 400.0, "type": "goal", "status": "rejected",
-         "confidence": 0.9},
+         "confidence": 0.9, "id": "c-rej"},
         {"t_shared": 450.0, "type": "goal", "status": "pending",
-         "confidence": 0.85},
+         "confidence": 0.85, "id": "c-pgoal"},
+        {"t_shared": 200.0, "type": "shot", "status": "confirmed",
+         "confidence": 0.6, "id": "c-shot"},
     ]
     st = _stats(candidates=cands)
-    shot = next(s for s in st["shots"] if s["type"] == "shot")
-    assert shot["team"] == "A"          # ball travelled right in half 1
-    assert shot["half"] == 1
-    assert shot["t_file"] == 280.0      # ref offset 0
-    h1 = st["halves"][0]["teams"]
-    confirmed = h1["A"]["goals_confirmed"] + h1["B"]["goals_confirmed"]
-    assert confirmed == 1
-    est = (st["totals"]["A"]["goals_estimated"] +
-           st["totals"]["B"]["goals_estimated"])
-    est_none = sum(1 for s in st["shots"] if s["type"] == "goal"
-                   and s["status"] != "rejected" and s["confidence"] >= 0.8)
-    assert est == est_none == 2         # confirmed + pending 0.85
-    assert st["totals"]["A"]["shots"] >= 1
+    assert len(st["events"]) == 2      # the two confirmed only
+    assert {e["candidate_id"] for e in st["events"]} == {"c-goal", "c-shot"}
+    assert all(e["status"] == "confirmed" for e in st["events"])
+    kinds = [e["kind"] for e in st["events"]]
+    assert kinds.count("goal") == 1 and kinds.count("shot") == 1
+    # goal at t=100 (half 1): ball rides with A at x~0.3 -> left third,
+    # which is A's own-goal side -> attributed to B
+    goal = next(e for e in st["events"] if e["kind"] == "goal")
+    assert goal["team"] == "B" and goal["attribution"] == "high"
+    # headline numbers come from events only
+    assert st["totals"]["A"]["goals"] == 0
+    assert st["totals"]["B"]["goals"] == 1
+    assert st["totals"]["B"]["shots"] == 1   # shot at 200: x~0.3 -> B
+    # unreviewed: 3 non-confirmed, sorted by confidence
+    assert st["n_unreviewed"] == 3
+    assert [u["candidate_id"] for u in st["unreviewed"]] == [
+        "c-rej", "c-pgoal", "c-pend"]
+    assert all(u["status"] in ("pending", "rejected")
+               for u in st["unreviewed"])
+
+
+def test_territory_and_momentum():
+    """Half 1: ball sits with A at x~0.3 (A's defensive third = B's
+    attacking third)."""
+    st = _stats()
+    h1, h2 = st["halves"]
+    tA, tB = h1["teams"]["A"]["territory"], h1["teams"]["B"]["territory"]
+    assert tA is not None and tB is not None
+    assert tA["def"] > 0.9            # A defends the left in half 1
+    assert tB["att"] > 0.9            # B attacks the left in half 1
+    tA2 = h2["teams"]["A"]["territory"]
+    assert tA2["att"] > 0.9           # swapped: ball stays at ~0.3 -> A att
+    # momentum: half 1 ball in B's attacking half -> negative
+    m = st["momentum"]
+    assert len(m) == 2                # 600 s window -> two 5-min bins
+    assert m[0]["value"] is not None and m[0]["value"] <= -0.9
+    assert m[1]["value"] is not None and m[1]["value"] >= 0.9
+    assert m[0]["t_start_shared"] == 0.0
+    assert m[0]["n"] > 0
 
 
 def test_low_confidence_caveat():

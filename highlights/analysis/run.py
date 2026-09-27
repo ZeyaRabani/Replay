@@ -215,7 +215,8 @@ def run_analysis(project_dir: Path, log=print, force: bool = False,
         offsets=ctx["offsets"], ref_angle=ctx["ref_angle"],
         pitch_type=ctx.get("pitch_type"))
     write_json_atomic(stats_path, stats, indent=1)
-    log(f"stats: {len(stats['halves'])} halves, {len(stats['shots'])} shots")
+    log(f"stats: {len(stats['halves'])} halves, {len(stats['events'])} "
+        f"confirmed events, {stats['n_unreviewed']} unreviewed")
 
     _upd(stage="summary", progress=0.95, message="writing summary")
     summary = build_summary(stats)

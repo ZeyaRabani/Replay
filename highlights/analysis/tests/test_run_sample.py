@@ -63,7 +63,7 @@ def test_run_analysis_with_mocked_teams(tmp_path, monkeypatch):
     want_ref = max(range(3), key=lambda i: arun._angle_duration(root / "angles" / f"a{i}"))
     assert stats["ref_angle"] == want_ref
     assert len(stats["halves"]) == 2
-    for s in stats["shots"]:
+    for s in stats["events"] + stats["unreviewed"]:
         assert {"t_shared", "t_out", "t_file"} <= set(s)
     text = res["summary"]["text"]
     assert len(text) > 50

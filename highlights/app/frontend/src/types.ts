@@ -306,12 +306,18 @@ export interface AnalysisTeamInfo {
   hex: string;
 }
 
+export interface AnalysisTerritory {
+  def: number;
+  mid: number;
+  att: number;
+}
+
 export interface AnalysisHalfTeam {
   possession_pct: number;
   attacking_third_s: number;
-  shots: number;
-  goals_confirmed: number;
-  goals_estimated: number;
+  shots: number;               // confirmed candidates only
+  goals: number;               // confirmed goals only
+  territory: AnalysisTerritory | null;
   attacks_right: boolean | null;
 }
 
@@ -329,21 +335,42 @@ export interface AnalysisHalf {
 export interface AnalysisTotals {
   possession_pct: number;
   attacking_third_s: number;
-  shots: number;
-  goals_confirmed: number;
-  goals_estimated: number;
+  shots: number;               // confirmed candidates only
+  goals: number;               // confirmed goals only
+  territory: AnalysisTerritory | null;
   distance_norm: number;
   distance_m_est: number;
   sprints: number;
   tracked_player_seconds: number;
 }
 
-export interface AnalysisShot extends AnalysisTimes {
+export interface AnalysisEvent extends AnalysisTimes {
+  mmss: string;
+  kind: "goal" | "shot";
   type: string;
   confidence: number;
   status: string;
   team: "A" | "B" | null;
+  attribution: "high" | "low";
+  candidate_id: string | null;
   half: number;
+}
+
+export interface AnalysisUnreviewed extends AnalysisTimes {
+  mmss: string;
+  type: string;
+  confidence: number;
+  status: string;
+  candidate_id: string | null;
+  half: number;
+}
+
+export interface AnalysisMomentumBin {
+  t_start_shared: number;
+  t_start_out: number;
+  t_start_file: number;
+  value: number | null;   // ball share in A's attacking half − in B's
+  n: number;
 }
 
 export interface AnalysisMatchStats {
@@ -358,7 +385,10 @@ export interface AnalysisMatchStats {
   halves: AnalysisHalf[];
   ends_swapped: boolean;
   totals: { A: AnalysisTotals; B: AnalysisTotals };
-  shots: AnalysisShot[];
+  events: AnalysisEvent[];
+  unreviewed: AnalysisUnreviewed[];
+  n_unreviewed: number;
+  momentum: AnalysisMomentumBin[];
   caveats: string[];
   distance_norm_2d_total?: number;
 }

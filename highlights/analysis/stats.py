@@ -149,19 +149,32 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
     def in_half(h, s):
         return h["start"] <= s < h["end"] if h["index"] == 1 else h["start"] <= s <= h["end"]
 
-    # ---- ends --------------------------------------------------------
-    ends = {}
+    # ---- attacking direction ----------------------------------------
+    # Per half each team defends the x-side where its most extreme player
+    # (nearest its own goal — usually the keeper) sits most seconds;
+    # ends[h][team] = True when that team attacks toward +x.
+    ends: dict[int, dict] = {}
     for h in halves:
-        ax = [x for s in secs if in_half(h, s) for x in rows.get(s, {}).get("A", [])]
-        bx = [x for s in secs if in_half(h, s) for x in rows.get(s, {}).get("B", [])]
-        meanA = float(np.mean(ax)) if ax else 0.5
-        meanB = float(np.mean(bx)) if bx else 0.5
-        if abs(meanA - meanB) < 0.03:
-            ends[h["index"]] = {"A": None, "B": None}
-        elif meanA < meanB:
-            ends[h["index"]] = {"A": True, "B": False}
-        else:
-            ends[h["index"]] = {"A": False, "B": True}
+        sides: dict[str, list[bool]] = {"A": [], "B": []}
+        for s in secs:
+            if not in_half(h, s):
+                continue
+            r = rows.get(s) or {}
+            for t in "AB":
+                xs = r.get(t) or []
+                if xs:
+                    x = max(xs, key=lambda v: abs(v - 0.5))
+                    sides[t].append(x < 0.5)   # True = own goal on the left
+        ends[h["index"]] = {}
+        for t in "AB":
+            if not sides[t]:
+                ends[h["index"]][t] = None
+                continue
+            left_share = sum(sides[t]) / len(sides[t])
+            if 0.45 <= left_share <= 0.55:
+                ends[h["index"]][t] = None      # ambiguous
+            else:
+                ends[h["index"]][t] = left_share > 0.5   # own goal left -> attacks right
     e1, e2 = ends[1], ends[2]
     if e1["A"] is None or e2["A"] is None:
         ends_swapped = False
@@ -204,53 +217,147 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
             ar = ends[h["index"]].get(o)
             if (ar is True and r["ball_x"] > 2 / 3) or (ar is False and r["ball_x"] < 1 / 3):
                 att[o] += 1
+        # territory: share of ball-in-play seconds in each third, along the
+        # team's own attacking direction (att = the third holding the
+        # opponent's goal)
+        territory: dict[str, dict | None] = {"A": None, "B": None}
+        for t in "AB":
+            ar = ends[h["index"]].get(t)
+            if ar is None or not ball_secs:
+                continue
+            cnt = {"def": 0, "mid": 0, "att": 0}
+            for s in ball_secs:
+                bx = rows[s]["ball_x"]
+                if ar:     # attacks +x: def = [0,1/3), att = (2/3,1]
+                    zone = ("def" if bx < 1 / 3 else "att" if bx > 2 / 3
+                            else "mid")
+                else:      # attacks -x: mirrored
+                    zone = ("att" if bx < 1 / 3 else "def" if bx > 2 / 3
+                            else "mid")
+                cnt[zone] += 1
+            territory[t] = {k: _f(v / len(ball_secs), 3)
+                            for k, v in cnt.items()}
         denom = nA + nB
         half_stats[h["index"]] = {
             "secs": len(hsecs), "ball_secs": n_ball, "nA": nA, "nB": nB,
             "poss": {"A": nA / denom * 100 if denom else 0.0,
                      "B": nB / denom * 100 if denom else 0.0},
             "attacking": att,
+            "territory": territory,
             "ball_visible_pct": n_ball / len(hsecs) * 100 if hsecs else 0.0,
             "contested_pct": (n_ball - len(owned)) / n_ball * 100 if n_ball else 0.0,
         }
 
-    # ---- shots / goals -----------------------------------------------
-    shots = []
-    goals = {1: {"A": [0, 0], "B": [0, 0], None: [0, 0]},
-             2: {"A": [0, 0], "B": [0, 0], None: [0, 0]}}
+    # ---- events -------------------------------------------------------
+    # Headline shots/goals come ONLY from candidates confirmed in Review.
+    # Pending/rejected ones are kept out of the counts and listed as
+    # unreviewed AI chances.
+    def _ball_x_at(tc: float) -> float | None:
+        """Ball x at shared second tc; falls back to the mean over
+        t-2..t+2 when the ball confidence there is low."""
+        near = min(secs, key=lambda s: abs(s - tc), default=None)
+        if near is not None and abs(near - tc) <= 1.0 and \
+                rows[near]["ball_conf"] >= BALL_OK:
+            return rows[near]["ball_x"]
+        xs = [rows[s]["ball_x"] for s in secs
+              if tc - 2 <= s <= tc + 2 and rows[s]["ball_conf"] > 0]
+        return float(np.mean(xs)) if xs else None
+
+    def _attribute(tc: float, hid: int) -> tuple[str | None, str]:
+        """Which team the event belongs to, + 'high'/'low' confidence.
+
+        Ball in the third nearest team X's own goal -> attributed to the
+        other team. Middle third / unknown ends -> more players in the
+        ball's half, marked low."""
+        bx = _ball_x_at(tc)
+        if bx is None:
+            return None, "low"
+        e = ends.get(hid) or {}
+        if bx < 1 / 3 or bx > 2 / 3:
+            # goal on the ball's side belongs to the team defending it:
+            # attacks_right=True -> own goal on the left
+            if bx < 1 / 3:
+                defender = ("A" if e.get("A") is True else
+                            "B" if e.get("B") is True else None)
+            else:
+                defender = ("A" if e.get("A") is False else
+                            "B" if e.get("B") is False else None)
+            if defender is None:
+                return None, "low"
+            return ("B" if defender == "A" else "A"), "high"
+        # middle third: more of the team's players in the ball's half
+        near = min(secs, key=lambda s: abs(s - tc), default=None)
+        if near is None:
+            return None, "low"
+        r = rows[near]
+        half_side = bx < 0.5
+        nA = sum(1 for x in r["A"] if (x < 0.5) == half_side)
+        nB = sum(1 for x in r["B"] if (x < 0.5) == half_side)
+        if nA == nB:
+            return None, "low"
+        return ("A" if nA > nB else "B"), "low"
+
+    events: list[dict] = []
+    unreviewed: list[dict] = []
     for c in candidates or []:
         typ = str(c.get("type", ""))
         status = str(c.get("status", "pending"))
-        if status == "rejected" or typ not in SHOT_TYPES:
+        if typ not in SHOT_TYPES:
             continue
         tc = float(c.get("t_shared", c.get("t", 0.0)))
         if not (lo <= tc <= hi):
             continue
-        hid = half_of(tc)
-        # attribution: ball travel direction in [t-4, t]
-        bx = [(s, rows[s]["ball_x"]) for s in secs
-              if tc - 4 <= s <= tc
-              and rows.get(s, {}).get("ball_conf", 0.0) >= BALL_OK]
-        team = None
-        if len(bx) >= 2:
-            dx = bx[-1][1] - bx[0][1]
-            if abs(dx) > 0.05:
-                for t, ar in ends[hid].items():
-                    if ar is not None and ar == (dx > 0):
-                        team = t
-        if team is None:
-            near = min(secs, key=lambda s: abs(s - tc), default=None)
-            if near is not None and abs(near - tc) <= 2:
-                team = owner.get(near)
-        shots.append({**times(tc), "type": typ,
-                      "confidence": _f(c.get("confidence", 0.0), 3),
-                      "status": status, "team": team, "half": hid})
-        if typ == "goal":
-            conf = float(c.get("confidence", 0.0))
-            if status == "confirmed":
-                goals[hid][team][0] += 1
-            if conf >= 0.8:
-                goals[hid][team][1] += 1
+        base = {**times(tc), "mmss": mmss(tc - lo_out),
+                "type": typ,
+                "confidence": _f(c.get("confidence", 0.0), 3),
+                "status": status,
+                "candidate_id": c.get("id") or c.get("candidate_id"),
+                "half": half_of(tc)}
+        if status == "confirmed":
+            team, attr = _attribute(tc, base["half"])
+            events.append({**base,
+                           "kind": "goal" if typ == "goal" else "shot",
+                           "team": team, "attribution": attr})
+        else:
+            unreviewed.append(base)
+    events.sort(key=lambda e: e["t_shared"])
+    unreviewed.sort(key=lambda e: (-e["confidence"], e["t_shared"]))
+    unreviewed = unreviewed[:10]
+
+    # ---- momentum: per 5-min bin, ball share in A's attacking half
+    # minus share in B's attacking half, in [-1, 1] --------------------
+    momentum: list[dict] = []
+    BIN = 300.0
+    b0 = lo
+    while b0 < hi:
+        b1 = min(b0 + BIN, hi)
+        vals = []
+        for s in secs:
+            if not (b0 <= s < b1):
+                continue
+            r = rows.get(s)
+            if not r or r["ball_conf"] < BALL_OK:
+                continue
+            e = ends.get(half_of(s)) or {}
+            if e.get("A") is None:
+                continue
+            a_att = r["ball_x"] > 0.5 if e["A"] else r["ball_x"] < 0.5
+            b_att = (r["ball_x"] > 0.5 if e.get("B")
+                     else r["ball_x"] < 0.5)
+            if a_att:
+                vals.append(1.0)
+            elif b_att:
+                vals.append(-1.0)
+            else:
+                vals.append(0.0)
+        momentum.append({"t_start_shared": _f(b0, 1),
+                         "t_start_out": _f(b0 - lo_out, 1),
+                         "t_start_file": _f(b0 - (offsets[ref_angle]
+                            if ref_angle < len(offsets) else 0.0), 1),
+                         "value": _f(float(np.mean(vals)), 3) if vals
+                                  else None,
+                         "n": len(vals)})
+        b0 = b1
 
     # ---- player distance / sprints (rough, 1-D) -----------------------
     lens = PITCH_LEN_M.get(pitch_type, 100)
@@ -302,7 +409,8 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
     if (teams.get("team_confidence") or 0.0) < 0.5:
         caveats.append("team identification confidence is low — shirt-colour "
                        "split may mix teams or include the referee")
-    caveats.append("goals are candidate-based unless confirmed in Review")
+    caveats.append("shots and goals count only candidates confirmed in "
+                   "Review; unconfirmed AI chances are listed separately")
 
     infoA = (teams.get("teams") or {}).get("A") or {}
     infoB = (teams.get("teams") or {}).get("B") or {}
@@ -311,16 +419,17 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
     for h in halves:
         hs = half_stats[h["index"]]
         e = ends[h["index"]]
-        g = goals[h["index"]]
-        shot_in = [s for s in shots if s["half"] == h["index"]]
+        ev_in = [ev for ev in events if ev["half"] == h["index"]]
 
-        def team_block(t, hs=hs, shot_in=shot_in, g=g, e=e):
+        def team_block(t, hs=hs, ev_in=ev_in, e=e):
             return {
                 "possession_pct": _f(hs["poss"][t], 1),
                 "attacking_third_s": int(hs["attacking"][t]),
-                "shots": sum(1 for s in shot_in if s["team"] == t),
-                "goals_confirmed": g[t][0],
-                "goals_estimated": g[t][1],
+                "shots": sum(1 for s in ev_in
+                             if s["team"] == t and s["kind"] == "shot"),
+                "goals": sum(1 for s in ev_in
+                             if s["team"] == t and s["kind"] == "goal"),
+                "territory": hs["territory"][t],
                 "attacks_right": e[t],
             }
 
@@ -338,13 +447,23 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
     def totals(t):
         pos = [hs["poss"][t] * hs["secs"] for hs in half_stats.values()]
         secs_tot = [hs["secs"] for hs in half_stats.values()]
+        terr = [hs["territory"][t] for hs in half_stats.values()]
+        bsec = [hs["ball_secs"] for hs in half_stats.values()]
+        territory = None
+        if all(x is not None for x in terr) and sum(bsec):
+            territory = {
+                k: _f(sum(ter[k] * b for ter, b in zip(terr, bsec))
+                      / sum(bsec), 3)
+                for k in ("def", "mid", "att")}
         return {
             "possession_pct": _f(sum(pos) / sum(secs_tot) if sum(secs_tot) else 0.0, 1),
             "attacking_third_s": int(sum(hs["attacking"][t]
                                          for hs in half_stats.values())),
-            "shots": sum(1 for s in shots if s["team"] == t),
-            "goals_confirmed": sum(goals[h][t][0] for h in goals),
-            "goals_estimated": sum(goals[h][t][1] for h in goals),
+            "shots": sum(1 for s in events
+                         if s["team"] == t and s["kind"] == "shot"),
+            "goals": sum(1 for s in events
+                         if s["team"] == t and s["kind"] == "goal"),
+            "territory": territory,
             "distance_norm": dist[t]["distance_norm"],
             "distance_m_est": dist[t]["distance_m_est"],
             "sprints": dist[t]["sprints"],
@@ -364,7 +483,14 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
         "halves": halves_out,
         "ends_swapped": ends_swapped,
         "totals": {"A": totals("A"), "B": totals("B")},
-        "shots": shots,
+        "events": events,
+        "unreviewed": unreviewed,
+        "n_unreviewed": sum(1 for c in candidates or []
+                            if str(c.get("type", "")) in SHOT_TYPES
+                            and str(c.get("status", "pending")) != "confirmed"
+                            and lo <= float(c.get("t_shared", c.get("t", 0.0)))
+                            <= hi),
+        "momentum": momentum,
         "caveats": caveats,
     }
     if dist_2d is not None:
