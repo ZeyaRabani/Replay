@@ -17,16 +17,8 @@ const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const btnPrimary =
   "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
-const selectCls = "bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs w-full min-w-0";
-
-const mmss = (s: number): string => {
-  if (!Number.isFinite(s)) return "-:--";
-  const t = Math.max(0, Math.round(s));
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
-};
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-const NEW = "__new__";
 const TEAM_ORDER: PlayerTeam[] = ["A", "B", null];
 
 function Swatch({ team, size = 12 }: { team: AnalysisTeamInfo | null; size?: number }) {
@@ -60,37 +52,51 @@ function assignTracklets(roster: PlayersRoster, tids: number[], pid: string | nu
   return { ...roster, players };
 }
 
-interface CardProps {
-  tr: PlayerTracklet;
-  owner: RosterPlayer | undefined;
-  roster: PlayersRoster;
+/** A displayed group card: an AI cluster or a named roster player. */
+interface GroupView {
+  key: string;          // group id or `p:<player id>`
+  named: boolean;
+  pid?: string;
+  name?: string;
+  team: PlayerTeam;
+  tids: number[];
+  crops: string[];
+  duration_s: number;
+  distance_m: number;
+  sprints: number;
+  cohesion?: number;
+}
+
+interface GroupCardProps {
+  g: GroupView;
+  trackletById: Map<number, PlayerTracklet>;
   selected: boolean;
+  expanded: boolean;
   onToggle: () => void;
-  onAssign: (pid: string | null) => void;
-  onNew: (name: string) => void;
-  onSeek?: (t: number) => void;
+  onExpand: () => void;
+  onName: (name: string) => void;
+  onHide: () => void;
+  onSplit: (tid: number) => void;
   cropUrl: (n: string) => string;
 }
 
-function TrackletCard({ tr, owner, roster, selected, onToggle, onAssign, onNew, onSeek, cropUrl }: CardProps) {
+function GroupCard({ g, trackletById, selected, expanded, onToggle, onExpand, onName, onHide, onSplit, cropUrl }: GroupCardProps) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
-
-  const submitNew = () => {
+  const submit = () => {
     const n = name.trim();
-    if (n) onNew(n);
+    if (n) onName(n);
     setName("");
     setNaming(false);
   };
-
   return (
     <div
       className={`rounded border p-1.5 flex flex-col gap-1.5 min-w-0 ${
-        selected ? "border-amber-400 bg-zinc-800" : owner ? "border-emerald-900/70 bg-zinc-900" : "border-zinc-800 bg-zinc-900"
+        selected ? "border-amber-400 bg-zinc-800" : g.named ? "border-emerald-900/70 bg-zinc-900" : "border-zinc-800 bg-zinc-900"
       }`}
     >
       <div className="flex gap-1 h-20 items-stretch">
-        {tr.crops.slice(0, 3).map((c) => (
+        {g.crops.slice(0, 3).map((c) => (
           <img
             key={c}
             src={cropUrl(c)}
@@ -100,65 +106,76 @@ function TrackletCard({ tr, owner, roster, selected, onToggle, onAssign, onNew, 
           />
         ))}
       </div>
-      <label className="flex items-center gap-1.5 text-[11px] text-zinc-300 cursor-pointer min-w-0">
+      <div className="flex items-center gap-1.5 text-[11px] text-zinc-300 min-w-0">
         <input type="checkbox" className="accent-amber-400 shrink-0" checked={selected} onChange={onToggle} />
-        <span className="font-mono text-zinc-500 shrink-0">#{tr.id}</span>
-        <span className="shrink-0">{fmtDur(tr.duration_s)}</span>
-        <button
-          type="button"
-          className={`ml-auto font-mono text-[10px] truncate ${onSeek ? "text-amber-300 hover:text-amber-200" : "text-zinc-500 cursor-default"}`}
-          onClick={(e) => {
-            e.preventDefault();
-            onSeek?.(tr.t_start_out);
-          }}
-          title={onSeek ? "seek in Review" : undefined}
-        >
-          {mmss(tr.t_start_out)}–{mmss(tr.t_end_out)}
+        <span className="font-medium truncate">{g.named ? g.name : g.key}</span>
+        <span className="text-zinc-500 shrink-0">{g.tids.length}×</span>
+        <button type="button" onClick={onExpand}
+          className="ml-auto text-zinc-500 hover:text-zinc-300 shrink-0"
+          aria-label={expanded ? "collapse group" : "open group"}>
+          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
-      </label>
-      {naming ? (
-        <div className="flex gap-1 min-w-0">
-          <input
-            autoFocus
-            className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs"
-            placeholder="Player name"
-            value={name}
-            maxLength={60}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitNew();
-              if (e.key === "Escape") setNaming(false);
-            }}
-          />
-          <button type="button" className={btnGhost} onClick={submitNew}>
-            OK
-          </button>
+      </div>
+      <div className="text-[10px] text-zinc-500 font-mono">
+        {fmtDur(g.duration_s)} · {fmtDist(g.distance_m)} · {g.sprints} sp
+      </div>
+      {expanded && (
+        <div className="flex flex-col gap-1 border-t border-zinc-800 pt-1">
+          {g.tids.map((tid) => {
+            const tr = trackletById.get(tid);
+            return (
+              <div key={tid} className="flex items-center gap-1.5 min-w-0">
+                <img src={cropUrl(`${tid}_1.jpg`)} alt="" loading="lazy"
+                  className="h-8 w-6 object-contain bg-zinc-950 rounded shrink-0" />
+                <span className="font-mono text-[10px] text-zinc-500">#{tid}</span>
+                {tr && <span className="text-[10px] text-zinc-400">{fmtDur(tr.duration_s)}</span>}
+                {g.tids.length > 1 && (
+                  <button type="button" onClick={() => onSplit(tid)}
+                    className="ml-auto text-[10px] text-zinc-500 hover:text-amber-300 shrink-0">
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ) : (
-        <select
-          className={selectCls}
-          aria-label={`Assign tracklet ${tr.id}`}
-          value={owner?.id ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === NEW) setNaming(true);
-            else onAssign(v || null);
-          }}
-        >
-          <option value="">Assign to…</option>
-          {roster.players.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-          <option value={NEW}>+ New player…</option>
-        </select>
       )}
+      <div className="flex gap-1 min-w-0">
+        {g.named ? (
+          <>
+            <span className="flex-1 min-w-0 truncate text-[11px] text-emerald-300/90 py-1">{g.name}</span>
+            <button type="button" className={btnGhost} onClick={onHide}>Hide</button>
+          </>
+        ) : naming ? (
+          <>
+            <input
+              autoFocus
+              className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs"
+              placeholder="Player name"
+              value={name}
+              maxLength={60}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+                if (e.key === "Escape") setNaming(false);
+              }}
+            />
+            <button type="button" className={btnGhost} onClick={submit}>OK</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className={`${btnGhost} flex-1"`} onClick={() => setNaming(true)}>
+              Name
+            </button>
+            <button type="button" className={btnGhost} onClick={onHide}>Hide</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => void }) {
+export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void }) {
   const api = useProjectApi();
   const { isMobile } = useLayout();
   const [open, setOpen] = useState(true);
@@ -166,10 +183,9 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"name" | "table">("name");
-  const [roster, setRoster] = useState<PlayersRoster>({ players: [], scorers: {} });
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [hideAssigned, setHideAssigned] = useState(false);
-  const [bulkNew, setBulkNew] = useState<string | null>(null);
+  const [roster, setRoster] = useState<PlayersRoster>({ players: [], scorers: {}, hidden_tracklet_ids: [] });
+  const [selGroups, setSelGroups] = useState<Set<string>>(new Set());
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const timer = useRef<number | null>(null);
   const saveTimer = useRef<number | null>(null);
@@ -182,7 +198,8 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
       return;
     }
     setData(d);
-    if (!dirty.current) setRoster(d.roster);
+    if (!dirty.current)
+      setRoster({ ...d.roster, hidden_tracklet_ids: d.roster.hidden_tracklet_ids ?? [] });
     setError(null);
   }, [api]);
 
@@ -212,7 +229,7 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
         try {
           const r = await saveRoster(api, next);
           dirty.current = false;
-          setRoster(r.roster);
+          setRoster({ ...r.roster, hidden_tracklet_ids: r.roster.hidden_tracklet_ids ?? [] });
           setData((d) => (d ? { ...d, roster: r.roster, players_stats: r.players_stats } : d));
           setSaving("saved");
         } catch (e) {
@@ -238,11 +255,67 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
     }
   };
 
-  const ownerOf = useMemo(() => {
-    const m = new Map<number, RosterPlayer>();
-    for (const p of roster.players) for (const t of p.tracklet_ids) m.set(t, p);
-    return m;
-  }, [roster]);
+  const trackletById = useMemo(
+    () => new Map((data?.tracklets ?? []).map((t) => [t.id, t])),
+    [data],
+  );
+  const hiddenSet = useMemo(
+    () => new Set(roster.hidden_tracklet_ids ?? []), [roster],
+  );
+  // displayed groups: named roster players (tracklets live on the player)
+  // + AI groups' still-unassigned/unhidden tracklets
+  const groupViews = useMemo((): GroupView[] => {
+    const out: GroupView[] = [];
+    const agg = (tids: number[]) => {
+      const trs = tids
+        .map((t) => trackletById.get(t))
+        .filter((t): t is PlayerTracklet => !!t);
+      return {
+        crops: trs
+          .map((t) => t.crops[1] ?? t.crops[0])
+          .filter(Boolean)
+          .slice(0, 6),
+        duration_s: trs.reduce((a, t) => a + t.duration_s, 0),
+        distance_m: trs.reduce((a, t) => a + t.distance_m, 0),
+        sprints: trs.reduce((a, t) => a + t.sprints, 0),
+      };
+    };
+    for (const p of roster.players) {
+      const tids = p.tracklet_ids.filter((t) => !hiddenSet.has(t));
+      if (!tids.length) continue;
+      out.push({
+        key: `p:${p.id}`, named: true, pid: p.id, name: p.name,
+        team: p.team, tids, ...agg(tids),
+      });
+    }
+    const assigned = new Set(roster.players.flatMap((p) => p.tracklet_ids));
+    for (const g of data?.groups ?? []) {
+      const tids = g.tracklet_ids.filter(
+        (t) => !assigned.has(t) && !hiddenSet.has(t),
+      );
+      if (!tids.length) continue;
+      const trs = tids
+        .map((t) => trackletById.get(t))
+        .filter((t): t is PlayerTracklet => !!t);
+      out.push({
+        key: g.id, named: false, team: g.team, tids,
+        crops: g.crops
+          .filter((c) => tids.some((t) => c.startsWith(`${t}_`)))
+          .slice(0, 6),
+        duration_s: trs.length
+          ? trs.reduce((a, t) => a + t.duration_s, 0)
+          : g.duration_s,
+        distance_m: trs.length
+          ? trs.reduce((a, t) => a + t.distance_m, 0)
+          : g.distance_m,
+        sprints: trs.length
+          ? trs.reduce((a, t) => a + t.sprints, 0)
+          : g.sprints,
+        cohesion: g.cohesion,
+      });
+    }
+    return out;
+  }, [roster, hiddenSet, trackletById, data]);
 
   const teams = data?.teams ?? null;
   const teamInfo = (t: PlayerTeam): AnalysisTeamInfo | null => (t && teams ? teams[t] : null);
@@ -253,20 +326,48 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
     return assignTracklets({ ...roster, players: [...roster.players, p] }, tids, p.id);
   };
 
-  const majorityTeam = (tids: number[]): PlayerTeam => {
-    const c: Record<string, number> = { A: 0, B: 0 };
-    for (const t of tids) {
-      const tr = data?.tracklets.find((x) => x.id === t);
-      if (tr?.team) c[tr.team] += 1;
+  const mergeSelected = () => {
+    const sel = groupViews.filter((v) => selGroups.has(v.key));
+    if (sel.length < 2) return;
+    const named = sel.find((v) => v.named);
+    const tids = sel.flatMap((v) => v.tids);
+    if (named?.pid) {
+      commit(assignTracklets(roster, tids, named.pid));
+    } else {
+      commit(addPlayer(
+        `Player ${newPlayerId(roster).slice(1)}`, sel[0].team, tids));
     }
-    if (c.A === 0 && c.B === 0) return null;
-    return c.A >= c.B ? "A" : "B";
+    setSelGroups(new Set());
   };
 
-  const bulkAssign = (pid: string | null) => {
-    const tids = [...selected];
-    commit(assignTracklets(roster, tids, pid));
-    setSelected(new Set());
+  const hideGroup = (v: GroupView) => {
+    const drop = new Set(v.tids);
+    const players = roster.players.map((p) => ({
+      ...p,
+      tracklet_ids: p.tracklet_ids.filter((t) => !drop.has(t)),
+    }));
+    commit({
+      ...roster, players,
+      hidden_tracklet_ids: [...hiddenSet, ...v.tids.filter((t) => !hiddenSet.has(t))],
+    });
+  };
+
+  const splitOut = (v: GroupView, tid: number) => {
+    // the removed tracklet becomes its own (auto-named) group
+    commit(addPlayer(`Player ${newPlayerId(roster).slice(1)}`, v.team, [tid]));
+  };
+
+  const rebuildGroups = async () => {
+    setBusy(true);
+    try {
+      await api.rebuildGroups();
+      invalidatePlayers(api);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const header = (
@@ -359,10 +460,10 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
       </div>
     );
   } else {
-    const shown = data.tracklets.filter((t) => !hideAssigned || !ownerOf.has(t.id));
-    const groups = TEAM_ORDER.map((team) => ({ team, items: shown.filter((t) => t.team === team) })).filter(
-      (g) => g.items.length > 0,
-    );
+    const teamGroups = TEAM_ORDER.map((team) => ({
+      team,
+      items: groupViews.filter((v) => v.team === team),
+    })).filter((g) => g.items.length > 0);
     const ps = data.players_stats;
     const cols = isMobile ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
     const chip = (active: boolean) =>
@@ -389,110 +490,68 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
         {tab === "name" && (
           <>
             <div className="flex items-center gap-3 flex-wrap text-xs">
-              <label className="flex items-center gap-1.5 text-zinc-300">
-                <input
-                  type="checkbox"
-                  className="accent-amber-400"
-                  checked={hideAssigned}
-                  onChange={(e) => setHideAssigned(e.target.checked)}
-                />
-                Hide assigned
-              </label>
               <span className="text-zinc-500">
-                Showing the {data.n_shown ?? data.tracklets.length} longest tracks of{" "}
-                {data.n_tracklets_total ?? data.tracklets.length} (≥30 s) ·{" "}
-                {ps.unassigned.n_tracklets} unassigned
+                Groups are the AI's best guess from shirt colours and timing —
+                merge, split or hide to correct them.
               </span>
-              {selected.size > 0 && (
+              {selGroups.size > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap ml-auto bg-zinc-800/70 rounded px-2 py-1">
-                  <span className="text-amber-300">{selected.size} selected →</span>
-                  {bulkNew === null ? (
-                    <select
-                      className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs"
-                      aria-label="Assign selected to"
-                      value=""
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === NEW) setBulkNew("");
-                        else if (v === "__none__") bulkAssign(null);
-                        else if (v) bulkAssign(v);
-                      }}
-                    >
-                      <option value="">Assign to…</option>
-                      {roster.players.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                      <option value={NEW}>+ New player…</option>
-                      <option value="__none__">Unassign</option>
-                    </select>
-                  ) : (
-                    <>
-                      <input
-                        autoFocus
-                        className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs w-32"
-                        placeholder="Player name"
-                        maxLength={60}
-                        value={bulkNew}
-                        onChange={(e) => setBulkNew(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && bulkNew.trim()) {
-                            const tids = [...selected];
-                            commit(addPlayer(bulkNew.trim(), majorityTeam(tids), tids));
-                            setSelected(new Set());
-                            setBulkNew(null);
-                          }
-                          if (e.key === "Escape") setBulkNew(null);
-                        }}
-                      />
-                      <button
-                        className={btnGhost}
-                        onClick={() => {
-                          if (!bulkNew.trim()) return;
-                          const tids = [...selected];
-                          commit(addPlayer(bulkNew.trim(), majorityTeam(tids), tids));
-                          setSelected(new Set());
-                          setBulkNew(null);
-                        }}
-                      >
-                        OK
-                      </button>
-                    </>
-                  )}
-                  <button className={btnGhost} onClick={() => setSelected(new Set())}>
+                  <span className="text-amber-300">{selGroups.size} selected →</span>
+                  <button
+                    className={btnGhost}
+                    disabled={selGroups.size < 2}
+                    onClick={mergeSelected}
+                  >
+                    Merge
+                  </button>
+                  <button className={btnGhost} onClick={() => setSelGroups(new Set())}>
                     Clear
                   </button>
                 </div>
               )}
+              <button
+                className={`${btnGhost} ${selGroups.size ? "" : "ml-auto"}`}
+                disabled={busy}
+                onClick={() => void rebuildGroups()}
+                title="Re-cluster tracklets into groups (roster kept)"
+              >
+                <RefreshCw size={12} /> Re-group
+              </button>
             </div>
-            {groups.length === 0 && <div className="text-xs text-zinc-500">All tracklets are assigned.</div>}
-            {groups.map((g) => (
+            {teamGroups.length === 0 && (
+              <div className="text-xs text-zinc-500">No groups to show.</div>
+            )}
+            {teamGroups.map((g) => (
               <div key={g.team ?? "none"} className="min-w-0">
                 <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
                   <Swatch team={teamInfo(g.team)} />
                   <span className="font-medium">{teamLabel(g.team)}</span>
-                  <span className="text-zinc-500">{g.items.length}</span>
+                  <span className="text-zinc-500">{g.items.length} groups</span>
                 </div>
                 <div className={`grid ${cols} gap-2`}>
-                  {g.items.map((tr) => (
-                    <TrackletCard
-                      key={tr.id}
-                      tr={tr}
-                      owner={ownerOf.get(tr.id)}
-                      roster={roster}
-                      selected={selected.has(tr.id)}
+                  {g.items.map((v) => (
+                    <GroupCard
+                      key={v.key}
+                      g={v}
+                      trackletById={trackletById}
+                      selected={selGroups.has(v.key)}
+                      expanded={openGroup === v.key}
                       onToggle={() =>
-                        setSelected((s) => {
+                        setSelGroups((s) => {
                           const n = new Set(s);
-                          if (n.has(tr.id)) n.delete(tr.id);
-                          else n.add(tr.id);
+                          if (n.has(v.key)) n.delete(v.key);
+                          else n.add(v.key);
                           return n;
                         })
                       }
-                      onAssign={(pid) => commit(assignTracklets(roster, [tr.id], pid))}
-                      onNew={(name) => commit(addPlayer(name, tr.team, [tr.id]))}
-                      onSeek={onSeek}
+                      onExpand={() =>
+                        setOpenGroup((k) => (k === v.key ? null : v.key))
+                      }
+                      onName={(name) =>
+                        commit(addPlayer(name, v.team, v.tids))
+                      }
+                      onHide={() => hideGroup(v)}
+                      onSplit={(tid) => splitOut(v, tid)}
                       cropUrl={api.cropUrl}
                     />
                   ))}

@@ -140,6 +140,18 @@ def _payload(p) -> dict:
     roster = _read_json(pdir / "roster.json") or default_roster()
     named_tids = {tid for pl in roster.get("players") or []
                   for tid in pl.get("tracklet_ids") or []}
+    hidden_tids = set(roster.get("hidden_tracklet_ids") or [])
+    groups_doc = _read_json(pdir / "groups.json")
+    if groups_doc is None and doc and doc.get("tracklets"):
+        try:
+            from highlights.analysis.groups import build_groups
+            groups_doc = build_groups(pdir)
+        except Exception:
+            groups_doc = None
+    groups_out = None
+    if groups_doc:
+        groups_out = [g for g in groups_doc.get("groups") or []
+                      if not hidden_tids.intersection(g["tracklet_ids"])]
     all_tracklets = []
     if doc:
         for tr in strip_for_api(doc)["tracklets"]:
@@ -169,6 +181,7 @@ def _payload(p) -> dict:
         "n_shown": len(shown),
         "roster": roster,
         "players_stats": stats,
+        "groups": groups_out,
         "estimate_min": _estimate_min(p),
     }
 
@@ -265,6 +278,21 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                 "players_stats": players_stats(
                     roster, doc.get("tracklets") or [],
                     _candidate_dicts(p), teams_doc)}
+
+    @router.post("/analysis/players/groups/rebuild")
+    def post_groups_rebuild(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        pdir = _players_dir(p)
+        if not (pdir / "tracklets.json").is_file():
+            raise HTTPException(409, "player analysis has not run yet")
+        try:
+            from highlights.analysis.groups import build_groups
+            out = build_groups(pdir)
+        except Exception as e:
+            raise HTTPException(500, f"build_groups failed: {e}") from e
+        return {"groups": out["groups"], "n_tracklets": out["n_tracklets"],
+                "n_grouped": out["n_grouped"]}
 
     @router.get("/analysis/players/crops/{name}")
     def get_crop(p: PublicP, name: str) -> FileResponse:

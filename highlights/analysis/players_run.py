@@ -5,6 +5,7 @@ the reference-angle window, writing <project>/analysis/players/
 {status.json,log.txt,tracklets.json,crops/}.
 
     python -m highlights.analysis.players_run --project-dir P [--force]
+        [--groups-only]   # rebuild groups.json from existing tracklets
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ from .run import _load_json, estimate_minutes, resolve_context
 
 
 def run_players(project_dir: Path, log=print, force: bool = False,
-                status: StatusWriter | None = None, tracker=None) -> dict:
+                status: StatusWriter | None = None, tracker=None,
+                groups_only: bool = False) -> dict:
     ctx = resolve_context(project_dir)
     adir = ctx["analysis_dir"] / "players"
     adir.mkdir(parents=True, exist_ok=True)
@@ -40,7 +42,11 @@ def run_players(project_dir: Path, log=print, force: bool = False,
             status.update(**kw)
 
     tracklets_path = adir / "tracklets.json"
-    if tracklets_path.exists() and not force:
+    if groups_only:
+        if not tracklets_path.exists():
+            raise PipelineError("groups-only needs tracklets.json")
+        doc = _load_json(tracklets_path)
+    elif tracklets_path.exists() and not force:
         log("tracklets: skip (up to date)")
         doc = _load_json(tracklets_path)
     else:
@@ -58,6 +64,15 @@ def run_players(project_dir: Path, log=print, force: bool = False,
             teams=teams, pitch_type=ctx.get("pitch_type"),
             log=log, status=status, tracker=tracker)
 
+    _upd(stage="players", progress=0.95, message="grouping tracklets")
+    try:
+        from .groups import build_groups
+        g = build_groups(adir)
+        log(f"groups: {len(g['groups'])} groups "
+            f"({g['n_grouped']}/{g['n_tracklets']} tracklets)")
+    except Exception as e:
+        log(f"groups: skipped ({type(e).__name__}: {e})")
+
     _upd(stage="done", progress=1.0, message="done")
     return doc
 
@@ -66,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="highlights.analysis.players_run")
     ap.add_argument("--project-dir", required=True, type=Path)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--groups-only", action="store_true")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -91,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
             status.update(state="running", force=True)
             with job_slot(workdir_for(project_dir), status=status, log=log):
                 run_players(project_dir, log=log, force=args.force,
-                            status=status)
+                            status=status, groups_only=args.groups_only)
         except PipelineError as e:
             log(f"FAILED: {e}")
             status.update(state="failed", error=str(e),

@@ -432,6 +432,18 @@ export interface RosterPlayer {
 export interface PlayersRoster {
   players: RosterPlayer[];
   scorers: Record<string, string>;
+  hidden_tracklet_ids: number[];
+}
+
+export interface PlayerGroup {
+  id: string;
+  team: PlayerTeam;
+  tracklet_ids: number[];
+  duration_s: number;
+  distance_m: number;
+  sprints: number;
+  crops: string[];
+  cohesion: number;
 }
 
 export interface PlayerStatsRow {
@@ -468,6 +480,7 @@ export interface PlayersResponse {
   n_shown: number;            // tracklets returned (>=30 s, <=40/team, + named)
   roster: PlayersRoster;
   players_stats: PlayersStats;
+  groups: PlayerGroup[] | null;
   estimate_min: number;
 }
 

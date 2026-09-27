@@ -13,6 +13,7 @@ import type {
   HistoryMatch,
   MultiangleInfo,
   PipelineStatus,
+  PlayerGroup,
   PlayersResponse,
   PlayersRoster,
   PlayersStats,
@@ -197,6 +198,9 @@ export function projectApi(id: string) {
     putRoster: (roster: PlayersRoster) =>
       req<{ roster: PlayersRoster; players_stats: PlayersStats }>(`${base}/analysis/players/roster`, json(roster, "PUT")),
     cropUrl: (name: string) => mediaUrl(`${base}/analysis/players/crops/${name}`),
+    rebuildGroups: () =>
+      req<{ groups: PlayerGroup[]; n_tracklets: number; n_grouped: number }>(
+        `${base}/analysis/players/groups/rebuild`, json({})),
 
     multiangle: () => req<MultiangleInfo>(`${base}/multiangle`),
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),

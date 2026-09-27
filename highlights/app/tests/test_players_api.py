@@ -92,7 +92,8 @@ def test_players_run_get_put_crops(client, monkeypatch):
     t0 = d["tracklets"][0]
     assert "path" not in t0 and t0["duration_s"] > 0
     assert "t_start_out" in t0 and "t_end_out" in t0
-    assert d["roster"] == {"players": [], "scorers": {}}
+    assert d["roster"] == {"players": [], "scorers": {},
+                           "hidden_tracklet_ids": []}
     assert d["players_stats"]["unassigned"]["n_tracklets"] == 4
     assert d["estimate_min"] >= 1
 

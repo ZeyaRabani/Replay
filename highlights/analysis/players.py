@@ -284,7 +284,7 @@ def strip_for_api(doc: dict) -> dict:
 
 
 def default_roster() -> dict:
-    return {"players": [], "scorers": {}}
+    return {"players": [], "scorers": {}, "hidden_tracklet_ids": []}
 
 
 def validate_roster(roster, tracklet_ids: set[int],
@@ -339,7 +339,20 @@ def validate_roster(roster, tracklet_ids: set[int],
         if pid not in seen_ids:
             raise ValueError(f"scorer {pid!r} is not a known player id")
         out_scorers[str(cid)] = pid
-    return {"players": out_players, "scorers": out_scorers}
+    hidden = roster.get("hidden_tracklet_ids") or []
+    if not isinstance(hidden, list):
+        raise ValueError("roster.hidden_tracklet_ids must be a list")
+    out_hidden = []
+    for tid in hidden:
+        if not isinstance(tid, int) or isinstance(tid, bool):
+            raise ValueError("hidden_tracklet_ids must be ints")
+        if tid not in tracklet_ids:
+            raise ValueError(f"unknown hidden tracklet id {tid}")
+        if tid in tid_owner:
+            raise ValueError(f"tracklet {tid} hidden but assigned")
+        out_hidden.append(tid)
+    return {"players": out_players, "scorers": out_scorers,
+            "hidden_tracklet_ids": out_hidden}
 
 
 def players_stats(roster: dict, tracklets: list[dict],
