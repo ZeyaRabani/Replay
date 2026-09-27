@@ -92,12 +92,11 @@ def test_confirmed_events_only_in_headline():
     assert st["totals"]["A"]["goals"] == 0
     assert st["totals"]["B"]["goals"] == 1
     assert st["totals"]["B"]["shots"] == 1   # shot at 200: x~0.3 -> B
-    # unreviewed: 3 non-confirmed, sorted by confidence
-    assert st["n_unreviewed"] == 3
+    # unreviewed: pending only (rejected excluded), sorted by confidence
+    assert st["n_unreviewed"] == 2
     assert [u["candidate_id"] for u in st["unreviewed"]] == [
-        "c-rej", "c-pgoal", "c-pend"]
-    assert all(u["status"] in ("pending", "rejected")
-               for u in st["unreviewed"])
+        "c-pgoal", "c-pend"]
+    assert all(u["status"] == "pending" for u in st["unreviewed"])
 
 
 def test_territory_and_momentum():

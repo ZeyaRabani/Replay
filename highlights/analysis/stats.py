@@ -318,7 +318,7 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
             events.append({**base,
                            "kind": "goal" if typ == "goal" else "shot",
                            "team": team, "attribution": attr})
-        else:
+        elif status != "rejected":
             unreviewed.append(base)
     events.sort(key=lambda e: e["t_shared"])
     unreviewed.sort(key=lambda e: (-e["confidence"], e["t_shared"]))
@@ -487,7 +487,8 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
         "unreviewed": unreviewed,
         "n_unreviewed": sum(1 for c in candidates or []
                             if str(c.get("type", "")) in SHOT_TYPES
-                            and str(c.get("status", "pending")) != "confirmed"
+                            and str(c.get("status", "pending")) not in
+                            ("confirmed", "rejected")
                             and lo <= float(c.get("t_shared", c.get("t", 0.0)))
                             <= hi),
         "momentum": momentum,
