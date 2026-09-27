@@ -199,8 +199,10 @@ export function projectApi(id: string) {
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
     putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
-    recut: (style: "normal" | "fast", window?: [number, number] | null) =>
-      req<PipelineStatus>(`${base}/multiangle/recut`, json({ style, window })),
+    recut: (style: "normal" | "fast", window?: [number, number] | null,
+            preview = false) =>
+      req<PipelineStatus>(`${base}/multiangle/recut`,
+                          json({ style, window, preview })),
     putMatchWindowMa: (start: number | null, end: number | null, angle = 0) =>
       req<{ match_window: [number, number] | null;
             match_window_src: { angle: number; start: number; end: number } | null }>(

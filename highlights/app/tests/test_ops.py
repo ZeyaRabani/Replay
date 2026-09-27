@@ -231,3 +231,65 @@ def test_recut_window_writes_cut_range(client, short_video, monkeypatch):
     r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
     assert r.status_code == 200, r.text
     assert not cr.exists()
+
+
+def test_recut_preview_saves_and_restores_range(client, short_video,
+                                                monkeypatch):
+    """preview=True stashes the prior cut_range in cut_range_base.json;
+    the next non-preview recut restores it (or deletes it) and removes
+    the base file."""
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(short_video))
+    pid = _multi_done(client)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    cr = p.multiangle_dir / "cut_range.json"
+    base = p.multiangle_dir / "cut_range_base.json"
+
+    # --- with a pre-existing cut_range --------------------------------
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [1.0, 4.0]})
+    assert r.status_code == 200, r.text
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
+    _wait(client, pid)
+
+    # preview a 2 s stretch of the CURRENT cut ([1,4] shared-T): base
+    # remembers {1,4}, cr becomes {1,3}
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [0.0, 2.0],
+                          "preview": True})
+    assert r.status_code == 200, r.text
+    assert json.loads(base.read_text()) == {"lo": 1.0, "hi": 4.0}
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 3.0}
+    _wait(client, pid)
+
+    # a second preview does NOT overwrite the base
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [0.0, 1.0],
+                          "preview": True})
+    assert r.status_code == 200, r.text
+    assert json.loads(base.read_text()) == {"lo": 1.0, "hi": 4.0}
+    _wait(client, pid)
+
+    # non-preview recut restores the stashed range and removes base
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
+    assert r.status_code == 200, r.text
+    assert json.loads(cr.read_text()) == {"lo": 1.0, "hi": 4.0}
+    assert not base.exists()
+    _wait(client, pid)
+
+    # --- without a pre-existing cut_range -----------------------------
+    cr.unlink()
+    r = client.post(scoped(pid, "/multiangle/recut"),
+                    json={"style": "fast", "window": [0.0, 2.0],
+                          "preview": True})
+    assert r.status_code == 200, r.text
+    assert json.loads(base.read_text()) == {"none": True}
+    assert json.loads(cr.read_text()) == {"lo": 0.0, "hi": 2.0}
+    _wait(client, pid)
+
+    # non-preview recut: base "none" -> cut_range deleted again
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
+    assert r.status_code == 200, r.text
+    assert not cr.exists()
+    assert not base.exists()

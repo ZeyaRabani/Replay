@@ -71,6 +71,8 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [maWinIn, setMaWinIn] = useState("");
   const [maWinOut, setMaWinOut] = useState("");
   const [maWinBusy, setMaWinBusy] = useState(false);
+  const [prevFrom, setPrevFrom] = useState("");
+  const [prevTo, setPrevTo] = useState("");
   const zonesLoaded = useRef(false);
   const timer = useRef<number | null>(null);
 
@@ -151,6 +153,26 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRecutBusy(false);
+    }
+  };
+
+  const previewRange = async () => {
+    const s = prevFrom.trim() ? parseClock(prevFrom) : (matchWin?.[0] ?? 0);
+    const e = prevTo.trim() ? parseClock(prevTo) : (matchWin?.[1] ?? videoDur);
+    if (s === null || e === null || s >= e) {
+      setError("preview range needs valid m:ss start < end");
+      return;
+    }
+    setRecutBusy(true);
+    try {
+      const ok = await saveZones();
+      if (!ok) return;
+      await api.recut("fast", [s, e], true);
+      await refresh();
+    } catch (er) {
+      setError(er instanceof Error ? er.message : String(er));
     } finally {
       setRecutBusy(false);
     }
@@ -673,6 +695,37 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     )}
                   </div>
                 </div>
+                {!live && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-[11px] text-zinc-500">Preview range:</span>
+                    <input
+                      className={`${input} w-16`}
+                      placeholder={matchWin ? fmtClock(matchWin[0]) : "0:00"}
+                      value={prevFrom}
+                      onChange={(e) => setPrevFrom(e.target.value)}
+                      aria-label="preview from (m:ss)"
+                    />
+                    <span className="text-[11px] text-zinc-600">to</span>
+                    <input
+                      className={`${input} w-16`}
+                      placeholder={matchWin ? fmtClock(matchWin[1]) : fmtClock(videoDur)}
+                      value={prevTo}
+                      onChange={(e) => setPrevTo(e.target.value)}
+                      aria-label="preview to (m:ss)"
+                    />
+                    <button
+                      disabled={zoneBusy || recutBusy}
+                      title="Re-cuts only this stretch as a preview version (~5 min); the next full re-cut goes back to the whole match."
+                      onClick={() => void previewRange()}
+                      className="text-[11px] text-sky-300 hover:text-sky-200 border border-sky-700/60 rounded px-2 py-0.5 disabled:opacity-40"
+                    >
+                      Save zones &amp; re-cut this range
+                    </button>
+                    <span className="text-[10px] text-zinc-600">
+                      Preview only — the next full re-cut returns to the whole match.
+                    </span>
+                  </div>
+                )}
                 <div className="text-[11px] text-zinc-500 mb-3">
                   Paint zones on each of the three stills — each one applies
                   from that moment until the next, so a camera that gets moved

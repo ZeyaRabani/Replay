@@ -138,6 +138,10 @@ class RecutPut(BaseModel):
     style: str
     # output-time seconds of the CURRENT video [start, end]; None = full
     window: list[float] | None = None
+    # preview=True + window: re-cut only that stretch, remembering the
+    # previous cut_range in cut_range_base.json; the next non-preview
+    # recut restores it first
+    preview: bool = False
 
 
 class MatchWindowPut(BaseModel):
@@ -1581,6 +1585,16 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     # optional cut range: window is in the current video's output time,
     # stored as absolute shared-T seconds for the runner's ctx.union()
     cr_path = p.multiangle_dir / "cut_range.json"
+    cr_base = p.multiangle_dir / "cut_range_base.json"
+    if not body.preview and cr_base.exists():
+        # a preview range was active: restore the pre-preview cut_range
+        # (or delete it when there was none) before the full re-cut
+        base = _read_json(cr_base)
+        if base and base.get("lo") is not None:
+            write_json_atomic(cr_path, base, indent=1)
+        else:
+            cr_path.unlink(missing_ok=True)
+        cr_base.unlink()
     # dur = the CURRENT rendered video's length: an active cut_range's
     # span, else the coverage union span, else the source video
     cur = _read_json(cr_path)
@@ -1608,6 +1622,12 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         if not (0 <= s < e <= dur):
             raise HTTPException(
                 422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
+        if body.preview and not cr_base.exists():
+            # remember the pre-preview cut_range so the next full re-cut
+            # returns to it; {"none": true} = there wasn't one
+            write_json_atomic(
+                cr_base,
+                dict(cur) if cur else {"none": True}, indent=1)
         cur_lo = float(cur["lo"]) if cur else None
         if cur_lo is None:
             sync = _read_json(p.multiangle_dir / "sync.json") or {}
@@ -1624,7 +1644,8 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         out = pipeline.spawn_multiangle(
             p, stages=["director", "render", "fuse"], force=True,
             style=body.style, cookies=ck)
-        _hist(p, "recut_queued", style=body.style)
+        _hist(p, "recut_queued", style=body.style, preview=body.preview,
+              window=body.window)
         return out
     except pipeline.PipelineBusy as e:
         raise HTTPException(409, str(e)) from e
