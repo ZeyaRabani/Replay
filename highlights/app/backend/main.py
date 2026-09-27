@@ -1713,6 +1713,153 @@ def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
     return out
 
 
+def _active_cut_meta(p: ProjectStore) -> dict:
+    """Active cut's meta.json (range/label); empty dict when absent."""
+    try:
+        cid = (_read_json(p.multiangle_dir / "cuts" / "active.json")
+               or {}).get("id")
+        if cid:
+            return _read_json(
+                p.multiangle_dir / "cuts" / str(cid) / "meta.json") or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _direct_stretch(p: ProjectStore, t_start: float | None,
+                    t_end: float | None) -> dict:
+    """Build the /direct/suggest payload for a stretch (or the busiest
+    candidate when no explicit stretch is given)."""
+    from highlights.multiangle.manual_direct import director_rows, pick_candidate, suggest_stretch
+    ma = p.multiangle_dir
+    director = _read_json(ma / "director.json")
+    if not director:
+        raise HTTPException(404, "no director output yet")
+    sync = _read_json(ma / "sync.json") or {}
+    offsets = [float(o) for o in sync.get("offsets") or []]
+    n_angles = len(p.source_info.get("angles") or [])
+    if len(offsets) < n_angles:
+        offsets += [0.0] * (n_angles - len(offsets))
+    segs = director.get("segments") or []
+    meta = _active_cut_meta(p)
+    rng = meta.get("range")
+    if rng:
+        lo, hi = float(rng[0]), float(rng[1])
+    else:
+        cr = _read_json(ma / "cut_range.json")
+        un = ((sync.get("coverage") or {}).get("union")
+              or [0.0, 0.0])
+        lo = float(cr["lo"]) if cr else float(un[0])
+        hi = float(cr["hi"]) if cr else float(un[1])
+        if hi <= lo and segs:
+            # nothing recorded: the cut covers the director's own span
+            hi = lo + max(s["t_end"] for s in segs)
+    if t_start is not None and t_end is not None:
+        s, e = float(t_start), float(t_end)
+        if not (lo <= s < e <= hi):
+            raise HTTPException(
+                422, f"stretch must lie inside [{round(lo,1)}, {round(hi,1)}]")
+        cand = None
+    else:
+        fused = (_read_json(ma / "fused_candidates.json")
+                 or _read_json(p.pipeline_dir / "candidates.json") or {})
+        cand = pick_candidate(fused, (lo, hi))
+        if cand is None:
+            raise HTTPException(404, "no candidates inside the match window")
+        s, e = suggest_stretch(float(cand["t"]), (lo, hi))
+    rows = director_rows(segs, lo, s, e)
+    return {
+        "t_start": round(s, 2), "t_end": round(e, 2),
+        "t_start_out": round(s - lo, 2),
+        "offsets": [round(s - o, 2) for o in offsets],
+        "match_window": [round(lo, 2), round(hi, 2)],
+        "n_angles": n_angles,
+        "director": rows,
+        "candidate": ({"t": round(float(cand["t"]), 2),
+                       "type": cand.get("type"),
+                       "confidence": cand.get("confidence")}
+                      if cand else None),
+    }
+
+
+@scoped.get("/multiangle/direct/suggest")
+def get_direct_suggest(p: ScopedP, t_start: float | None = None,
+                       t_end: float | None = None) -> dict:
+    """Suggest the busiest stretch to hand-direct, or build the payload
+    for an arbitrary ?t_start&t_end."""
+    _require_multiangle(p)
+    if (t_start is None) != (t_end is None):
+        raise HTTPException(422, "t_start and t_end must be given together")
+    return _direct_stretch(p, t_start, t_end)
+
+
+class DirectChoice(BaseModel):
+    t: float
+    angle: int
+
+
+class DirectSessionPut(BaseModel):
+    t_start: float
+    t_end: float
+    choices: list[DirectChoice]
+
+
+@scoped.post("/multiangle/direct/sessions")
+def post_direct_session(body: DirectSessionPut, p: ScopedP) -> dict:
+    """Save a you-direct session and return the director comparison."""
+    _require_multiangle(p)
+    from highlights.multiangle.manual_direct import compare
+    ma = p.multiangle_dir
+    director = _read_json(ma / "director.json")
+    if not director:
+        raise HTTPException(404, "no director output yet")
+    n_angles = len(p.source_info.get("angles") or [])
+    if not (0 <= body.t_start < body.t_end):
+        raise HTTPException(422, "t_start must be < t_end")
+    if not body.choices:
+        raise HTTPException(422, "choices must be non-empty")
+    meta = _active_cut_meta(p)
+    rng = meta.get("range")
+    lo = float(rng[0]) if rng else 0.0
+    choices: dict[int, int] = {}
+    for c in body.choices:
+        if not (0 <= c.angle < n_angles):
+            raise HTTPException(422, f"angle must be 0..{n_angles - 1}")
+        if not (body.t_start <= c.t <= body.t_end):
+            raise HTTPException(422, "choice t outside [t_start, t_end]")
+        choices[int(c.t)] = int(c.angle)
+    from highlights.multiangle.manual_direct import director_rows
+    rows = director_rows(director.get("segments") or [], lo,
+                         body.t_start, body.t_end)
+    if not rows:
+        raise HTTPException(404, "stretch outside the active cut")
+    cmp = compare(choices, rows)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    sdir = ma / "manual_direct"
+    sdir.mkdir(parents=True, exist_ok=True)
+    doc = {"id": stamp, "t_start": body.t_start, "t_end": body.t_end,
+           "choices": [{"t": c.t, "angle": c.angle} for c in body.choices],
+           "comparison": cmp, "created_at": time.time()}
+    write_json_atomic(sdir / f"{stamp}.json", doc, indent=1)
+    _hist(p, "manual_direct_saved", session=stamp,
+          agreement=cmp["agreement_pct"])
+    return {"id": stamp, **doc, "comparison": cmp}
+
+
+@scoped.get("/multiangle/direct/sessions")
+def get_direct_sessions(p: ScopedP) -> dict:
+    """List saved you-direct sessions with their comparisons."""
+    _require_multiangle(p)
+    sdir = p.multiangle_dir / "manual_direct"
+    sessions = []
+    if sdir.is_dir():
+        for f in sorted(sdir.glob("*.json"), reverse=True):
+            doc = _read_json(f)
+            if doc:
+                sessions.append(doc)
+    return {"sessions": sessions}
+
+
 def _ensure_cut_snapshot(p: ProjectStore) -> None:
     """Legacy projects predate cuts/: snapshot the live cut once so it
     appears in the cuts list and stays selectable after a re-cut."""

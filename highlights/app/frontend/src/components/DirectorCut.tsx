@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZoneKeyframe } from "../types";
 import CutBadges from "./CutBadges";
+import YouDirect from "./YouDirect";
 import ZoneEditor from "./ZoneEditor";
 import { fmtClock, parseClock } from "../lib/time";
 
@@ -811,6 +812,9 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                 from confirmed goals with team set — set Home/Away on goal candidates in Review
               </div>
             </div>
+
+            {/* you direct */}
+            {director && <YouDirect />}
           </>
         )}
       </div>

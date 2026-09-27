@@ -4,6 +4,8 @@ import type {
   AnalysisStatus,
   Candidate,
   CutsList,
+  DirectSession,
+  DirectSuggest,
   DirectorFull,
   DownloadInfo,
   HistoryEvent,
@@ -223,6 +225,15 @@ export function projectApi(id: string) {
       req<CutsList>(`${base}/multiangle/cuts/${id}`, { method: "DELETE" }),
     cutDownloadUrl: (id: string) =>
       mediaUrl(`${base}/multiangle/cuts/${id}/match.mp4`),
+    directSuggest: (t?: [number, number]) =>
+      req<DirectSuggest>(`${base}/multiangle/direct/suggest` +
+        (t ? `?t_start=${t[0]}&t_end=${t[1]}` : "")),
+    directSessions: () =>
+      req<{ sessions: DirectSession[] }>(`${base}/multiangle/direct/sessions`),
+    saveDirectSession: (t_start: number, t_end: number,
+                        choices: { t: number; angle: number }[]) =>
+      req<DirectSession>(`${base}/multiangle/direct/sessions`,
+                         json({ t_start, t_end, choices })),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

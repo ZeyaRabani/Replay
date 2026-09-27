@@ -491,6 +491,50 @@ export interface CutMeta {
   cut_info?: CutInfo | null;
 }
 
+export interface DirectRow {
+  t: number;
+  angle: number;
+  rule: string;
+}
+
+export interface DirectSuggest {
+  t_start: number;
+  t_end: number;
+  t_start_out: number;
+  offsets: number[];          // per-angle file_t of t_start
+  match_window: [number, number];
+  n_angles: number;
+  director: DirectRow[];
+  candidate: { t: number; type: string; confidence: number } | null;
+}
+
+export interface DirectCompareRow {
+  t: number;
+  user: number | null;
+  director: number;
+  rule: string;
+  agree: boolean;
+}
+
+export interface DirectComparison {
+  agreement_pct: number | null;
+  n_seconds: number;
+  user_switches: number;
+  director_switches: number;
+  disagree_by_rule: Record<string, { n: number; of: number }>;
+  disagree_by_pair: Record<string, number>;
+  rows: DirectCompareRow[];
+}
+
+export interface DirectSession {
+  id: string;
+  t_start: number;
+  t_end: number;
+  choices: { t: number; angle: number }[];
+  comparison: DirectComparison;
+  created_at: number;
+}
+
 export interface CutsList {
   active: string | null;
   cuts: CutMeta[];

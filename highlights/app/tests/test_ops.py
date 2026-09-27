@@ -30,6 +30,85 @@ def _multi_done(client):
     return pid
 
 
+def test_direct_suggest_and_sessions(client, short_video, monkeypatch):
+    """You-direct: suggest returns the busiest stretch + director rows;
+    sessions save + compare against the fake director."""
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(short_video))
+    pid = _multi_done(client)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    fused = {"events": [
+        {"t": 10.0, "type": "shot", "status": "pending",
+         "confidence": 0.9, "id": "e1"},
+        {"t": 15.0, "type": "goal", "status": "confirmed",
+         "confidence": 0.5, "id": "e2"}]}
+    (p.multiangle_dir / "fused_candidates.json").write_text(
+        json.dumps(fused))
+
+    # suggest: confirmed goal at t=15 -> stretch [0,20] clamped (fake
+    # director covers shared 0..20, no meta.range)
+    r = client.get(scoped(pid, "/multiangle/direct/suggest"))
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["candidate"]["t"] == 15.0 and d["candidate"]["type"] == "goal"
+    assert d["t_start"] == 0.0 and d["t_end"] == 20.0
+    assert d["t_start_out"] == 0.0
+    assert len(d["offsets"]) == 2
+    assert len(d["director"]) == 20          # per-second rows
+    assert d["director"][0]["angle"] == 0
+    assert d["director"][5]["angle"] == 1    # seg 4..8.5 -> angle 1
+
+    # arbitrary stretch
+    r = client.get(scoped(pid, "/multiangle/direct/suggest"),
+                   params={"t_start": 4.0, "t_end": 9.0})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["candidate"] is None
+    assert [row["t"] for row in d["director"]] == [4, 5, 6, 7, 8]
+    assert [row["rule"] for row in d["director"]] == \
+        ["ball"] * 5                       # seg boundary at t=4
+    # outside the cut span -> 422
+    r = client.get(scoped(pid, "/multiangle/direct/suggest"),
+                   params={"t_start": 0.0, "t_end": 99.0})
+    assert r.status_code == 422
+
+    # save a session: pick angle 0 all stretch -> disagrees where dir!=0
+    r = client.post(scoped(pid, "/multiangle/direct/sessions"),
+                    json={"t_start": 4.0, "t_end": 9.0,
+                          "choices": [{"t": 4, "angle": 0}]})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    cmp = body["comparison"]
+    assert cmp["n_seconds"] == 5
+    assert cmp["agreement_pct"] == 0.0       # director picked angle 1 all 5 s
+    assert cmp["disagree_by_rule"]["ball"]["n"] == 5
+    sdir = p.multiangle_dir / "manual_direct"
+    saved = list(sdir.glob("*.json"))
+    assert len(saved) == 1
+
+    # validation: bad angle, t outside, empty choices
+    r = client.post(scoped(pid, "/multiangle/direct/sessions"),
+                    json={"t_start": 4.0, "t_end": 9.0,
+                          "choices": [{"t": 4, "angle": 7}]})
+    assert r.status_code == 422
+    r = client.post(scoped(pid, "/multiangle/direct/sessions"),
+                    json={"t_start": 4.0, "t_end": 9.0,
+                          "choices": [{"t": 99, "angle": 0}]})
+    assert r.status_code == 422
+    r = client.post(scoped(pid, "/multiangle/direct/sessions"),
+                    json={"t_start": 4.0, "t_end": 9.0, "choices": []})
+    assert r.status_code == 422
+
+    # list sessions
+    r = client.get(scoped(pid, "/multiangle/direct/sessions"))
+    assert r.status_code == 200
+    sess = r.json()["sessions"]
+    assert len(sess) == 1
+    assert sess[0]["comparison"]["agreement_pct"] == 0.0
+    assert sess[0]["t_start"] == 4.0
+
+
 def test_match_window_get_put(client, sample_video):
     pid = new_project(client, sample_video)
     r = client.get(scoped(pid, "/match-window"))
