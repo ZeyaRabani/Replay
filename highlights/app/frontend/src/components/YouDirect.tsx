@@ -53,12 +53,34 @@ export default function YouDirect() {
   const [elapsed, setElapsed] = useState(0);
   const [choices, setChoices] = useState<Map<number, number>>(new Map());
   const [result, setResult] = useState<DirectComparison | null>(null);
+  const [ready, setReady] = useState(false);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
   const stage = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void api.directSessions().then((d) => setSessions(d.sessions)).catch(() => {});
   }, [api, result]);
+
+  // after a stretch loads: seek every camera to its file offset and wait
+  // for all of them to reach canplay so playback starts in sync
+  useEffect(() => {
+    if (!sug) return;
+    setReady(false);
+    let done = 0, cancelled = false;
+    const tick = () => {
+      done += 1;
+      if (done >= sug.n_angles && !cancelled) setReady(true);
+    };
+    for (let i = 0; i < sug.n_angles; i++) {
+      const v = vids.current[i];
+      if (!v) { tick(); continue; }
+      v.currentTime = sug.offsets[i] ?? 0;
+      if (v.readyState >= 2) { tick(); continue; }
+      const on = () => { v.removeEventListener("canplay", on); tick(); };
+      v.addEventListener("canplay", on);
+    }
+    return () => { cancelled = true; };
+  }, [sug]);
 
   const load = (t?: [number, number]) => {
     setBusy(true); setError(null); setResult(null); setChoices(new Map());
@@ -87,7 +109,11 @@ export default function YouDirect() {
       setElapsed(mt - sug.offsets[0]);
       for (let i = 1; i < sug.n_angles; i++) {
         const v = vids.current[i];
-        if (v && Math.abs(v.currentTime - mt) > 0.3) v.currentTime = mt;
+        const target = mt - sug.offsets[0] + (sug.offsets[i] ?? 0);
+        if (v && Math.abs(v.currentTime - target) > 0.3) {
+          v.currentTime = target;
+          if (v.paused) void v.play();   // a re-seek can stall a follower
+        }
       }
       // record one choice per whole output second
       const sec = sug.t_start + Math.max(0, Math.floor(mt - sug.offsets[0]));
@@ -155,7 +181,8 @@ export default function YouDirect() {
   const dur = sug ? Math.max(0, sug.t_end - sug.t_start) : 0;
 
   return (
-    <div className={card}>
+    // escape the tab's max-w-4xl column: full viewport width
+    <div className={`${card} relative left-1/2 -translate-x-1/2 w-screen max-w-none`}>
       <button className="flex items-center gap-1.5 w-full text-left"
         onClick={() => setOpen(!open)}>
         {open ? <ChevronDown size={14} className="text-zinc-500" />
@@ -209,15 +236,15 @@ export default function YouDirect() {
                   return (
                     <button key={i}
                       onClick={() => setSelected(i)}
-                      className={`relative rounded overflow-hidden border-2 text-left aspect-video bg-black
-                        ${big ? "w-full order-first border-amber-400"
-                          : tile ? "w-[calc(33.333%-0.4rem)] border-zinc-800 opacity-60"
-                          : "w-[calc(33.333%-0.4rem)] border-zinc-800"}`}>
+                      className={`relative rounded overflow-hidden border-2 text-left bg-black
+                        ${big ? "w-full order-first h-[70vh] border-amber-400"
+                          : tile ? "w-[calc(33.333%-0.4rem)] h-[16vh] border-zinc-800 opacity-60"
+                          : "w-[calc(33.333%-0.4rem)] h-[40vh] border-zinc-800"}`}>
                       <video
                         ref={(v) => { vids.current[i] = v; }}
                         src={api.angleVideoUrl(i)}
                         muted playsInline preload="auto"
-                        className="w-full h-full object-cover pointer-events-none" />
+                        className="w-full h-full object-contain pointer-events-none" />
                       <span className="absolute top-1 left-1 font-bold bg-zinc-950/80 rounded px-1.5"
                         style={{ color: ANGLE_COLORS[i % ANGLE_COLORS.length],
                                  fontSize: big ? "1.4rem" : "0.95rem" }}>
@@ -229,10 +256,16 @@ export default function YouDirect() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {phase === "idle" && (
-                  <button onClick={start}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
-                    <Play size={14} /> Play — press 1/{sug.n_angles} or tap a camera
-                  </button>
+                  ready ? (
+                    <button onClick={start}
+                      className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
+                      <Play size={14} /> Play — press 1/{sug.n_angles} or tap a camera
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-sm text-zinc-400 px-3 py-1.5">
+                      <Loader2 size={14} className="animate-spin" /> loading cameras…
+                    </span>
+                  )
                 )}
                 {phase === "playing" && (
                   <>
