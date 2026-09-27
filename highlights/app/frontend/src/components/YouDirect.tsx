@@ -49,12 +49,11 @@ export default function YouDirect() {
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<DirectSession[]>([]);
   const [selected, setSelected] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "stopped">("idle");
   const [elapsed, setElapsed] = useState(0);
   const [choices, setChoices] = useState<Map<number, number>>(new Map());
   const [result, setResult] = useState<DirectComparison | null>(null);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
-  const t0 = useRef(0);
 
   useEffect(() => {
     void api.directSessions().then((d) => setSessions(d.sessions)).catch(() => {});
@@ -79,7 +78,7 @@ export default function YouDirect() {
 
   // master clock: every 250 ms while playing, re-sync followers to angle0
   useEffect(() => {
-    if (!playing || !sug) return;
+    if (phase !== "playing" || !sug) return;
     const iv = setInterval(() => {
       const m = vids.current[0];
       if (!m) return;
@@ -101,33 +100,46 @@ export default function YouDirect() {
       }
     }, 250);
     return () => clearInterval(iv);
-  }, [playing, sug, selected]);
+  }, [phase, sug, selected]);
 
   // keyboard 1..n selects while playing
   useEffect(() => {
-    if (!playing || !sug) return;
+    if (phase !== "playing" || !sug) return;
     const h = (e: KeyboardEvent) => {
       const k = Number(e.key);
       if (k >= 1 && k <= sug.n_angles) setSelected(k - 1);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [playing, sug]);
+  }, [phase, sug]);
 
   const start = () => {
     if (!sug) return;
     vids.current.forEach((v, i) => {
       if (v) { v.currentTime = sug.offsets[i] ?? 0; void v.play(); }
     });
-    t0.current = Date.now();
-    setElapsed(0); setChoices(new Map()); setSelected(0); setPlaying(true);
+    setElapsed(0); setChoices(new Map()); setSelected(0); setPhase("playing");
+  };
+  const pause = () => {
+    vids.current.forEach((v) => v?.pause());
+    setPhase("paused");
+  };
+  const resume = () => {
+    vids.current.forEach((v) => void v?.play());
+    setPhase("playing");
   };
   const stopAll = () => {
     vids.current.forEach((v) => v?.pause());
-    setPlaying(false);
+    setPhase("stopped");
+  };
+  const restart = () => {
+    vids.current.forEach((v, i) => {
+      if (v) v.currentTime = sug?.offsets[i] ?? 0;
+    });
+    setChoices(new Map()); setElapsed(0); setSelected(0); setPhase("idle");
   };
   const save = () => {
-    if (!sug) return;
+    if (!sug || phase !== "stopped") return;
     const ch = [...choices.entries()]
       .map(([t, angle]) => ({ t, angle }))
       .sort((a, b) => a.t - b.t);
@@ -206,22 +218,53 @@ export default function YouDirect() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                {!playing ? (
+                {phase === "idle" && (
                   <button onClick={start}
                     className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
                     <Play size={11} /> Play — press 1/{sug.n_angles} or tap a camera
                   </button>
-                ) : (
-                  <button onClick={stopAll}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-red-300 border border-red-700/60 rounded px-2 py-0.5">
-                    <Square size={11} /> Stop
+                )}
+                {phase === "playing" && (
+                  <>
+                    <button onClick={pause}
+                      className="text-[11px] font-semibold text-amber-300 border border-amber-700/60 rounded px-2 py-0.5">
+                      Pause
+                    </button>
+                    <button onClick={stopAll}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-red-300 border border-red-700/60 rounded px-2 py-0.5">
+                      <Square size={11} /> Stop
+                    </button>
+                  </>
+                )}
+                {phase === "paused" && (
+                  <>
+                    <button onClick={resume}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
+                      <Play size={11} /> Resume
+                    </button>
+                    <button onClick={stopAll}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-red-300 border border-red-700/60 rounded px-2 py-0.5">
+                      <Square size={11} /> Stop
+                    </button>
+                  </>
+                )}
+                {phase === "stopped" && (
+                  <button onClick={start}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
+                    <Play size={11} /> Watch again
+                  </button>
+                )}
+                {(phase === "playing" || phase === "paused" || phase === "stopped") && (
+                  <button onClick={restart}
+                    className="text-[11px] text-zinc-400 border border-zinc-700 rounded px-2 py-0.5">
+                    Restart
                   </button>
                 )}
                 <div className="flex-1 h-1.5 rounded bg-zinc-800 overflow-hidden">
                   <div className="h-full bg-amber-400"
                     style={{ width: `${Math.min(100, elapsed / dur * 100)}%` }} />
                 </div>
-                <button disabled={busy || !choices.size} onClick={save}
+                <button disabled={busy || phase !== "stopped" || !choices.size} onClick={save}
                   className="text-[11px] text-sky-300 border border-sky-700/60 rounded px-2 py-0.5 disabled:opacity-40">
                   Save &amp; compare
                 </button>
