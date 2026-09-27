@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Loader2, Play, Square } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Maximize, Pause, Play, RotateCcw, Square } from "lucide-react";
 import { useProjectApi } from "../api";
 import { fmtClock, parseClock } from "../lib/time";
 import { ANGLE_COLORS } from "./DirectorCut";
@@ -48,12 +48,13 @@ export default function YouDirect() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<DirectSession[]>([]);
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "stopped">("idle");
   const [elapsed, setElapsed] = useState(0);
   const [choices, setChoices] = useState<Map<number, number>>(new Map());
   const [result, setResult] = useState<DirectComparison | null>(null);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
+  const stage = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void api.directSessions().then((d) => setSessions(d.sessions)).catch(() => {});
@@ -90,13 +91,13 @@ export default function YouDirect() {
       }
       // record one choice per whole output second
       const sec = sug.t_start + Math.max(0, Math.floor(mt - sug.offsets[0]));
-      if (sec < sug.t_end) {
+      if (sec >= sug.t_end) {
+        stopAll();
+      } else if (selected != null) {
         setChoices((c) => {
           if (c.get(sec) === selected) return c;
           const n = new Map(c); n.set(sec, selected); return n;
         });
-      } else {
-        stopAll();
       }
     }, 250);
     return () => clearInterval(iv);
@@ -118,7 +119,7 @@ export default function YouDirect() {
     vids.current.forEach((v, i) => {
       if (v) { v.currentTime = sug.offsets[i] ?? 0; void v.play(); }
     });
-    setElapsed(0); setChoices(new Map()); setSelected(0); setPhase("playing");
+    setElapsed(0); setChoices(new Map()); setSelected(null); setPhase("playing");
   };
   const pause = () => {
     vids.current.forEach((v) => v?.pause());
@@ -136,7 +137,7 @@ export default function YouDirect() {
     vids.current.forEach((v, i) => {
       if (v) v.currentTime = sug?.offsets[i] ?? 0;
     });
-    setChoices(new Map()); setElapsed(0); setSelected(0); setPhase("idle");
+    setChoices(new Map()); setElapsed(0); setSelected(null); setPhase("idle");
   };
   const save = () => {
     if (!sug || phase !== "stopped") return;
@@ -196,80 +197,93 @@ export default function YouDirect() {
           {error && <div className="text-xs text-red-300">{error}</div>}
 
           {sug && (
-            <>
-              <div className="grid gap-2 md:grid-cols-3 grid-cols-1">
-                {Array.from({ length: sug.n_angles }, (_, i) => (
-                  <button key={i}
-                    onClick={() => setSelected(i)}
-                    className={`relative rounded overflow-hidden border-2 text-left ${
-                      selected === i
-                        ? "border-amber-400"
-                        : "border-zinc-800 opacity-60"}`}>
-                    <video
-                      ref={(v) => { vids.current[i] = v; }}
-                      src={api.angleVideoUrl(i)}
-                      muted playsInline preload="auto"
-                      className="w-full aspect-video bg-black pointer-events-none" />
-                    <span className="absolute top-1 left-1 text-base font-bold bg-zinc-950/80 rounded px-1.5"
-                      style={{ color: ANGLE_COLORS[i % ANGLE_COLORS.length] }}>
-                      {i + 1}
-                    </span>
-                  </button>
-                ))}
+            <div ref={stage}
+              className="flex flex-col gap-2 bg-zinc-950 rounded p-2">
+              {/* program + preview: all three <video> elements stay mounted
+                  always; the selected one is promoted to the big slot via
+                  CSS order only, so playback never resets */}
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: sug.n_angles }, (_, i) => {
+                  const big = selected === i;
+                  const tile = selected != null && !big;
+                  return (
+                    <button key={i}
+                      onClick={() => setSelected(i)}
+                      className={`relative rounded overflow-hidden border-2 text-left aspect-video bg-black
+                        ${big ? "w-full order-first border-amber-400"
+                          : tile ? "w-[calc(33.333%-0.4rem)] border-zinc-800 opacity-60"
+                          : "w-[calc(33.333%-0.4rem)] border-zinc-800"}`}>
+                      <video
+                        ref={(v) => { vids.current[i] = v; }}
+                        src={api.angleVideoUrl(i)}
+                        muted playsInline preload="auto"
+                        className="w-full h-full object-cover pointer-events-none" />
+                      <span className="absolute top-1 left-1 font-bold bg-zinc-950/80 rounded px-1.5"
+                        style={{ color: ANGLE_COLORS[i % ANGLE_COLORS.length],
+                                 fontSize: big ? "1.4rem" : "0.95rem" }}>
+                        {i + 1}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {phase === "idle" && (
                   <button onClick={start}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
-                    <Play size={11} /> Play — press 1/{sug.n_angles} or tap a camera
+                    className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
+                    <Play size={14} /> Play — press 1/{sug.n_angles} or tap a camera
                   </button>
                 )}
                 {phase === "playing" && (
                   <>
                     <button onClick={pause}
-                      className="text-[11px] font-semibold text-amber-300 border border-amber-700/60 rounded px-2 py-0.5">
-                      Pause
+                      className="flex items-center gap-1.5 text-sm font-semibold text-amber-300 border border-amber-700/60 rounded px-3 py-1.5">
+                      <Pause size={14} /> Pause
                     </button>
                     <button onClick={stopAll}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-red-300 border border-red-700/60 rounded px-2 py-0.5">
-                      <Square size={11} /> Stop
+                      className="flex items-center gap-1.5 text-sm font-semibold text-red-300 border border-red-700/60 rounded px-3 py-1.5">
+                      <Square size={14} /> Stop
                     </button>
                   </>
                 )}
                 {phase === "paused" && (
                   <>
                     <button onClick={resume}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
-                      <Play size={11} /> Resume
+                      className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
+                      <Play size={14} /> Resume
                     </button>
                     <button onClick={stopAll}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-red-300 border border-red-700/60 rounded px-2 py-0.5">
-                      <Square size={11} /> Stop
+                      className="flex items-center gap-1.5 text-sm font-semibold text-red-300 border border-red-700/60 rounded px-3 py-1.5">
+                      <Square size={14} /> Stop
                     </button>
                   </>
                 )}
                 {phase === "stopped" && (
                   <button onClick={start}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300 border border-emerald-700/60 rounded px-2 py-0.5">
-                    <Play size={11} /> Watch again
+                    className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
+                    <Play size={14} /> Watch again
                   </button>
                 )}
                 {(phase === "playing" || phase === "paused" || phase === "stopped") && (
                   <button onClick={restart}
-                    className="text-[11px] text-zinc-400 border border-zinc-700 rounded px-2 py-0.5">
-                    Restart
+                    className="flex items-center gap-1.5 text-sm text-zinc-300 border border-zinc-700 rounded px-3 py-1.5">
+                    <RotateCcw size={14} /> Restart
                   </button>
                 )}
-                <div className="flex-1 h-1.5 rounded bg-zinc-800 overflow-hidden">
+                <button onClick={() => void stage.current?.requestFullscreen?.()}
+                  className="flex items-center gap-1.5 text-sm text-zinc-300 border border-zinc-700 rounded px-3 py-1.5">
+                  <Maximize size={14} /> Fullscreen
+                </button>
+                <div className="flex-1 min-w-24 h-2 rounded bg-zinc-800 overflow-hidden">
                   <div className="h-full bg-amber-400"
                     style={{ width: `${Math.min(100, elapsed / dur * 100)}%` }} />
                 </div>
                 <button disabled={busy || phase !== "stopped" || !choices.size} onClick={save}
-                  className="text-[11px] text-sky-300 border border-sky-700/60 rounded px-2 py-0.5 disabled:opacity-40">
+                  className="text-sm font-semibold text-sky-300 border border-sky-700/60 rounded px-3 py-1.5 disabled:opacity-40">
                   Save &amp; compare
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {result && (
