@@ -294,6 +294,98 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         return {"groups": out["groups"], "n_tracklets": out["n_tracklets"],
                 "n_grouped": out["n_grouped"]}
 
+    @router.get("/analysis/players/paths")
+    def get_player_paths(p: ScopedP) -> dict:
+        """Radar replay data: tracklet positions downsampled to 1/s on
+        the shared timeline + the ref-angle ball track."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        pdir = _players_dir(p)
+        doc = _read_json(pdir / "tracklets.json")
+        if not doc or not doc.get("tracklets"):
+            raise HTTPException(404, "player analysis has not run yet")
+        roster = _read_json(pdir / "roster.json") or {}
+        owner = {tid: pl["id"] for pl in roster.get("players") or []
+                 for tid in pl.get("tracklet_ids") or []}
+        hidden = set(roster.get("hidden_tracklet_ids") or [])
+        tracks = []
+        for tr in doc["tracklets"]:
+            tid = int(tr["id"])
+            pts = []
+            last_s = None
+            for t, fx, fy in tr.get("path") or []:
+                s = round(t)
+                if s == last_s:
+                    continue
+                last_s = s
+                pts.append([round(t, 3), round(fx, 3), round(fy, 3)])
+            tracks.append({
+                "id": tid, "team": tr.get("team"),
+                "player_id": owner.get(tid),
+                "hidden": tid in hidden,
+                "pts": pts,
+            })
+        # ball path on the ref angle: features_1s.json, conf >= 0.35
+        ball: list[list[float]] = []
+        ref = 0
+        mid_t = None
+        try:
+            from highlights.analysis.run import resolve_context
+            ctx = resolve_context(p.root)
+            ref = int(ctx.get("ref_angle") or 0)
+            mid_t = (ctx["window_file"][0] + ctx["window_file"][1]) / 2
+            f = (p.root / "angles" / f"a{ref}" / "track"
+                 / "features_1s.json")
+            feats = _read_json(f) or {}
+            bc = feats.get("ball_conf") or []
+            bx = feats.get("ball_x") or []
+            by = feats.get("ball_y") or []
+            off = float(ctx.get("shared_offset") or 0.0)
+            for i in range(min(len(bc), len(bx), len(by))):
+                if float(bc[i]) >= 0.35 and bx[i] > 0 and by[i] > 0:
+                    ball.append([round(i + off, 3),
+                                 round(float(bx[i]), 3),
+                                 round(float(by[i]), 3)])
+        except Exception:
+            pass
+        return {
+            "ref_angle": ref,
+            "frame_t": mid_t,
+            "window_shared": doc.get("window_shared"),
+            "fps": 1,
+            "pitch_len_m": doc.get("pitch_len_m"),
+            "tracks": tracks,
+            "ball": ball,
+        }
+
+    @router.get("/analysis/radar/pitch")
+    def get_radar_pitch(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        doc = _read_json(p.root / "analysis" / "radar_pitch.json")
+        return doc or {"corners": None, "t": None}
+
+    @router.put("/analysis/radar/pitch")
+    def put_radar_pitch(p: ScopedP, body: dict) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        corners = body.get("corners")
+        if (not isinstance(corners, list) or len(corners) != 4
+                or any(not isinstance(pt, list) or len(pt) != 2
+                       or not all(isinstance(v, (int, float))
+                                and 0.0 <= v <= 1.0 for v in pt)
+                       for pt in corners)):
+            raise HTTPException(422, "corners must be 4 [fx, fy] points "
+                                   "in [0, 1] (near-left, near-right, "
+                                   "far-right, far-left)")
+        doc = {"corners": [[round(float(x), 4), round(float(y), 4)]
+                           for x, y in corners],
+               "t": body.get("t")}
+        pdir = p.root / "analysis"
+        pdir.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(pdir / "radar_pitch.json", doc, indent=1)
+        return doc
+
     @router.get("/analysis/players/crops/{name}")
     def get_crop(p: PublicP, name: str) -> FileResponse:
         if not CROP_NAME_RE.match(name):

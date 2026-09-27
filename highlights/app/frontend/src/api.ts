@@ -14,7 +14,9 @@ import type {
   MultiangleInfo,
   PipelineStatus,
   PlayerGroup,
+  PlayersPaths,
   PlayersResponse,
+  RadarPitch,
   PlayersRoster,
   PlayersStats,
   ProjectDetail,
@@ -201,6 +203,11 @@ export function projectApi(id: string) {
     rebuildGroups: () =>
       req<{ groups: PlayerGroup[]; n_tracklets: number; n_grouped: number }>(
         `${base}/analysis/players/groups/rebuild`, json({})),
+    playerPaths: () => req<PlayersPaths>(`${base}/analysis/players/paths`),
+    radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),
+    putRadarPitch: (corners: [number, number][], t: number | null) =>
+      req<RadarPitch>(`${base}/analysis/radar/pitch`,
+                      json({ corners, t }, "PUT")),
 
     multiangle: () => req<MultiangleInfo>(`${base}/multiangle`),
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),

@@ -21,6 +21,7 @@ import {
 import { useProjectApi } from "../api";
 import MatchAnalysis from "../components/MatchAnalysis";
 import PlayerAnalysis from "../components/PlayerAnalysis";
+import RadarReplay from "../components/RadarReplay";
 import { TYPE_COLORS, TYPE_LABEL } from "../components/Timeline";
 import { fmtClock } from "../lib/time";
 import type { MatchStats, Stats, TopMoment } from "../types";
@@ -240,6 +241,7 @@ export default function ProjectStats({ onSeek, multiangle = false }: Props) {
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
         {multiangle && <MatchAnalysis onSeek={onSeek} />}
         {multiangle && <PlayerAnalysis onSeek={onSeek} />}
+        {multiangle && <RadarReplay onSeek={onSeek} />}
         {ms && <MatchStatsCard ms={ms} onSeek={onSeek} />}
         <div className="grid grid-cols-2 dsk:md:grid-cols-3 dsk:xl:grid-cols-6 gap-3">
           <Kpi icon={<Activity size={18} />} label="Mean motion" value={pct(stats.activity.mean_motion)} />

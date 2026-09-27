@@ -472,6 +472,29 @@ export interface PlayersStats {
   caveat: string;
 }
 
+export interface RadarTrack {
+  id: number;
+  team: PlayerTeam;
+  player_id: string | null;
+  hidden: boolean;
+  pts: [number, number, number][];   // [shared_t, fx, fy]
+}
+
+export interface PlayersPaths {
+  ref_angle: number;
+  frame_t: number | null;             // ref-angle file time for the still
+  window_shared: [number, number] | null;
+  fps: number;
+  pitch_len_m: number | null;
+  tracks: RadarTrack[];
+  ball: [number, number, number][];   // [shared_t, bx, by]
+}
+
+export interface RadarPitch {
+  corners: [number, number][] | null;
+  t: number | null;
+}
+
 export interface PlayersResponse {
   status: AnalysisStatus | null;
   teams: { A: AnalysisTeamInfo; B: AnalysisTeamInfo } | null;
