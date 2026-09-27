@@ -154,3 +154,69 @@ def test_players_run_get_put_crops(client, monkeypatch):
     evts = client.get(f"/api/history/{pid}/events").json()
     kinds = {e["kind"] for e in evts}
     assert "players_analysed" in kinds
+
+
+def _players_done(client, monkeypatch):
+    monkeypatch.setenv("HL_PLAYERS_CMD", f"{sys.executable} {FAKE_PLAYERS}")
+    pid = _done_multiangle(client)
+    _write_teams(client, pid)
+    r = client.post(scoped(pid, "/analyse/players"), json={})
+    assert r.status_code == 200, r.text
+    d = _wait_players(client, pid)
+    assert d["status"]["state"] == "done"
+    return pid
+
+
+def test_player_paths_endpoint(client, monkeypatch):
+    pid = _players_done(client, monkeypatch)
+    d = client.get(scoped(pid, "/analysis/players/paths")).json()
+    assert d["fps"] == 1 and d["window_shared"] == [0.0, 20.0]
+    assert d["pitch_len_m"] == 100.0
+    tracks = {t["id"]: t for t in d["tracks"]}
+    assert set(tracks) == {1, 2, 3, 4}
+    assert all(not t["hidden"] and t["player_id"] is None
+               for t in tracks.values())
+    # 1 sample/s dedup: fake paths have samples 0.5 s apart
+    assert [p[0] for p in tracks[1]["pts"]] == [0.0, 1.0, 1.5]
+    assert all(len(p) == 3 for t in tracks.values() for p in t["pts"])
+
+    roster = {"players": [{"id": "p1", "name": "Nine", "team": "A",
+                           "tracklet_ids": [1]}],
+              "scorers": {}, "hidden_tracklet_ids": [4]}
+    assert client.put(scoped(pid, "/analysis/players/roster"),
+                      json=roster).status_code == 200
+    d = client.get(scoped(pid, "/analysis/players/paths")).json()
+    tracks = {t["id"]: t for t in d["tracks"]}
+    assert tracks[1]["player_id"] == "p1"
+    assert tracks[4]["hidden"] is True
+
+
+def test_radar_pitch_endpoints(client, monkeypatch):
+    pid = _players_done(client, monkeypatch)
+    d = client.get(scoped(pid, "/analysis/radar/pitch")).json()
+    assert d == {"corners": None, "t": None}
+    r = client.put(scoped(pid, "/analysis/radar/pitch"),
+                   json={"corners": [[0.1, 0.9], [0.9, 0.9],
+                                     [0.95, 0.1], [0.05, 0.1]],
+                         "t": 12.5})
+    assert r.status_code == 200, r.text
+    d = client.get(scoped(pid, "/analysis/radar/pitch")).json()
+    assert d["corners"][2] == [0.95, 0.1] and d["t"] == 12.5
+    for bad in ({"corners": [[0.5, 0.5]] * 3, "t": 0.0},
+                {"corners": [[0.0, 0.0], [1.2, 0.5], [0.5, 0.5],
+                             [0.1, 0.1]], "t": 0.0}):
+        assert client.put(scoped(pid, "/analysis/radar/pitch"),
+                          json=bad).status_code == 422
+
+
+def test_ball_path_rows_format():
+    from highlights.app.backend.players_api import _ball_path
+    cols = ["t", "ball_conf", "ball_x", "ball_y"]
+    feats = {"columns": cols,
+             "rows": [[0.0, 0.1, 0.5, 0.5],   # conf too low
+                      [1.0, 0.6, 0.4, 0.3],
+                      [2.0, 0.7, 0.0, 0.3],   # x=0: skip
+                      [3.0, 0.9, 0.8, 0.85]]}
+    assert _ball_path(feats, 10.0) == [[11.0, 0.4, 0.3],
+                                       [13.0, 0.8, 0.85]]
+    assert _ball_path({"columns": ["t"], "rows": []}, 0.0) == []

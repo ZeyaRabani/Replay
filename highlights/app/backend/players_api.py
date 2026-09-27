@@ -186,6 +186,25 @@ def _payload(p) -> dict:
     }
 
 
+def _ball_path(features: dict, shared_offset: float) -> list[list[float]]:
+    """Ref-angle ball positions at 1 fps on the shared timeline.
+
+    features is a track features_1s.json doc: {columns: [...], rows: [[...]]}.
+    Keeps rows with ball_conf >= 0.35 and a positive ball position."""
+    ci = {k: i for i, k in enumerate(features.get("columns") or [])}
+    if not {"ball_conf", "ball_x", "ball_y"} <= set(ci):
+        return []
+    out = []
+    for i, row in enumerate(features.get("rows") or []):
+        bc = row[ci["ball_conf"]]
+        bx = row[ci["ball_x"]]
+        by = row[ci["ball_y"]]
+        if bc >= 0.35 and bx > 0 and by > 0:
+            out.append([round(i + shared_offset, 3),
+                        round(float(bx), 3), round(float(by), 3)])
+    return out
+
+
 def make_router(ScopedP, PublicP) -> APIRouter:
     router = APIRouter(prefix="/api/projects/{project_id}")
 
@@ -337,15 +356,8 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             f = (p.root / "angles" / f"a{ref}" / "track"
                  / "features_1s.json")
             feats = _read_json(f) or {}
-            bc = feats.get("ball_conf") or []
-            bx = feats.get("ball_x") or []
-            by = feats.get("ball_y") or []
             off = float(ctx.get("shared_offset") or 0.0)
-            for i in range(min(len(bc), len(bx), len(by))):
-                if float(bc[i]) >= 0.35 and bx[i] > 0 and by[i] > 0:
-                    ball.append([round(i + off, 3),
-                                 round(float(bx[i]), 3),
-                                 round(float(by[i]), 3)])
+            ball = _ball_path(feats, off)
         except Exception:
             pass
         return {
