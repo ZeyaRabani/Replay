@@ -399,7 +399,9 @@ export default function PlayerAnalysis({ onSeek }: { onSeek?: (t: number) => voi
                 Hide assigned
               </label>
               <span className="text-zinc-500">
-                {data.tracklets.length} tracklets · {ps.unassigned.n_tracklets} unassigned
+                Showing the {data.n_shown ?? data.tracklets.length} longest tracks of{" "}
+                {data.n_tracklets_total ?? data.tracklets.length} (≥30 s) ·{" "}
+                {ps.unassigned.n_tracklets} unassigned
               </span>
               {selected.size > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap ml-auto bg-zinc-800/70 rounded px-2 py-1">

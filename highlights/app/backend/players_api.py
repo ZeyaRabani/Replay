@@ -137,20 +137,36 @@ def _payload(p) -> dict:
                      for k in ("A", "B") if teams.get(k)}
     doc = _read_json(pdir / "tracklets.json")
     lo = _lo_out(p)
-    tracklets = []
+    roster = _read_json(pdir / "roster.json") or default_roster()
+    named_tids = {tid for pl in roster.get("players") or []
+                  for tid in pl.get("tracklet_ids") or []}
+    all_tracklets = []
     if doc:
         for tr in strip_for_api(doc)["tracklets"]:
-            tracklets.append({
+            all_tracklets.append({
                 **tr,
                 "t_start_out": round(tr["t_start"] - lo, 3),
                 "t_end_out": round(tr["t_end"] - lo, 3),
             })
-    roster = _read_json(pdir / "roster.json") or default_roster()
+    # keep the naming UI usable: the >=30 s tracks, longest first, at
+    # most 40 per team; roster-assigned tracklets are always included
+    shown: list[dict] = []
+    per_team: dict[str, int] = {}
+    for tr in sorted(all_tracklets,
+                     key=lambda t: -t.get("duration_s", 0.0)):
+        team = tr.get("team") or "-"
+        if tr["id"] in named_tids or (
+                tr.get("duration_s", 0.0) >= 30.0
+                and per_team.get(team, 0) < 40):
+            shown.append(tr)
+            per_team[team] = per_team.get(team, 0) + 1
     stats = players_stats(roster, doc.get("tracklets") if doc else [],
                           _candidate_dicts(p), teams_doc)
     return {
         "teams": teams_out,
-        "tracklets": tracklets,
+        "tracklets": shown,
+        "n_tracklets_total": len(all_tracklets),
+        "n_shown": len(shown),
         "roster": roster,
         "players_stats": stats,
         "estimate_min": _estimate_min(p),

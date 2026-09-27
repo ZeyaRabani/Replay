@@ -82,12 +82,18 @@ def test_players_run_get_put_crops(client, monkeypatch):
     assert d["status"]["state"] == "done"
     assert d["teams"]["A"]["name"] == "orange"
     assert d["teams"]["B"]["hex"] == "#ebebeb"
+    # the 5 s tracklet (id 4) is filtered out of the naming list
     assert len(d["tracklets"]) == 3
+    assert {t["id"] for t in d["tracklets"]} == {1, 2, 3}
+    assert d["n_tracklets_total"] == 4
+    assert d["n_shown"] == 3
+    # sorted longest-first
+    assert [t["id"] for t in d["tracklets"]] == [3, 2, 1]
     t0 = d["tracklets"][0]
     assert "path" not in t0 and t0["duration_s"] > 0
     assert "t_start_out" in t0 and "t_end_out" in t0
     assert d["roster"] == {"players": [], "scorers": {}}
-    assert d["players_stats"]["unassigned"]["n_tracklets"] == 3
+    assert d["players_stats"]["unassigned"]["n_tracklets"] == 4
     assert d["estimate_min"] >= 1
 
     argv = json.loads((p.root / "analysis" / "players" / "argv.json")
@@ -99,7 +105,7 @@ def test_players_run_get_put_crops(client, monkeypatch):
     roster = {"players": [{"id": "p1", "name": "Nine", "team": "A",
                            "tracklet_ids": [1, 2]},
                           {"id": "p2", "name": "Ten", "team": "B",
-                           "tracklet_ids": [3]}],
+                           "tracklet_ids": [3, 4]}],
               "scorers": {}}
     r = client.put(scoped(pid, "/analysis/players/roster"), json=roster)
     assert r.status_code == 200, r.text
@@ -107,6 +113,11 @@ def test_players_run_get_put_crops(client, monkeypatch):
     assert body["roster"]["players"][0]["name"] == "Nine"
     assert body["players_stats"]["teams"]["A"]["distance_m"] == 85.0
     assert body["players_stats"]["unassigned"]["n_tracklets"] == 0
+
+    # a roster-assigned tracklet is always shown, even when short
+    d2 = client.get(scoped(pid, "/analysis/players")).json()
+    assert {t["id"] for t in d2["tracklets"]} == {1, 2, 3, 4}
+    assert d2["n_shown"] == 4 and d2["n_tracklets_total"] == 4
 
     # 422 cases
     bad_dup = {"players": [roster["players"][0], roster["players"][0]]}
