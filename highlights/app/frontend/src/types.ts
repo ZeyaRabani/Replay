@@ -313,7 +313,7 @@ export interface AnalysisTerritory {
 }
 
 export interface AnalysisHalfTeam {
-  possession_pct: number;
+  possession_pct: number | null;  // null when the ball is rarely visible
   attacking_third_s: number;
   shots: number;               // confirmed candidates only
   goals: number;               // confirmed goals only
@@ -333,7 +333,7 @@ export interface AnalysisHalf {
 }
 
 export interface AnalysisTotals {
-  possession_pct: number;
+  possession_pct: number | null;  // null when the ball is rarely visible
   attacking_third_s: number;
   shots: number;               // confirmed candidates only
   goals: number;               // confirmed goals only
@@ -464,6 +464,8 @@ export interface PlayersResponse {
   status: AnalysisStatus | null;
   teams: { A: AnalysisTeamInfo; B: AnalysisTeamInfo } | null;
   tracklets: PlayerTracklet[];
+  n_tracklets_total: number;  // all tracklets on disk (unfiltered)
+  n_shown: number;            // tracklets returned (>=30 s, <=40/team, + named)
   roster: PlayersRoster;
   players_stats: PlayersStats;
   estimate_min: number;

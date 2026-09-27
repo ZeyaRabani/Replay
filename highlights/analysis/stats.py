@@ -43,12 +43,25 @@ def _teams_rows(teams: dict) -> dict[int, dict]:
     out = {}
     for r in teams.get("rows") or []:
         sec = r[idx["t_shared"]] if isinstance(r[idx["t_shared"]], int) else int(r[idx["t_shared"]])
+        a_xs = [float(x) for x in (r[idx["teamA_xs"]] or [])]
+        b_xs = [float(x) for x in (r[idx["teamB_xs"]] or [])]
+        bconf = float(r[idx["ball_conf"]])
+        # play_x: where play is — the ball when confidently tracked, else
+        # the mean player x (the ball is rarely visible in grassroots
+        # wide shots, so the players' centroid is the honest proxy)
+        if bconf >= BALL_OK:
+            play_x = float(r[idx["ball_x"]])
+        elif a_xs or b_xs:
+            play_x = float(np.mean(a_xs + b_xs))
+        else:
+            play_x = None
         out[sec] = {
             "ball_x": float(r[idx["ball_x"]]),
             "ball_y": float(r[idx["ball_y"]]),
-            "ball_conf": float(r[idx["ball_conf"]]),
-            "A": [float(x) for x in (r[idx["teamA_xs"]] or [])],
-            "B": [float(x) for x in (r[idx["teamB_xs"]] or [])],
+            "ball_conf": bconf,
+            "play_x": play_x,
+            "A": a_xs,
+            "B": b_xs,
             "n": int(r[idx["teamA_n"]]) + int(r[idx["teamB_n"]]),
         }
     return out
@@ -210,38 +223,49 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
         owned = [s for s in ball_secs if owner.get(s)]
         nA = sum(1 for s in owned if owner[s] == "A")
         nB = len(owned) - nA
+        # play_secs: seconds with a play_x (ball or player centroid) —
+        # the basis for territory, momentum and attacking-third time
+        play_secs = [s for s in hsecs
+                     if rows.get(s, {}).get("play_x") is not None]
         att = {"A": 0, "B": 0}
-        for s in owned:
-            r = rows[s]
-            o = owner[s]
-            ar = ends[h["index"]].get(o)
-            if (ar is True and r["ball_x"] > 2 / 3) or (ar is False and r["ball_x"] < 1 / 3):
-                att[o] += 1
-        # territory: share of ball-in-play seconds in each third, along the
+        for s in play_secs:
+            px = rows[s]["play_x"]
+            for t in "AB":
+                ar = ends[h["index"]].get(t)
+                if ar is None:
+                    continue
+                if (ar is True and px > 2 / 3) or (ar is False and px < 1 / 3):
+                    att[t] += 1
+        # territory: share of play seconds in each third, along the
         # team's own attacking direction (att = the third holding the
         # opponent's goal)
         territory: dict[str, dict | None] = {"A": None, "B": None}
         for t in "AB":
             ar = ends[h["index"]].get(t)
-            if ar is None or not ball_secs:
+            if ar is None or not play_secs:
                 continue
             cnt = {"def": 0, "mid": 0, "att": 0}
-            for s in ball_secs:
-                bx = rows[s]["ball_x"]
+            for s in play_secs:
+                px = rows[s]["play_x"]
                 if ar:     # attacks +x: def = [0,1/3), att = (2/3,1]
-                    zone = ("def" if bx < 1 / 3 else "att" if bx > 2 / 3
+                    zone = ("def" if px < 1 / 3 else "att" if px > 2 / 3
                             else "mid")
                 else:      # attacks -x: mirrored
-                    zone = ("att" if bx < 1 / 3 else "def" if bx > 2 / 3
+                    zone = ("att" if px < 1 / 3 else "def" if px > 2 / 3
                             else "mid")
                 cnt[zone] += 1
-            territory[t] = {k: _f(v / len(ball_secs), 3)
+            territory[t] = {k: _f(v / len(play_secs), 3)
                             for k, v in cnt.items()}
         denom = nA + nB
+        # possession is only meaningful when the ball was tracked often
+        # enough to own — gate at 20% of the half's seconds
+        poss_ok = len(owned) >= 0.2 * len(hsecs) if hsecs else False
         half_stats[h["index"]] = {
-            "secs": len(hsecs), "ball_secs": n_ball, "nA": nA, "nB": nB,
-            "poss": {"A": nA / denom * 100 if denom else 0.0,
-                     "B": nB / denom * 100 if denom else 0.0},
+            "secs": len(hsecs), "ball_secs": n_ball, "play_secs":
+                len(play_secs), "nA": nA, "nB": nB,
+            "poss": ({"A": nA / denom * 100 if denom else 0.0,
+                      "B": nB / denom * 100 if denom else 0.0}
+                     if poss_ok else None),
             "attacking": att,
             "territory": territory,
             "ball_visible_pct": n_ball / len(hsecs) * 100 if hsecs else 0.0,
@@ -252,15 +276,16 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
     # Headline shots/goals come ONLY from candidates confirmed in Review.
     # Pending/rejected ones are kept out of the counts and listed as
     # unreviewed AI chances.
-    def _ball_x_at(tc: float) -> float | None:
-        """Ball x at shared second tc; falls back to the mean over
-        t-2..t+2 when the ball confidence there is low."""
+    def _play_x_at(tc: float) -> float | None:
+        """Play x at shared second tc: the ball when confidently tracked
+        within +-1 s, else the mean play_x over t-2..t+2."""
         near = min(secs, key=lambda s: abs(s - tc), default=None)
         if near is not None and abs(near - tc) <= 1.0 and \
                 rows[near]["ball_conf"] >= BALL_OK:
             return rows[near]["ball_x"]
-        xs = [rows[s]["ball_x"] for s in secs
-              if tc - 2 <= s <= tc + 2 and rows[s]["ball_conf"] > 0]
+        xs = [rows[s]["play_x"] for s in secs
+              if tc - 2 <= s <= tc + 2
+              and rows[s].get("play_x") is not None]
         return float(np.mean(xs)) if xs else None
 
     def _attribute(tc: float, hid: int) -> tuple[str | None, str]:
@@ -269,7 +294,7 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
         Ball in the third nearest team X's own goal -> attributed to the
         other team. Middle third / unknown ends -> more players in the
         ball's half, marked low."""
-        bx = _ball_x_at(tc)
+        bx = _play_x_at(tc)
         if bx is None:
             return None, "low"
         e = ends.get(hid) or {}
@@ -336,14 +361,14 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
             if not (b0 <= s < b1):
                 continue
             r = rows.get(s)
-            if not r or r["ball_conf"] < BALL_OK:
+            if not r or r.get("play_x") is None:
                 continue
             e = ends.get(half_of(s)) or {}
             if e.get("A") is None:
                 continue
-            a_att = r["ball_x"] > 0.5 if e["A"] else r["ball_x"] < 0.5
-            b_att = (r["ball_x"] > 0.5 if e.get("B")
-                     else r["ball_x"] < 0.5)
+            a_att = r["play_x"] > 0.5 if e["A"] else r["play_x"] < 0.5
+            b_att = (r["play_x"] > 0.5 if e.get("B")
+                     else r["play_x"] < 0.5)
             if a_att:
                 vals.append(1.0)
             elif b_att:
@@ -411,6 +436,16 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
                        "split may mix teams or include the referee")
     caveats.append("shots and goals count only candidates confirmed in "
                    "Review; unconfirmed AI chances are listed separately")
+    caveats.append("territory/momentum estimated from where the players "
+                   "are, not the ball")
+    total_secs = len(secs)
+    owned_total = sum(hs["nA"] + hs["nB"] for hs in half_stats.values())
+    if not total_secs or owned_total < 0.2 * total_secs:
+        ball_pct = _f(sum(hs["ball_secs"] for hs in half_stats.values())
+                      / total_secs * 100, 1) if total_secs else 0.0
+        caveats.append(f"ball rarely visible on the main camera "
+                       f"({ball_pct}%) — possession not estimated; "
+                       f"territory uses player positions")
 
     infoA = (teams.get("teams") or {}).get("A") or {}
     infoB = (teams.get("teams") or {}).get("B") or {}
@@ -423,7 +458,8 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
 
         def team_block(t, hs=hs, ev_in=ev_in, e=e):
             return {
-                "possession_pct": _f(hs["poss"][t], 1),
+                "possession_pct": (_f(hs["poss"][t], 1)
+                                   if hs["poss"] else None),
                 "attacking_third_s": int(hs["attacking"][t]),
                 "shots": sum(1 for s in ev_in
                              if s["team"] == t and s["kind"] == "shot"),
@@ -445,10 +481,14 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
         })
 
     def totals(t):
-        pos = [hs["poss"][t] * hs["secs"] for hs in half_stats.values()]
+        posses = [hs["poss"] for hs in half_stats.values()]
         secs_tot = [hs["secs"] for hs in half_stats.values()]
+        poss_tot = None
+        if all(p is not None for p in posses) and sum(secs_tot):
+            poss_tot = _f(sum(p[t] * s for p, s in zip(posses, secs_tot))
+                          / sum(secs_tot), 1)
         terr = [hs["territory"][t] for hs in half_stats.values()]
-        bsec = [hs["ball_secs"] for hs in half_stats.values()]
+        bsec = [hs["play_secs"] for hs in half_stats.values()]
         territory = None
         if all(x is not None for x in terr) and sum(bsec):
             territory = {
@@ -456,7 +496,7 @@ def compute_match_stats(teams: dict, ref_features: dict | None,
                       / sum(bsec), 3)
                 for k in ("def", "mid", "att")}
         return {
-            "possession_pct": _f(sum(pos) / sum(secs_tot) if sum(secs_tot) else 0.0, 1),
+            "possession_pct": poss_tot,
             "attacking_third_s": int(sum(hs["attacking"][t]
                                          for hs in half_stats.values())),
             "shots": sum(1 for s in events

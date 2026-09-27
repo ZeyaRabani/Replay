@@ -373,18 +373,25 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
       </div>
 
       <div className="grid gap-3 dsk:grid-cols-2">
-        {/* possession */}
+        {/* possession — hidden when the ball was too rarely visible */
+        stats.totals.A.possession_pct != null && stats.totals.B.possession_pct != null && (
         <div className={card}>
           <div className={head}>Possession</div>
           <div className="flex flex-col gap-3">
             {stats.halves.map((h) => (
               <div key={h.index}>
-                <PossBar
-                  label={`${halfLabel(h.index)} (${mmss(h.start_out)}–${mmss(h.end - stats.lo_out)})`}
-                  a={h.teams.A.possession_pct}
-                  b={h.teams.B.possession_pct}
-                  teams={teams}
-                />
+                {h.teams.A.possession_pct != null && h.teams.B.possession_pct != null ? (
+                  <PossBar
+                    label={`${halfLabel(h.index)} (${mmss(h.start_out)}–${mmss(h.end - stats.lo_out)})`}
+                    a={h.teams.A.possession_pct}
+                    b={h.teams.B.possession_pct}
+                    teams={teams}
+                  />
+                ) : (
+                  <div className="text-[10px] text-zinc-500">
+                    {halfLabel(h.index)} — not estimated (ball rarely visible)
+                  </div>
+                )}
                 <div className="text-[10px] text-zinc-500 mt-0.5">
                   contested {Math.round(h.contested_pct)}% · ball in play {Math.round(h.ball_visible_pct)}%
                 </div>
@@ -398,6 +405,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
             />
           </div>
         </div>
+        )}
 
         {/* territory thirds */}
         <div className={card}>
@@ -422,7 +430,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
           <div className={head}>Momentum (5-min bins)</div>
           <MomentumChart bins={stats.momentum} teams={teams} onSeek={onSeek} />
           <div className="text-[10px] text-zinc-500 mt-1">
-            share of ball-in-play time in {cap(teams.A.name)}'s attacking half minus {cap(teams.B.name)}'s
+            share of play (ball or player positions) in {cap(teams.A.name)}'s attacking half minus {cap(teams.B.name)}'s
           </div>
         </div>
       )}

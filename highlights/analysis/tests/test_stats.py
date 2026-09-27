@@ -119,6 +119,31 @@ def test_territory_and_momentum():
     assert m[0]["n"] > 0
 
 
+def test_play_x_fallback_when_ball_invisible():
+    """ball_conf 0 everywhere: territory/momentum still work off player
+    positions; possession is gated to null with a caveat."""
+    teams = _teams_dict()
+    for r in teams["rows"]:
+        r[3] = 0.0          # ball never confidently tracked
+    st = _stats(teams=teams)
+    h1 = st["halves"][0]["teams"]
+    assert h1["A"]["possession_pct"] is None
+    assert h1["B"]["possession_pct"] is None
+    assert st["totals"]["A"]["possession_pct"] is None
+    # territory still populated from player positions — the symmetric
+    # player centroid sits mid-pitch in this fixture
+    tA = h1["A"]["territory"]
+    assert tA is not None and tA["mid"] > 0.9
+    tB = h1["B"]["territory"]
+    assert tB is not None and tB["mid"] > 0.9
+    # momentum bins still carry values (centre-pitch -> ~0)
+    m = st["momentum"]
+    assert m[0]["value"] is not None and abs(m[0]["value"]) < 0.1
+    assert m[0]["n"] > 0
+    assert any("ball rarely visible" in c for c in st["caveats"])
+    assert any("territory/momentum estimated" in c for c in st["caveats"])
+
+
 def test_low_confidence_caveat():
     teams = _teams_dict()
     teams["team_confidence"] = 0.3
