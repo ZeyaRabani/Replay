@@ -480,14 +480,69 @@ export interface RadarTrack {
   pts: [number, number, number][];   // [shared_t, fx, fy]
 }
 
+export interface PitchDims {
+  len_m: number;
+  wid_m: number;
+}
+
 export interface PlayersPaths {
   ref_angle: number;
   frame_t: number | null;             // ref-angle file time for the still
   window_shared: [number, number] | null;
   fps: number;
   pitch_len_m: number | null;
+  /** "pitch": pts are [t, x_m, y_m]; absent/"frame": [t, fx, fy] on ref_angle */
+  space?: "pitch" | "frame";
+  pitch?: PitchDims;
+  /** visible_hist[k] = number of time steps with k players visible */
+  visible_hist?: number[];
   tracks: RadarTrack[];
   ball: [number, number, number][];   // [shared_t, bx, by]
+}
+
+export interface CalibLandmark {
+  name: string;
+  label: string;
+  x: number;   // metres along the touchline
+  y: number;   // metres from the near touchline
+}
+
+export interface CalibLandmarks {
+  pitch: PitchDims;
+  landmarks: CalibLandmark[];
+}
+
+export interface CalibPoint {
+  name: string;
+  fx: number;  // normalised frame coords, may fall outside [0, 1]
+  fy: number;
+}
+
+export interface CalibAngle {
+  pts: CalibPoint[];
+  H: number[][] | null;  // normalised frame -> pitch metres
+  rms_m: number | null;
+}
+
+export interface CalibResponse {
+  angles: Record<string, CalibAngle>;
+  pitch: PitchDims;
+}
+
+export interface PlayersV2Track {
+  id: number;
+  team: PlayerTeam;
+  start: number;
+  end: number;
+  dist_m: number;
+  sprints: number;
+  crops: string[];
+}
+
+export interface PlayersV2Tracks {
+  tracks: PlayersV2Track[];
+  summary: { n_tracks: number; median_visible: number; mean_len_s: number };
+  status?: AnalysisStatus | null;
 }
 
 export interface RadarPitch {

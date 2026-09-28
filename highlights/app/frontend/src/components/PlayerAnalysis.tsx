@@ -4,13 +4,19 @@ import { useProjectApi } from "../api";
 import { useLayout } from "../lib/layout";
 import { fetchPlayers, fmtDist, fmtDur, invalidatePlayers, saveRoster } from "../lib/players";
 import type {
+  AnalysisStatus,
   AnalysisTeamInfo,
+  CalibResponse,
   PlayerTeam,
   PlayerTracklet,
   PlayersResponse,
   PlayersRoster,
+  PlayersV2Tracks,
   RosterPlayer,
 } from "../types";
+import { CALIB_SAVED_EVENT } from "./CameraCalib";
+import { PlayersV2Bar, PlayersV2Grid, isLive } from "./PlayersV2";
+import Swatch from "./Swatch";
 
 const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
@@ -20,19 +26,6 @@ const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded 
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const TEAM_ORDER: PlayerTeam[] = ["A", "B", null];
-
-function Swatch({ team, size = 12 }: { team: AnalysisTeamInfo | null; size?: number }) {
-  const hex = team?.hex || "#71717a";
-  const isLight = hex.toLowerCase() > "#aaaaaa";
-  return (
-    <span
-      role="img"
-      aria-label={team ? `${team.name} shirt colour` : "unknown team"}
-      className={`inline-block rounded shrink-0 border ${isLight ? "border-zinc-500" : "border-zinc-700"}`}
-      style={{ backgroundColor: hex, width: size, height: size }}
-    />
-  );
-}
 
 function newPlayerId(roster: PlayersRoster): string {
   let n = roster.players.length + 1;
@@ -175,6 +168,71 @@ function GroupCard({ g, trackletById, selected, expanded, onToggle, onExpand, on
   );
 }
 
+function PlayersTable({ data, teamInfo, teamLabel }: {
+  data: PlayersResponse;
+  teamInfo: (t: PlayerTeam) => AnalysisTeamInfo | null;
+  teamLabel: (t: PlayerTeam) => string;
+}) {
+  const ps = data.players_stats;
+  return (
+    <div className="min-w-0 overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-zinc-500 text-left">
+            <th className="pb-1 font-medium">Player</th>
+            <th className="pb-1 font-medium text-right">Tracked</th>
+            <th className="pb-1 font-medium text-right">Distance (est.)</th>
+            <th className="pb-1 font-medium text-right">Sprints</th>
+            <th className="pb-1 font-medium text-right">Goals</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ps.players.length === 0 && (
+            <tr>
+              <td colSpan={5} className="py-2 text-zinc-500">
+                No named players yet — assign tracklets in “Name players”.
+              </td>
+            </tr>
+          )}
+          {ps.players.map((p) => (
+            <tr key={p.id} className="border-t border-zinc-800/60">
+              <td className="py-1">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <Swatch team={teamInfo(p.team)} size={10} />
+                  <span className="truncate">{p.name}</span>
+                  <span className="text-zinc-600">({p.n_tracklets})</span>
+                </span>
+              </td>
+              <td className="py-1 text-right font-mono">{fmtDur(p.tracked_s)}</td>
+              <td className="py-1 text-right font-mono">{fmtDist(p.distance_m)}</td>
+              <td className="py-1 text-right font-mono">{p.sprints}</td>
+              <td className="py-1 text-right font-mono">{p.goals}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          {(["A", "B"] as const).map((t) => (
+            <tr key={t} className="border-t border-zinc-700 text-zinc-400">
+              <td className="py-1">
+                <span className="flex items-center gap-1.5">
+                  <Swatch team={teamInfo(t)} size={10} />
+                  {teamLabel(t)} total ({ps.teams[t].n_players})
+                </span>
+              </td>
+              <td className="py-1 text-right font-mono">{fmtDur(ps.teams[t].tracked_s)}</td>
+              <td className="py-1 text-right font-mono">{fmtDist(ps.teams[t].distance_m)}</td>
+              <td className="py-1 text-right font-mono">{ps.teams[t].sprints}</td>
+              <td className="py-1 text-right font-mono">{ps.teams[t].goals}</td>
+            </tr>
+          ))}
+        </tfoot>
+      </table>
+      <div className="text-[11px] text-zinc-500 mt-2">{ps.unassigned.n_tracklets} tracklets unassigned</div>
+      <div className="text-[10px] text-zinc-600 mt-1">{ps.caveat}</div>
+    </div>
+  );
+}
+
 export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void }) {
   const api = useProjectApi();
   const { isMobile } = useLayout();
@@ -190,6 +248,10 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   const timer = useRef<number | null>(null);
   const saveTimer = useRef<number | null>(null);
   const dirty = useRef(false);
+  const [v2, setV2] = useState<PlayersV2Tracks | null>(null);
+  const [v2Status, setV2Status] = useState<AnalysisStatus | null>(null);
+  const [calib, setCalib] = useState<CalibResponse | null>(null);
+  const [nAngles, setNAngles] = useState(3);
 
   const refresh = useCallback(async () => {
     const d = await fetchPlayers(api, true);
@@ -206,6 +268,39 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const loadV2 = useCallback(async () => {
+    const r = await api.playersV2Tracks().catch(() => null);
+    setV2(r);
+    if (r?.status) setV2Status(r.status);
+  }, [api]);
+
+  useEffect(() => {
+    void loadV2();
+    void api.multiangle().then((m) => setNAngles(Math.max(1, m.angles.length))).catch(() => undefined);
+    const loadCalib = () => void api.calib().then(setCalib).catch(() => setCalib(null));
+    loadCalib();
+    window.addEventListener(CALIB_SAVED_EVENT, loadCalib);
+    return () => window.removeEventListener(CALIB_SAVED_EVENT, loadCalib);
+  }, [api, loadV2]);
+
+  const v2Live = isLive(v2Status);
+  useEffect(() => {
+    if (!v2Live) return;
+    const id = window.setInterval(() => void loadV2(), 5000);
+    return () => window.clearInterval(id);
+  }, [v2Live, loadV2]);
+
+  const runV2 = async () => {
+    setBusy(true);
+    try {
+      setV2Status(await api.runPlayersV2());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const live = data?.status?.state === "queued" || data?.status?.state === "running";
   useEffect(() => {
@@ -340,15 +435,15 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     setSelGroups(new Set());
   };
 
-  const hideGroup = (v: GroupView) => {
-    const drop = new Set(v.tids);
+  const hideTids = (tids: number[]) => {
+    const drop = new Set(tids);
     const players = roster.players.map((p) => ({
       ...p,
       tracklet_ids: p.tracklet_ids.filter((t) => !drop.has(t)),
     }));
     commit({
       ...roster, players,
-      hidden_tracklet_ids: [...hiddenSet, ...v.tids.filter((t) => !hiddenSet.has(t))],
+      hidden_tracklet_ids: [...hiddenSet, ...tids.filter((t) => !hiddenSet.has(t))],
     });
   };
 
@@ -380,13 +475,71 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
       {open ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
       <Users size={14} className="text-zinc-500" />
       <span className={head}>Player analysis (optional)</span>
-      {data?.tracklets.length ? (
+      {v2?.tracks.length ? (
+        <span className="ml-auto text-[11px] text-zinc-500">
+          {roster.players.length} players · {v2.summary.n_tracks} multi-camera tracks
+        </span>
+      ) : data?.tracklets.length ? (
         <span className="ml-auto text-[11px] text-zinc-500">
           {roster.players.length} players · {data.players_stats.unassigned.n_tracklets} unassigned
         </span>
       ) : null}
     </button>
   );
+
+  const hasV2 = !!v2?.tracks.length;
+  const missingCalib = Array.from({ length: nAngles }, (_, i) => i).filter((i) => !calib?.angles[String(i)]?.H);
+  const v2Bar = (
+    <PlayersV2Bar v2={v2} status={v2Status} missing={missingCalib} busy={busy || v2Live} onRun={() => void runV2()} />
+  );
+  const cols = isMobile ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
+  const chip = (active: boolean) =>
+    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
+  const tabBar = (rerun: React.ReactNode) => (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <button className={chip(tab === "name")} onClick={() => setTab("name")}>
+        Name players
+      </button>
+      {data && (
+        <button className={chip(tab === "table")} onClick={() => setTab("table")}>
+          Players table
+        </button>
+      )}
+      <span className="ml-auto text-[11px] text-zinc-500">
+        {saving === "saving" ? "saving…" : saving === "saved" ? "saved" : saving === "error" ? "save failed" : ""}
+      </span>
+      {rerun}
+    </div>
+  );
+
+  if (hasV2 && v2) {
+    return (
+      <div className={`${card} min-w-0`}>
+        {header}
+        {open && (
+          <div className="mt-3 flex flex-col gap-3 min-w-0">
+            {tabBar(null)}
+            {v2Bar}
+            {error && <div className="text-xs text-red-300">{error}</div>}
+            {tab === "table" && data ? (
+              <PlayersTable data={data} teamInfo={teamInfo} teamLabel={teamLabel} />
+            ) : (
+              <PlayersV2Grid
+                tracks={v2.tracks}
+                roster={roster}
+                cols={cols}
+                teamInfo={teamInfo}
+                teamLabel={teamLabel}
+                cropSrc={api.fileUrl}
+                onName={(tr, name) => commit(addPlayer(name, tr.team, [tr.id]))}
+                onHide={(tr) => hideTids([tr.id])}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (!data) {
     return (
@@ -457,6 +610,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
           </button>
           {noTeams && <span className="text-[11px] text-zinc-500">Run Match analysis above first.</span>}
         </div>
+        <div className="mt-3 border-t border-zinc-800 pt-3">{v2Bar}</div>
       </div>
     );
   } else {
@@ -464,27 +618,14 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
       team,
       items: groupViews.filter((v) => v.team === team),
     })).filter((g) => g.items.length > 0);
-    const ps = data.players_stats;
-    const cols = isMobile ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
-    const chip = (active: boolean) =>
-      `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
-
     body = (
       <div className="mt-3 flex flex-col gap-3 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button className={chip(tab === "name")} onClick={() => setTab("name")}>
-            Name players
-          </button>
-          <button className={chip(tab === "table")} onClick={() => setTab("table")}>
-            Players table
-          </button>
-          <span className="ml-auto text-[11px] text-zinc-500">
-            {saving === "saving" ? "saving…" : saving === "saved" ? "saved" : saving === "error" ? "save failed" : ""}
-          </span>
+        {tabBar(
           <button className={btnGhost} disabled={busy} onClick={() => void start(true)} title="Re-run tracking (roster kept)">
             <RefreshCw size={12} /> Re-run
-          </button>
-        </div>
+          </button>,
+        )}
+        {v2Bar}
         {error && <div className="text-xs text-red-300">{error}</div>}
 
         {tab === "name" && (
@@ -550,7 +691,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
                       onName={(name) =>
                         commit(addPlayer(name, v.team, v.tids))
                       }
-                      onHide={() => hideGroup(v)}
+                      onHide={() => hideTids(v.tids)}
                       onSplit={(tid) => splitOut(v, tid)}
                       cropUrl={api.cropUrl}
                     />
@@ -561,63 +702,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
           </>
         )}
 
-        {tab === "table" && (
-          <div className="min-w-0 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-zinc-500 text-left">
-                  <th className="pb-1 font-medium">Player</th>
-                  <th className="pb-1 font-medium text-right">Tracked</th>
-                  <th className="pb-1 font-medium text-right">Distance (est.)</th>
-                  <th className="pb-1 font-medium text-right">Sprints</th>
-                  <th className="pb-1 font-medium text-right">Goals</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ps.players.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-2 text-zinc-500">
-                      No named players yet — assign tracklets in “Name players”.
-                    </td>
-                  </tr>
-                )}
-                {ps.players.map((p) => (
-                  <tr key={p.id} className="border-t border-zinc-800/60">
-                    <td className="py-1">
-                      <span className="flex items-center gap-1.5 min-w-0">
-                        <Swatch team={teamInfo(p.team)} size={10} />
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-zinc-600">({p.n_tracklets})</span>
-                      </span>
-                    </td>
-                    <td className="py-1 text-right font-mono">{fmtDur(p.tracked_s)}</td>
-                    <td className="py-1 text-right font-mono">{fmtDist(p.distance_m)}</td>
-                    <td className="py-1 text-right font-mono">{p.sprints}</td>
-                    <td className="py-1 text-right font-mono">{p.goals}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                {(["A", "B"] as const).map((t) => (
-                  <tr key={t} className="border-t border-zinc-700 text-zinc-400">
-                    <td className="py-1">
-                      <span className="flex items-center gap-1.5">
-                        <Swatch team={teamInfo(t)} size={10} />
-                        {teamLabel(t)} total ({ps.teams[t].n_players})
-                      </span>
-                    </td>
-                    <td className="py-1 text-right font-mono">{fmtDur(ps.teams[t].tracked_s)}</td>
-                    <td className="py-1 text-right font-mono">{fmtDist(ps.teams[t].distance_m)}</td>
-                    <td className="py-1 text-right font-mono">{ps.teams[t].sprints}</td>
-                    <td className="py-1 text-right font-mono">{ps.teams[t].goals}</td>
-                  </tr>
-                ))}
-              </tfoot>
-            </table>
-            <div className="text-[11px] text-zinc-500 mt-2">{ps.unassigned.n_tracklets} tracklets unassigned</div>
-            <div className="text-[10px] text-zinc-600 mt-1">{ps.caveat}</div>
-          </div>
-        )}
+        {tab === "table" && <PlayersTable data={data} teamInfo={teamInfo} teamLabel={teamLabel} />}
       </div>
     );
   }
