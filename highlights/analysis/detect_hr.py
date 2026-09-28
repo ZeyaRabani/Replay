@@ -141,8 +141,9 @@ def detect_angle(video: str | Path, out: Path, *,
     model/predict/frames injectable for tests. teams -> assign_team per
     detection (stored 'A'/'B'/''). Returns the meta dict."""
     from highlights.multiangle.trackfeat import _frame_reader
-    from .teams import torso_descriptor
+
     from .players import assign_team
+    from .teams import torso_descriptor
 
     w, h = _probe_dims(str(video)) if frames is None else (0, 0)
     if model is None:
