@@ -97,12 +97,8 @@ def learn_zones(sessions: list[dict], tracks: list[dict], avail: np.ndarray,
                     feet = [f for f in feet if f]
                     if feet:
                         w = DENS_W / len(feet)
-                        seen = set()
                         for f in feet:
                             cell = _cell(float(f[0]), float(f[1]))
-                            if cell in seen:
-                                continue  # one vote per cell per second
-                            seen.add(cell)
                             votes[i].setdefault(cell, {})
                             votes[i][cell][u] = (
                                 votes[i][cell].get(u, 0.0) + w)
