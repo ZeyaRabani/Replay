@@ -524,8 +524,15 @@ export interface CalibAngle {
   rms_m: number | null;
 }
 
+export interface CalibCamera {
+  x_m: number;      // pitch metres, may sit up to 30 m outside
+  y_m: number;
+  dir_deg: number;  // facing direction, 0 = +x, 90 = +y
+}
+
 export interface CalibResponse {
   angles: Record<string, CalibAngle>;
+  cameras: Record<string, CalibCamera>;
   pitch: PitchDims;
 }
 

@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type {
   AnalysisResponse,
   AnalysisStatus,
+  CalibCamera,
   CalibLandmarks,
   CalibPoint,
   CalibResponse,
@@ -212,6 +213,9 @@ export function projectApi(id: string) {
     calib: () => req<CalibResponse>(`${base}/analysis/calib`),
     putCalib: (angles: Record<string, { pts: CalibPoint[] }>) =>
       req<CalibResponse>(`${base}/analysis/calib`, json({ angles }, "PUT")),
+    putCalibCameras: (cameras: Record<string, CalibCamera>) =>
+      req<CalibResponse>(`${base}/analysis/calib/cameras`,
+                         json({ cameras }, "PUT")),
     runPlayersV2: () => req<AnalysisStatus>(`${base}/analysis/players/v2/run`, json({})),
     playersV2Tracks: () => req<PlayersV2Tracks>(`${base}/analysis/players/v2/tracks`),
     radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),

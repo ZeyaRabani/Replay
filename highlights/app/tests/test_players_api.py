@@ -249,6 +249,76 @@ def test_calib_endpoints(client):
     assert "0" not in r.json()["angles"]
 
 
+def test_calib_cameras_endpoints(client):
+    pid = _done_multiangle(client)
+    d = client.get(scoped(pid, "/analysis/calib")).json()
+    assert d["cameras"] == {}
+    r = client.put(scoped(pid, "/analysis/calib/cameras"),
+                   json={"cameras": {
+                       "0": {"x_m": 50.0, "y_m": -10.0, "dir_deg": 90.0},
+                       "2": {"x_m": -5.0, "y_m": 32.0, "dir_deg": 0.0}}})
+    assert r.status_code == 200, r.text
+    cams = r.json()["cameras"]
+    assert cams["0"] == {"x_m": 50.0, "y_m": -10.0, "dir_deg": 90.0}
+    assert cams["2"]["dir_deg"] == 0.0
+    d = client.get(scoped(pid, "/analysis/calib")).json()
+    assert d["cameras"]["0"]["x_m"] == 50.0
+    # missing fields / out of range -> 422
+    for bad in ({"cameras": {"1": {"x_m": 10.0, "y_m": 10.0}}},
+                {"cameras": {"1": {"x_m": 200.0, "y_m": 10.0,
+                                   "dir_deg": 0.0}}},
+                {"cameras": {"1": {"x_m": 10.0, "y_m": -50.0,
+                                   "dir_deg": 0.0}}},
+                {"cameras": {"x": {"x_m": 10.0, "y_m": 10.0,
+                                   "dir_deg": 0.0}}},
+                {"cameras": "nope"}):
+        assert client.put(scoped(pid, "/analysis/calib/cameras"),
+                          json=bad).status_code == 422
+
+
+def test_players_v2_endpoints(client):
+    import highlights.app.backend.main as m
+    pid = _done_multiangle(client)
+    p = m.get_registry().get(pid)
+    # no calib -> 409
+    r = client.post(scoped(pid, "/analysis/players/v2/run"), json={})
+    assert r.status_code == 409
+    # seed calib + a v2 tracks.json
+    (p.root / "multiangle" / "calib.json").write_text(json.dumps(
+        {"angles": {"0": {"pts": [], "H": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                          "rms_m": 0.1}},
+         "pitch": {"len_m": 100.0, "wid_m": 64.0}}))
+    v2dir = p.root / "analysis" / "players_v2"
+    v2dir.mkdir(parents=True)
+    (v2dir / "tracks.json").write_text(json.dumps({
+        "step": 0.5, "t0": 0.0,
+        "tracks": [{"id": 1, "team": "A", "start": 0.0, "end": 5.0,
+                    "xy": [[10.0, 20.0], [10.2, 20.0], [None, None],
+                           [10.6, 20.0]],
+                    "dist_m": 0.6, "sprints": 0,
+                    "crops": ["v2_1_0.jpg"]}],
+        "summary": {"n_tracks": 1, "median_visible": 1.0,
+                    "mean_len_s": 5.0, "visible_hist": [1, 1, 1, 1]},
+        "ball": [[1.0, 50.0, 30.0]]}))
+    d = client.get(scoped(pid, "/analysis/players/v2/tracks")).json()
+    assert d["summary"]["n_tracks"] == 1
+    assert d["tracks"][0]["crops"] == [
+        f"/api/projects/{pid}/analysis/players_v2/crops/v2_1_0.jpg"]
+    # paths in pitch space
+    d = client.get(scoped(pid, "/analysis/players/paths")).json()
+    assert d["space"] == "pitch"
+    assert d["pitch"] == {"len_m": 100.0, "wid_m": 64.0}
+    assert d["visible_hist"] == [1, 1, 1, 1]
+    assert d["ball"] == [[1.0, 50.0, 30.0]]
+    assert d["tracks"][0]["pts"][0] == [0.0, 10.0, 20.0]
+    # roster naming accepts v2 ids
+    r = client.put(scoped(pid, "/analysis/players/roster"),
+                   json={"players": [{"id": "p1", "name": "Nine",
+                                      "team": "A", "tracklet_ids": [1]}],
+                         "scorers": {}})
+    assert r.status_code == 200, r.text
+
+
 def test_ball_path_rows_format():
     from highlights.app.backend.players_api import _ball_path
     cols = ["t", "ball_conf", "ball_x", "ball_y"]

@@ -261,6 +261,90 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             status = cur
         return status
 
+    def _v2_dir(p) -> Path:
+        return p.root / "analysis" / "players_v2"
+
+    @router.post("/analysis/players/v2/run")
+    def post_players_v2(p: ScopedP, body: AnalysePlayersPut | None = None
+                        ) -> dict:
+        """Spawn the multi-view hi-res pass (players_run --v2): detect
+        per angle then fuse into pitch-space tracks."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        if p.pipeline_state != "done":
+            raise HTTPException(409, "pipeline is not done")
+        if not (p.root / "analysis" / "teams.json").is_file():
+            raise HTTPException(409, "run Team analysis first")
+        calib = _read_json(p.multiangle_dir / "calib.json") or {}
+        if not calib.get("angles"):
+            raise HTTPException(409, "set pitch calibration landmarks "
+                                     "first (/analysis/calib)")
+        status_path = _players_dir(p) / "status.json"
+        status = _read_json(status_path)
+        if status and status.get("state") in ("queued", "running") \
+                and _status_alive(status):
+            raise HTTPException(409, "player analysis already running")
+        now = time.time()
+        status = {
+            "state": "queued", "stage": "players v2",
+            "progress": 0.0, "stage_progress": 0.0,
+            "message": "queued", "error": None,
+            "started_at": now, "updated_at": now,
+            "finished_at": None, "pid": None,
+        }
+        _write_status(status_path, status)
+        argv = _runner_cmd() + ["--project-dir", str(p.root), "--v2"]
+        if body and body.force:
+            argv.append("--force")
+        _players_dir(p).mkdir(parents=True, exist_ok=True)
+        log = open(_players_dir(p) / "log.txt", "ab")  # noqa: SIM115
+        try:
+            proc = subprocess.Popen(
+                argv, cwd=REPO_ROOT,
+                stdout=log, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, start_new_session=True)
+        finally:
+            log.close()
+        _procs[proc.pid] = proc
+        status["pid"] = proc.pid
+        _write_status(status_path, status)
+        return status
+
+    @router.get("/analysis/players/v2/tracks")
+    def get_players_v2(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        doc = _read_json(_v2_dir(p) / "tracks.json")
+        if not doc:
+            raise HTTPException(404, "players v2 has not run yet")
+        roster = _read_json(_players_dir(p) / "roster.json") or {}
+        owner = {tid: pl["id"] for pl in roster.get("players") or []
+                 for tid in pl.get("tracklet_ids") or []}
+        hidden = set(roster.get("hidden_tracklet_ids") or [])
+        tracks = [{
+            "id": t["id"], "team": t.get("team"),
+            "start": t["start"], "end": t["end"],
+            "dist_m": t.get("dist_m"), "sprints": t.get("sprints"),
+            "player_id": owner.get(t["id"]),
+            "hidden": t["id"] in hidden,
+            "crops": [f"/api/projects/{p.id}/analysis/players_v2/"
+                      f"crops/{c}" for c in t.get("crops") or []],
+        } for t in doc.get("tracks") or []]
+        s = doc.get("summary") or {}
+        return {"tracks": tracks,
+                "summary": {"n_tracks": s.get("n_tracks"),
+                            "median_visible": s.get("median_visible"),
+                            "mean_len_s": s.get("mean_len_s")}}
+
+    @router.get("/analysis/players/v2/crops/{name}")
+    def get_v2_crop(p: PublicP, name: str) -> FileResponse:
+        if not re.match(r"^v2_\d+_\d+\.jpg$", name):
+            raise HTTPException(404, "not found")
+        path = _v2_dir(p) / "crops" / name
+        if not path.is_file():
+            raise HTTPException(404, "not found")
+        return FileResponse(path, media_type="image/jpeg")
+
     @router.get("/analysis/players")
     def get_players_analysis(p: ScopedP) -> dict:
         if not p.is_multiangle:
@@ -286,11 +370,14 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         pdir = _players_dir(p)
         doc = _read_json(pdir / "tracklets.json") or {}
         tracklet_ids = {int(t["id"]) for t in doc.get("tracklets") or []}
+        v2 = _read_json(_v2_dir(p) / "tracks.json") or {}
+        tracklet_ids |= {int(t["id"]) for t in v2.get("tracks") or []}
         candidate_ids = {str(c.id) for c in p.candidates}
         try:
             roster = validate_roster(body, tracklet_ids, candidate_ids)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
+        pdir.mkdir(parents=True, exist_ok=True)
         write_json_atomic(pdir / "roster.json", roster, indent=1)
         teams_doc = _read_json(p.root / "analysis" / "teams.json") or {}
         return {"roster": roster,
@@ -320,13 +407,47 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         if not p.is_multiangle:
             raise HTTPException(404, "not a multi-angle project")
         pdir = _players_dir(p)
-        doc = _read_json(pdir / "tracklets.json")
-        if not doc or not doc.get("tracklets"):
-            raise HTTPException(404, "player analysis has not run yet")
         roster = _read_json(pdir / "roster.json") or {}
         owner = {tid: pl["id"] for pl in roster.get("players") or []
                  for tid in pl.get("tracklet_ids") or []}
         hidden = set(roster.get("hidden_tracklet_ids") or [])
+
+        # v2 pitch-space tracks take precedence when present
+        v2 = _read_json(_v2_dir(p) / "tracks.json")
+        if v2 and v2.get("tracks"):
+            step = float(v2.get("step") or 0.5)
+            t0 = float(v2.get("t0") or 0.0)
+            tracks = []
+            for t in v2["tracks"]:
+                xys = t.get("xy") or []
+                start = float(t["start"])
+                pts = [[round(start + i * step, 3), p0, p1]
+                       for i, (p0, p1) in enumerate(xys)
+                       if p0 is not None]
+                tracks.append({
+                    "id": int(t["id"]), "team": t.get("team"),
+                    "player_id": owner.get(t["id"]),
+                    "hidden": t["id"] in hidden,
+                    "pts": pts})
+            cal = _read_json(p.multiangle_dir / "calib.json") or {}
+            pitch = cal.get("pitch") or {}
+            return {
+                "space": "pitch", "t0": t0, "step": step,
+                "pitch": {"len_m": pitch.get("len_m", 100.0),
+                          "wid_m": pitch.get("wid_m", 64.0)},
+                "visible_hist": (v2.get("summary") or {})
+                .get("visible_hist") or [],
+                "ball": v2.get("ball") or [],
+                "tracks": tracks,
+                "ref_angle": 0, "frame_t": None,
+                "window_shared": [t0, t0 + step * len(
+                    (v2.get("summary") or {}).get("visible_hist") or [0])],
+                "fps": 1, "pitch_len_m": pitch.get("len_m"),
+            }
+
+        doc = _read_json(pdir / "tracklets.json")
+        if not doc or not doc.get("tracklets"):
+            raise HTTPException(404, "player analysis has not run yet")
         tracks = []
         for tr in doc["tracklets"]:
             tid = int(tr["id"])
@@ -427,8 +548,55 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(404, "not a multi-angle project")
         doc = _read_json(p.multiangle_dir / "calib.json")
         len_m, wid_m = _pitch_dims(p)
-        return doc or {"angles": {},
-                       "pitch": {"len_m": len_m, "wid_m": wid_m}}
+        doc = doc or {"angles": {},
+                      "pitch": {"len_m": len_m, "wid_m": wid_m}}
+        doc.setdefault("cameras", {})
+        return doc
+
+    @router.put("/analysis/calib/cameras")
+    def put_calib_cameras(p: ScopedP, body: dict) -> dict:
+        """Replace camera placements: {"cameras": {"<i>":
+        {"x_m","y_m","dir_deg"}}} — pitch metres, may sit up to 30 m
+        outside the pitch; dir_deg 0 = +x, 90 = +y."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        cams_in = body.get("cameras")
+        if not isinstance(cams_in, dict):
+            raise HTTPException(422, "cameras must be an object")
+        len_m, wid_m = _pitch_dims(p)
+        cams: dict[str, dict] = {}
+        for key, val in cams_in.items():
+            try:
+                akey = str(int(key))
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    422, f"angle key {key!r} must be an int") from None
+            if not isinstance(val, dict):
+                raise HTTPException(422, f"camera {akey}: must be an object")
+            try:
+                x_m = float(val["x_m"])
+                y_m = float(val["y_m"])
+                dir_deg = float(val["dir_deg"])
+            except (KeyError, TypeError, ValueError):
+                raise HTTPException(
+                    422, f"camera {akey}: needs numeric x_m, y_m, dir_deg"
+                ) from None
+            if not (-30 <= x_m <= len_m + 30 and
+                    -30 <= y_m <= wid_m + 30):
+                raise HTTPException(
+                    422, f"camera {akey}: x_m/y_m out of range "
+                         f"(±30 m around the pitch)")
+            if not (-360 <= dir_deg <= 360):
+                raise HTTPException(
+                    422, f"camera {akey}: dir_deg must be in [-360, 360]")
+            cams[akey] = {"x_m": x_m, "y_m": y_m, "dir_deg": dir_deg}
+        doc = _read_json(p.multiangle_dir / "calib.json") or {}
+        doc.setdefault("angles", {})
+        doc["pitch"] = {"len_m": len_m, "wid_m": wid_m}
+        doc["cameras"] = cams
+        write_json_atomic(p.multiangle_dir / "calib.json",
+                          doc, indent=1)
+        return doc
 
     @router.put("/analysis/calib")
     def put_calib(p: ScopedP, body: dict) -> dict:

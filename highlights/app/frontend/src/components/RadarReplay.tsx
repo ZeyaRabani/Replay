@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Crosshair, Loader2, Maximize2, Pause, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Maximize2, Pause, Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { applyH, homography, type Mat3 } from "../lib/homography";
@@ -7,6 +7,7 @@ import { fetchPlayers } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import type { CalibResponse, PitchDims, PlayersPaths, RadarPitch } from "../types";
 import CameraCalib, { rmsTone } from "./CameraCalib";
+import CameraPlacement from "./CameraPlacement";
 
 const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
@@ -76,6 +77,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   const [corners, setCorners] = useState<RadarPitch["corners"]>(null);
   const [calib, setCalib] = useState<CalibResponse | null>(null);
   const [calibOpen, setCalibOpen] = useState(false);
+  const [camsOpen, setCamsOpen] = useState(true);
   const [rosterNames, setRosterNames] = useState<Record<string, string>>({});
   const [teamHex, setTeamHex] = useState<Record<string, string>>(TEAM_HEX);
   const [error, setError] = useState<string | null>(null);
@@ -237,6 +239,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   }, [t, paths, H, inPitch, pitch, teamHex, rosterNames]);
 
   const nAngles = calib ? Object.keys(calib.angles).length : 0;
+  const nCams = calib ? Object.keys(calib.cameras ?? {}).length : 0;
   const nSolved = calib ? Object.values(calib.angles).filter((a) => a.H).length : 0;
   const worst = calib
     ? Math.max(0, ...Object.values(calib.angles).map((a) => a.rms_m ?? 0))
@@ -265,14 +268,26 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rmsTone(worst).hex }} />
               )}
               {!calib
-                ? "Cameras not calibrated."
-                : `Cameras calibrated ${nSolved}/${Math.max(nAngles, 3)}`}
+                ? "Cameras not placed yet."
+                : nSolved > 0
+                  ? `Cameras calibrated ${nSolved}/${Math.max(nAngles, 3)}`
+                  : `Cameras placed ${nCams}/${Math.max(nAngles, 3)} · awaiting fine calibration`}
             </span>
-            <button type="button" className={btnGhost} onClick={() => setCalibOpen((o) => !o)}>
-              <Crosshair size={12} /> {calibOpen ? "Close calibration" : "Calibrate cameras"}
+            {nSolved > 0 && (
+              <button type="button" className={btnGhost} onClick={() => setCamsOpen((o) => !o)}>
+                {camsOpen ? "Hide camera map" : "Camera map"}
+              </button>
+            )}
+            <button type="button"
+              className="text-zinc-500 hover:text-zinc-300 underline underline-offset-2 text-[11px]"
+              onClick={() => setCalibOpen((o) => !o)}>
+              {calibOpen ? "Close landmarks" : "Advanced: landmarks"}
             </button>
           </div>
           {calibOpen && <CameraCalib onSaved={setCalib} defaultT={paths?.frame_t ?? null} />}
+          {(nSolved === 0 || camsOpen) && (
+            <CameraPlacement onSaved={setCalib} frameT={paths?.frame_t ?? null} />
+          )}
           {!paths ? (
             <div className="text-sm text-zinc-500 flex items-center gap-2">
               {!error && <Loader2 size={14} className="animate-spin" />}
