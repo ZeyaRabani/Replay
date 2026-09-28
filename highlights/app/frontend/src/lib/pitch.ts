@@ -1,5 +1,5 @@
 /** Pitch geometry in landmark coords: x along the length (0..len_m),
- *  y from the near touchline (0) to the far one (wid_m). */
+ *  y=0 is the far touchline and y=wid_m is the near one. */
 import type { PitchDims } from "../types";
 
 export type PitchShape =
@@ -60,7 +60,7 @@ export interface PitchView {
 export function pitchView(w: number, h: number, pad: number, p: PitchDims): PitchView {
   const s = Math.min((w - 2 * pad) / p.len_m, (h - 2 * pad) / p.wid_m);
   const ox = (w - s * p.len_m) / 2, oy = (h - s * p.wid_m) / 2;
-  return { X: (x) => ox + x * s, Y: (y) => oy + (p.wid_m - y) * s, s };
+  return { X: (x) => ox + x * s, Y: (y) => oy + y * s, s };
 }
 
 export function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number, v: PitchView, p: PitchDims) {
@@ -69,7 +69,7 @@ export function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number, v
   const bands = 12, bw = p.len_m / bands;
   for (let i = 0; i < bands; i++) {
     ctx.fillStyle = i % 2 ? "#1a5f36" : "#1d6a3c";
-    ctx.fillRect(v.X(i * bw), v.Y(p.wid_m), bw * v.s + 0.5, p.wid_m * v.s);
+    ctx.fillRect(v.X(i * bw), v.Y(0), bw * v.s + 0.5, p.wid_m * v.s);
   }
   ctx.lineWidth = Math.max(1, v.s * 0.15);
   ctx.lineJoin = "round";

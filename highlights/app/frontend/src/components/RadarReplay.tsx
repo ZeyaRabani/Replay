@@ -14,6 +14,7 @@ const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded 
 
 const TEAM_HEX: Record<string, string> = { A: "#22c55e", B: "#f97316" };
 const TRAIL_S = 1.5;
+const VISIBLE_STEP_S = 0.5;
 
 type Pt = [number, number, number];
 
@@ -44,18 +45,27 @@ function frameToPitch(calib: CalibResponse | null, ref: number, corners: RadarPi
   if (H && H.length === 3) return H.flat() as Mat3;
   const c = corners ?? [[0, 1], [1, 1], [1, 0], [0, 0]];
   // near-left, near-right, far-right, far-left
-  return homography(c, [[0, 0], [p.len_m, 0], [p.len_m, p.wid_m], [0, p.wid_m]]);
+  return homography(c, [[0, p.wid_m], [p.len_m, p.wid_m], [p.len_m, 0], [0, 0]]);
 }
 
-function VisibleHist({ hist, now }: { hist: number[]; now: number }) {
+function VisibleStrip({ hist, lo, hi, t }: { hist: number[]; lo: number; hi: number; t: number }) {
   const max = Math.max(1, ...hist);
+  const width = Math.max(1e-3, hi - lo);
   return (
-    <div className="flex items-end gap-px h-6" title="time steps by number of players visible">
-      {hist.map((v, k) => (
-        <div key={k} className={`w-1.5 rounded-sm ${k === now ? "bg-amber-400" : "bg-zinc-600"}`}
-          style={{ height: `${Math.max(6, (v / max) * 100)}%` }} />
-      ))}
-    </div>
+    <svg className="w-full h-7 block" preserveAspectRatio="none" viewBox={`0 0 ${width} 1`}>
+      <title>players visible over time</title>
+      {hist.map((v, k) => {
+        const x = k * VISIBLE_STEP_S;
+        const h = Math.max(0, Math.min(1, v / max));
+        const active = t >= lo + x && t < lo + x + VISIBLE_STEP_S;
+        return (
+          <rect key={k} x={x} y={1 - h} width={VISIBLE_STEP_S} height={h}
+            fill={active ? "#fbbf24" : "#52525b"} />
+        );
+      })}
+      <line x1={t - lo} x2={t - lo} y1={0} y2={1} stroke="#fbbf24" strokeWidth={1}
+        vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }
 
@@ -275,9 +285,6 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 <div className="absolute top-2 left-2 flex items-center gap-2 rounded bg-zinc-950/75 px-2 py-1">
                   <span className="text-[10px] uppercase tracking-wide text-zinc-400">Players visible</span>
                   <span className="font-mono text-sm font-semibold text-amber-300" data-radar-count>{visible}</span>
-                  {paths.visible_hist && paths.visible_hist.length > 0 && (
-                    <VisibleHist hist={paths.visible_hist} now={visible} />
-                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -301,14 +308,19 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                   </button>
                 )}
               </div>
-              <input
-                type="range"
-                className="w-full accent-amber-400"
-                min={lo} max={hi} step={0.1}
-                value={t}
-                onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }}
-                aria-label="scrub radar"
-              />
+              <div className="flex flex-col gap-0.5 w-full">
+                {paths.visible_hist && paths.visible_hist.length > 0 && (
+                  <VisibleStrip hist={paths.visible_hist} lo={lo} hi={hi} t={t} />
+                )}
+                <input
+                  type="range"
+                  className="w-full accent-amber-400"
+                  min={lo} max={hi} step={0.1}
+                  value={t}
+                  onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }}
+                  aria-label="scrub radar"
+                />
+              </div>
             </>
           )}
         </div>

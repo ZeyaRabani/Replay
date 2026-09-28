@@ -25,29 +25,29 @@ function MiniPitch({ pitch, landmarks, placed, sel }: {
   pitch: PitchDims; landmarks: CalibLandmark[]; placed: Set<string>; sel: string | null;
 }) {
   const pad = 4, W = pitch.wid_m;
-  const P = (x: number, y: number) => `${x.toFixed(2)},${(W - y).toFixed(2)}`;
+  const P = (x: number, y: number) => `${x.toFixed(2)},${y.toFixed(2)}`;
   const s = landmarks.find((l) => l.name === sel);
   return (
     <svg viewBox={`${-pad} ${-pad} ${pitch.len_m + 2 * pad} ${W + 2 * pad}`}
       className="w-full rounded bg-[#1a5f36]" role="img" aria-label="pitch map">
       {pitchShapes(pitch).map((sh, i) =>
         sh.k === "dot" ? (
-          <circle key={i} cx={sh.x} cy={W - sh.y} r={0.5} fill="rgba(255,255,255,0.7)" />
+          <circle key={i} cx={sh.x} cy={sh.y} r={0.5} fill="rgba(255,255,255,0.7)" />
         ) : (
           <polyline key={i} points={[...sh.pts, ...(sh.closed ? [sh.pts[0]] : [])].map(([x, y]) => P(x, y)).join(" ")}
             fill="none" stroke={sh.faint ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.7)"} strokeWidth={0.4} />
         ),
       )}
       {landmarks.map((l) => (
-        <circle key={l.name} cx={l.x} cy={W - l.y} r={placed.has(l.name) ? 1.3 : 0.9}
+        <circle key={l.name} cx={l.x} cy={l.y} r={placed.has(l.name) ? 1.3 : 0.9}
           fill={placed.has(l.name) ? "#fbbf24" : "rgba(24,24,27,0.8)"} stroke="rgba(255,255,255,0.6)" strokeWidth={0.2} />
       ))}
       {s && (
         <g>
-          <circle cx={s.x} cy={W - s.y} r={3.2} fill="none" stroke="#fde68a" strokeWidth={0.7}>
+          <circle cx={s.x} cy={s.y} r={3.2} fill="none" stroke="#fde68a" strokeWidth={0.7}>
             <animate attributeName="r" values="2.2;4;2.2" dur="1.4s" repeatCount="indefinite" />
           </circle>
-          <circle cx={s.x} cy={W - s.y} r={1.4} fill="#fde68a" />
+          <circle cx={s.x} cy={s.y} r={1.4} fill="#fde68a" />
         </g>
       )}
     </svg>
@@ -148,16 +148,31 @@ export default function CameraCalib({ onSaved, defaultT }: {
     if (sel === name) setSel(null);
   };
 
+  const ready = [...dirty].filter((k) => (pts[k]?.length ?? 0) >= 4);
+  const angleStatus = (k: string) => {
+    const n = pts[k]?.length ?? 0;
+    if (n < 4) return { label: "needs ≥4 points", cls: "text-amber-300/80" };
+    if (dirty.has(k)) return { label: "unsaved", cls: "text-zinc-400" };
+    const fit = saved?.angles[k];
+    if (fit?.H) {
+      const tone = rmsTone(fit.rms_m);
+      return { label: `saved ${tone.label}`, cls: tone.cls };
+    }
+    return { label: "not solved", cls: "text-zinc-500" };
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
-      const body: Record<string, { pts: CalibPoint[] }> = {};
-      for (let i = 0; i < nAngles; i++) body[String(i)] = { pts: pts[String(i)] ?? [] };
+      const body = Object.fromEntries(ready.map((k) => [k, { pts: pts[k] ?? [] }]));
       const r = await api.putCalib(body);
       setSaved(r);
-      setPts(Object.fromEntries(Object.entries(r.angles).map(([k, a]) => [k, a.pts])));
-      setDirty(new Set());
+      setPts((all) => ({
+        ...all,
+        ...Object.fromEntries(ready.map((k) => [k, r.angles[k]?.pts ?? all[k] ?? []])),
+      }));
+      setDirty((all) => new Set([...all].filter((k) => !ready.includes(k))));
       onSaved?.(r);
       window.dispatchEvent(new Event(CALIB_SAVED_EVENT));
     } catch (e) {
@@ -182,7 +197,6 @@ export default function CameraCalib({ onSaved, defaultT }: {
   }
 
   const rms = rmsTone(dirty.has(key) ? undefined : saved?.angles[key]?.rms_m);
-  const short = Array.from({ length: nAngles }, (_, i) => i).filter((i) => (pts[String(i)]?.length ?? 0) < 4);
   const selLabel = sel ? label(sel) : null;
 
   return (
@@ -193,13 +207,14 @@ export default function CameraCalib({ onSaved, defaultT }: {
           {Array.from({ length: nAngles }, (_, i) => {
             const k = String(i);
             const tone = rmsTone(dirty.has(k) ? undefined : saved?.angles[k]?.rms_m);
+            const status = angleStatus(k);
             return (
               <button key={i} type="button" onClick={() => { setAngle(i); setSel(null); }}
                 className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs ${
                   angle === i ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}>
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tone.hex }} />
                 Angle {i + 1}
-                {dirty.has(k) && <span className="opacity-70">•</span>}
+                <span className={`text-[10px] ${status.cls}`}>· {status.label}</span>
               </button>
             );
           })}
@@ -210,11 +225,11 @@ export default function CameraCalib({ onSaved, defaultT }: {
             onKeyDown={(e) => { if (e.key === "Enter") applyT(); }} onBlur={applyT}
             className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-xs text-zinc-200" />
         </label>
-        <button type="button" className={btnPrimary} disabled={saving || dirty.size === 0 || short.length > 0}
-          title={short.length ? `Every angle needs at least 4 points (angle ${short.map((i) => i + 1).join(", ")})` : undefined}
+        <button type="button" className={btnPrimary} disabled={saving || ready.length === 0}
+          title={`Saves angle ${ready.map((k) => +k + 1).join(", ")}`}
           onClick={() => void save()}>
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          Save all angles
+          Save calibration
         </button>
       </div>
 
@@ -227,9 +242,6 @@ export default function CameraCalib({ onSaved, defaultT }: {
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rms.hex }} />
           {dirty.has(key) ? "unsaved" : `fit ${rms.label}`}
         </span>
-        {short.length > 0 && dirty.size > 0 && (
-          <span className="text-amber-300/80">Save needs ≥4 on angle {short.map((i) => i + 1).join(", ")}</span>
-        )}
         <span className="text-zinc-500 truncate">
           {selLabel
             ? <>Click where <span className="text-amber-200">{selLabel}</span> is — outside the picture is fine.</>
