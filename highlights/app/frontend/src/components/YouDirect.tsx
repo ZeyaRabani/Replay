@@ -81,6 +81,7 @@ export default function YouDirect() {
   const [result, setResult] = useState<DirectComparison | null>(null);
   const [ready, setReady] = useState(false);
   const [learnRes, setLearnRes] = useState<DirectLearnResult | null>(null);
+  const [sug3, setSug3] = useState<DirectSuggest[] | null>(null);
   const [learnBusy, setLearnBusy] = useState(false);
   const [learnMsg, setLearnMsg] = useState<string | null>(null);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
@@ -131,6 +132,18 @@ export default function YouDirect() {
       .then(setSug)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setBusy(false));
+  };
+  const load3 = () => {
+    setBusy(true); setError(null);
+    void api.directSuggest3()
+      .then((d) => setSug3(d.stretches))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  };
+  const loadStretch = (s: DirectSuggest) => {
+    setResult(null); setChoices(new Map());
+    setFromIn(fmtClock(s.t_start)); setToIn(fmtClock(s.t_end));
+    setSug(s);
   };
   const loadManual = () => {
     if (!sug) return;
@@ -242,7 +255,7 @@ export default function YouDirect() {
           {sessions.length >= 2 && !learnRes && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-violet-700/50 bg-violet-950/40 px-3 py-2">
               <span className="text-xs text-violet-200">
-                You've directed {sessions.length} stretches — ready to
+                Directed {sessions.length} of 3 stretches — ready to
                 analyse your directing and re-cut.
               </span>
               <button
@@ -258,11 +271,10 @@ export default function YouDirect() {
           )}
           <div className="flex flex-wrap items-center gap-2">
             <button disabled={busy}
-              onClick={() => load()}
+              onClick={load3}
               className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-0.5 disabled:opacity-40">
               {busy ? <Loader2 size={11} className="animate-spin" /> : null}
-              {(sug?.n_sessions_saved ?? 0) > 0
-                ? "Load next suggested stretch" : "Load suggested stretch"}
+              Suggest 3 stretches (early / mid / late)
             </button>
             <span className="text-[11px] text-zinc-500">or</span>
             <input className={`${input} w-16`} value={fromIn}
@@ -282,6 +294,25 @@ export default function YouDirect() {
               </span>
             )}
           </div>
+          {sug3 && (
+            <div className="flex flex-col gap-1 text-[11px]">
+              {sug3.map((s, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="w-10 text-zinc-500">
+                    {["Early", "Mid", "Late"][i] ?? `#${i + 1}`}
+                  </span>
+                  <span className="font-mono text-zinc-300">
+                    {fmtClock(s.t_start)}–{fmtClock(s.t_end)}
+                  </span>
+                  <button type="button"
+                    className="text-sky-300 hover:text-sky-200 border border-sky-700/60 rounded px-2 py-0.5"
+                    onClick={() => loadStretch(s)}>
+                    Load
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {error && <div className="text-xs text-red-300">{error}</div>}
 
           {sug && (

@@ -266,7 +266,8 @@ def per_second(track: list[dict], available: np.ndarray,
                zone_ok: np.ndarray | None = None,
                zone_kf: list[np.ndarray] | None = None,
                linger: int = ZONE_LINGER,
-               strong: float = ZONE_BALL_OK
+               strong: float = ZONE_BALL_OK,
+               prefs: dict | None = None
                ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Per-second best candidate + full score matrix over available angles.
 
@@ -282,6 +283,11 @@ def per_second(track: list[dict], available: np.ndarray,
 
     n_angles = len(track)
     T = available.shape[1]
+    prefs = prefs or {}
+    event_rule_on = bool(prefs.get("event_rule", True))
+    angle_remap = prefs.get("angle_remap") or {}
+    angle_weight = np.asarray(
+        prefs.get("angle_weight") or [1.0] * n_angles, dtype=float)
     best_a = np.full(T, -1)
     best_s = np.zeros(T)
     best_r = np.zeros(T, dtype=int)
@@ -321,12 +327,24 @@ def per_second(track: list[dict], available: np.ndarray,
         maximum_filter(ball_size[i], size=BALL_WINDOW, mode="nearest")
         for i in range(n_angles)])
 
+    def _remap_to(rule: str, j: int) -> int:
+        """angle_remap[rule][j]=k: when k is available at this second
+        treat it as the leader (S[k] raised to at least S[j])."""
+        k = (angle_remap.get(rule) or {}).get(str(j))
+        if k is None:
+            return j
+        k = int(k)
+        if 0 <= k < n_angles and available[k, t]:
+            S[k, t] = max(S[k, t], S[j, t])
+            return k
+        return j
+
     for t in range(T):
         av = available[:, t]
         if not av.any():
             continue
         ev = np.where(av, event[:, t], 0.0)
-        if ev.max() > 0:
+        if event_rule_on and ev.max() > 0:
             S[:, t] = ev
             j = int(np.argmax(S[:, t]))
             best_a[t], best_s[t], best_r[t] = j, S[j, t], 3
@@ -350,17 +368,20 @@ def per_second(track: list[dict], available: np.ndarray,
                     0.0)
                 j = int(np.argmax(S[:, t]))
                 if S[j, t] > 0:
+                    j = _remap_to("zone", j)
                     best_a[t], best_s[t], best_r[t] = j, S[j, t], 4
                     continue
         elig = av & ball_seen[:, t]
         if elig.any():
-            S[:, t] = np.where(elig, ball_score[:, t], 0.0)
+            S[:, t] = np.where(elig, ball_score[:, t], 0.0) * angle_weight
             j = int(np.argmax(S[:, t]))
+            j = _remap_to("ball", j)
             best_a[t], best_s[t], best_r[t] = j, S[j, t], 2
         else:
-            S[:, t] = np.where(av, cluster_n[:, t], 0.0)
+            S[:, t] = np.where(av, cluster_n[:, t], 0.0) * angle_weight
             j = int(np.argmax(S[:, t]))
             if S[j, t] > 0:
+                j = _remap_to("cluster", j)
                 best_a[t], best_s[t], best_r[t] = j, S[j, t], 1
             else:
                 best_a[t] = int(np.argmax(av.astype(int)))
@@ -373,7 +394,8 @@ def cut_director(track: list[dict], available: np.ndarray,
                  zones: list | None = None,
                  zone_ok: np.ndarray | None = None,
                  zone_kf: list[np.ndarray] | None = None,
-                 style_overrides: dict | None = None) -> dict:
+                 style_overrides: dict | None = None,
+                 prefs: dict | None = None) -> dict:
     """Full decision. track[i]: {"ball_conf","ball_size","cluster",
     "ball_x","ball_y"} 1 Hz arrays on the shared timeline;
     available[i, t]; motion[i] shared-timeline motion. zones (optional):
@@ -385,7 +407,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     n_angles = len(track)
     cand_a, _cand_s, cand_r, S, baselines, zone_shares, zone_ball = per_second(
         track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
-        linger=sty.zone_linger, strong=sty.zone_ball_strong)
+        linger=sty.zone_linger, strong=sty.zone_ball_strong, prefs=prefs)
     sm = np.stack([_smooth(S[i], sty.smooth_mean, sty.smooth_median)
                    for i in range(n_angles)])
     mot = np.stack([np.where(available[i], m, np.inf) for i, m in enumerate(motion)])
@@ -531,6 +553,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     return {
         "style": style,
         "style_overrides": dict(style_overrides or {}),
+        "prefs": dict(prefs or {}),
         "zones_used": zones is not None and any(
             any(kf.get("zones") for kf in z) for z in zones),
         "segments": segs,

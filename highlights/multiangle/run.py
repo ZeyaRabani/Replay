@@ -603,6 +603,17 @@ def director_style_overrides(ctx: Ctx) -> dict | None:
         return None
 
 
+def director_prefs(ctx: Ctx) -> dict | None:
+    """Learned per-match prefs: multiangle/director_params.json
+    {"prefs": {...}} — passed to cut_director as-is."""
+    try:
+        pr = json.loads((ctx.pipe / "director_params.json").read_text())
+        pr = (pr or {}).get("prefs") or None
+        return pr if isinstance(pr, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
 def stage_director(ctx: Ctx) -> dict:
     from highlights.multiangle.director import cut_director
 
@@ -611,7 +622,8 @@ def stage_director(ctx: Ctx) -> dict:
     out = cut_director(inp["tracks"], inp["avail"], inp["motion"],
                        ctx.style,
                        zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
-                       style_overrides=director_style_overrides(ctx))
+                       style_overrides=director_style_overrides(ctx),
+                       prefs=director_prefs(ctx))
     if zones:
         out["zone_suspended_share"] = [round(s, 4)
                                        for s in inp["suspended"]]

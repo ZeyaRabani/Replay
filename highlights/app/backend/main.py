@@ -1816,6 +1816,67 @@ def get_direct_suggest(p: ScopedP, t_start: float | None = None,
     return _direct_stretch(p, t_start, t_end)
 
 
+@scoped.get("/multiangle/direct/suggest3")
+def get_direct_suggest3(p: ScopedP) -> dict:
+    """Three busiest 60 s stretches — one per third of the match window.
+    Busiest = candidates + 0.5*director switches inside the window;
+    windows overlapping a saved session score 0 unless nothing else is
+    left."""
+    _require_multiangle(p)
+    ma = p.multiangle_dir
+    director = _read_json(ma / "director.json")
+    if not director:
+        raise HTTPException(404, "no director output yet")
+    segs = director.get("segments") or []
+    meta = _active_cut_meta(p)
+    rng = meta.get("range")
+    if rng:
+        lo, hi = float(rng[0]), float(rng[1])
+    else:
+        sync = _read_json(ma / "sync.json") or {}
+        cr = _read_json(ma / "cut_range.json")
+        un = ((sync.get("coverage") or {}).get("union") or [0.0, 0.0])
+        lo = float(cr["lo"]) if cr else float(un[0])
+        hi = float(cr["hi"]) if cr else float(un[1])
+        if hi <= lo and segs:
+            hi = lo + max(s["t_end"] for s in segs)
+    fused = (_read_json(ma / "fused_candidates.json")
+             or _read_json(p.pipeline_dir / "candidates.json") or {})
+    cand_ts = [float(c.get("t", 0)) for c in
+               (fused.get("candidates") or fused.get("events") or [])]
+    # director switches = segment boundaries in shared seconds
+    switch_ts = [lo + float(s["t_start"]) for s in segs[1:]]
+    covered = _direct_sessions(p)
+
+    def overlaps_session(s: float, e: float) -> bool:
+        return any(float(x.get("t_start", -1)) < e
+                   and float(x.get("t_end", -1)) > s for x in covered)
+
+    W, STEP = 60.0, 5.0
+    third = (hi - lo) / 3.0
+    stretches = []
+    for k in range(3):
+        t0, t1 = lo + k * third, lo + (k + 1) * third
+        scored = []
+        s = t0
+        while s + W <= t1 + 1e-6:
+            e = s + W
+            n_c = sum(1 for t in cand_ts if s <= t < e)
+            n_sw = sum(1 for t in switch_ts if s <= t < e)
+            scored.append((n_c + 0.5 * n_sw, not overlaps_session(s, e),
+                           s, e))
+            s += STEP
+        fresh = [x for x in scored if x[1]]
+        pool = fresh or scored
+        if not pool:
+            continue
+        _, _, bs, be = max(pool, key=lambda x: (x[0], x[2]))
+        stretches.append(_direct_stretch(p, bs, be))
+    if not stretches:
+        raise HTTPException(404, "no stretches inside the match window")
+    return {"stretches": stretches}
+
+
 class DirectChoice(BaseModel):
     t: float
     angle: int
@@ -1896,21 +1957,32 @@ def _direct_ctx(p: ProjectStore):
 
 def _run_direct_learn(p: ProjectStore, sessions: list[dict]) -> dict:
     """Replay the director on this project's real inputs and
-    grid-search the style overrides that best match the user."""
-    from highlights.multiangle.director import cut_director
-    from highlights.multiangle.manual_direct import learn
+    grid-search the style overrides + prefs that best match the user."""
+    from highlights.multiangle.director import cut_director, per_second, resolve_style
+    from highlights.multiangle.manual_direct import learn_prefs
     from highlights.multiangle.run import load_director_inputs
     ctx = _direct_ctx(p)
     inp = load_director_inputs(ctx)
 
-    def replay(overrides):
+    def replay(overrides, prefs=None):
         return cut_director(
             inp["tracks"], inp["avail"], inp["motion"], ctx.style,
             zones=inp["zones"], zone_ok=inp["zone_ok"],
             zone_kf=inp["zone_kf"],
-            style_overrides=overrides or None)["segments"]
+            style_overrides=overrides or None, prefs=prefs)["segments"]
 
-    return learn(sessions, replay, range_lo=inp["lo"])
+    def cand(overrides, prefs):
+        sty = resolve_style(ctx.style, overrides or None)
+        a, _s, r, _S, _b, _zs, _zb = per_second(
+            inp["tracks"], inp["avail"],
+            zones=inp["zones"], zone_ok=inp["zone_ok"],
+            zone_kf=inp["zone_kf"],
+            linger=sty.zone_linger, strong=sty.zone_ball_strong,
+            prefs=prefs)
+        return a, r
+
+    return learn_prefs(sessions, replay, cand, range_lo=inp["lo"],
+                       n_angles=len(inp["tracks"]))
 
 
 class DirectLearnPut(BaseModel):
@@ -1931,7 +2003,8 @@ def post_direct_learn(p: ScopedP, body: DirectLearnPut | None = None,
     write_json_atomic(ma / "direct_learn.json",
                       {**res, "created_at": time.time()}, indent=1)
     write_json_atomic(ma / "director_params.json",
-                      {"style_overrides": res["best"]}, indent=1)
+                      {"style_overrides": res["best"],
+                       "prefs": res.get("prefs")}, indent=1)
     _hist(p, "manual_direct_learned",
           agreement_before=res["agreement_pct_before"],
           agreement_after=res["agreement_pct_after"],

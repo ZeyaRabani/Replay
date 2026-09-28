@@ -611,6 +611,10 @@ export interface DirectSuggest {
   candidate: { t: number; type: string; confidence: number } | null;
 }
 
+export interface DirectSuggest3 {
+  stretches: DirectSuggest[];
+}
+
 export interface DirectCompareRow {
   t: number;
   user: number | null;
@@ -629,14 +633,22 @@ export interface DirectComparison {
   rows: DirectCompareRow[];
 }
 
+export interface DirectorPrefs {
+  event_rule: boolean;
+  angle_remap: Record<string, Record<string, number>>;
+  angle_weight: number[];
+}
+
 export interface DirectLearnResult {
   best: Record<string, number>;
+  prefs?: DirectorPrefs;
   agreement_pct_before: number | null;
   agreement_pct_after: number | null;
   n_sessions: number;
   n_seconds: number;
-  grid: { overrides: Record<string, number>; agree_s: number;
-          agreement_pct: number | null }[];
+  votes?: Record<string, Record<string, Record<string, number>>>;
+  grid?: { overrides: Record<string, number>; agree_s: number;
+           agreement_pct: number | null }[];
 }
 
 export interface DirectSession {

@@ -183,3 +183,124 @@ def learn(sessions: list[dict], replay_fn, range_lo: float) -> dict:
                   if base_total else None}
                  for r in results[:5]],
     }
+
+
+_RULE_NAME = {1: "cluster", 2: "ball", 3: "event", 4: "zone"}
+# min seconds of disagreement + min winner share to learn a remap
+REMAP_MIN_S = 5
+REMAP_MIN_SHARE = 0.60
+EVENT_MIN_S = 8
+EVENT_MAX_AGREE = 0.40
+WEIGHT_GRID = (0.7, 1.0, 1.5)
+
+
+def learn_prefs(sessions: list[dict], replay_fn, cand_fn,
+                range_lo: float, n_angles: int) -> dict:
+    """Learn per-match director prefs (angle remaps, event rule,
+    per-angle weights) + style overrides from saved sessions.
+
+    sessions: [{t_start, t_end, choices:[{t,angle}]}] shared seconds.
+    cand_fn(overrides, prefs) -> (cand_a, cand_r) range-relative 1 Hz.
+    replay_fn(overrides, prefs) -> director segments.
+    Scoring = agreeing seconds across sessions (same scorer as learn).
+    """
+    # --- steps 1-3: derive prefs from baseline candidates + user votes
+    cand_a, cand_r = cand_fn({}, {})
+    T = len(cand_a)
+    votes: dict[str, dict[int, dict[int, int]]] = {}
+    for s in sessions:
+        choices = {int(c["t"]): int(c["angle"]) for c in s["choices"]}
+        last = None
+        for t in range(int(s["t_start"]), int(s["t_end"])):
+            if t in choices:
+                last = choices[t]
+            u = last
+            if u is None:
+                continue
+            i = t - int(range_lo)
+            if not (0 <= i < T) or cand_a[i] < 0:
+                continue
+            rule = _RULE_NAME.get(int(cand_r[i]))
+            if rule is None:
+                continue
+            j, u_ = int(cand_a[i]), int(u)
+            votes.setdefault(rule, {}).setdefault(j, {})
+            votes[rule][j][u_] = votes[rule][j].get(u_, 0) + 1
+
+    angle_remap: dict[str, dict[str, int]] = {
+        "zone": {}, "ball": {}, "cluster": {}}
+    for rule in ("zone", "ball", "cluster"):
+        for j, tally in (votes.get(rule) or {}).items():
+            tot = sum(tally.values())
+            u_star, n = max(tally.items(), key=lambda kv: kv[1])
+            if u_star != j and n >= REMAP_MIN_S and n / tot >= REMAP_MIN_SHARE:
+                angle_remap[rule][str(j)] = u_star
+
+    ev_votes = votes.get("event") or {}
+    ev_s = sum(sum(t.values()) for t in ev_votes.values())
+    ev_agree = sum(t.get(j, 0) for j, t in ev_votes.items())
+    event_rule = not (ev_s >= EVENT_MIN_S
+                      and ev_agree / max(1, ev_s) < EVENT_MAX_AGREE)
+
+    prefs = {"event_rule": event_rule,
+             "angle_remap": angle_remap,
+             "angle_weight": [1.0] * n_angles}
+
+    # scorer shared with learn(): agreeing seconds across sessions
+    def score(segments: list[dict]) -> tuple[int, int]:
+        agree = total = 0
+        for s in sessions:
+            rows = director_rows(segments, range_lo,
+                                 s["t_start"], s["t_end"])
+            choices = {int(c["t"]): int(c["angle"]) for c in s["choices"]}
+            cmp = compare(choices, rows)
+            for r in cmp["rows"]:
+                if r["user"] is not None:
+                    total += 1
+                    agree += 1 if r["agree"] else 0
+        return agree, total
+
+    from highlights.multiangle.director import STYLES
+    fast = STYLES["fast"]
+    keys = list(LEARN_GRID)
+    combos = [dict(zip(keys, vals)) for vals in
+              itertools.product(*(LEARN_GRID[k] for k in keys))]
+
+    def deviations(o: dict) -> int:
+        return sum(1 for k, v in o.items() if v != getattr(fast, k))
+
+    # --- stage A: LEARN_GRID x {learned prefs, empty prefs}
+    stage_a = []
+    for o in combos:
+        for p in (prefs, {}):
+            agree, _ = score(replay_fn(o, p))
+            stage_a.append((agree, deviations(o), o, p))
+    stage_a.sort(key=lambda x: (-x[0], x[1]))
+    best_agree, _, best_o, best_p = stage_a[0]
+
+    # --- stage B: angle_weight grid on top of the stage-A winner
+    w_combos = list(itertools.product(WEIGHT_GRID, repeat=n_angles))
+    stage_b = []
+    for w in w_combos:
+        p2 = {**best_p, "angle_weight": list(w)}
+        agree, _ = score(replay_fn(best_o, p2))
+        dist = sum(abs(v - 1.0) for v in w)
+        stage_b.append((agree, dist, p2))
+    stage_b.sort(key=lambda x: (-x[0], x[1]))
+    best_agree, _, best_p = stage_b[0]
+
+    base_agree, base_total = score(replay_fn({}, {}))
+    votes_out = {r: {str(j): {str(u): n for u, n in t.items()}
+                     for j, t in m.items()}
+                 for r, m in votes.items()}
+    return {
+        "best": best_o,
+        "prefs": best_p,
+        "agreement_pct_before": round(
+            base_agree / base_total * 100, 1) if base_total else None,
+        "agreement_pct_after": round(
+            best_agree / base_total * 100, 1) if base_total else None,
+        "n_sessions": len(sessions),
+        "n_seconds": base_total,
+        "votes": votes_out,
+    }

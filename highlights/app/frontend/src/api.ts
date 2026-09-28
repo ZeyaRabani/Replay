@@ -11,6 +11,7 @@ import type {
   DirectLearnResult,
   DirectSession,
   DirectSuggest,
+  DirectSuggest3,
   DirectorFull,
   DownloadInfo,
   HistoryEvent,
@@ -257,6 +258,8 @@ export function projectApi(id: string) {
     directSuggest: (t?: [number, number]) =>
       req<DirectSuggest>(`${base}/multiangle/direct/suggest` +
         (t ? `?t_start=${t[0]}&t_end=${t[1]}` : "")),
+    directSuggest3: () =>
+      req<DirectSuggest3>(`${base}/multiangle/direct/suggest3`),
     directSessions: () =>
       req<{ sessions: DirectSession[] }>(`${base}/multiangle/direct/sessions`),
     saveDirectSession: (t_start: number, t_end: number,
