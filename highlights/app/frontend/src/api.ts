@@ -34,6 +34,7 @@ import type {
   Team,
   User,
   VideoInfo,
+  LearnedZones,
   ZoneKeyframe,
 } from "./types";
 
@@ -242,6 +243,8 @@ export function projectApi(id: string) {
     getZones: () =>
       req<{ version: 2; angles: ZoneKeyframe[][] }>(
         `${base}/multiangle/zones`),
+    learnedZones: () =>
+      req<LearnedZones>(`${base}/multiangle/zones/learned`),
     putZones: (angles: ZoneKeyframe[][]) =>
       req<{ version: 2; angles: ZoneKeyframe[][] }>(
         `${base}/multiangle/zones`, json({ angles }, "PUT")),

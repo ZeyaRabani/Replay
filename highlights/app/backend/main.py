@@ -1688,6 +1688,16 @@ def get_multiangle_zones(p: PublicP) -> dict:
     return {"version": 2, "angles": [[] for _ in range(n)]}
 
 
+@scoped.get("/multiangle/zones/learned")
+def get_learned_zones(p: PublicP) -> dict:
+    """Zones learned from you-direct sessions (zones_learned.json)."""
+    _require_multiangle(p)
+    z = _read_json(p.multiangle_dir / "zones_learned.json")
+    if z is None:
+        raise HTTPException(404, "no learned zones yet")
+    return z
+
+
 @scoped.put("/multiangle/zones")
 def put_multiangle_zones(body: ZonesPut, p: ScopedP) -> dict:
     _require_multiangle(p)
@@ -1955,34 +1965,91 @@ def _direct_ctx(p: ProjectStore):
                style=str(p.meta.get("cut_style") or "fast"))
 
 
+def _learn_agree(sessions: list[dict], segments: list[dict],
+                 range_lo: float) -> float | None:
+    """Agreement % of director segments vs saved sessions (same scorer
+    as learn_prefs's baseline)."""
+    from highlights.multiangle.manual_direct import compare, director_rows
+    agree = total = 0
+    for s in sessions:
+        rows = director_rows(segments, range_lo,
+                             s["t_start"], s["t_end"])
+        choices = {int(c["t"]): int(c["angle"]) for c in s["choices"]}
+        cmp = compare(choices, rows)
+        for r in cmp["rows"]:
+            if r["user"] is not None:
+                total += 1
+                agree += 1 if r["agree"] else 0
+    return round(agree / total * 100, 1) if total else None
+
+
 def _run_direct_learn(p: ProjectStore, sessions: list[dict]) -> dict:
     """Replay the director on this project's real inputs and
     grid-search the style overrides + prefs that best match the user."""
     from highlights.multiangle.director import cut_director, per_second, resolve_style
+    from highlights.multiangle.learned_zones import learn_zones
     from highlights.multiangle.manual_direct import learn_prefs
-    from highlights.multiangle.run import load_director_inputs
+    from highlights.multiangle.run import _load_zone_inputs, load_director_inputs
     ctx = _direct_ctx(p)
     inp = load_director_inputs(ctx)
+
+    # zone variants: learned (from sessions) / drawn / none — pick the
+    # one with the best baseline agreement, ties -> learned>drawn>none
+    lz = learn_zones(sessions, inp["tracks"], inp["avail"], inp["lo"],
+                     inp["offsets"], inp["durations"])
+    variants: dict[str, tuple] = {"none": (None, None, None)}
+    if inp["zones"]:
+        variants["drawn"] = (inp["zones"], inp["zone_ok"], inp["zone_kf"])
+    if lz is not None:
+        lz_in = _load_zone_inputs(ctx, lz, inp["avail"], inp["T"],
+                                  inp["lo"], inp["offsets"])
+        if lz_in[0]:
+            variants["learned"] = lz_in[:3]
+
+    def baseline_agree(zk):
+        z, zok, zkf = zk
+        segs = cut_director(
+            inp["tracks"], inp["avail"], inp["motion"], ctx.style,
+            zones=z, zone_ok=zok, zone_kf=zkf)["segments"]
+        return _learn_agree(sessions, segs, inp["lo"])
+
+    zone_agree = {k: baseline_agree(v) for k, v in variants.items()}
+    order = {"learned": 0, "drawn": 1, "none": 2}
+    chosen = max(variants, key=lambda k: (
+        zone_agree[k] if zone_agree[k] is not None else -1, -order[k]))
+    zones, zone_ok, zone_kf = variants[chosen]
+    zone_agreement = {"drawn": zone_agree.get("drawn"),
+                      "learned": zone_agree.get("learned"),
+                      "none": zone_agree.get("none")}
+
+    # persist learned zones for diagnostics; active only when chosen
+    if lz is not None:
+        lz = {**lz, "chosen": chosen == "learned",
+              "active": chosen == "learned"}
+        write_json_atomic(p.multiangle_dir / "zones_learned.json",
+                          lz, indent=1)
 
     def replay(overrides, prefs=None):
         return cut_director(
             inp["tracks"], inp["avail"], inp["motion"], ctx.style,
-            zones=inp["zones"], zone_ok=inp["zone_ok"],
-            zone_kf=inp["zone_kf"],
+            zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
             style_overrides=overrides or None, prefs=prefs)["segments"]
 
     def cand(overrides, prefs):
         sty = resolve_style(ctx.style, overrides or None)
         a, _s, r, _S, _b, _zs, _zb = per_second(
             inp["tracks"], inp["avail"],
-            zones=inp["zones"], zone_ok=inp["zone_ok"],
-            zone_kf=inp["zone_kf"],
+            zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
             linger=sty.zone_linger, strong=sty.zone_ball_strong,
             prefs=prefs)
         return a, r
 
-    return learn_prefs(sessions, replay, cand, range_lo=inp["lo"],
-                       n_angles=len(inp["tracks"]))
+    res = learn_prefs(sessions, replay, cand, range_lo=inp["lo"],
+                      n_angles=len(inp["tracks"]))
+    res["zone_source"] = chosen
+    res["zone_agreement"] = zone_agreement
+    res["learned_cells"] = lz["cells"] if lz is not None else None
+    return res
 
 
 class DirectLearnPut(BaseModel):

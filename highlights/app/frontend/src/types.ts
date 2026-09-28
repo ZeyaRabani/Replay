@@ -639,6 +639,19 @@ export interface DirectorPrefs {
   angle_weight: number[];
 }
 
+export interface LearnedZones {
+  version: number;
+  learned: boolean;
+  /** set by the last learn: whether the learned variant was chosen */
+  chosen?: boolean;
+  active?: boolean;
+  /** per-angle keyframes [{"t","zones":[poly..]}] — v2 shape */
+  angles: { t: number; zones: ZonePolygon[] }[][];
+  /** per-angle GRID_H x GRID_W share grid (None where unvoted) */
+  cells: (number | null)[][];
+  n_votes: number[];
+}
+
 export interface DirectLearnResult {
   best: Record<string, number>;
   prefs?: DirectorPrefs;
@@ -647,6 +660,10 @@ export interface DirectLearnResult {
   n_sessions: number;
   n_seconds: number;
   votes?: Record<string, Record<string, Record<string, number>>>;
+  zone_source?: "learned" | "drawn" | "none";
+  zone_agreement?: { drawn: number | null; learned: number | null;
+                     none: number | null };
+  learned_cells?: (number | null)[][][] | null;
   grid?: { overrides: Record<string, number>; agree_s: number;
            agreement_pct: number | null }[];
 }

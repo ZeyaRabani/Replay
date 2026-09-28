@@ -484,6 +484,15 @@ export default function YouDirect() {
                 <div className="text-[10px] text-zinc-500">
                   {describeOverrides(learnRes.best)}
                 </div>
+                {learnRes.zone_source !== undefined && (
+                  <div className="text-[10px] text-zinc-500">
+                    Learned camera areas from your sessions: agreement drawn{" "}
+                    {learnRes.zone_agreement?.drawn ?? "—"}% · learned{" "}
+                    {learnRes.zone_agreement?.learned ?? "—"}% · none{" "}
+                    {learnRes.zone_agreement?.none ?? "—"}% → using{" "}
+                    {learnRes.zone_source}
+                  </div>
+                )}
                 {learnMsg && (
                   <div className="text-[10px] text-emerald-400">{learnMsg}</div>
                 )}

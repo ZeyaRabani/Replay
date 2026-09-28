@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
-import type { AngleInfo, ZoneKeyframe, ZonePolygon } from "../types";
+import type { AngleInfo, LearnedZones, ZoneKeyframe, ZonePolygon } from "../types";
 
 interface Rect {
   x1: number;
@@ -44,10 +44,19 @@ interface Props {
   onChange: (kfs: ZoneKeyframe[]) => void;
 }
 
-function OverlayRects({ zones, draft }: { zones: ZonePolygon[]; draft?: Rect | null }) {
+function OverlayRects({ zones, draft, learned }: { zones: ZonePolygon[];
+  draft?: Rect | null; learned?: ZonePolygon[] }) {
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none"
       viewBox="0 0 1 1" preserveAspectRatio="none">
+      {(learned ?? []).map((p, i) => {
+        const r = polyBounds(p);
+        return (
+          <rect key={`lz${i}`} x={r.x1} y={r.y1} width={r.x2 - r.x1} height={r.y2 - r.y1}
+            fill="rgba(167,139,250,0.12)" stroke="#a78bfa" strokeWidth={0.003}
+            strokeDasharray="0.012 0.008" />
+        );
+      })}
       {zones.map((p, i) => {
         const r = polyBounds(p);
         return (
@@ -66,11 +75,12 @@ function OverlayRects({ zones, draft }: { zones: ZonePolygon[]; draft?: Rect | n
 }
 
 function Still({
-  url, t, zones, onPaint, onClear, onCopyAll,
+  url, t, zones, learned, onPaint, onClear, onCopyAll,
 }: {
   url: string;
   t: number;
   zones: ZonePolygon[];
+  learned?: ZonePolygon[];
   onPaint: (poly: ZonePolygon) => void;
   onClear: () => void;
   onCopyAll: () => void;
@@ -121,7 +131,12 @@ function Still({
           className="w-full rounded border border-zinc-800 pointer-events-none"
           draggable={false}
         />
-        <OverlayRects zones={zones} draft={draft} />
+        <OverlayRects zones={zones} draft={draft} learned={learned} />
+        {learned && learned.length > 0 && (
+          <span className="absolute top-1 left-1 text-[9px] font-mono bg-violet-950/80 rounded px-1 text-violet-300">
+            learned from your directing
+          </span>
+        )}
         <span className="absolute bottom-1 left-1 text-[9px] font-mono bg-zinc-950/70 rounded px-1 text-zinc-300">
           {Math.round(t)}s · draw here
         </span>
@@ -150,6 +165,16 @@ function Still({
 export default function ZoneEditor({ angle, keyframes, onChange }: Props) {
   const api = useProjectApi();
   const times = zoneStillTimes(angle.duration);
+  const [learned, setLearned] = useState<ZonePolygon[]>([]);
+  useEffect(() => {
+    api.learnedZones()
+      .then((z: LearnedZones) => {
+        const polys = (z.angles?.[angle.index] ?? [])
+          .flatMap((kf) => kf.zones ?? []);
+        setLearned(polys);
+      })
+      .catch(() => setLearned([]));
+  }, [angle.index]);
 
   // map saved keyframes onto the three stills by nearest t (a single
   // legacy keyframe lands on whichever still is closest, others empty);
@@ -182,6 +207,7 @@ export default function ZoneEditor({ angle, keyframes, onChange }: Props) {
             t={t}
             url={api.angleFrameUrl(angle.index, t)}
             zones={assigned[i]}
+            learned={learned}
             onPaint={(poly) => {
               const next = assigned.map((z) => [...z]);
               next[i] = [...next[i], poly];

@@ -520,70 +520,102 @@ def load_director_inputs(ctx: Ctx) -> dict:
         motion.append(np.array([mo.get(int(s), 0.0) for s in fsec]))
         ctx.log(f"director: angle {i} event channel {n_ev} s")
 
-    zones, zone_ok, zone_kf = None, None, None
-    suspended = [0.0] * len(ctx.angles)
-    zf = ctx.pipe / "zones.json"
-    if zf.exists():
+    zones, zone_ok, zone_kf, zone_source = None, None, None, None
+    zd = None
+    zl = ctx.pipe / "zones_learned.json"
+    if zl.exists():
         try:
-            from highlights.multiangle.zones import kf_index, normalize_zones
-            zd = json.loads(zf.read_text()) or {}
-            zones = normalize_zones(
-                zd, [ctx.duration(i) for i in range(len(ctx.angles))])
-            has = [i for i, kfs in enumerate(zones)
-                   if any(k.get("zones") for k in kfs)]
-            if zones and has:
-                ctx.log("director: zones on angles/keyframes "
-                        f"{[(i, [k for k, kf in enumerate(zones[i]) if kf.get('zones')]) for i in has]}")
-                zone_kf = [np.zeros(T, dtype=int)
-                           for _ in range(len(ctx.angles))]
-                zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
-                for i, a in enumerate(ctx.angles):
-                    off = offsets[i]
-                    dur = ctx.duration(i)
-                    zone_kf[i] = kf_index(zones[i], T, lo, off, dur)
-                    if i not in has:
-                        continue
-                    vid = ctx.angle_video(i)
-                    if vid is None:
-                        continue
-                    ok_by_k: dict[int, np.ndarray] = {}
-                    for k, kf in enumerate(zones[i]):
-                        if not (kf.get("zones") or []):
-                            continue  # no polys -> no hits anyway
-                        ctx.status.update(
-                            stage_progress=(i + 0.5) / len(ctx.angles),
-                            message=f"director: viewcheck angle {i} "
-                                    f"keyframe {k}")
-                        try:
-                            times, okarr = _zone_view_ok(
-                                ctx, a["dir"], vid, float(kf["t"]))
-                        except Exception as e:
-                            ctx.log(f"director: viewcheck a{i} k{k} "
-                                    f"failed ({e})")
-                            continue
-                        ok_by_k[k] = _map_view_ok(times, okarr, T, lo,
-                                                  off, dur)
-                    if ok_by_k:
-                        row = np.ones(T, dtype=bool)
-                        for k, okk in ok_by_k.items():
-                            m = zone_kf[i] == k
-                            row[m] = okk[m]
-                        zone_ok[i] = row
-                        suspended[i] = float(
-                            (~zone_ok[i] & avail[i]).sum()
-                            / max(1, avail[i].sum()))
-                if any(s > 0 for s in suspended):
-                    ctx.log("director: zones suspended "
-                            f"{[round(s, 3) for s in suspended]} "
-                            "(view differs from reference)")
-            else:
-                zones = None
-        except Exception as e:
-            ctx.log(f"director: ignoring bad zones.json ({e})")
-            zones, zone_ok, zone_kf = None, None, None
+            _d = json.loads(zl.read_text()) or {}
+            if _d.get("active", True):
+                zd, zone_source = _d, "learned"
+        except (OSError, ValueError) as e:
+            ctx.log(f"director: ignoring bad zones_learned.json ({e})")
+    if zd is None and (ctx.pipe / "zones.json").exists():
+        try:
+            zd = json.loads((ctx.pipe / "zones.json").read_text()) or {}
+            zone_source = "drawn"
+        except (OSError, ValueError):
+            zd = None
+    if zd is not None:
+        zones, zone_ok, zone_kf, suspended = _load_zone_inputs(
+            ctx, zd, avail, T, lo, offsets)
+        if zones is None:
+            zone_source = None
+    else:
+        suspended = [0.0] * len(ctx.angles)
     return {"tracks": tracks, "avail": avail, "motion": motion,
             "zones": zones, "zone_ok": zone_ok, "zone_kf": zone_kf,
-            "lo": lo, "hi": hi, "T": T, "suspended": suspended}
+            "zone_source": zone_source,
+            "lo": lo, "hi": hi, "T": T, "suspended": suspended,
+            "offsets": offsets,
+            "durations": [ctx.duration(i) for i in range(len(ctx.angles))]}
+
+
+def _load_zone_inputs(ctx: Ctx, zd: dict, avail: np.ndarray, T: int,
+                      lo: float, offsets: list
+                      ) -> tuple[list | None, np.ndarray | None,
+                                 list | None, list[float]]:
+    """Normalise + viewcheck a zones doc (drawn or learned) exactly like
+    the inline block used to. Returns (zones, zone_ok, zone_kf,
+    suspended); zones None when the doc has no usable polygons."""
+    zones, zone_ok, zone_kf = None, None, None
+    suspended = [0.0] * len(ctx.angles)
+    try:
+        from highlights.multiangle.zones import kf_index, normalize_zones
+        zones = normalize_zones(
+            zd, [ctx.duration(i) for i in range(len(ctx.angles))])
+        has = [i for i, kfs in enumerate(zones)
+               if any(k.get("zones") for k in kfs)]
+        if not (zones and has):
+            return None, None, None, suspended
+        ctx.log("director: zones on angles/keyframes "
+                f"{[(i, [k for k, kf in enumerate(zones[i]) if kf.get('zones')]) for i in has]}")
+        zone_kf = [np.zeros(T, dtype=int)
+                   for _ in range(len(ctx.angles))]
+        zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
+        for i, a in enumerate(ctx.angles):
+            off = offsets[i]
+            dur = ctx.duration(i)
+            zone_kf[i] = kf_index(zones[i], T, lo, off, dur)
+            if i not in has:
+                continue
+            vid = ctx.angle_video(i)
+            if vid is None:
+                continue
+            ok_by_k: dict[int, np.ndarray] = {}
+            for k, kf in enumerate(zones[i]):
+                if not (kf.get("zones") or []):
+                    continue  # no polys -> no hits anyway
+                ctx.status.update(
+                    stage_progress=(i + 0.5) / len(ctx.angles),
+                    message=f"director: viewcheck angle {i} "
+                            f"keyframe {k}")
+                try:
+                    times, okarr = _zone_view_ok(
+                        ctx, a["dir"], vid, float(kf["t"]))
+                except Exception as e:
+                    ctx.log(f"director: viewcheck a{i} k{k} "
+                            f"failed ({e})")
+                    continue
+                ok_by_k[k] = _map_view_ok(times, okarr, T, lo,
+                                          off, dur)
+            if ok_by_k:
+                row = np.ones(T, dtype=bool)
+                for k, okk in ok_by_k.items():
+                    m = zone_kf[i] == k
+                    row[m] = okk[m]
+                zone_ok[i] = row
+                suspended[i] = float(
+                    (~zone_ok[i] & avail[i]).sum()
+                    / max(1, avail[i].sum()))
+        if any(s > 0 for s in suspended):
+            ctx.log("director: zones suspended "
+                    f"{[round(s, 3) for s in suspended]} "
+                    "(view differs from reference)")
+        return zones, zone_ok, zone_kf, suspended
+    except Exception as e:
+        ctx.log(f"director: ignoring bad zones doc ({e})")
+        return None, None, None, suspended
 
 
 def director_style_overrides(ctx: Ctx) -> dict | None:
@@ -624,6 +656,7 @@ def stage_director(ctx: Ctx) -> dict:
                        zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
                        style_overrides=director_style_overrides(ctx),
                        prefs=director_prefs(ctx))
+    out["zone_source"] = inp.get("zone_source")
     if zones:
         out["zone_suspended_share"] = [round(s, 4)
                                        for s in inp["suspended"]]
