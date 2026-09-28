@@ -45,6 +45,28 @@ Create or update a calibration interactively:
 pitchworld calibrate cam0.mp4 --camera 0 --pitch pitch.json --out calib.json
 ```
 
+The tool loads any existing constraints for that camera from `--out`
+(`--fresh` ignores them), shows a live pose fit once the constraints reach
+7 degrees of freedom (one line + one arc + one more line is enough), and can
+snap rough traces onto detected white/blue pitch lines. `--screenshot out.jpg`
+renders the tool view headlessly and exits without opening a window.
+
+Calibration tool keys:
+
+| Key | Action |
+| --- | --- |
+| `p` / `l` / `a` / `r` | point / line / arc / parallel mode |
+| left click | click landmark (point mode) or extend trace |
+| right click / `space` | commit the current trace |
+| `Tab` / `[` / `s` | cycle element forward / back |
+| `1`–`9`, `0` | select element by index |
+| `n` | toggle auto-snap to detected pitch lines |
+| `u` | undo (trace point, then last constraint) |
+| `f` | force refit |
+| `+` / `-` / drag | zoom / pan |
+| `enter` | commit trace, or save when no trace is open |
+| `q` / `esc` | abort |
+
 Render a calibration check image:
 
 ```bash

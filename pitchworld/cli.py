@@ -70,7 +70,9 @@ def cmd_calibrate(args) -> int:
 
     pitch = _pitch_from_args(args)
     landmarks = args.landmarks.split(",") if args.landmarks else None
-    run_click_tool(Path(args.clip), args.camera, pitch, Path(args.out), landmarks, frame_time=args.time)
+    run_click_tool(Path(args.clip), args.camera, pitch, Path(args.out), landmarks, frame_time=args.time,
+                   load_existing=not args.fresh,
+                   screenshot=Path(args.screenshot) if args.screenshot else None)
     return 0
 
 
@@ -287,6 +289,9 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True, help="calibration JSON to create/update")
     p.add_argument("--landmarks", help="comma-separated landmark names to click, in order")
     p.add_argument("--time", type=float, default=1.0)
+    p.add_argument("--fresh", action="store_true",
+                   help="ignore existing constraints for this camera in --out")
+    p.add_argument("--screenshot", help="render the tool view to an image and exit (headless)")
     common_pitch(p)
     p.set_defaults(func=cmd_calibrate)
 
