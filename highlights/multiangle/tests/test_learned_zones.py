@@ -58,9 +58,9 @@ def test_below_min_votes_and_share_learns_nothing():
     assert zd is None
 
 
-def test_density_votes_weighed_half():
-    """players_xy adds votes at DENS_W/feet weight; two feet in the
-    same cell count once per cell."""
+def test_density_votes_share_of_feet():
+    """players_xy adds DENS_W/feet per foot, so a cell's weight is the
+    share of feet standing in it."""
     T = 40
     avail = np.ones((2, T), dtype=bool)
     tr0 = _track((0, 0), T, conf=0.0)  # no ball votes
@@ -69,14 +69,14 @@ def test_density_votes_weighed_half():
     ] * T
     zd = learn_zones([_sess(5, 9, 0)], [tr0, _track((0, 0), T)], avail,
                      0, [0.0] * 2, [300.0] * 2)
-    # 4 s * DENS_W/3 = 0.67 < MIN_VOTES -> no zones at all
-    assert zd is None
-    # one foot -> 0.5 weight/s; 12 s -> 6 votes >= MIN_VOTES
-    tr0["players_xy"] = [[[0.3, 0.3]]] * T
-    zd = learn_zones([_sess(5, 17, 0)], [tr0, _track((0, 0), T)], avail,
-                     0, [0.0] * 2, [300.0] * 2)
+    # cell (1,2): 4 s * 2/3 = 2.67 >= MIN_VOTES; cell (4,5): 1.33 < MIN_VOTES
     assert zd is not None
-    assert zd["angles"][0][0]["zones"]  # cell (1,2) learned
+    assert len(zd["angles"][0][0]["zones"]) == 1
+    assert zd["cells"][0][1][2] == 1.0 and zd["cells"][0][4][5] == 1.0
+    # a single second is never enough evidence
+    zd = learn_zones([_sess(5, 6, 0)], [tr0, _track((0, 0), T)], avail,
+                     0, [0.0] * 2, [300.0] * 2)
+    assert zd is None
 
 
 def test_rects_merge_runs_and_columns():
