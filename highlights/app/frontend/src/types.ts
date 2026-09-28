@@ -483,6 +483,10 @@ export interface RadarTrack {
 export interface PitchDims {
   len_m: number;
   wid_m: number;
+  /** "full" (29-landmark table) or "small" (9-a-side, D arcs) */
+  template?: "full" | "small";
+  goal_w_m?: number | null;    // 3.66 small / 7.32 full
+  d_radius_m?: number | null;  // small template only
 }
 
 export interface PlayersPaths {

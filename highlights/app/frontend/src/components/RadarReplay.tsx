@@ -283,6 +283,47 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
               onClick={() => setCalibOpen((o) => !o)}>
               {calibOpen ? "Close landmarks" : "Advanced: landmarks"}
             </button>
+            {calib && (
+              <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                Pitch:
+                <select
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-xs text-zinc-300"
+                  value={calib.pitch.template ?? "full"}
+                  onChange={(e) => {
+                    const template = e.target.value as "full" | "small";
+                    void api.putCalibPitch({
+                      ...calib.pitch, template,
+                      ...(template === "small"
+                        ? { goal_w_m: calib.pitch.goal_w_m ?? 3.66,
+                            d_radius_m: calib.pitch.d_radius_m ?? 9.0 }
+                        : {}),
+                    }).then(setCalib).catch(() => setError("pitch save failed"));
+                  }}>
+                  <option value="full">Full size</option>
+                  <option value="small">Small-sided</option>
+                </select>
+                <input type="number" aria-label="pitch length (m)"
+                  className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 font-mono text-xs text-zinc-200"
+                  defaultValue={calib.pitch.len_m} key={`L${calib.pitch.len_m}`}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (v && v !== calib.pitch.len_m)
+                      void api.putCalibPitch({ ...calib.pitch, len_m: v })
+                        .then(setCalib).catch(() => setError("pitch save failed"));
+                  }} />
+                ×
+                <input type="number" aria-label="pitch width (m)"
+                  className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 font-mono text-xs text-zinc-200"
+                  defaultValue={calib.pitch.wid_m} key={`W${calib.pitch.wid_m}`}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (v && v !== calib.pitch.wid_m)
+                      void api.putCalibPitch({ ...calib.pitch, wid_m: v })
+                        .then(setCalib).catch(() => setError("pitch save failed"));
+                  }} />
+                m
+              </span>
+            )}
           </div>
           {calibOpen && <CameraCalib onSaved={setCalib} defaultT={paths?.frame_t ?? null} />}
           {(nSolved === 0 || camsOpen) && (

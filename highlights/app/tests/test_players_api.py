@@ -212,7 +212,8 @@ def test_radar_pitch_endpoints(client, monkeypatch):
 def test_calib_endpoints(client):
     pid = _done_multiangle(client)
     d = client.get(scoped(pid, "/analysis/calib/landmarks")).json()
-    assert d["pitch"] == {"len_m": 100.0, "wid_m": 64.0}
+    assert d["pitch"]["len_m"] == 100.0 and d["pitch"]["wid_m"] == 64.0
+    assert d["pitch"]["template"] == "full"
     lm = {l["name"]: [l["x"], l["y"]] for l in d["landmarks"]}
     assert "corner_near_left" in lm
     assert next(l for l in d["landmarks"]
@@ -247,6 +248,65 @@ def test_calib_endpoints(client):
     r = client.put(scoped(pid, "/analysis/calib"),
                    json={"angles": {"0": {"pts": []}}})
     assert "0" not in r.json()["angles"]
+
+
+def test_calib_pitch_endpoints(client):
+    pid = _done_multiangle(client)
+    # default pitch echoes full template + dims
+    d = client.get(scoped(pid, "/analysis/calib")).json()
+    assert d["pitch"]["template"] == "full"
+    assert client.get(scoped(pid, "/analysis/calib/landmarks")
+                      ).json()["pitch"]["template"] == "full"
+    # pitch-only PUT persists and leaves angles untouched
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"pitch": {"template": "small", "len_m": 70,
+                                   "wid_m": 45, "goal_w_m": 3.66,
+                                   "d_radius_m": 9}})
+    assert r.status_code == 200, r.text
+    p = r.json()["pitch"]
+    assert p["template"] == "small" and p["len_m"] == 70
+    assert p["goal_w_m"] == 3.66 and p["d_radius_m"] == 9.0
+    # landmarks endpoint now serves the small table
+    lm = client.get(scoped(pid, "/analysis/calib/landmarks")).json()
+    assert lm["pitch"]["template"] == "small"
+    assert "d_l_apex" in {l["name"] for l in lm["landmarks"]}
+    # solve with small names through a known H
+    import numpy as np
+    lmxy = {l["name"]: [l["x"], l["y"]] for l in lm["landmarks"]}
+    Hk = np.array([[400.0, 30.0, 100.0], [20.0, 500.0, 200.0],
+                   [0.0005, -0.0002, 1.0]])
+    Hi = np.linalg.inv(Hk)
+    names = ["corner_near_left", "corner_far_right", "halfway_far",
+             "centre_spot", "d_l_apex", "d_r_near"]
+    pts = []
+    for n in names:
+        v = Hi @ np.array([*lmxy[n], 1.0])
+        pts.append({"name": n, "fx": float(v[0] / v[2]),
+                    "fy": float(v[1] / v[2])})
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"angles": {"0": {"pts": pts}}})
+    assert r.status_code == 200, r.text
+    assert r.json()["angles"]["0"]["rms_m"] < 1e-4
+    # pitch survives alongside angles
+    assert r.json()["pitch"]["template"] == "small"
+    # pitch-only PUT leaves angles intact
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"pitch": {"len_m": 71}})
+    assert r.status_code == 200 and "0" in r.json()["angles"]
+    assert r.json()["pitch"]["len_m"] == 71.0
+    # validation: bad template / out-of-range dims
+    for bad in ({"pitch": {"template": "tiny"}},
+                {"pitch": {"len_m": 10}},
+                {"pitch": {"wid_m": 200}},
+                {"pitch": {"d_radius_m": 50}},
+                {"pitch": {"goal_w_m": 1}}):
+        assert client.put(scoped(pid, "/analysis/calib"),
+                          json=bad).status_code == 422
+    # full-template landmark rejected while small is saved
+    pts.append({"name": "pen_spot_l", "fx": 0.5, "fy": 0.5})
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"angles": {"1": {"pts": pts}}})
+    assert r.status_code == 422
 
 
 def test_calib_cameras_endpoints(client):

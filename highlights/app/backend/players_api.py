@@ -533,23 +533,62 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         len_m = float(len_m or 100.0)
         return len_m, round(len_m * 0.64, 3)
 
+    def _pitch_doc(p) -> dict:
+        """Full pitch dict {len_m, wid_m, template, goal_w_m,
+        d_radius_m} — stored calib pitch wins, else defaults."""
+        len_m, wid_m = _pitch_dims(p)
+        doc = _read_json(p.multiangle_dir / "calib.json") or {}
+        stored = doc.get("pitch") or {}
+        return {
+            "len_m": float(stored.get("len_m") or len_m),
+            "wid_m": float(stored.get("wid_m") or wid_m),
+            "template": stored.get("template") or "full",
+            "goal_w_m": float(stored.get("goal_w_m") or 0) or None,
+            "d_radius_m": float(stored.get("d_radius_m") or 0) or None,
+        }
+
+    _PITCH_RANGES = {"len_m": (30, 130), "wid_m": (20, 90),
+                     "goal_w_m": (2, 8), "d_radius_m": (3, 20)}
+
+    def _validate_pitch(body: dict) -> dict:
+        """Validate a PUT pitch object -> clean dict (422 on bad)."""
+        if not isinstance(body, dict):
+            raise HTTPException(422, "pitch must be an object")
+        template = body.get("template", "full")
+        if template not in ("full", "small"):
+            raise HTTPException(422, "pitch.template must be 'full' or 'small'")
+        out = {"template": template}
+        for key, (lo, hi) in _PITCH_RANGES.items():
+            v = body.get(key)
+            if v is None:
+                continue
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    422, f"pitch.{key} must be a number") from None
+            if not lo <= v <= hi:
+                raise HTTPException(
+                    422, f"pitch.{key} must be in [{lo}, {hi}]")
+            out[key] = v
+        return out
+
     @router.get("/analysis/calib/landmarks")
     def get_calib_landmarks(p: ScopedP) -> dict:
         if not p.is_multiangle:
             raise HTTPException(404, "not a multi-angle project")
-        from highlights.analysis.calib import landmarks
-        len_m, wid_m = _pitch_dims(p)
-        return {"pitch": {"len_m": len_m, "wid_m": wid_m},
-                "landmarks": landmarks(len_m, wid_m)}
+        from highlights.analysis.calib import landmarks_for
+        pitch = _pitch_doc(p)
+        return {"pitch": pitch,
+                "landmarks": landmarks_for(pitch)}
 
     @router.get("/analysis/calib")
     def get_calib(p: ScopedP) -> dict:
         if not p.is_multiangle:
             raise HTTPException(404, "not a multi-angle project")
         doc = _read_json(p.multiangle_dir / "calib.json")
-        len_m, wid_m = _pitch_dims(p)
-        doc = doc or {"angles": {},
-                      "pitch": {"len_m": len_m, "wid_m": wid_m}}
+        doc = doc or {"angles": {}}
+        doc["pitch"] = _pitch_doc(p)
         doc.setdefault("cameras", {})
         return doc
 
@@ -606,12 +645,26 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         if not p.is_multiangle:
             raise HTTPException(404, "not a multi-angle project")
         angles_in = body.get("angles")
-        if not isinstance(angles_in, dict) or not angles_in:
+        pitch_in = body.get("pitch")
+        if pitch_in is None and (not isinstance(angles_in, dict)
+                                 or not angles_in):
             raise HTTPException(422, "angles must be a non-empty object")
         doc = _read_json(p.multiangle_dir / "calib.json") or {}
         doc.setdefault("angles", {})
-        len_m, wid_m = _pitch_dims(p)
-        doc["pitch"] = {"len_m": len_m, "wid_m": wid_m}
+        if pitch_in is not None:
+            base = _pitch_doc(p)
+            base.update(_validate_pitch(pitch_in))
+            if base["template"] == "small":
+                base["goal_w_m"] = base["goal_w_m"] or 3.66
+                base["d_radius_m"] = base["d_radius_m"] or 9.0
+            doc["pitch"] = base
+            write_json_atomic(p.multiangle_dir / "calib.json",
+                              doc, indent=1)
+        pitch = _pitch_doc(p)
+        len_m, wid_m = pitch["len_m"], pitch["wid_m"]
+        if angles_in is None:
+            doc["pitch"] = pitch
+            return doc
         from highlights.analysis.calib import solve_homography
         solved = {}
         for key, val in angles_in.items():
@@ -627,7 +680,8 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                 solved[akey] = None
                 continue
             try:
-                solved[akey] = solve_homography(pts, len_m, wid_m) + (pts,)
+                solved[akey] = solve_homography(
+                    pts, len_m, wid_m, pitch) + (pts,)
             except ValueError as e:
                 raise HTTPException(422, f"angle {akey}: {e}") from e
         for akey, res in solved.items():
@@ -640,6 +694,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                          "fx": float(q["fx"]), "fy": float(q["fy"])}
                         for q in pts],
                 "H": H, "rms_m": round(rms, 4)}
+        doc["pitch"] = pitch
         write_json_atomic(p.multiangle_dir / "calib.json",
                           doc, indent=1)
         return doc

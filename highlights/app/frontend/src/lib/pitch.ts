@@ -21,8 +21,26 @@ const rect = (x: number, y: number, w: number, h: number): Extract<PitchShape, {
   k: "poly", closed: true, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
 });
 
+/** Small-sided (9-a-side) markings: touchlines, halfway, 6 m centre
+ *  circle, goals, and a "D" semicircle on each goal centre — no boxes. */
+function smallShapes({ len_m: L, wid_m: W, goal_w_m, d_radius_m }: PitchDims): PitchShape[] {
+  const gw = goal_w_m ?? 3.66, r = d_radius_m ?? 9.0, cy = W / 2;
+  return [
+    rect(0, 0, L, W),
+    { k: "poly", pts: [[L / 2, 0], [L / 2, W]] },
+    { k: "poly", pts: circle(L / 2, cy, Math.min(6, W * 0.12)) },
+    { k: "dot", x: L / 2, y: cy },
+    { k: "poly", pts: circle(0, cy, r, -Math.PI / 2, Math.PI / 2) },
+    { k: "poly", pts: circle(L, cy, r, Math.PI / 2, Math.PI * 1.5) },
+    { ...rect(-2, cy - gw / 2, 2, gw), faint: true },
+    { ...rect(L, cy - gw / 2, 2, gw), faint: true },
+  ];
+}
+
 /** Standard markings, shrunk proportionally on small (grassroots) pitches. */
-export function pitchShapes({ len_m: L, wid_m: W }: PitchDims): PitchShape[] {
+export function pitchShapes(p: PitchDims): PitchShape[] {
+  if (p.template === "small") return smallShapes(p);
+  const { len_m: L, wid_m: W } = p;
   const boxW = Math.min(40.32, W * 0.63), boxD = Math.min(16.5, L * 0.165);
   const sixW = Math.min(18.32, W * 0.29), sixD = Math.min(5.5, L * 0.055);
   const pen = Math.min(11, L * 0.11), R = Math.min(9.15, W * 0.143);

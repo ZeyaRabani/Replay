@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from highlights.analysis.calib import apply_h, landmark_xy, landmarks, solve_homography
+from highlights.analysis.calib import apply_h, landmark_xy, landmarks, landmarks_for, solve_homography
 
 LM = landmark_xy(100.0, 64.0)
 LML = {l["name"]: l for l in landmarks(100.0, 64.0)}
@@ -26,6 +26,33 @@ def test_landmarks_table():
     assert len(LM) == 29
     assert LML["corner_near_left"]["label"] == "Corner - near left"
     assert LML["centre_spot"]["label"] == "Centre spot"
+
+
+def test_landmarks_small_template():
+    pitch = {"len_m": 70.0, "wid_m": 45.0, "template": "small",
+             "goal_w_m": 3.66, "d_radius_m": 9.0}
+    lm = {l["name"]: [l["x"], l["y"]] for l in landmarks_for(pitch)}
+    assert lm["corner_near_left"] == [0.0, 45.0]
+    assert lm["corner_far_right"] == [70.0, 0.0]
+    assert lm["halfway_near"] == [35.0, 45.0]
+    assert lm["centre_spot"] == [35.0, 22.5]
+    # goalposts centred, 3.66 m apart
+    assert lm["goalpost_l_near"] == [0.0, pytest.approx(24.33)]
+    assert lm["goalpost_l_far"] == [0.0, pytest.approx(20.67)]
+    assert lm["goalpost_r_near"] == [70.0, pytest.approx(24.33)]
+    # D arc meets goal line at y = cy +/- r, apex at x = r / L - r
+    assert lm["d_l_near"] == [0.0, 31.5]
+    assert lm["d_l_far"] == [0.0, 13.5]
+    assert lm["d_r_near"] == [70.0, 31.5]
+    assert lm["d_r_far"] == [70.0, 13.5]
+    assert lm["d_l_apex"] == [9.0, 22.5]
+    assert lm["d_r_apex"] == [61.0, 22.5]
+    # 4 corners + 2 halfway + centre + 4 posts + 4 D-ends + 2 apices
+    assert len(lm) == 17
+    lab = {l["name"]: l["label"] for l in landmarks_for(pitch)}
+    assert lab["d_l_apex"] == "D left - apex"
+    # unknown template falls back to the full table
+    assert len(landmarks_for({"len_m": 100.0, "wid_m": 64.0})) == 29
 
 
 def test_solve_recovers_known_h():
@@ -66,3 +93,24 @@ def test_solve_rejects_bad_input():
                                   "halfway_far", "centre_spot"])]
     with pytest.raises(ValueError):
         solve_homography(col, 100.0, 64.0)
+
+
+def test_solve_small_template_names():
+    pitch = {"len_m": 70.0, "wid_m": 45.0, "template": "small",
+             "goal_w_m": 3.66, "d_radius_m": 9.0}
+    lm = {l["name"]: [l["x"], l["y"]] for l in landmarks_for(pitch)}
+    Hk = np.array([[400.0, 30.0, 100.0],
+                   [20.0, 500.0, 200.0],
+                   [0.0005, -0.0002, 1.0]])
+    names = ["corner_near_left", "corner_far_right", "halfway_far",
+             "centre_spot", "d_l_apex", "d_r_near"]
+    pts = [{"name": n,
+            "fx": _inv_h(Hk, *lm[n])[0],
+            "fy": _inv_h(Hk, *lm[n])[1]}
+           for n in names]
+    _H, rms = solve_homography(pts, 70.0, 45.0, pitch)
+    assert rms < 1e-6
+    # a full-template name is unknown on a small pitch
+    with pytest.raises(ValueError, match="unknown landmark"):
+        solve_homography(pts + [{"name": "pen_spot_l", "fx": 0.5,
+                                 "fy": 0.5}], 70.0, 45.0, pitch)

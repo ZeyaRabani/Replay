@@ -17,6 +17,7 @@ import type {
   HistoryMatch,
   MultiangleInfo,
   PipelineStatus,
+  PitchDims,
   PlayerGroup,
   PlayersPaths,
   PlayersResponse,
@@ -216,6 +217,8 @@ export function projectApi(id: string) {
     putCalibCameras: (cameras: Record<string, CalibCamera>) =>
       req<CalibResponse>(`${base}/analysis/calib/cameras`,
                          json({ cameras }, "PUT")),
+    putCalibPitch: (pitch: PitchDims) =>
+      req<CalibResponse>(`${base}/analysis/calib`, json({ pitch }, "PUT")),
     runPlayersV2: () => req<AnalysisStatus>(`${base}/analysis/players/v2/run`, json({})),
     playersV2Tracks: () => req<PlayersV2Tracks>(`${base}/analysis/players/v2/tracks`),
     radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),

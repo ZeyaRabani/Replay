@@ -57,7 +57,52 @@ _LABELS = {
     "six_l": "Six-yard L", "six_r": "Six-yard R",
     "pen_spot_l": "Penalty spot L", "pen_spot_r": "Penalty spot R",
     "goalpost_l": "Goal post L", "goalpost_r": "Goal post R",
+    "d_l": "D left", "d_r": "D right",
 }
+
+# small-sided (9-a-side) template: marked touchlines + halfway + centre
+# circle, portable goals, and a semicircular "D" arc (radius d_radius_m)
+# centred on each goal centre — no boxes/pen spots. Extra landmarks:
+# name -> (x_m, y_m) expression over (L, W, goal_w, r).
+def _small_lm(L: float, W: float, goal_w: float, r: float
+              ) -> dict[str, tuple[float, float]]:
+    cy = W / 2
+    return {
+        "corner_near_left": (0.0, W),
+        "corner_near_right": (L, W),
+        "corner_far_right": (L, 0.0),
+        "corner_far_left": (0.0, 0.0),
+        "halfway_near": (L / 2, W),
+        "halfway_far": (L / 2, 0.0),
+        "centre_spot": (L / 2, cy),
+        "goalpost_l_near": (0.0, cy + goal_w / 2),
+        "goalpost_l_far": (0.0, cy - goal_w / 2),
+        "goalpost_r_near": (L, cy + goal_w / 2),
+        "goalpost_r_far": (L, cy - goal_w / 2),
+        # arc meets the goal line
+        "d_l_near": (0.0, cy + r),
+        "d_l_far": (0.0, cy - r),
+        "d_r_near": (L, cy + r),
+        "d_r_far": (L, cy - r),
+        # arc apex
+        "d_l_apex": (r, cy),
+        "d_r_apex": (L - r, cy),
+    }
+
+
+def landmarks_for(pitch: dict) -> list[dict]:
+    """[{"name","label","x","y"}] for a pitch dict
+    {"len_m","wid_m","template","goal_w_m","d_radius_m"} — "full"
+    is the standard 29-landmark table, "small" the 9-a-side one."""
+    template = pitch.get("template", "full")
+    L, W = float(pitch["len_m"]), float(pitch["wid_m"])
+    if template == "small":
+        goal_w = float(pitch.get("goal_w_m") or 3.66)
+        r = float(pitch.get("d_radius_m") or 9.0)
+        lm = _small_lm(L, W, goal_w, r)
+        return [{"name": n, "label": _label(n), "x": x, "y": y}
+                for n, (x, y) in lm.items()]
+    return landmarks(L, W)
 
 
 def _label(name: str) -> str:
@@ -69,13 +114,16 @@ def _label(name: str) -> str:
 
 
 def landmarks(len_m: float, wid_m: float) -> list[dict]:
-    """[{"name","label","x","y"}] for a len_m x wid_m pitch."""
+    """[{"name","label","x","y"}] for a len_m x wid_m pitch (full)."""
     L, W = float(len_m), float(wid_m)
     return [{"name": n, "label": _label(n),
              "x": fx * L, "y": fy * W} for n, (fx, fy) in _LM.items()]
 
 
-def landmark_xy(len_m: float, wid_m: float) -> dict[str, list[float]]:
+def landmark_xy(len_m: float, wid_m: float,
+                pitch: dict | None = None) -> dict[str, list[float]]:
+    if pitch is not None:
+        return {l["name"]: [l["x"], l["y"]] for l in landmarks_for(pitch)}
     return {l["name"]: [l["x"], l["y"]] for l in landmarks(len_m, wid_m)}
 
 
@@ -114,13 +162,14 @@ def apply_h(H, fx: float, fy: float) -> tuple[float, float]:
     return float(v[0] / v[2]), float(v[1] / v[2])
 
 
-def solve_homography(pts: list[dict], len_m: float, wid_m: float
-                     ) -> tuple[list, float]:
+def solve_homography(pts: list[dict], len_m: float, wid_m: float,
+                     pitch: dict | None = None) -> tuple[list, float]:
     """Least-squares H (frame->pitch) from >=4 named landmarks.
 
     pts: [{"name","fx","fy"}]. Returns (H 3x3 list, rms_m). Raises
-    ValueError on unknown names, <4 pts or a singular system."""
-    lm = landmark_xy(len_m, wid_m)
+    ValueError on unknown names, <4 pts or a singular system. `pitch`
+    (full pitch dict incl. template) overrides len_m/wid_m when given."""
+    lm = landmark_xy(len_m, wid_m, pitch)
     src, dst = [], []
     for p in pts:
         name = p.get("name")
