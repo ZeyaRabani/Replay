@@ -33,6 +33,7 @@ FILL_GAP_S = 2.0
 CROPS_PER_TRACK = 6
 BALL_CONF = 0.35
 SPRINT_MS = 6.5           # same threshold as players.py? kept local
+V2_ID_BASE = 100001       # v2 track ids never collide with tracklet ids
 
 
 def _kalman_new(x: float, y: float) -> dict:
@@ -158,7 +159,7 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
                          "t_file": float(d["t"][i])}})
 
     tracks: list[dict] = []
-    next_id = 1
+    next_id = V2_ID_BASE
     vis_hist = np.zeros(n_steps, dtype=int)
     for k in range(n_steps):
         pts = _merge_obs(per_step.get(k, []))
