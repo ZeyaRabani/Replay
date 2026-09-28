@@ -14,7 +14,7 @@ GRID_W, GRID_H = 8, 5          # cells over the normalised frame [0,1]x[0,1]
 MIN_VOTES = 2                  # seconds of evidence a cell needs
 MIN_SHARE = 0.60               # share of votes for camera i in camera i's cell
 BALL_CONF = 0.2                # ZONE_BALL_OK
-DENS_W = 0.5                   # weight of a density vote relative to a ball vote
+DENS_W = 1.0                   # weight of a second's player-density votes vs one ball vote
 
 
 def _cell(fx: float, fy: float) -> tuple[int, int]:
