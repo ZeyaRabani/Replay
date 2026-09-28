@@ -209,6 +209,46 @@ def test_radar_pitch_endpoints(client, monkeypatch):
                           json=bad).status_code == 422
 
 
+def test_calib_endpoints(client):
+    pid = _done_multiangle(client)
+    d = client.get(scoped(pid, "/analysis/calib/landmarks")).json()
+    assert d["pitch"] == {"len_m": 100.0, "wid_m": 64.0}
+    lm = {l["name"]: [l["x"], l["y"]] for l in d["landmarks"]}
+    assert "corner_near_left" in lm
+    assert next(l for l in d["landmarks"]
+                if l["name"] == "corner_near_left"
+                )["label"] == "Corner - near left"
+    # 6 landmarks through a known pitch->frame H
+    import numpy as np
+    Hk = np.array([[400.0, 30.0, 100.0], [20.0, 500.0, 200.0],
+                   [0.0005, -0.0002, 1.0]])
+    Hi = np.linalg.inv(Hk)
+
+    def fx_fy(name):
+        v = Hi @ np.array([*lm[name], 1.0])
+        return float(v[0] / v[2]), float(v[1] / v[2])
+
+    names = ["corner_near_left", "corner_far_right", "halfway_far",
+             "centre_spot", "pen_spot_l", "six_r_edge_near"]
+    pts = [{"name": n, "fx": fx_fy(n)[0], "fy": fx_fy(n)[1]}
+           for n in names]
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"angles": {"0": {"pts": pts}}})
+    assert r.status_code == 200, r.text
+    a0 = r.json()["angles"]["0"]
+    assert a0["rms_m"] < 1e-4 and len(a0["H"]) == 3
+    d2 = client.get(scoped(pid, "/analysis/calib")).json()
+    assert d2["angles"]["0"]["rms_m"] == a0["rms_m"]
+    # 3 pts -> 422
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"angles": {"1": {"pts": pts[:3]}}})
+    assert r.status_code == 422
+    # empty pts removes the angle
+    r = client.put(scoped(pid, "/analysis/calib"),
+                   json={"angles": {"0": {"pts": []}}})
+    assert "0" not in r.json()["angles"]
+
+
 def test_ball_path_rows_format():
     from highlights.app.backend.players_api import _ball_path
     cols = ["t", "ball_conf", "ball_x", "ball_y"]

@@ -398,6 +398,84 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         write_json_atomic(pdir / "radar_pitch.json", doc, indent=1)
         return doc
 
+    def _pitch_dims(p) -> tuple[float, float]:
+        """(len_m, wid_m): players pass estimate, pitch_type table, 100x64."""
+        len_m = ((_read_json(_players_dir(p) / "tracklets.json") or {})
+                 .get("pitch_len_m"))
+        if not len_m:
+            from highlights.analysis.stats import PITCH_LEN_M
+            try:
+                pt = int((p.meta or {}).get("pitch_type") or 0)
+            except (TypeError, ValueError):
+                pt = 0
+            len_m = PITCH_LEN_M.get(pt, 100.0)
+        len_m = float(len_m or 100.0)
+        return len_m, round(len_m * 0.64, 3)
+
+    @router.get("/analysis/calib/landmarks")
+    def get_calib_landmarks(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        from highlights.analysis.calib import landmarks
+        len_m, wid_m = _pitch_dims(p)
+        return {"pitch": {"len_m": len_m, "wid_m": wid_m},
+                "landmarks": landmarks(len_m, wid_m)}
+
+    @router.get("/analysis/calib")
+    def get_calib(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        doc = _read_json(p.multiangle_dir / "calib.json")
+        len_m, wid_m = _pitch_dims(p)
+        return doc or {"angles": {},
+                       "pitch": {"len_m": len_m, "wid_m": wid_m}}
+
+    @router.put("/analysis/calib")
+    def put_calib(p: ScopedP, body: dict) -> dict:
+        """Set landmark picks: {"angles": {"<i>": {"pts":
+        [{"name","fx","fy"} ...]}}} — solves each angle's H (422 when
+        any given angle has <4 valid pts); "pts": [] clears an angle."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        angles_in = body.get("angles")
+        if not isinstance(angles_in, dict) or not angles_in:
+            raise HTTPException(422, "angles must be a non-empty object")
+        doc = _read_json(p.multiangle_dir / "calib.json") or {}
+        doc.setdefault("angles", {})
+        len_m, wid_m = _pitch_dims(p)
+        doc["pitch"] = {"len_m": len_m, "wid_m": wid_m}
+        from highlights.analysis.calib import solve_homography
+        solved = {}
+        for key, val in angles_in.items():
+            try:
+                akey = str(int(key))
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    422, f"angle key {key!r} must be an int") from None
+            pts = (val or {}).get("pts")
+            if not isinstance(pts, list):
+                raise HTTPException(422, f"angle {akey}: pts must be a list")
+            if not pts:
+                solved[akey] = None
+                continue
+            try:
+                solved[akey] = solve_homography(pts, len_m, wid_m) + (pts,)
+            except ValueError as e:
+                raise HTTPException(422, f"angle {akey}: {e}") from e
+        for akey, res in solved.items():
+            if res is None:
+                doc["angles"].pop(akey, None)
+                continue
+            H, rms, pts = res
+            doc["angles"][akey] = {
+                "pts": [{"name": str(q["name"]),
+                         "fx": float(q["fx"]), "fy": float(q["fy"])}
+                        for q in pts],
+                "H": H, "rms_m": round(rms, 4)}
+        write_json_atomic(p.multiangle_dir / "calib.json",
+                          doc, indent=1)
+        return doc
+
     @router.get("/analysis/players/crops/{name}")
     def get_crop(p: PublicP, name: str) -> FileResponse:
         if not CROP_NAME_RE.match(name):
