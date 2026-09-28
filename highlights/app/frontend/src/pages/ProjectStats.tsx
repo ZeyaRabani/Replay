@@ -235,14 +235,13 @@ export default function ProjectStats({ onSeek, multiangle = false }: Props) {
   const halfGap =
     stats.halves.length >= 2 ? { from: stats.halves[0].end, to: stats.halves[1].start } : null;
   const totalEvents = byType.reduce((s, b) => s + b.value, 0);
-  const labs = new URLSearchParams(window.location.search).get("labs") === "1";
 
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
         {multiangle && <MatchAnalysis onSeek={onSeek} />}
-        {multiangle && labs && <PlayerAnalysis onSeek={onSeek} />}
-        {multiangle && labs && <RadarReplay onSeek={onSeek} />}
+        {multiangle && <RadarReplay onSeek={onSeek} />}
+        {multiangle && <PlayerAnalysis onSeek={onSeek} />}
         {ms && <MatchStatsCard ms={ms} onSeek={onSeek} />}
         <div className="grid grid-cols-2 dsk:md:grid-cols-3 dsk:xl:grid-cols-6 gap-3">
           <Kpi icon={<Activity size={18} />} label="Mean motion" value={pct(stats.activity.mean_motion)} />

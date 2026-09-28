@@ -248,7 +248,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
         onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         {open ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
         <Maximize2 size={14} className="text-zinc-500" />
-        <span className={head}>Radar replay (optional)</span>
+        <span className={head}>Radar replay &amp; camera calibration</span>
         {paths && (
           <span className="ml-auto text-[11px] text-zinc-500">
             {paths.tracks.filter((x) => !x.hidden).length} tracks
