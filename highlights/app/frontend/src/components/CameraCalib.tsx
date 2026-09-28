@@ -226,7 +226,7 @@ export default function CameraCalib({ onSaved, defaultT }: {
             className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-xs text-zinc-200" />
         </label>
         <button type="button" className={btnPrimary} disabled={saving || ready.length === 0}
-          title={`Saves angle ${ready.map((k) => +k + 1).join(", ")}`}
+          title={ready.length ? `Saves angle ${ready.map((k) => +k + 1).join(", ")}` : "No angle with ≥4 unsaved points"}
           onClick={() => void save()}>
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           Save calibration
