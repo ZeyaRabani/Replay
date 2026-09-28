@@ -1828,7 +1828,7 @@ def get_direct_suggest(p: ScopedP, t_start: float | None = None,
 
 @scoped.get("/multiangle/direct/suggest3")
 def get_direct_suggest3(p: ScopedP) -> dict:
-    """Three busiest 60 s stretches — one per third of the match window.
+    """Six busiest 60 s stretches — two per third of the match window.
     Busiest = candidates + 0.5*director switches inside the window;
     windows overlapping a saved session score 0 unless nothing else is
     left."""
@@ -1862,7 +1862,7 @@ def get_direct_suggest3(p: ScopedP) -> dict:
         return any(float(x.get("t_start", -1)) < e
                    and float(x.get("t_end", -1)) > s for x in covered)
 
-    W, STEP = 60.0, 5.0
+    W, STEP, PER_THIRD = 60.0, 5.0, 2
     third = (hi - lo) / 3.0
     stretches = []
     for k in range(3):
@@ -1876,12 +1876,18 @@ def get_direct_suggest3(p: ScopedP) -> dict:
             scored.append((n_c + 0.5 * n_sw, not overlaps_session(s, e),
                            s, e))
             s += STEP
-        fresh = [x for x in scored if x[1]]
-        pool = fresh or scored
-        if not pool:
-            continue
-        _, _, bs, be = max(pool, key=lambda x: (x[0], x[2]))
-        stretches.append(_direct_stretch(p, bs, be))
+        picked: list[tuple[float, float]] = []
+        for _ in range(PER_THIRD):
+            free = [x for x in scored if not any(
+                x[2] < pe and x[3] > ps for ps, pe in picked)]
+            fresh = [x for x in free if x[1]]
+            pool = fresh or free
+            if not pool:
+                break
+            _, _, bs, be = max(pool, key=lambda x: (x[0], x[2]))
+            picked.append((bs, be))
+        for bs, be in sorted(picked):
+            stretches.append(_direct_stretch(p, bs, be))
     if not stretches:
         raise HTTPException(404, "no stretches inside the match window")
     return {"stretches": stretches}

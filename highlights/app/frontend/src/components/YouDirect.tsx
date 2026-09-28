@@ -255,7 +255,7 @@ export default function YouDirect() {
           {sessions.length >= 2 && !learnRes && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-violet-700/50 bg-violet-950/40 px-3 py-2">
               <span className="text-xs text-violet-200">
-                Directed {sessions.length} of 3 stretches — ready to
+                Directed {sessions.length} of 6 stretches — ready to
                 analyse your directing and re-cut.
               </span>
               <button
@@ -274,7 +274,7 @@ export default function YouDirect() {
               onClick={load3}
               className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-0.5 disabled:opacity-40">
               {busy ? <Loader2 size={11} className="animate-spin" /> : null}
-              Suggest 3 stretches (early / mid / late)
+              Suggest 6 stretches (2 early / 2 mid / 2 late)
             </button>
             <span className="text-[11px] text-zinc-500">or</span>
             <input className={`${input} w-16`} value={fromIn}
