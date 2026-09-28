@@ -227,19 +227,28 @@ def _zone_eligible(track: list[dict], available: np.ndarray,
             # player-density proxy (only for tracks carrying feet)
             if pxy is None:
                 continue
+            ts, pts_all = [], []
             for t in np.nonzero(m & available[i])[0]:
                 feet = pxy[t] if t < len(pxy) else []
                 if len(feet) < ZONE_PLAYERS_MIN:
                     continue
                 pts = np.asarray(feet, dtype=float).reshape(-1, 2)
-                in_any = np.zeros(len(pts), dtype=bool)
-                for poly in polys:
-                    in_any |= _in_poly(pts, poly)
-                kk = int(in_any.sum())
-                if kk >= ZONE_PLAYERS_MIN and \
-                        kk >= ZONE_PLAYERS_FRAC * len(pts):
-                    dens_hits[i, t] = True
-                    dens_raw[i, t] = kk / len(pts)
+                ts.append(np.full(len(pts), t, dtype=int))
+                pts_all.append(pts)
+            if not ts:
+                continue
+            tt = np.concatenate(ts)
+            pts = np.concatenate(pts_all)
+            in_any = np.zeros(len(pts), dtype=bool)
+            for poly in polys:
+                in_any |= _in_poly(pts, poly)
+            n_pts = np.bincount(tt, minlength=T)
+            n_in = np.bincount(tt, weights=in_any, minlength=T)
+            ok = (n_in >= ZONE_PLAYERS_MIN) & \
+                (n_in >= ZONE_PLAYERS_FRAC * n_pts) & (n_pts > 0)
+            dens_hits[i] |= ok
+            dens_raw[i] = np.where(
+                ok, n_in / np.maximum(n_pts, 1), dens_raw[i])
     # linger: eligible at t if any hit in [t-linger, t]
     def _linger(h: np.ndarray) -> np.ndarray:
         out = h.copy()
