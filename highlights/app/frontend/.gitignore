@@ -1,2 +1,4 @@
 mock/sample.mp4
 mock/thumb.jpg
+.vercel
+.env*
