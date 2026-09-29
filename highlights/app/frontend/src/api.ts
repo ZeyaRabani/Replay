@@ -310,6 +310,36 @@ export const downloadsApi = {
   get: () => req<Record<string, DownloadInfo>>("/api/history/downloads"),
 };
 
+export interface PlaylistVideo {
+  id: string | null;
+  title: string;
+  duration: number | null;
+  url: string | null;
+}
+
+export interface PlaylistMatch {
+  date: string | null;
+  label: string;
+  videos: PlaylistVideo[];
+  n_angles: number;
+  all_angles_uploaded: boolean;
+  in_replay: boolean;
+  done: boolean;
+}
+
+export interface PlaylistState {
+  url: string | null;
+  fetched_at: number | null;
+  matches: PlaylistMatch[];
+  refreshing: boolean;
+}
+
+export const playlistApi = {
+  get: () => req<PlaylistState>("/api/playlist"),
+  setUrl: (url: string) => req<PlaylistState>("/api/playlist", json({ url }, "PUT")),
+  refresh: () => req<PlaylistState>("/api/playlist/refresh", json({})),
+};
+
 /** Canonical YouTube video id (same forms as backend history.video_id). */
 export function ytId(url: string | null | undefined): string | null {
   if (!url) return null;

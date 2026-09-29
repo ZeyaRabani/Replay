@@ -108,6 +108,27 @@ function serveFile(req, res, file, contentType) {
 // ---------- domain ----------
 
 const users = new Map();
+const playlistStore = new Map();
+const MOCK_PLAYLIST = [
+  { date: "2026-08-28", label: "Green team wins",
+    videos: [
+      { id: "v28a", title: "28/8/26 Green team wins Green end right", duration: 3800, url: "https://www.youtube.com/watch?v=v28a" },
+      { id: "v28b", title: "28/8/26 Green team wins Green end left", duration: 3700, url: "https://www.youtube.com/watch?v=v28b" },
+      { id: "v28c", title: "28/8/26 Green Team wins All Angles", duration: 3800, url: "https://www.youtube.com/watch?v=v28c" },
+    ],
+    n_angles: 2, all_angles_uploaded: true, in_replay: true, done: true },
+  { date: "2026-09-04", label: "Green team wins",
+    videos: [
+      { id: "v4a", title: "4/9/26 Green team wins Green end", duration: 3600, url: "https://www.youtube.com/watch?v=v4a" },
+      { id: "v4b", "title": "4/9/26 Green team wins All Angles", "duration": 3600, "url": "https://www.youtube.com/watch?v=v4b" },
+    ],
+    n_angles: 1, all_angles_uploaded: true, in_replay: false, done: true },
+  { date: "2023-10-20", label: "Afghanistan wins",
+    videos: [
+      { id: "vAf", title: "20/10/2023 Afghanistan wins Afghanistan end", duration: 5400, url: "https://www.youtube.com/watch?v=vAf" },
+    ],
+    n_angles: 1, all_angles_uploaded: false, in_replay: false, done: false },
+];
 function addUser(name) {
   users.set(name, { name, created_at: now() });
 }
@@ -489,6 +510,37 @@ const server = http.createServer(async (req, res) => {
         created_at: x.created_at,
         n_projects: [...projects.values()].filter((p) => p.owner === x.name).length,
       })));
+    }
+
+    // per-user playlist tracker
+    if (parts[0] === "api" && parts[1] === "playlist") {
+      const user = req.headers["x-user"];
+      if (!user || !users.has(user)) return jerr(res, 401, "unknown user");
+      const pl = playlistStore.get(user) ?? { url: null, fetched_at: null, matches: [], refreshing: false };
+      if (req.method === "GET") return send(res, 200, pl);
+      if (req.method === "PUT" && parts.length === 2) {
+        const body = JSON.parse(await readBody(req) || "{}");
+        pl.url = String(body.url ?? "");
+        pl.refreshing = true;
+        playlistStore.set(user, pl);
+        setTimeout(() => {
+          pl.matches = MOCK_PLAYLIST;
+          pl.fetched_at = now();
+          pl.refreshing = false;
+        }, 800);
+        return send(res, 200, pl);
+      }
+      if (parts[2] === "refresh" && req.method === "POST") {
+        pl.refreshing = true;
+        playlistStore.set(user, pl);
+        setTimeout(() => {
+          pl.matches = MOCK_PLAYLIST;
+          pl.fetched_at = now();
+          pl.refreshing = false;
+        }, 800);
+        return send(res, 200, pl);
+      }
+      return jerr(res, 404, "not found");
     }
 
     // everything below /api/projects requires X-User

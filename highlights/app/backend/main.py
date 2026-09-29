@@ -45,7 +45,7 @@ from highlights.multiangle.cuts import (
 )
 
 from . import ffmpeg as fx
-from . import history, pipeline, stats
+from . import history, pipeline, playlist, stats
 from .schemas import (
     CandidatePatch,
     CandidatesFile,
@@ -973,6 +973,28 @@ def get_learning(user: UserDep) -> dict:
     if not meta_path.is_file():
         return {"trained": False}
     return json.loads(meta_path.read_text())
+
+
+# ---------- playlist ----------
+
+class PlaylistPut(BaseModel):
+    url: str
+
+
+@app.get("/api/playlist")
+def get_playlist(user: UserDep) -> dict:
+    return playlist.get_state(user, get_registry())
+
+
+@app.put("/api/playlist")
+def put_playlist(body: PlaylistPut, user: UserDep) -> dict:
+    return playlist.set_url(user, body.url.strip(), get_registry())
+
+
+@app.post("/api/playlist/refresh")
+def refresh_playlist(user: UserDep) -> dict:
+    playlist.refresh_async(user, get_registry())
+    return playlist.get_state(user, get_registry())
 
 
 # ---------- storage ----------

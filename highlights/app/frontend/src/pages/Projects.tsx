@@ -1,7 +1,7 @@
 import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, projectApi, projectsApi, ytId } from "../api";
+import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, playlistApi, projectApi, projectsApi, ytId } from "../api";
 import { parseClock } from "../lib/time";
 import type { CookieStatus } from "../api";
 import CutBadges from "../components/CutBadges";
@@ -857,6 +857,111 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
   );
 }
 
+function PlaylistPanel() {
+  const [st, setSt] = useState<Awaited<ReturnType<typeof playlistApi.get>> | null>(null);
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    playlistApi.get().then((s) => {
+      setSt(s);
+      if (s.url && !url) setUrl(s.url);
+    }).catch(() => setSt(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // poll while a refresh is running
+  useEffect(() => {
+    if (!st?.refreshing) return;
+    const t = window.setInterval(load, 1500);
+    return () => window.clearInterval(t);
+  }, [st?.refreshing, load]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      setSt(await playlistApi.setUrl(url));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const refresh = async () => {
+    setBusy(true);
+    try {
+      setSt(await playlistApi.refresh());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const nDone = st?.matches.filter((m) => m.done).length ?? 0;
+  return (
+    <div className="mt-6">
+      <h2 className="font-semibold mb-2">Playlist</h2>
+      <div className="card p-3">
+        <div className="flex gap-2">
+          <input
+            className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
+            placeholder="YouTube playlist URL"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <button className="btn btn-primary !px-2 !py-1 text-xs" disabled={busy || !url.trim()}
+                  onClick={() => void save()}>
+            Save
+          </button>
+          <button className="btn btn-ghost !px-2 !py-1 text-xs" disabled={busy}
+                  onClick={() => void refresh()}
+                  title="Re-fetch the playlist">
+            {st?.refreshing
+              ? <Loader2 size={12} className="animate-spin" />
+              : <RotateCcw size={12} />}
+            Refresh
+          </button>
+        </div>
+        {st && (
+          <div className="mt-1.5 text-[10px] text-zinc-500">
+            {st.matches.length} matches · {nDone} done
+            {st.fetched_at ? ` · fetched ${fmtDate(st.fetched_at)}` : ""}
+          </div>
+        )}
+        {st && st.matches.length > 0 && (
+          <div className="flex flex-col gap-1 mt-2">
+            {st.matches.map((m, i) => (
+              <div key={m.date ?? `raw${i}`} className="text-[11px]">
+                <button
+                  className="w-full flex items-center gap-2 text-left hover:bg-zinc-800 rounded px-1 py-0.5"
+                  onClick={() => setOpen(open === (m.date ?? `raw${i}`) ? null : (m.date ?? `raw${i}`))}
+                >
+                  {m.done
+                    ? <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+                    : <span className="w-3 h-3 rounded-full border border-zinc-600 inline-block" />}
+                  <span className="font-mono text-zinc-400">{m.date ?? "?"}</span>
+                  <span className="text-zinc-200 flex-1 min-w-0 truncate">{m.label}</span>
+                  <span className="chip bg-zinc-800 text-zinc-400">{m.n_angles} angles</span>
+                  {m.in_replay && (
+                    <span className="chip bg-sky-900/60 text-sky-300">in Replay</span>
+                  )}
+                </button>
+                {open === (m.date ?? `raw${i}`) && (
+                  <div className="ml-5 mt-0.5 flex flex-col gap-0.5 text-zinc-500">
+                    {m.videos.map((v, j) => (
+                      <div key={j} className="truncate" title={v.title}>{v.title}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Projects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1020,6 +1125,7 @@ export default function Projects() {
             onDelete={() => undefined}
             onError={showError}
           />
+          <PlaylistPanel />
         </div>
         <div>
           <YouTubeAccess

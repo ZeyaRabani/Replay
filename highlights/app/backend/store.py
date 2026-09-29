@@ -364,6 +364,16 @@ class Registry:
                     return u
             return None
 
+    def update_user(self, name: str, **fields) -> dict | None:
+        with self.lock:
+            users = self._read_users()
+            for u in users:
+                if u["name"] == name:
+                    u.update(fields)
+                    self._write_users(users)
+                    return u
+            return None
+
     def add_user(self, name: str) -> dict:
         with self.lock:
             users = self._read_users()

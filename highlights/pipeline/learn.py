@@ -109,8 +109,8 @@ def _window_prior(df: pd.DataFrame) -> dict:
         sub = pos[mask]
         if len(sub) < 3:
             return {"pre": fb_pre, "post": fb_post}
-        return {"pre": float(sub["pre"].median()),
-                "post": float(sub["post"].median())}
+        return {"pre": max(float(sub["pre"].median()), fb_pre),
+                "post": max(float(sub["post"].median()), fb_post)}
 
     return {"goal": pick(pos["is_goal"], 5.0, 5.0),
             "other": pick(~pos["is_goal"], 3.0, 3.0)}
