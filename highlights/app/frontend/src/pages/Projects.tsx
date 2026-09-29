@@ -421,7 +421,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
           const ws = parseClock(maWinStart);
           const we = parseClock(maWinEnd);
           if ((maWinStart || maWinEnd) && !(ws !== null && we !== null && ws < we))
-            throw new Error("match window needs valid m:ss start < end");
+            throw new Error("match window needs valid h:mm:ss start < end");
           const mw = ws !== null && we !== null ? ([ws, we] as [number, number]) : undefined;
           p = await projectsApi.createMultiangle(title.trim() || undefined, angles, undefined, meta, mw);
         } else {
@@ -637,22 +637,30 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-500 shrink-0">
-              Match window (times as on the longest video, optional)
-            </span>
-            <input
-              className={`${input} font-mono`}
-              placeholder="start m:ss"
-              value={maWinStart}
-              onChange={(e) => setMaWinStart(e.target.value)}
-            />
-            <input
-              className={`${input} font-mono`}
-              placeholder="end m:ss"
-              value={maWinEnd}
-              onChange={(e) => setMaWinEnd(e.target.value)}
-            />
+          <div>
+            <div className="text-[11px] text-zinc-500 mb-1">
+              Match window (optional) — as on the longest video, h:mm:ss
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <input
+                  className={`${input} w-full text-base py-2.5 font-mono`}
+                  placeholder="start 0:00:00"
+                  value={maWinStart}
+                  onChange={(e) => setMaWinStart(e.target.value)}
+                />
+                <div className="text-[10px] text-zinc-600 mt-0.5">Kick-off</div>
+              </div>
+              <div className="flex-1">
+                <input
+                  className={`${input} w-full text-base py-2.5 font-mono`}
+                  placeholder="end 1:20:00"
+                  value={maWinEnd}
+                  onChange={(e) => setMaWinEnd(e.target.value)}
+                />
+                <div className="text-[10px] text-zinc-600 mt-0.5">Final whistle</div>
+              </div>
+            </div>
           </div>
           <button
             disabled={busy || !canSubmit}

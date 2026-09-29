@@ -1,5 +1,6 @@
 import { Flag, Play } from "lucide-react";
 import { forwardRef, useEffect, useRef, useState } from "react";
+import { fmtClock } from "../lib/time";
 import type { Candidate } from "../types";
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
   onSetOut: (t: number) => void;
 }
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 
 const VideoPlayer = forwardRef<HTMLVideoElement, Props>(function VideoPlayer(props, ref) {
   const [time, setTime] = useState(0);

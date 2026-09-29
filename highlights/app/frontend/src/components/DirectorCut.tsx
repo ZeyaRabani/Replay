@@ -38,8 +38,12 @@ function ratioKeys(ratios: Record<string, number>): string[] {
   return [...known, ...rest];
 }
 
-const fmtT = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
-const fmtS = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+const fmtT = fmtClock;
+const fmtS = (t: number) => {
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  return `${h}:${String(m).padStart(2, "0")}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+};
 
 const card = "card p-4";
 const input =
@@ -163,7 +167,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     const s = prevFrom.trim() ? parseClock(prevFrom) : (matchWin?.[0] ?? 0);
     const e = prevTo.trim() ? parseClock(prevTo) : (matchWin?.[1] ?? videoDur);
     if (s === null || e === null || s >= e) {
-      setError("preview range needs valid m:ss start < end");
+      setError("preview range needs valid h:mm:ss start < end");
       return;
     }
     setRecutBusy(true);
@@ -203,7 +207,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
         const s = parseClock(maWinIn);
         const e = parseClock(maWinOut);
         if (s === null || e === null || s >= e) {
-          setError("match window needs valid m:ss start < end");
+          setError("match window needs valid h:mm:ss start < end");
           return;
         }
         await api.putMatchWindowMa(s, e);
@@ -421,15 +425,15 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                 {maWinEdit ? (
                   <>
                     <input
-                      className={`${input} w-16`}
-                      placeholder="0:00"
+                      className={`${input} w-28`}
+                      placeholder="0:00:00"
                       value={maWinIn}
                       onChange={(e) => setMaWinIn(e.target.value)}
                     />
                     –
                     <input
-                      className={`${input} w-16`}
-                      placeholder="0:00"
+                      className={`${input} w-28`}
+                      placeholder="0:00:00"
                       value={maWinOut}
                       onChange={(e) => setMaWinOut(e.target.value)}
                     />
@@ -701,10 +705,10 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     <span className="text-[11px] text-zinc-500">Preview range:</span>
                     <input
                       className={`${input} w-16`}
-                      placeholder={matchWin ? fmtClock(matchWin[0]) : "0:00"}
+                      placeholder={matchWin ? fmtClock(matchWin[0]) : "0:00:00"}
                       value={prevFrom}
                       onChange={(e) => setPrevFrom(e.target.value)}
-                      aria-label="preview from (m:ss)"
+                      aria-label="preview from (h:mm:ss)"
                     />
                     <span className="text-[11px] text-zinc-600">to</span>
                     <input
@@ -712,7 +716,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                       placeholder={matchWin ? fmtClock(matchWin[1]) : fmtClock(videoDur)}
                       value={prevTo}
                       onChange={(e) => setPrevTo(e.target.value)}
-                      aria-label="preview to (m:ss)"
+                      aria-label="preview to (h:mm:ss)"
                     />
                     <button
                       disabled={zoneBusy || recutBusy}

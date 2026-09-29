@@ -1,6 +1,7 @@
 import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Play, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
+import { fmtClock } from "../lib/time";
 import type { AnalysisEvent, AnalysisMatchStats, AnalysisResponse, AnalysisTeamInfo, AnalysisTerritory } from "../types";
 
 const card = "card p-4";
@@ -11,7 +12,7 @@ const tdCls = "py-1 border-b border-zinc-800/50";
 const mmss = (s: number): string => {
   if (!Number.isFinite(s)) return "-:--";
   const t = Math.max(0, Math.round(s));
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  return fmtClock(t);
 };
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);

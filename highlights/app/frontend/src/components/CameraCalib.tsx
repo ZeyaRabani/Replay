@@ -221,7 +221,7 @@ export default function CameraCalib({ onSaved, defaultT }: {
         </div>
         <label className="ml-auto flex items-center gap-1.5 text-[11px] text-zinc-400">
           Frame time
-          <input value={tText} onChange={(e) => setTText(e.target.value)} placeholder="mm:ss"
+          <input value={tText} onChange={(e) => setTText(e.target.value)} placeholder="h:mm:ss"
             onKeyDown={(e) => { if (e.key === "Enter") applyT(); }} onBlur={applyT}
             className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-xs text-zinc-200" />
         </label>

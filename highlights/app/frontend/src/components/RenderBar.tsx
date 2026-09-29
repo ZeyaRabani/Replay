@@ -1,6 +1,7 @@
 import { Download, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
+import { fmtClock } from "../lib/time";
 import type { Candidate, RenderJob } from "../types";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
   onError: (msg: string) => void;
 }
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 
 export default function RenderBar(props: Props) {
   const api = useProjectApi();

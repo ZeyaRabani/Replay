@@ -150,7 +150,7 @@ export default function YouDirect() {
     const s = fromIn.trim() ? parseClock(fromIn) : sug.match_window[0];
     const e = toIn.trim() ? parseClock(toIn) : sug.match_window[1];
     if (s == null || e == null || !(s < e)) {
-      setError("bad range — use m:ss, from before to"); return;
+      setError("bad range — use h:mm:ss, from before to"); return;
     }
     load([s, e]);
   };
@@ -278,12 +278,12 @@ export default function YouDirect() {
             </button>
             <span className="text-[11px] text-zinc-500">or</span>
             <input className={`${input} w-16`} value={fromIn}
-              placeholder={sug ? fmtClock(sug.match_window[0]) : "19:00"}
-              onChange={(e) => setFromIn(e.target.value)} aria-label="from (m:ss)" />
+              placeholder={sug ? fmtClock(sug.match_window[0]) : "0:19:00"}
+              onChange={(e) => setFromIn(e.target.value)} aria-label="from (h:mm:ss)" />
             <span className="text-[11px] text-zinc-600">to</span>
             <input className={`${input} w-16`} value={toIn}
-              placeholder={sug ? fmtClock(sug.match_window[1]) : "20:15"}
-              onChange={(e) => setToIn(e.target.value)} aria-label="to (m:ss)" />
+              placeholder={sug ? fmtClock(sug.match_window[1]) : "0:20:15"}
+              onChange={(e) => setToIn(e.target.value)} aria-label="to (h:mm:ss)" />
             <button disabled={busy || !sug} onClick={loadManual}
               className="text-[11px] text-sky-300 hover:text-sky-200 border border-sky-700/60 rounded px-2 py-0.5 disabled:opacity-40">
               Load range

@@ -165,7 +165,7 @@ export default function ProjectReview({ seekRequest }: Props) {
     const s = parseClock(winIn);
     const e = parseClock(winOut);
     if (s === null || e === null || s >= e) {
-      showError("invalid window (need m:ss start < end)");
+      showError("invalid window (need h:mm:ss start < end)");
       return;
     }
     try {
@@ -278,14 +278,14 @@ export default function ProjectReview({ seekRequest }: Props) {
                         className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-[11px]"
                         value={winIn}
                         onChange={(e) => setWinIn(e.target.value)}
-                        placeholder="0:00"
+                        placeholder="0:00:00"
                       />
                       –
                       <input
                         className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 font-mono text-[11px]"
                         value={winOut}
                         onChange={(e) => setWinOut(e.target.value)}
-                        placeholder="0:00"
+                        placeholder="0:00:00"
                       />
                       <button
                         className="text-zinc-400 hover:text-amber-300 border border-zinc-700 rounded px-1.5 py-0.5"
