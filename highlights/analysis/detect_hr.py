@@ -15,6 +15,7 @@ restart, seconds already in the file are skipped.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -168,6 +169,19 @@ def detect_angle(video: str | Path, out: Path, *,
             done_s = float(max(rows_t))
             log(f"detect_hr: resume — {len(rows_t)} dets, "
                 f"through t={done_s:.0f}s")
+            if end_s is not None and done_s >= end_s - 2.0:
+                mp = out.with_suffix(".meta.json")
+                if mp.exists():
+                    log("detect_hr: complete — skipping")
+                    return json.loads(mp.read_text())
+                meta = {"w": w, "h": h, "fps": fps, "imgsz": IMGSZ,
+                        "model": str(model_path or ""),
+                        "backend": backend, "n_frames": 0,
+                        "n_dets": len(rows_t), "start_s": start_s,
+                        "end_s": end_s}
+                write_json_atomic(mp, meta, indent=1)
+                log("detect_hr: complete — skipping")
+                return meta
 
     n_frames = 0
     timed = 0.0

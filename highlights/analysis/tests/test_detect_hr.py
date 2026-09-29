@@ -62,6 +62,32 @@ def test_detect_writes_and_resumes(tmp_path):
     assert len(z2["t"]) == n1 and meta2["n_dets"] == n1
 
 
+def test_resume_complete_skips_video(tmp_path):
+    out = tmp_path / "det_a0.npz"
+
+    def fake_predict(model, tile, imgsz):
+        h, w = tile.shape[:2]
+        return [(np.array([w * 0.45, h * 0.45, w * 0.55, h * 0.95]),
+                 0.7)]
+
+    meta = detect_angle("fake.mp4", out, fps=2.0, start_s=0.0, end_s=4.0,
+                        model=object(), predict=fake_predict,
+                        frames=_fake_frames(), log=lambda m: None)
+    logs = []
+
+    def frames_that_must_not_run():
+        raise AssertionError("frames iterated")  # pragma: no cover
+        yield
+
+    meta2 = detect_angle("fake.mp4", out, fps=2.0, start_s=0.0,
+                         end_s=4.0, model=object(),
+                         predict=fake_predict,
+                         frames=frames_that_must_not_run(),
+                         log=logs.append)
+    assert meta2 == meta                    # served from existing meta.json
+    assert any("complete" in m for m in logs)
+
+
 def test_eta_abort(tmp_path):
     import time
     from unittest.mock import patch
