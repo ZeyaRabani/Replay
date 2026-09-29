@@ -541,6 +541,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
               <PlayersV2Grid
                 tracks={v2.tracks}
                 groups={v2.groups}
+                nMerged={v2.n_merged}
                 roster={roster}
                 cols={cols}
                 teamInfo={teamInfo}

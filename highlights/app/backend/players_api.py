@@ -348,6 +348,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             "crops": [crop_url(c) for c in g.get("crops") or []],
         } for g in gdoc.get("groups") or []]
         return {"tracks": tracks, "groups": groups,
+                "n_merged": gdoc.get("n_merged"),
                 "summary": {"n_tracks": s.get("n_tracks"),
                             "median_visible": s.get("median_visible"),
                             "mean_len_s": s.get("mean_len_s")}}

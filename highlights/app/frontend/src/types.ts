@@ -562,6 +562,7 @@ export interface PlayersV2Group {
   start: number;
   end: number;
   crops: string[];
+  n_members?: number;
   player_id?: string | null;
   hidden?: boolean;
 }
@@ -569,6 +570,7 @@ export interface PlayersV2Group {
 export interface PlayersV2Tracks {
   tracks: PlayersV2Track[];
   groups?: PlayersV2Group[];
+  n_merged?: number | null;
   summary: { n_tracks: number; median_visible: number; mean_len_s: number };
   status?: AnalysisStatus | null;
 }

@@ -1,6 +1,6 @@
 import { AlertTriangle, Loader2, Play } from "lucide-react";
 import { useState } from "react";
-import { fmtDist, fmtDur } from "../lib/players";
+import { fmtDur } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import type { AnalysisStatus, AnalysisTeamInfo, PlayerTeam, PlayersRoster, PlayersV2Group, PlayersV2Track, PlayersV2Tracks } from "../types";
 import Swatch from "./Swatch";
@@ -79,9 +79,11 @@ export function PlayersV2Bar({ v2, status, missing, busy, onRun, onRebuild }: {
   );
 }
 
-function V2Card({ label, name, crops, mins, distM, sprints, start, end, cropSrc, onName, onHide }: {
+function V2Card({ label, name, crops, mins, distM, sprints, start, end, members, cropSrc, onName, onHide }: {
   label: string; name: string | null; crops: string[];
   mins: number; distM: number; sprints: number; start: number; end: number;
+  /** fused-track count behind a group card */
+  members?: number | null;
   cropSrc: (u: string) => string;
   onName: (n: string) => void; onHide: () => void;
 }) {
@@ -96,25 +98,29 @@ function V2Card({ label, name, crops, mins, distM, sprints, start, end, cropSrc,
   return (
     <div className={`rounded border p-1.5 flex flex-col gap-1.5 min-w-0 ${
       name ? "border-emerald-900/70 bg-zinc-900" : "border-zinc-800 bg-zinc-900"}`}>
-      <div className="flex gap-1 h-20 items-stretch">
+      <div className="flex gap-1">
         {crops.slice(0, 4).map((c) => (
           <img key={c} src={cropSrc(c)} alt="" loading="lazy"
-            className="flex-1 min-w-0 h-full object-contain bg-zinc-950 rounded" />
+            className="w-12 h-[120px] object-contain bg-zinc-950 rounded"
+            style={{ imageRendering: "auto" }} />
         ))}
-        {!crops.length && <div className="flex-1 bg-zinc-950 rounded" />}
+        {!crops.length && <div className="w-12 h-[120px] bg-zinc-950 rounded" />}
       </div>
       <div className="flex items-baseline gap-1.5 text-[11px] min-w-0">
         <span className={`font-medium truncate ${name ? "text-emerald-300/90" : "text-zinc-300"}`}>{name ?? label}</span>
         <span className="ml-auto text-zinc-500 font-mono shrink-0">{fmtClock(start)}–{fmtClock(end)}</span>
       </div>
       <div className="grid grid-cols-3 gap-1 text-center">
-        {([[mins.toFixed(1), "min"], [fmtDist(distM), "dist"], [String(sprints), "sprints"]] as const).map(([v, l]) => (
+        {([[mins.toFixed(1), "min"], [(distM / 1000).toFixed(1), "km"], [String(sprints), "sprints"]] as const).map(([v, l]) => (
           <div key={l} className="rounded bg-zinc-950/60 py-0.5">
             <div className="font-mono text-[11px] text-zinc-200">{v}</div>
             <div className="text-[9px] uppercase tracking-wide text-zinc-500">{l}</div>
           </div>
         ))}
       </div>
+      {members != null && (
+        <div className="text-[10px] text-zinc-500">made of {members} tracks</div>
+      )}
       <div className="flex gap-1 min-w-0">
         {naming ? (
           <>
@@ -139,9 +145,11 @@ function V2Card({ label, name, crops, mins, distM, sprints, start, end, cropSrc,
 }
 
 /** One card per player group (default) or per fused track, by team. */
-export function PlayersV2Grid({ tracks, groups, roster, cols, teamInfo, teamLabel, cropSrc, onName, onHide }: {
+export function PlayersV2Grid({ tracks, groups, nMerged, roster, cols, teamInfo, teamLabel, cropSrc, onName, onHide }: {
   tracks: PlayersV2Track[];
   groups?: PlayersV2Group[];
+  /** super-track count after duplicate merging (for the heading) */
+  nMerged?: number | null;
   roster: PlayersRoster;
   cols: string;
   teamInfo: (t: PlayerTeam) => AnalysisTeamInfo | null;
@@ -162,11 +170,11 @@ export function PlayersV2Grid({ tracks, groups, roster, cols, teamInfo, teamLabe
   const nHidden = tracks.length - shown.length;
   const useGroups = !raw && shownGroups.length > 0;
 
+  const heading = `${shownGroups.length} player groups from ${tracks.length} tracks` +
+    (nMerged ? ` (${nMerged} after merging duplicates)` : "");
   const toggle = groups?.length ? (
     <div className="flex items-center gap-2 text-[11px]">
-      <span className="text-zinc-500">
-        {shownGroups.length} players grouped from {tracks.length} tracks
-      </span>
+      <span className="text-zinc-500">{heading}</span>
       <button type="button" className={btnGhost} onClick={() => setRaw((r) => !r)}>
         {raw ? `Show groups (${shownGroups.length})` : `Show raw tracks (${tracks.length})`}
       </button>
@@ -179,29 +187,45 @@ export function PlayersV2Grid({ tracks, groups, roster, cols, teamInfo, teamLabe
       items: shownGroups.filter((g) => g.team === team)
         .sort((a, b) => b.minutes - a.minutes),
     })).filter((g) => g.items.length > 0);
+    const groupCard = (grp: PlayersV2Group) => (
+      <V2Card key={grp.id} label={`Player ${grp.id}`}
+        name={(grp.player_id && nameOfPlayer.get(grp.player_id)) ?? nameOf.get(grp.track_ids[0]) ?? null}
+        crops={grp.crops} mins={grp.minutes} distM={grp.dist_m}
+        sprints={grp.sprints} start={grp.start} end={grp.end}
+        members={grp.n_members ?? grp.track_ids.length}
+        cropSrc={cropSrc}
+        onName={(n) => onName({ ids: grp.track_ids, team: grp.team }, n)}
+        onHide={() => onHide(grp.track_ids)} />
+    );
     return (
       <div className="flex flex-col gap-3 min-w-0">
         {toggle}
-        {byTeam.map((g) => (
-          <div key={g.team ?? "none"} className="min-w-0">
-            <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
-              <Swatch team={teamInfo(g.team)} />
-              <span className="font-medium">{teamLabel(g.team)}</span>
-              <span className="text-zinc-500">{g.items.length} players</span>
+        {byTeam.map((g) => {
+          const top = g.items.slice(0, 11);
+          const rest = g.items.slice(11);
+          return (
+            <div key={g.team ?? "none"} className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
+                <Swatch team={teamInfo(g.team)} />
+                <span className="font-medium">{teamLabel(g.team)}</span>
+                <span className="text-zinc-500">{g.items.length} groups</span>
+              </div>
+              <div className={`grid ${cols} gap-2`}>
+                {top.map(groupCard)}
+              </div>
+              {rest.length > 0 && (
+                <details className="mt-1.5">
+                  <summary className="text-[11px] text-zinc-500 cursor-pointer hover:text-zinc-300">
+                    {rest.length} more fragments (short appearances)
+                  </summary>
+                  <div className={`grid ${cols} gap-2 mt-2`}>
+                    {rest.map(groupCard)}
+                  </div>
+                </details>
+              )}
             </div>
-            <div className={`grid ${cols} gap-2`}>
-              {g.items.map((grp) => (
-                <V2Card key={grp.id} label={`Player ${grp.id}`}
-                  name={(grp.player_id && nameOfPlayer.get(grp.player_id)) ?? nameOf.get(grp.track_ids[0]) ?? null}
-                  crops={grp.crops} mins={grp.minutes} distM={grp.dist_m}
-                  sprints={grp.sprints} start={grp.start} end={grp.end}
-                  cropSrc={cropSrc}
-                  onName={(n) => onName({ ids: grp.track_ids, team: grp.team }, n)}
-                  onHide={() => onHide(grp.track_ids)} />
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
