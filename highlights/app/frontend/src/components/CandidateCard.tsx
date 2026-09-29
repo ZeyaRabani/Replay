@@ -1,4 +1,4 @@
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, Goal, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useProjectApi } from "../api";
 import { fmtClock, parseClock } from "../lib/time";
@@ -108,7 +108,17 @@ export default function CandidateCard(props: Props) {
                 )}
               </span>
             )}
-            <span className={`chip ${STATUS_STYLE[c.status]}`}>{c.status}</span>
+            <span
+              className={`chip ${
+                c.status === "confirmed"
+                  ? c.type === "goal"
+                    ? "bg-amber-400 text-zinc-950"
+                    : STATUS_STYLE.confirmed
+                  : STATUS_STYLE[c.status]
+              }`}
+            >
+              {c.status === "confirmed" ? (c.type === "goal" ? "goal" : "highlight") : c.status}
+            </span>
             <span className="ml-auto font-mono text-xs text-zinc-300">{fmt(c.t)}</span>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -173,9 +183,33 @@ export default function CandidateCard(props: Props) {
         )}
         <button
           className={`btn !px-2 !py-0.5 text-xs ${
-            c.status === "confirmed" ? "bg-emerald-700" : "btn-ghost"
+            c.status === "confirmed" && c.type === "goal" ? "bg-amber-400 text-zinc-950" : "btn-ghost"
           }`}
-          onClick={() => props.onPatch(c.id, { status: c.status === "confirmed" ? "pending" : "confirmed" })}
+          title="Goal — it went in"
+          onClick={() =>
+            props.onPatch(
+              c.id,
+              c.status === "confirmed" && c.type === "goal"
+                ? { status: "pending" }
+                : { status: "confirmed", type: "goal" },
+            )
+          }
+        >
+          <Goal size={12} /> Goal
+        </button>
+        <button
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "confirmed" && c.type !== "goal" ? "bg-emerald-700" : "btn-ghost"
+          }`}
+          title="Highlight / close chance"
+          onClick={() =>
+            props.onPatch(
+              c.id,
+              c.status === "confirmed" && c.type !== "goal"
+                ? { status: "pending" }
+                : { status: "confirmed", type: c.type === "goal" ? "shot" : c.type },
+            )
+          }
         >
           <Check size={12} /> Confirm
         </button>

@@ -581,6 +581,7 @@ def _patch_candidate(p: ProjectStore, cand_id: str, patch: CandidatePatch) -> di
         raise HTTPException(404, "candidate not found")
     data = patch.model_dump(exclude_none=True)
     team = data.pop("team", None)
+    old_type = c.type
     updated = c.model_copy(update=data)
     duration = p.video.duration_s if p.video else 0.0
     err = fx.validate_clip_window(updated.clip_start, updated.clip_end, duration)
@@ -590,10 +591,16 @@ def _patch_candidate(p: ProjectStore, cand_id: str, patch: CandidatePatch) -> di
         setattr(c, k, v)
     if team is not None:
         c.signals = {**c.signals, "team": team}
+    if "type" in data and "ai_type" not in c.signals:
+        c.signals = {**c.signals, "ai_type": old_type}
     p.update(c)
     if data.get("status") in ("confirmed", "rejected"):
         _hist(p, f"candidate_{data['status']}", cand_id=cand_id,
               type=c.type, t_start=c.t_start, t_end=c.t_end)
+    elif "type" in data:
+        _hist(p, "candidate_type_changed", cand_id=cand_id,
+              type=c.type, ai_type=c.signals.get("ai_type"),
+              t_start=c.t_start, t_end=c.t_end)
     return c.model_dump()
 
 

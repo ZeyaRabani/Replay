@@ -37,6 +37,9 @@ export default function CandidateList(props: Props) {
             {f}
           </button>
         ))}
+        <span className="w-full text-[10px] text-zinc-500">
+          Goal = it went in · Confirm = highlight or close chance · Reject = neither
+        </span>
       </div>
       <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
         {shown.map((c) => (

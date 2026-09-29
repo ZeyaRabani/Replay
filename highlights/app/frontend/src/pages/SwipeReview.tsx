@@ -1,10 +1,10 @@
-import { Check, ChevronUp, Download, Loader2, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronUp, Download, Goal, Loader2, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProjectApiContext, projectApi, useProjectApi } from "../api";
 import { TYPE_LABEL } from "../components/Timeline";
 import { fmtClock } from "../lib/time";
-import type { Candidate, RenderJob, Status, VideoInfo } from "../types";
+import type { Candidate, EventType, RenderJob, Status, VideoInfo } from "../types";
 
 const STATUS_STYLE: Record<string, string> = {
   pending: "bg-zinc-700 text-zinc-300",
@@ -33,7 +33,7 @@ function SwipeCard({
   total: number;
   active: boolean;
   videoSrc?: string;
-  onDecision: (c: Candidate, status: Status) => void;
+  onDecision: (c: Candidate, patch: { status: Status; type?: EventType }) => void;
   onReset: (c: Candidate) => void;
 }) {
   const vidRef = useRef<HTMLVideoElement>(null);
@@ -78,7 +78,12 @@ function SwipeCard({
     const d = drag.current;
     drag.current = null;
     if (d?.decided && Math.abs(d.dx) > 80) {
-      onDecision(c, d.dx > 0 ? "confirmed" : "rejected");
+      onDecision(
+        c,
+        d.dx > 0
+          ? { status: "confirmed", type: c.type === "goal" ? "shot" : c.type }
+          : { status: "rejected" },
+      );
     }
     setDx(0);
   };
@@ -148,7 +153,17 @@ function SwipeCard({
               {TYPE_LABEL[c.type] ?? c.type}
               <span className="text-xs text-zinc-300 font-normal"> · {(c.confidence * 100).toFixed(0)}%</span>
             </span>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${STATUS_STYLE[c.status]}`}>{c.status}</span>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${
+                c.status === "confirmed"
+                  ? c.type === "goal"
+                    ? "bg-amber-400 text-zinc-950"
+                    : STATUS_STYLE.confirmed
+                  : STATUS_STYLE[c.status]
+              }`}
+            >
+              {c.status === "confirmed" ? (c.type === "goal" ? "goal" : "highlight") : c.status}
+            </span>
           </div>
         </div>
         {/* bottom overlay */}
@@ -156,9 +171,16 @@ function SwipeCard({
           <button
             className="w-16 h-16 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center shadow-lg"
             title="Reject"
-            onClick={(e) => { e.stopPropagation(); onDecision(c, "rejected"); }}
+            onClick={(e) => { e.stopPropagation(); onDecision(c, { status: "rejected" }); }}
           >
             <X size={30} />
+          </button>
+          <button
+            className="w-14 h-14 rounded-full bg-amber-400/90 hover:bg-amber-300 text-zinc-950 flex items-center justify-center shadow-lg"
+            title="Goal — it went in"
+            onClick={(e) => { e.stopPropagation(); onDecision(c, { status: "confirmed", type: "goal" }); }}
+          >
+            <Goal size={26} />
           </button>
           {c.status !== "pending" && (
             <button
@@ -171,8 +193,8 @@ function SwipeCard({
           )}
           <button
             className="w-16 h-16 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white flex items-center justify-center shadow-lg"
-            title="Confirm"
-            onClick={(e) => { e.stopPropagation(); onDecision(c, "confirmed"); }}
+            title="Highlight / close chance"
+            onClick={(e) => { e.stopPropagation(); onDecision(c, { status: "confirmed", type: c.type === "goal" ? "shot" : c.type }); }}
           >
             <Check size={30} />
           </button>
@@ -257,11 +279,11 @@ function SwipeReviewInner() {
   }, []);
 
   const decide = useCallback(
-    (c: Candidate, status: Status) => {
+    (c: Candidate, patch: { status: Status; type?: EventType }) => {
       // optimistic; revert on failure
-      setCandidates((cs) => cs.map((x) => (x.id === c.id ? { ...x, status } : x)));
+      setCandidates((cs) => cs.map((x) => (x.id === c.id ? { ...x, ...patch } : x)));
       api
-        .patchCandidate(c.id, { status })
+        .patchCandidate(c.id, patch)
         .then((upd) => setCandidates((cs) => cs.map((x) => (x.id === c.id ? upd : x))))
         .catch((e) => {
           setCandidates((cs) => cs.map((x) => (x.id === c.id ? c : x)));
@@ -300,7 +322,18 @@ function SwipeReviewInner() {
         const c = candidates[active];
         if (c) {
           e.preventDefault();
-          decide(c, e.key === "ArrowRight" ? "confirmed" : "rejected");
+          decide(
+            c,
+            e.key === "ArrowRight"
+              ? { status: "confirmed", type: c.type === "goal" ? "shot" : c.type }
+              : { status: "rejected" },
+          );
+        }
+      } else if (e.key === "g") {
+        const c = candidates[active];
+        if (c) {
+          e.preventDefault();
+          decide(c, { status: "confirmed", type: "goal" });
         }
       } else if (e.key === " ") {
         e.preventDefault();
@@ -345,9 +378,11 @@ function SwipeReviewInner() {
       )
     : undefined;
 
-  const nConf = candidates.filter((c) => c.status === "confirmed").length;
+  const nGoal = candidates.filter((c) => c.status === "confirmed" && c.type === "goal").length;
+  const nHigh = candidates.filter((c) => c.status === "confirmed" && c.type !== "goal").length;
   const nRej = candidates.filter((c) => c.status === "rejected").length;
-  const nPend = candidates.length - nConf - nRej;
+  const nPend = candidates.length - nGoal - nHigh - nRej;
+  const nConf = nGoal + nHigh;
   const rendering = job && (job.state === "queued" || job.state === "running");
 
   return (
@@ -387,7 +422,8 @@ function SwipeReviewInner() {
         <div data-card-index={candidates.length} className="h-[100dvh] snap-start flex flex-col items-center justify-center gap-5 px-8 text-center">
           <div className="text-xl font-semibold">{nPend === 0 ? "All reviewed" : "End of highlights"}</div>
           <div className="text-sm text-zinc-400">
-            <b className="text-emerald-400">{nConf}</b> confirmed ·{" "}
+            <b className="text-amber-300">{nGoal}</b> goals ·{" "}
+            <b className="text-emerald-400">{nHigh}</b> highlights ·{" "}
             <b className="text-red-400">{nRej}</b> rejected ·{" "}
             <b className="text-zinc-300">{nPend}</b> pending
           </div>
