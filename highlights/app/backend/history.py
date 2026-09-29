@@ -16,7 +16,6 @@ are safe from any thread (WAL mode).
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import sqlite3
@@ -306,19 +305,22 @@ def track_status(p: ProjectStore, status: dict) -> None:
 # ---------- archive on delete ----------
 
 
+# metadata only — videos (root match.mp4, cut copies, rendered reels)
+# are deleted with the project dir; restoring re-downloads & rebuilds
 _ARCHIVE_FILES = [
-    ("match.mp4", "match.mp4"),                       # active director cut
     ("project.json", "project.json"),
     ("multiangle/zones.json", "zones.json"),
     ("multiangle/sync.json", "sync.json"),
     ("multiangle/director.json", "director.json"),
     ("multiangle/fused_candidates.json", "fused_candidates.json"),
     ("pipeline/stats.json", "stats.json"),
+    ("pipeline/features_1s.parquet", "features_1s.parquet"),
+    ("pipeline/scores.parquet", "scores.parquet"),
+    ("pipeline/candidates.json", "candidates.json"),
+    ("pipeline/match_window.json", "match_window.json"),
 ]
 
-# per cut version under multiangle/cuts/<id>/ only the small JSONs are
-# kept; the ~4 GB match.mp4 survives only for the ACTIVE cut (it is a
-# hardlink of root match.mp4, archived above)
+# per cut version under multiangle/cuts/<id>/ only the small JSONs are kept
 _CUT_JSONS = ("meta", "director", "probe", "stats")
 
 
@@ -328,6 +330,11 @@ def archive_project(p: ProjectStore) -> list[str]:
     artefact names."""
     dest = archive_root() / p.id
     dest.mkdir(parents=True, exist_ok=True)
+    # verdicts must never be lost on delete — fold them into the learned
+    # examples store before anything is moved
+    with suppress(Exception):
+        from highlights.pipeline.learn import collect_project_examples, save_examples
+        save_examples(collect_project_examples(p))
     # build the record BEFORE moving files — it reads zones/sync/etc.
     record = build_record(p, artefacts=[])
     kept: list[str] = []
@@ -336,19 +343,11 @@ def archive_project(p: ProjectStore) -> list[str]:
         if src.is_file():
             shutil.move(str(src), str(dest / name))
             kept.append(name)
-    reels = p.root / "renders"
-    if reels.is_dir():
-        for f in sorted(reels.glob("*.mp4")):
-            shutil.move(str(f), str(dest / f.name))
-            kept.append(f.name)
-    # cut versions: small files per version + which one kept its video
+    # cut versions: small JSONs per version only
     cuts_info: list[dict] = []
     cuts_dir = p.multiangle_dir / "cuts" if p.is_multiangle else None
     active_id = ((_read_json(cuts_dir / "active.json") or {}).get("id")
                  if cuts_dir and cuts_dir.is_dir() else None)
-    root_ino = None
-    with suppress(OSError):
-        root_ino = os.stat(dest / "match.mp4").st_ino
     if cuts_dir and cuts_dir.is_dir():
         for cdir in sorted(d for d in cuts_dir.iterdir() if d.is_dir()):
             meta = _read_json(cdir / "meta.json") or {}
@@ -360,21 +359,10 @@ def archive_project(p: ProjectStore) -> list[str]:
                 if f.is_file():
                     shutil.move(str(f), str(cdest / f.name))
                     kept.append(f"cuts/{cdir.name}/{j}.json")
-            video = cdir / "match.mp4"
-            archived_video = False
-            if is_active and video.is_file():
-                # the active video is a hardlink of root match.mp4 — it
-                # survives as dest/match.mp4 already; move the cut's copy
-                # only when the root file was missing
-                if root_ino is None:
-                    shutil.move(str(video), str(dest / "match.mp4"))
-                    kept.append("match.mp4")
-                    root_ino = os.stat(dest / "match.mp4").st_ino
-                archived_video = True
             ci = next((c.get("cut_info") for c in record.get("cuts", [])
                        if c.get("id") == cdir.name), None)
             cuts_info.append({**meta, "id": cdir.name, "active": is_active,
-                              "archived_video": archived_video,
+                              "archived_video": False,
                               "cut_info": ci})
     record["artefacts"] = kept
     record["cuts"] = cuts_info

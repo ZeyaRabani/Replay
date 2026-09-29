@@ -107,3 +107,33 @@ def test_window_prior_from_verdicts(tmp_path, monkeypatch):
     goal = prior["goal"]
     assert goal["pre"] == pytest.approx(7.0)
     assert goal["post"] == pytest.approx(9.0)
+
+
+def test_import_snapshot(tmp_path, monkeypatch):
+    """Snapshot dir (project.json + pipeline parquets) -> examples + train."""
+    monkeypatch.setenv("HL_LEARN_DIR", str(tmp_path / "learn"))
+    snap = tmp_path / "ab2251cff78d"
+    (snap / "pipeline").mkdir(parents=True)
+    df = _features()
+    df.to_parquet(snap / "pipeline" / "features_1s.parquet")
+    pd.DataFrame({"t": df["t"], "learned": np.zeros(len(df))}).to_parquet(
+        snap / "pipeline" / "scores.parquet")
+    cands = []
+    for k in range(30):
+        t = 10 + 6 * k
+        cands.append({
+            "id": f"c{k:03d}", "type": "shot", "t": float(t),
+            "t_start": t - 4.0, "t_end": t + 4.0,
+            "confidence": 0.5, "signals": {}, "notes": "",
+            "cross_validation": "pipeline_only",
+            "status": "confirmed" if k % 2 == 0 else "rejected",
+            "clip_start": t - 4.0, "clip_end": t + 4.0, "rank": k + 1})
+    (snap / "project.json").write_text(json.dumps({
+        "id": "ab2251cff78d", "owner": "zeya", "title": "snap",
+        "video": {"path": str(snap / "match.mp4"), "duration_s": 200.0,
+                  "width": 1, "height": 1, "fps": 1.0},
+        "candidates": cands}))
+    meta = learn.import_snapshot(snap)
+    assert meta["trained"] is True
+    assert meta["n_examples"] == 30
+    assert meta["projects"]["ab2251cff78d"] == {"pos": 15, "neg": 15}

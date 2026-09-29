@@ -44,7 +44,7 @@ def test_backfill_and_created_event(client, short_video):
 
 def test_delete_archives_and_streams(client, short_video):
     pid = new_project(client, short_video)
-    # give it a kept artefact: a fake reel + the match.json survive
+    # videos are NOT archived anymore — only metadata survives the delete
     from highlights.app.backend.main import get_registry
     p = get_registry().get(pid)
     (p.root / "match.mp4").write_bytes(b"fakecut")
@@ -56,10 +56,12 @@ def test_delete_archives_and_streams(client, short_video):
     ms = client.get("/api/history?include_deleted=1").json()
     m = next(m for m in ms if m["id"] == pid)
     assert m["deleted"] is True
-    assert set(m["artefacts"]) >= {"match.mp4", "project.json", "reel.mp4"}
-    # artefact stream
-    r = client.get(f"/api/history/{pid}/artefacts/match.mp4")
-    assert r.status_code == 200 and r.content == b"fakecut"
+    assert "project.json" in m["artefacts"]
+    assert "match.mp4" not in m["artefacts"]
+    assert "reel.mp4" not in m["artefacts"]
+    # artefact stream on a kept JSON
+    r = client.get(f"/api/history/{pid}/artefacts/project.json")
+    assert r.status_code == 200
     r = client.get(f"/api/history/{pid}/artefacts/../project.json")
     assert r.status_code in (404, 422)
     # deleted event logged
@@ -169,9 +171,9 @@ def test_owner_scoping(client, short_video):
     assert pid not in ids
 
 
-def test_archive_keeps_active_cut_video_only(client, short_video):
-    """Two cut versions: small files archived for both; only the ACTIVE
-    version's mp4 survives (as the root match.mp4 hardlink)."""
+def test_archive_keeps_no_video(client, short_video):
+    """Two cut versions: small files archived for both; NO mp4 is kept
+    (archive is metadata-only — restores re-download & rebuild)."""
     import os
 
     from highlights.app.backend.main import get_registry
@@ -198,15 +200,14 @@ def test_archive_keeps_active_cut_video_only(client, short_video):
     for cid in ("cutA", "cutB"):
         for j in ("meta", "director", "probe", "stats"):
             assert (arch / "cuts" / cid / f"{j}.json").is_file()
-    # only one mp4 kept, and it's the active cut's bytes
-    mp4s = list(arch.rglob("*.mp4"))
-    assert [f.relative_to(arch).as_posix() for f in mp4s] == ["match.mp4"]
-    assert (arch / "match.mp4").read_bytes() == b"video-cutB"
-    # record.cuts reflects versions + video retention
+    # no mp4 kept anywhere in the archive
+    assert list(arch.rglob("*.mp4")) == []
+    # record.cuts reflects versions; archived_video is always False
     m = history.get_match(pid)
     rec_cuts = {c["id"]: c for c in m["record"]["cuts"]}
-    assert rec_cuts["cutB"]["active"] and rec_cuts["cutB"]["archived_video"]
+    assert rec_cuts["cutB"]["active"]
     assert not rec_cuts["cutA"]["archived_video"]
+    assert not rec_cuts["cutB"]["archived_video"]
     # artefact_path: one level under cuts/ allowed, traversal blocked
     assert history.artefact_path(pid, "cuts/cutA/meta.json") is not None
     assert history.artefact_path(pid, "cuts/../meta.json") is None

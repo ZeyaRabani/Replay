@@ -213,3 +213,37 @@ def verdict_prob(df: pd.DataFrame, learned: np.ndarray, vm: dict) -> np.ndarray:
     X = rolling_X(df, MODEL_COLS, window=int(vm.get("window", 3)))
     X = np.hstack([X, np.asarray(learned, dtype=float)[:, None]])
     return vm["clf"].predict_proba(vm["scaler"].transform(X))[:, 1]
+
+
+def import_snapshot(dir_path: str | Path) -> dict:
+    """Fold a snapshot dir (project.json + pipeline/{features_1s,
+    scores}.parquet) into the examples store and retrain."""
+    from highlights.app.backend.store import ProjectStore
+    root = Path(dir_path)
+    p = ProjectStore(root)
+    if not p.candidates:
+        return {"trained": False, "reason": f"no candidates in {root}/project.json"}
+    save_examples(collect_project_examples(p))
+    path = _examples_path()
+    if not path.exists():
+        return {"trained": False, "reason": "no examples"}
+    return train(pd.read_parquet(path))
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(prog="highlights.pipeline.learn")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    imp = sub.add_parser("import-snapshot",
+                         help="import verdicts from a snapshot dir and retrain")
+    imp.add_argument("dir", type=Path)
+    args = ap.parse_args(argv)
+    if args.cmd == "import-snapshot":
+        print(json.dumps(import_snapshot(args.dir), indent=1, default=str))
+        return 0
+    return 2
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

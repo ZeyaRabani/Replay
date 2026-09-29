@@ -840,7 +840,7 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
                 onClick={() => void restart(m)}
                 className="flex items-center gap-1 text-[11px] bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded px-2 py-1 disabled:opacity-40"
               >
-                <RotateCcw size={11} /> Restart
+                <RotateCcw size={11} /> Restore match (re-download &amp; rebuild)
               </button>
               <button
                 disabled={busy === m.id}
