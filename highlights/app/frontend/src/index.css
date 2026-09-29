@@ -7,6 +7,14 @@ body {
   overflow-x: hidden;
 }
 
+/* PL gradient bar across the very top of the app */
+body::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, #37003C, #E90052, #04F5FF, #00FF85);
+}
+
 /* mobile layout: 40px+ tap targets */
 .mobile button,
 .mobile select,

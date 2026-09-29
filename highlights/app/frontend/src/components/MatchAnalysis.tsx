@@ -289,7 +289,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
           <button
             disabled={busy}
             onClick={() => void start(failed)}
-            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
           >
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
             {failed ? "Retry analysis" : "Analyse match"} (~{data.estimate_min} min)

@@ -94,8 +94,8 @@ export default function ProjectPage() {
   const pct = Math.round((status?.progress ?? project?.progress ?? 0) * 100);
 
   const tabCls = (on: boolean) =>
-    `flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded ${
-      on ? "bg-zinc-700 text-amber-300" : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+    `flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-t border-b-2 ${
+      on ? "text-white border-amber-400" : "text-zinc-400 border-transparent hover:text-zinc-200 hover:bg-zinc-800"
     }`;
 
   return (

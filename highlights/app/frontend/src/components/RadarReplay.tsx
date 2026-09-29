@@ -350,7 +350,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 </button>
                 {[1, 2, 4].map((s) => (
                   <button key={s} type="button"
-                    className={`rounded px-2 py-1 text-xs ${speed === s ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+                    className={`rounded px-2 py-1 text-xs ${speed === s ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
                     onClick={() => setSpeed(s)}>
                     {s}×
                   </button>

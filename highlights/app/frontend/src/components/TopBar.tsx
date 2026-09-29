@@ -14,8 +14,10 @@ export default function TopBar({ children }: Props) {
   const { isMobile, setMode } = useLayout();
   return (
     <header className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
-      <Link to="/projects" className="flex items-center gap-2 font-semibold text-sm hover:text-amber-300">
-        <Clapperboard size={18} className="text-amber-400" /> Replay Highlights
+      <Link to="/projects" className="flex items-baseline gap-1.5">
+        <Clapperboard size={16} className="text-amber-400 self-center" />
+        <span className="font-bold uppercase tracking-wide text-white text-sm">Replay</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-300">Highlights</span>
       </Link>
       <div className="flex items-center gap-2 min-w-0 flex-1">{children}</div>
       <button

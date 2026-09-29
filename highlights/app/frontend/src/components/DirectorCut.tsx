@@ -265,7 +265,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
         <button
           disabled={offBusy}
           onClick={() => void submitOffsets()}
-          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
+          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
         >
           {offBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           Re-run from sync

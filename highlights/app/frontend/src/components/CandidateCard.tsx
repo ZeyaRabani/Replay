@@ -6,16 +6,9 @@ import type { Candidate, Team } from "../types";
 import ScorerSelect from "./ScorerSelect";
 import { TYPE_COLORS, TYPE_LABEL } from "./Timeline";
 
-const XV_STYLE: Record<string, string> = {
-  confirmed: "bg-emerald-800 text-emerald-200",
-  pipeline_only: "bg-zinc-700 text-zinc-300",
-  visual_only: "bg-purple-800 text-purple-200",
-  rejected: "bg-red-900 text-red-200",
-};
-
 const STATUS_STYLE: Record<string, string> = {
   pending: "bg-zinc-700 text-zinc-300",
-  confirmed: "bg-emerald-700 text-emerald-100",
+  confirmed: "bg-emerald-300 text-zinc-950",
   rejected: "bg-red-800 text-red-100",
 };
 
@@ -96,29 +89,23 @@ export default function CandidateCard(props: Props) {
             >
               {TYPE_LABEL[c.type] ?? c.type}
             </span>
-            <span className={`rounded px-1.5 py-0.5 ${XV_STYLE[c.cross_validation]}`}>{c.cross_validation}</span>
-            {Array.isArray(c.signals.angles) &&
-              ((c.signals.angles as unknown[]).length >= 2 ? (
-                <span
-                  className="rounded px-1.5 py-0.5 bg-emerald-800 text-emerald-200"
-                  title={`seen by angles ${(c.signals.angles as number[]).join(", ")}`}
-                >
-                  cross-confirmed
-                </span>
-              ) : (
-                <span
-                  className="rounded px-1.5 py-0.5 bg-zinc-700 text-zinc-300"
-                  title={`seen by angle ${(c.signals.angles as number[]).join(", ")}`}
-                >
-                  single-angle
-                </span>
-              ))}
-            {c.signals.disputed === true && (
+            {Array.isArray(c.signals.angles) && (
               <span
-                className="rounded px-1.5 py-0.5 bg-orange-900/60 text-orange-200"
-                title={`disputed type: ${(c.signals.types as string[] | undefined)?.join(" / ") ?? ""}`}
+                className="rounded px-1.5 py-0.5 bg-zinc-700 text-zinc-300 inline-flex items-center gap-1"
+                title={[
+                  `${(c.signals.angles as unknown[]).length >= 2 ? "seen by angles" : "seen by angle"} ${(c.signals.angles as number[]).join(", ")}`,
+                  `cross-validation: ${c.cross_validation}`,
+                  c.signals.disputed === true
+                    ? `disputed type: ${(c.signals.types as string[] | undefined)?.join(" / ") ?? ""}`
+                    : null,
+                ].filter(Boolean).join("\n")}
               >
-                disputed
+                {(c.signals.angles as unknown[]).length >= 2
+                  ? `${(c.signals.angles as unknown[]).length} cams`
+                  : "1 cam"}
+                {c.signals.disputed === true && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
+                )}
               </span>
             )}
             <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[c.status]}`}>{c.status}</span>

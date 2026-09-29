@@ -70,7 +70,7 @@ export default function RenderBar(props: Props) {
           overlay
         </label>
         <button
-          className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-sm disabled:opacity-40"
+          className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-sm disabled:opacity-40"
           disabled={selected.length === 0 || !!running}
           onClick={start}
         >

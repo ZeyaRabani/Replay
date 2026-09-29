@@ -360,7 +360,7 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
           <button
             disabled={busy || !text.trim()}
             onClick={() => void save()}
-            className="self-start bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 disabled:opacity-40"
+            className="self-start bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 disabled:opacity-40"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : "Save"}
           </button>
@@ -550,7 +550,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               Large uploads must go directly to your server:
               <a
                 href={`${uploadOrigin}/projects`}
-                className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5"
+                className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5"
               >
                 Open {uploadOrigin}/projects
               </a>
@@ -657,7 +657,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
           <button
             disabled={busy || !canSubmit}
             onClick={() => void submit()}
-            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Layers size={15} />}
             Assemble director cut
@@ -693,7 +693,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
             Large uploads must go directly to your server:
             <a
               href={`${uploadOrigin}/projects`}
-              className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5"
+              className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5"
             >
               Open {uploadOrigin}/projects
             </a>
@@ -736,7 +736,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
         <button
           disabled={busy || !canSubmit}
           onClick={() => void submit()}
-          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
           {tab === "youtube" ? "Download & analyse" : "Upload & analyse"}

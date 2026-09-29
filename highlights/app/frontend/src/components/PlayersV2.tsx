@@ -6,7 +6,7 @@ import type { AnalysisStatus, AnalysisTeamInfo, PlayerTeam, PlayersRoster, Playe
 import Swatch from "./Swatch";
 
 const btnPrimary =
-  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
+  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
 const TEAM_ORDER: PlayerTeam[] = ["A", "B", null];
 

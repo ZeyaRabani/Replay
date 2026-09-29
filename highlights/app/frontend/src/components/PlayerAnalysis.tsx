@@ -21,7 +21,7 @@ import Swatch from "./Swatch";
 const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const btnPrimary =
-  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
+  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -508,7 +508,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   );
   const cols = isMobile ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
   const chip = (active: boolean) =>
-    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
+    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
   const tabBar = (rerun: React.ReactNode) => (
     <div className="flex items-center gap-1.5 flex-wrap">
       <button className={chip(tab === "name")} onClick={() => setTab("name")}>

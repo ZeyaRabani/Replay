@@ -117,7 +117,7 @@ export default function PipelineProgress({ project, status, onRerun, onCancel, b
               <button
                 disabled={busy}
                 onClick={onRerun}
-                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-2.5 py-1 text-xs disabled:opacity-40"
+                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-2.5 py-1 text-xs disabled:opacity-40"
               >
                 <RotateCcw size={13} /> Re-run
               </button>
