@@ -143,27 +143,44 @@ def stage_angles(ctx: Ctx) -> None:
     ~1.5 cores each). Progress = mean of sub-progress; first nonzero
     returncode terminates the rest and fails the stage."""
     n = len(ctx.angles)
-    running = []          # (i, proc, sub_status)
+    queue = []            # angle indexes still to run
     for i, a in enumerate(ctx.angles):
         vid = ctx.angle_video(i)
         if vid is None:
             raise PipelineError(f"angle {i}: no video file after download")
-        sub_status = a["dir"] / "pipeline" / "status.json"
         done_marker = a["dir"] / "pipeline" / "candidates.json"
         if done_marker.exists() and not ctx.force:
             ctx.log(f"angles: a{i} skipped (candidates exist)")
             continue
+        queue.append(i)
+
+    # HL_ANGLE_WORKERS caps concurrent angle pipelines (RAM is the binding
+    # constraint — ~8 GB peak each on long matches); 0/absent = all at once.
+    try:
+        workers = int(os.environ.get("HL_ANGLE_WORKERS", "0"))
+    except ValueError:
+        workers = 0
+    if workers <= 0:
+        workers = len(queue) or 1
+
+    n_running = 0
+
+    def launch(i: int):
+        a = ctx.angles[i]
         ctx.log(f"angles: running Option-1 pipeline on a{i} ({a['label']})")
         proc = subprocess.Popen(
             [sys.executable, "-m", "highlights.pipeline.run",
-             "--project-dir", str(a["dir"]), "--video", str(vid),
+             "--project-dir", str(a["dir"]), "--video", str(ctx.angle_video(i)),
              "--stages", ANGLE_STAGES, "--no-job-lock"],
             stdout=ctx.log_fh or subprocess.DEVNULL,
             stderr=subprocess.STDOUT)
-        running.append((i, proc, sub_status))
+        return (i, proc, a["dir"] / "pipeline" / "status.json")
 
-    pending = list(running)
-    while pending:
+    pending = []
+    while queue or pending:
+        while queue and len(pending) < workers:
+            pending.append(launch(queue.pop(0)))
+            n_running += 1
         msgs = []
         still = []
         for i, proc, sub_status in pending:
@@ -183,7 +200,7 @@ def stage_angles(ctx: Ctx) -> None:
                     f"angle {i} pipeline failed ({rc}) {tail}")
         pending = still
         # progress = mean over angles (skipped + finished count as 1.0)
-        subs = [1.0] * (n - len(running)) + \
+        subs = [1.0] * (n - len(queue) - len(pending)) + \
             [float((load_status(ss) or {}).get("progress", 0.0))
              for _, _, ss in pending]
         ctx.status.update(progress=min(1.0, sum(subs) / n),

@@ -13,6 +13,9 @@ services:
       # Public URL the browser can reach this server at — used so the hosted
       # frontend (e.g. Vercel) can redirect large uploads to the server.
       HL_PUBLIC_URL: ${HL_PUBLIC_URL:-}
+      # Max concurrent per-angle pipelines — each peaks ~8 GB RAM on long
+      # matches, so >2 OOMs a 24 GB host.
+      HL_ANGLE_WORKERS: ${HL_ANGLE_WORKERS:-2}
       # If YouTube blocks the server with a bot check, export cookies from your
       # browser ("Get cookies.txt" extension) and either paste them into the
       # "YouTube access" panel in the UI (saved per profile), or provide the file:
