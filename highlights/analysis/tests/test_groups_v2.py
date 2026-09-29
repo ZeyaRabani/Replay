@@ -5,7 +5,15 @@ import json
 
 import numpy as np
 
-from highlights.analysis.groups_v2 import build_groups_v2
+from highlights.analysis.groups_v2 import build_groups_v2, merge_duplicates
+
+
+def _tr(tid, team, start, end, x, y):
+    """Track standing still at (x, y) for [start, end)."""
+    n = max(1, round((end - start) / 0.5))
+    return {"id": tid, "team": team, "start": start, "end": end,
+            "xy": [[x, y]] * n, "dist_m": 0.0, "sprints": 0,
+            "crops": []}
 
 
 def _crop(path, bgr):
@@ -68,3 +76,56 @@ def test_groups_v2_clusters_by_colour(tmp_path):
     assert g["minutes"] == round((10.0 + 10.0) / 60.0, 2)
     assert g["start"] == 0.0 and g["end"] == 30.0
     assert (v2 / "groups.json").exists()
+
+
+def test_merge_duplicates_merges_nearby():
+    a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
+    b = _tr(2, "A", 2.0, 8.0, 11.0, 20.0)      # 1 m away, inside a
+    out = merge_duplicates([a, b])
+    assert len(out) == 1
+    m = out[0]
+    assert m["id"] == 1                       # longest member's id
+    assert m["member_ids"] == [1, 2]
+    assert m["team"] == "A"
+    assert m["start"] == 0.0 and m["end"] == 10.0
+    # xy averaged over the overlap: (10+11)/2 at t=2..8, 10 outside
+    assert m["xy"][0] == [10.0, 20.0]
+    mid = round((4.0 - 0.0) / 0.5)
+    assert m["xy"][mid] == [10.5, 20.0]
+
+
+def test_merge_duplicates_keeps_distant():
+    a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
+    b = _tr(2, "A", 0.0, 10.0, 20.0, 20.0)     # 10 m away
+    out = merge_duplicates([a, b])
+    assert len(out) == 2
+
+
+def test_merge_duplicates_never_crosses_teams():
+    a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
+    b = _tr(2, "B", 0.0, 10.0, 10.5, 20.0)     # co-located, other team
+    out = merge_duplicates([a, b])
+    assert len(out) == 2
+
+
+def test_group_track_ids_cover_merged_members(tmp_path):
+    v2 = tmp_path / "players_v2"
+    crops = v2 / "crops"
+    crops.mkdir(parents=True)
+    red = (0, 0, 255)
+    # duplicates of the same player: 1 m apart, overlapping
+    tracks = [
+        dict(_tr(1, "A", 0.0, 60.0, 10.0, 20.0), crops=["v2_1_0.jpg"]),
+        dict(_tr(2, "A", 0.0, 60.0, 11.0, 20.0), crops=["v2_2_0.jpg"]),
+    ]
+    _crop(crops / "v2_1_0.jpg", red)
+    _crop(crops / "v2_2_0.jpg", red)
+    (v2 / "tracks.json").write_text(
+        json.dumps({"step": 0.5, "t0": 0.0, "tracks": tracks,
+                    "summary": {"n_tracks": 2}}))
+    out = build_groups_v2(v2)
+    assert out["n_tracks"] == 2
+    assert out["n_merged"] == 1
+    assert len(out["groups"]) == 1
+    assert out["groups"][0]["track_ids"] == [1, 2]
+    assert out["groups"][0]["n_members"] == 2
