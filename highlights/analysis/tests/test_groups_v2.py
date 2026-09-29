@@ -94,9 +94,28 @@ def test_merge_duplicates_merges_nearby():
     assert m["xy"][mid] == [10.5, 20.0]
 
 
+def test_merge_duplicates_constant_offset():
+    # same player from two cameras: 6 m constant displacement
+    a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
+    b = _tr(2, "A", 0.0, 10.0, 16.0, 20.0)
+    out = merge_duplicates([a, b])
+    assert len(out) == 1
+    assert out[0]["member_ids"] == [1, 2]
+
+
+def test_merge_duplicates_varying_offset():
+    # 6 m apart but the offset swings >3 m -> different players
+    a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
+    b = _tr(2, "A", 0.0, 10.0, 16.0, 20.0)
+    for i, p in enumerate(b["xy"]):
+        p[0] = 16.0 + (4.0 if i % 2 else -4.0)   # offset 2..10 m
+    out = merge_duplicates([a, b])
+    assert len(out) == 2
+
+
 def test_merge_duplicates_keeps_distant():
     a = _tr(1, "A", 0.0, 10.0, 10.0, 20.0)
-    b = _tr(2, "A", 0.0, 10.0, 20.0, 20.0)     # 10 m away
+    b = _tr(2, "A", 0.0, 10.0, 22.0, 20.0)     # 12 m constant offset
     out = merge_duplicates([a, b])
     assert len(out) == 2
 

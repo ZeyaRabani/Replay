@@ -19,7 +19,7 @@ import numpy as np
 from highlights.io import write_json_atomic
 
 from .fuse_tracks import SPRINT_MS, STEP
-from .groups import FEAT_DIM, MAX_PER_TEAM, group_tracklets, tracklet_fingerprint
+from .groups import DIST_THRESH, FEAT_DIM, MAX_PER_TEAM, group_tracklets, tracklet_fingerprint
 
 TEAM_ORDER = {"A": 0, "B": 1, None: 2}
 
@@ -34,10 +34,12 @@ def _xy_at(track: dict, t: float) -> list | None:
 
 
 def _is_dup(a: dict, b: dict, *, max_gap_m: float, min_overlap_s: float,
-            min_frac: float) -> bool:
-    """Two fused tracks are the same player: compatible teams, overlap
-    >= min_overlap_s, and >= min_frac of shared valid steps within
-    max_gap_m with the mean distance also <= max_gap_m."""
+            max_offset_std_m: float) -> bool:
+    """Two fused tracks are the same player seen from two cameras:
+    compatible teams, overlap >= min_overlap_s, >=4 shared valid steps,
+    mean distance <= max_gap_m, and a *constant* offset — the
+    cross-camera homography error displaces a duplicate by a fixed
+    vector, so std of the offset vectors stays small."""
     ta, tb = a.get("team"), b.get("team")
     if ta is not None and tb is not None and ta != tb:
         return False
@@ -45,18 +47,20 @@ def _is_dup(a: dict, b: dict, *, max_gap_m: float, min_overlap_s: float,
     hi = min(float(a["end"]), float(b["end"]))
     if hi - lo < min_overlap_s:
         return False
-    dists = []
+    offs = []
     t = lo
     while t <= hi + 1e-6:
         pa, pb = _xy_at(a, t), _xy_at(b, t)
         if pa is not None and pb is not None:
-            dists.append(float(np.hypot(pa[0] - pb[0], pa[1] - pb[1])))
+            offs.append((pa[0] - pb[0], pa[1] - pb[1]))
         t += STEP
-    if len(dists) < 2:
+    if len(offs) < 4:
         return False
-    d = np.asarray(dists)
-    return bool((d <= max_gap_m).mean() >= min_frac
-                and d.mean() <= max_gap_m)
+    o = np.asarray(offs)
+    mean_gap = float(np.hypot(o[:, 0], o[:, 1]).mean())
+    off_std = float(np.sqrt(o[:, 0].var() + o[:, 1].var()))
+    return bool(mean_gap <= max_gap_m
+                and off_std <= max_offset_std_m)
 
 
 def _merge_stats(xy: list) -> tuple[float, int]:
@@ -74,9 +78,9 @@ def _merge_stats(xy: list) -> tuple[float, int]:
     return round(dist, 1), sprints
 
 
-def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 2.5,
-                     min_overlap_s: float = 1.0, min_frac: float = 0.6
-                     ) -> list[dict]:
+def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 8.0,
+                     min_overlap_s: float = 1.0,
+                     max_offset_std_m: float = 1.5) -> list[dict]:
     """Union-find merge of cross-camera duplicate tracks (greedy sweep
     by start time, only interval-overlapping pairs compared). Each
     super-track: id = longest member's id, member_ids, majority team,
@@ -98,7 +102,7 @@ def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 2.5,
                 break
             if find(i) != find(j) and _is_dup(
                     a, b, max_gap_m=max_gap_m, min_overlap_s=min_overlap_s,
-                    min_frac=min_frac):
+                    max_offset_std_m=max_offset_std_m):
                 parent[find(j)] = find(i)
 
     comps: dict[int, list[dict]] = {}
@@ -134,12 +138,14 @@ def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 2.5,
     return out
 
 
-def build_groups_v2(v2_dir: Path) -> dict:
-    """Cluster tracks.json -> groups.json (one card per player)."""
+def build_groups_v2(v2_dir: Path, *, dist_thresh: float = DIST_THRESH,
+                    **merge_kw) -> dict:
+    """Cluster tracks.json -> groups.json (one card per player).
+    merge_kw is forwarded to merge_duplicates."""
     v2_dir = Path(v2_dir)
     doc = json.loads((v2_dir / "tracks.json").read_text())
     tracks = doc.get("tracks") or []
-    merged = merge_duplicates(tracks)
+    merged = merge_duplicates(tracks, **merge_kw)
     tracklets = [dict(t, t_start=float(t["start"]), t_end=float(t["end"]))
                  for t in merged]
     crops_dir = v2_dir / "crops"
@@ -147,7 +153,8 @@ def build_groups_v2(v2_dir: Path) -> dict:
         tracklet_fingerprint(
             [crops_dir / c for c in (t.get("crops") or [])])
         for t in tracklets]) if tracklets else np.zeros((0, FEAT_DIM))
-    clusters = group_tracklets(tracklets, feats, max_per_team=MAX_PER_TEAM)
+    clusters = group_tracklets(tracklets, feats, max_per_team=MAX_PER_TEAM,
+                               dist_thresh=dist_thresh)
     by_id = {int(t["id"]): t for t in merged}
     groups = []
     for c in clusters:
