@@ -548,10 +548,27 @@ export interface PlayersV2Track {
   dist_m: number;
   sprints: number;
   crops: string[];
+  player_id?: string | null;
+  hidden?: boolean;
+}
+
+export interface PlayersV2Group {
+  id: string;
+  team: PlayerTeam;
+  track_ids: number[];
+  minutes: number;
+  dist_m: number;
+  sprints: number;
+  start: number;
+  end: number;
+  crops: string[];
+  player_id?: string | null;
+  hidden?: boolean;
 }
 
 export interface PlayersV2Tracks {
   tracks: PlayersV2Track[];
+  groups?: PlayersV2Group[];
   summary: { n_tracks: number; median_visible: number; mean_len_s: number };
   status?: AnalysisStatus | null;
 }

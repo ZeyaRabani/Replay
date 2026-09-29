@@ -321,17 +321,33 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         owner = {tid: pl["id"] for pl in roster.get("players") or []
                  for tid in pl.get("tracklet_ids") or []}
         hidden = set(roster.get("hidden_tracklet_ids") or [])
+        def crop_url(c: str) -> str:
+            return (f"/api/projects/{p.id}/analysis/players/"
+                    f"v2/crops/{c}")
         tracks = [{
             "id": t["id"], "team": t.get("team"),
             "start": t["start"], "end": t["end"],
             "dist_m": t.get("dist_m"), "sprints": t.get("sprints"),
             "player_id": owner.get(t["id"]),
             "hidden": t["id"] in hidden,
-            "crops": [f"/api/projects/{p.id}/analysis/players_v2/"
-                      f"crops/{c}" for c in t.get("crops") or []],
+            "crops": [crop_url(c) for c in t.get("crops") or []],
         } for t in doc.get("tracks") or []]
         s = doc.get("summary") or {}
-        return {"tracks": tracks,
+        gdoc = _read_json(_v2_dir(p) / "groups.json") or {}
+        groups = [{
+            "id": g["id"], "team": g.get("team"),
+            "track_ids": g.get("track_ids") or [],
+            "minutes": g.get("minutes"), "dist_m": g.get("dist_m"),
+            "sprints": g.get("sprints"),
+            "start": g.get("start"), "end": g.get("end"),
+            "player_id": next((owner[tid]
+                               for tid in g.get("track_ids") or []
+                               if tid in owner), None),
+            "hidden": bool(g.get("track_ids")) and all(
+                tid in hidden for tid in g["track_ids"]),
+            "crops": [crop_url(c) for c in g.get("crops") or []],
+        } for g in gdoc.get("groups") or []]
+        return {"tracks": tracks, "groups": groups,
                 "summary": {"n_tracks": s.get("n_tracks"),
                             "median_visible": s.get("median_visible"),
                             "mean_len_s": s.get("mean_len_s")}}
@@ -399,6 +415,20 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(500, f"build_groups failed: {e}") from e
         return {"groups": out["groups"], "n_tracklets": out["n_tracklets"],
                 "n_grouped": out["n_grouped"]}
+
+    @router.post("/analysis/players/v2/groups/rebuild")
+    def post_v2_groups_rebuild(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        v2d = _v2_dir(p)
+        if not (v2d / "tracks.json").is_file():
+            raise HTTPException(409, "players v2 has not run yet")
+        try:
+            from highlights.analysis.groups_v2 import build_groups_v2
+            out = build_groups_v2(v2d)
+        except Exception as e:
+            raise HTTPException(500, f"build_groups_v2 failed: {e}") from e
+        return out
 
     @router.get("/analysis/players/paths")
     def get_player_paths(p: ScopedP) -> dict:

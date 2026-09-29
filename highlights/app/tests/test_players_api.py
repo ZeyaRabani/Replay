@@ -363,7 +363,7 @@ def test_players_v2_endpoints(client):
     d = client.get(scoped(pid, "/analysis/players/v2/tracks")).json()
     assert d["summary"]["n_tracks"] == 1
     assert d["tracks"][0]["crops"] == [
-        f"/api/projects/{pid}/analysis/players_v2/crops/v2_1_0.jpg"]
+        f"/api/projects/{pid}/analysis/players/v2/crops/v2_1_0.jpg"]
     # paths in pitch space
     d = client.get(scoped(pid, "/analysis/players/paths")).json()
     assert d["space"] == "pitch"

@@ -174,6 +174,14 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
         return out
 
     doc = run_fuse(project_dir, adir, log=log, crops_for=_crops_for)
+    _upd(stage="groups", progress=0.97, message="grouping tracks")
+    try:
+        from .groups_v2 import build_groups_v2
+        g = build_groups_v2(adir)
+        log(f"groups: {len(g['groups'])} groups "
+            f"({g['n_grouped']}/{g['n_tracks']} tracks)")
+    except Exception as e:
+        log(f"groups: skipped ({type(e).__name__}: {e})")
     _upd(stage="done", progress=1.0, message="done")
     return doc
 

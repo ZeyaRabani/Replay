@@ -477,7 +477,9 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
       <span className={head}>Player analysis (optional)</span>
       {v2?.tracks.length ? (
         <span className="ml-auto text-[11px] text-zinc-500">
-          {roster.players.length} players · {v2.summary.n_tracks} multi-camera tracks
+          {v2.groups?.length
+            ? `${v2.groups.length} players grouped from ${v2.summary.n_tracks} tracks`
+            : `${roster.players.length} players · ${v2.summary.n_tracks} multi-camera tracks`}
         </span>
       ) : data?.tracklets.length ? (
         <span className="ml-auto text-[11px] text-zinc-500">
@@ -489,8 +491,20 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
 
   const hasV2 = !!v2?.tracks.length;
   const missingCalib = Array.from({ length: nAngles }, (_, i) => i).filter((i) => !calib?.angles[String(i)]?.H);
+  const rebuildGroupsV2 = async () => {
+    setBusy(true);
+    try {
+      await api.rebuildGroupsV2();
+      await loadV2();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const v2Bar = (
-    <PlayersV2Bar v2={v2} status={v2Status} missing={missingCalib} busy={busy || v2Live} onRun={() => void runV2()} />
+    <PlayersV2Bar v2={v2} status={v2Status} missing={missingCalib} busy={busy || v2Live} onRun={() => void runV2()} onRebuild={() => void rebuildGroupsV2()} />
   );
   const cols = isMobile ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6";
   const chip = (active: boolean) =>
@@ -526,13 +540,14 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
             ) : (
               <PlayersV2Grid
                 tracks={v2.tracks}
+                groups={v2.groups}
                 roster={roster}
                 cols={cols}
                 teamInfo={teamInfo}
                 teamLabel={teamLabel}
                 cropSrc={api.fileUrl}
-                onName={(tr, name) => commit(addPlayer(name, tr.team, [tr.id]))}
-                onHide={(tr) => hideTids([tr.id])}
+                onName={({ ids, team }, name) => commit(addPlayer(name, team, ids))}
+                onHide={(ids) => hideTids(ids)}
               />
             )}
           </div>

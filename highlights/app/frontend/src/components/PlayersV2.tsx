@@ -2,7 +2,7 @@ import { AlertTriangle, Loader2, Play } from "lucide-react";
 import { useState } from "react";
 import { fmtDist, fmtDur } from "../lib/players";
 import { fmtClock } from "../lib/time";
-import type { AnalysisStatus, AnalysisTeamInfo, PlayerTeam, PlayersRoster, PlayersV2Track, PlayersV2Tracks } from "../types";
+import type { AnalysisStatus, AnalysisTeamInfo, PlayerTeam, PlayersRoster, PlayersV2Group, PlayersV2Track, PlayersV2Tracks } from "../types";
 import Swatch from "./Swatch";
 
 const btnPrimary =
@@ -13,13 +13,14 @@ const TEAM_ORDER: PlayerTeam[] = ["A", "B", null];
 export const isLive = (s: AnalysisStatus | null | undefined) => s?.state === "queued" || s?.state === "running";
 
 /** Run button + live status for the multi-camera player pass. */
-export function PlayersV2Bar({ v2, status, missing, busy, onRun }: {
+export function PlayersV2Bar({ v2, status, missing, busy, onRun, onRebuild }: {
   v2: PlayersV2Tracks | null;
   status: AnalysisStatus | null;
   /** angle indexes without a solved calibration */
   missing: number[];
   busy: boolean;
   onRun: () => void;
+  onRebuild?: () => void;
 }) {
   if (isLive(status) && status) {
     const pct = Math.round((status.progress ?? 0) * 100);
@@ -60,9 +61,17 @@ export function PlayersV2Bar({ v2, status, missing, busy, onRun }: {
             Calibrate angle {missing.map((i) => i + 1).join(", ")} in Radar replay first.
           </span>
         )}
+        {has && onRebuild && (
+          <button type="button" className={btnGhost} disabled={busy} onClick={onRebuild}
+            title="Re-cluster tracks into player groups">
+            Rebuild groups
+          </button>
+        )}
         {has && v2 && (
           <span className="text-zinc-500">
-            {v2.summary.n_tracks} tracks · median {v2.summary.median_visible} visible · mean track {fmtDur(v2.summary.mean_len_s)}
+            {v2.groups?.length
+              ? `${v2.groups.length} players grouped from ${v2.summary.n_tracks} tracks`
+              : `${v2.summary.n_tracks} tracks`} · median {v2.summary.median_visible} visible · mean track {fmtDur(v2.summary.mean_len_s)}
           </span>
         )}
       </div>
@@ -70,8 +79,10 @@ export function PlayersV2Bar({ v2, status, missing, busy, onRun }: {
   );
 }
 
-function V2Card({ tr, name, cropSrc, onName, onHide }: {
-  tr: PlayersV2Track; name: string | null; cropSrc: (u: string) => string;
+function V2Card({ label, name, crops, mins, distM, sprints, start, end, cropSrc, onName, onHide }: {
+  label: string; name: string | null; crops: string[];
+  mins: number; distM: number; sprints: number; start: number; end: number;
+  cropSrc: (u: string) => string;
   onName: (n: string) => void; onHide: () => void;
 }) {
   const [naming, setNaming] = useState(false);
@@ -82,23 +93,22 @@ function V2Card({ tr, name, cropSrc, onName, onHide }: {
     setText("");
     setNaming(false);
   };
-  const mins = Math.max(0, tr.end - tr.start) / 60;
   return (
     <div className={`rounded border p-1.5 flex flex-col gap-1.5 min-w-0 ${
       name ? "border-emerald-900/70 bg-zinc-900" : "border-zinc-800 bg-zinc-900"}`}>
       <div className="flex gap-1 h-20 items-stretch">
-        {tr.crops.slice(0, 4).map((c) => (
+        {crops.slice(0, 4).map((c) => (
           <img key={c} src={cropSrc(c)} alt="" loading="lazy"
             className="flex-1 min-w-0 h-full object-contain bg-zinc-950 rounded" />
         ))}
-        {!tr.crops.length && <div className="flex-1 bg-zinc-950 rounded" />}
+        {!crops.length && <div className="flex-1 bg-zinc-950 rounded" />}
       </div>
       <div className="flex items-baseline gap-1.5 text-[11px] min-w-0">
-        <span className={`font-medium truncate ${name ? "text-emerald-300/90" : "text-zinc-300"}`}>{name ?? `Track ${tr.id}`}</span>
-        <span className="ml-auto text-zinc-500 font-mono shrink-0">{fmtClock(tr.start)}–{fmtClock(tr.end)}</span>
+        <span className={`font-medium truncate ${name ? "text-emerald-300/90" : "text-zinc-300"}`}>{name ?? label}</span>
+        <span className="ml-auto text-zinc-500 font-mono shrink-0">{fmtClock(start)}–{fmtClock(end)}</span>
       </div>
       <div className="grid grid-cols-3 gap-1 text-center">
-        {([[mins.toFixed(1), "min"], [fmtDist(tr.dist_m), "dist"], [String(tr.sprints), "sprints"]] as const).map(([v, l]) => (
+        {([[mins.toFixed(1), "min"], [fmtDist(distM), "dist"], [String(sprints), "sprints"]] as const).map(([v, l]) => (
           <div key={l} className="rounded bg-zinc-950/60 py-0.5">
             <div className="font-mono text-[11px] text-zinc-200">{v}</div>
             <div className="text-[9px] uppercase tracking-wide text-zinc-500">{l}</div>
@@ -128,29 +138,82 @@ function V2Card({ tr, name, cropSrc, onName, onHide }: {
   );
 }
 
-/** One card per fused track, grouped by team, longest first. */
-export function PlayersV2Grid({ tracks, roster, cols, teamInfo, teamLabel, cropSrc, onName, onHide }: {
+/** One card per player group (default) or per fused track, by team. */
+export function PlayersV2Grid({ tracks, groups, roster, cols, teamInfo, teamLabel, cropSrc, onName, onHide }: {
   tracks: PlayersV2Track[];
+  groups?: PlayersV2Group[];
   roster: PlayersRoster;
   cols: string;
   teamInfo: (t: PlayerTeam) => AnalysisTeamInfo | null;
   teamLabel: (t: PlayerTeam) => string;
   cropSrc: (u: string) => string;
-  onName: (tr: PlayersV2Track, name: string) => void;
-  onHide: (tr: PlayersV2Track) => void;
+  onName: (t: { ids: number[]; team: PlayerTeam }, name: string) => void;
+  onHide: (ids: number[]) => void;
 }) {
   const hidden = new Set(roster.hidden_tracklet_ids ?? []);
   const nameOf = new Map<number, string>();
   for (const p of roster.players) for (const id of p.tracklet_ids) nameOf.set(id, p.name);
+  const nameOfPlayer = new Map(roster.players.map((p) => [p.id, p.name]));
+  const [raw, setRaw] = useState(false);
+
+  const shownGroups = (groups ?? []).filter(
+    (g) => g.track_ids.some((t) => !hidden.has(t)));
   const shown = tracks.filter((t) => !hidden.has(t.id));
-  const groups = TEAM_ORDER.map((team) => ({
+  const nHidden = tracks.length - shown.length;
+  const useGroups = !raw && shownGroups.length > 0;
+
+  const toggle = groups?.length ? (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="text-zinc-500">
+        {shownGroups.length} players grouped from {tracks.length} tracks
+      </span>
+      <button type="button" className={btnGhost} onClick={() => setRaw((r) => !r)}>
+        {raw ? `Show groups (${shownGroups.length})` : `Show raw tracks (${tracks.length})`}
+      </button>
+    </div>
+  ) : null;
+
+  if (useGroups) {
+    const byTeam = TEAM_ORDER.map((team) => ({
+      team,
+      items: shownGroups.filter((g) => g.team === team)
+        .sort((a, b) => b.minutes - a.minutes),
+    })).filter((g) => g.items.length > 0);
+    return (
+      <div className="flex flex-col gap-3 min-w-0">
+        {toggle}
+        {byTeam.map((g) => (
+          <div key={g.team ?? "none"} className="min-w-0">
+            <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
+              <Swatch team={teamInfo(g.team)} />
+              <span className="font-medium">{teamLabel(g.team)}</span>
+              <span className="text-zinc-500">{g.items.length} players</span>
+            </div>
+            <div className={`grid ${cols} gap-2`}>
+              {g.items.map((grp) => (
+                <V2Card key={grp.id} label={`Player ${grp.id}`}
+                  name={(grp.player_id && nameOfPlayer.get(grp.player_id)) ?? nameOf.get(grp.track_ids[0]) ?? null}
+                  crops={grp.crops} mins={grp.minutes} distM={grp.dist_m}
+                  sprints={grp.sprints} start={grp.start} end={grp.end}
+                  cropSrc={cropSrc}
+                  onName={(n) => onName({ ids: grp.track_ids, team: grp.team }, n)}
+                  onHide={() => onHide(grp.track_ids)} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const byTeam = TEAM_ORDER.map((team) => ({
     team,
     items: shown.filter((t) => t.team === team).sort((a, b) => (b.end - b.start) - (a.end - a.start)),
   })).filter((g) => g.items.length > 0);
-  const nHidden = tracks.length - shown.length;
   return (
     <div className="flex flex-col gap-3 min-w-0">
-      {groups.map((g) => (
+      {toggle}
+      {byTeam.map((g) => (
         <div key={g.team ?? "none"} className="min-w-0">
           <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
             <Swatch team={teamInfo(g.team)} />
@@ -159,13 +222,18 @@ export function PlayersV2Grid({ tracks, roster, cols, teamInfo, teamLabel, cropS
           </div>
           <div className={`grid ${cols} gap-2`}>
             {g.items.map((tr) => (
-              <V2Card key={tr.id} tr={tr} name={nameOf.get(tr.id) ?? null} cropSrc={cropSrc}
-                onName={(n) => onName(tr, n)} onHide={() => onHide(tr)} />
+              <V2Card key={tr.id} label={`Track ${tr.id}`}
+                name={nameOf.get(tr.id) ?? null}
+                crops={tr.crops} mins={Math.max(0, tr.end - tr.start) / 60}
+                distM={tr.dist_m} sprints={tr.sprints}
+                start={tr.start} end={tr.end} cropSrc={cropSrc}
+                onName={(n) => onName({ ids: [tr.id], team: tr.team }, n)}
+                onHide={() => onHide([tr.id])} />
             ))}
           </div>
         </div>
       ))}
-      {!groups.length && <div className="text-xs text-zinc-500">No tracks to show.</div>}
+      {!byTeam.length && <div className="text-xs text-zinc-500">No tracks to show.</div>}
       {nHidden > 0 && <div className="text-[11px] text-zinc-500">{nHidden} tracks hidden</div>}
     </div>
   );

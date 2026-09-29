@@ -25,6 +25,7 @@ import type {
   RadarPitch,
   PlayersRoster,
   PlayersStats,
+  PlayersV2Group,
   PlayersV2Tracks,
   ProjectDetail,
   ProjectMeta,
@@ -223,6 +224,9 @@ export function projectApi(id: string) {
       req<CalibResponse>(`${base}/analysis/calib`, json({ pitch }, "PUT")),
     runPlayersV2: () => req<AnalysisStatus>(`${base}/analysis/players/v2/run`, json({})),
     playersV2Tracks: () => req<PlayersV2Tracks>(`${base}/analysis/players/v2/tracks`),
+    rebuildGroupsV2: () =>
+      req<{ groups: PlayersV2Group[]; n_tracks: number; n_grouped: number }>(
+        `${base}/analysis/players/v2/groups/rebuild`, json({})),
     radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),
     putRadarPitch: (corners: [number, number][], t: number | null) =>
       req<RadarPitch>(`${base}/analysis/radar/pitch`,
