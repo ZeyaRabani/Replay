@@ -2,6 +2,7 @@ import itertools
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from highlights.pipeline.candidates import make_candidates
 
@@ -166,3 +167,50 @@ def test_weak_peaks_trimmed_to_min_n():
     })
     out = make_candidates(df, learned, np.zeros(n), in_match, float(n))
     assert len(out["events"]) == 15   # MIN_N floor, not 63
+
+
+def _dw_frame(n=200, peak=100):
+    t = np.arange(n, dtype=float)
+    learned = np.full(n, 0.01)
+    learned[peak] = 1.0
+    motion = np.full(n, 0.4)
+    motion[peak] = 1.0
+    return t, learned, motion
+
+
+def test_dynamic_window_flat():
+    from highlights.pipeline.candidates import dynamic_window
+    t, learned, motion = _dw_frame()
+    s, e = dynamic_window(100, t, learned, motion, 200.0, "shot")
+    # flat activity -> prior padding only (other: 3/3)
+    assert s == pytest.approx(97.0)
+    assert e == pytest.approx(103.0)
+
+
+def test_dynamic_window_goal_prior():
+    from highlights.pipeline.candidates import dynamic_window
+    t, learned, motion = _dw_frame()
+    s, e = dynamic_window(100, t, learned, motion, 200.0, "goal")
+    assert s == pytest.approx(95.0)
+    assert e == pytest.approx(105.0)
+
+
+def test_dynamic_window_plateau_extends():
+    from highlights.pipeline.candidates import dynamic_window
+    t, learned, motion = _dw_frame()
+    learned[95:100] = 0.8          # 8 s of high activity before the peak
+    s, _e = dynamic_window(100, t, learned, motion, 200.0, "shot")
+    assert s == pytest.approx(95.0)
+
+
+def test_dynamic_window_caps_and_clamps():
+    from highlights.pipeline.candidates import MAX_PRE, dynamic_window
+    t, learned, motion = _dw_frame()
+    learned[:100] = 0.9            # huge plateau before peak
+    s, e = dynamic_window(100, t, learned, motion, 200.0, "shot")
+    assert t[100] - s <= MAX_PRE
+    assert e - s <= 30.0
+    # peak near t=0 clamps to video start
+    learned2 = np.full(200, 0.9)
+    s2, e2 = dynamic_window(2, t, learned2, motion, 200.0, "shot")
+    assert s2 >= 0.0 and e2 - s2 >= 4.0

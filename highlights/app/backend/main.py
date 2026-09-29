@@ -707,7 +707,22 @@ def _start_render(p: ProjectStore, req: RenderRequest) -> dict:
     _jobs[job_id] = RenderJob(job_id=job_id)
     _job_owner[job_id] = p.id
     threading.Thread(target=_run_render, args=(p, job_id, req, items), daemon=True).start()
+    threading.Thread(target=_train_after_render, args=(p,), daemon=True).start()
     return {"job_id": job_id}
+
+
+def _train_after_render(p: ProjectStore) -> None:
+    """Fold this project's verdicts into the global model; never raises."""
+    try:
+        from highlights.pipeline.learn import train_from_registry
+        meta = train_from_registry(get_registry(), p)
+        if meta.get("trained"):
+            _hist(p, "model_trained", **{k: meta.get(k) for k in (
+                "n_examples", "n_pos", "n_neg", "auroc_lopo", "version")})
+        else:
+            _hist(p, "model_train_skipped", reason=meta.get("reason"))
+    except Exception as e:
+        _hist(p, "model_train_skipped", reason=f"{type(e).__name__}: {e}")
 
 
 def _render_status(p: ProjectStore, job_id: str) -> dict:
@@ -753,13 +768,25 @@ def _stats5(p: ProjectStore) -> dict:
         st = json.loads(sp.read_text())
         if p.is_multiangle:
             st.setdefault("multiangle", {})["score"] = _multiangle_score(p)
+        _verdict_stats(p, st)
         return st
     if p.owner == "demo" and p.title.startswith("Demo match"):
         st = stats.demo_stats()
         with contextlib.suppress(OSError):
             sp.write_text(json.dumps(st, indent=2))
+        _verdict_stats(p, st)
         return st
     raise HTTPException(404, "stats not available yet (pipeline has not produced stats.json)")
+
+
+def _verdict_stats(p: ProjectStore, st: dict) -> None:
+    """When the user has made verdicts, headline counts come from them."""
+    conf = [c for c in p.candidates if c.status == "confirmed"]
+    if not conf:
+        return
+    st["goals"] = sum(1 for c in conf if c.type == "goal")
+    st["highlights"] = len(conf) - st["goals"]
+    st["basis_events"] = "user verdicts"
 
 
 def summary(p: ProjectStore) -> dict:
@@ -936,6 +963,16 @@ def delete_youtube_cookies(user: UserDep) -> Response:
 @app.get("/api/config")
 def get_config() -> dict:
     return {"upload_origin": os.environ.get("HL_PUBLIC_URL") or None}
+
+
+@app.get("/api/learning")
+def get_learning(user: UserDep) -> dict:
+    from highlights.pipeline.learn import learn_dir
+    ld = learn_dir()
+    meta_path = ld / "verdict_lr.json"
+    if not meta_path.is_file():
+        return {"trained": False}
+    return json.loads(meta_path.read_text())
 
 
 # ---------- storage ----------

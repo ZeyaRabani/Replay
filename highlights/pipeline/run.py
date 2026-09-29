@@ -207,12 +207,33 @@ def stage_score(ctx: Ctx) -> None:
 
 def stage_candidates(ctx: Ctx) -> None:
     from highlights.pipeline.candidates import make_candidates
+    from highlights.pipeline.learn import load_verdict_model, verdict_prob
+    from highlights.pipeline.score import smooth3
     df = pd.read_parquet(ctx.pipe / "features_1s.parquet")
     sc = pd.read_parquet(ctx.pipe / "scores.parquet")
     in_match = df["in_match"].to_numpy(dtype=bool) if "in_match" in df.columns \
         else np.ones(len(df), dtype=bool)
-    res = make_candidates(df, sc["learned"].to_numpy(), sc["rule"].to_numpy(),
-                          in_match, ctx.duration or float(sc["t"].max() + 1))
+    learned = sc["learned"].to_numpy()
+    duration = ctx.duration or float(sc["t"].max() + 1)
+    vm = load_verdict_model()
+    vp = None
+    if vm is not None:
+        vp = smooth3(verdict_prob(df, learned, vm))
+        learned = 0.5 * learned + 0.5 * vp
+    res = make_candidates(df, learned, sc["rule"].to_numpy(),
+                          in_match, duration,
+                          vp=vp,
+                          model_version=vm.get("version") if vm else None,
+                          window_prior=vm.get("window_prior") if vm else None)
+    if vm is not None:
+        res["learning"] = {"model": vm.get("version"),
+                           "n_examples": vm.get("n_examples"),
+                           "auroc_lopo": vm.get("auroc_lopo")}
+        ctx.log(f"candidates: verdict model {vm.get('version')} "
+                f"({vm.get('n_examples')} verdicts, "
+                f"AUROC {vm.get('auroc_lopo')}) applied")
+    else:
+        ctx.log("candidates: no verdict model, base scoring")
     write_json_atomic(ctx.pipe / "candidates.json", res, indent=1)
     ctx.log(f"candidates: {len(res['events'])} events")
 

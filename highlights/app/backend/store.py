@@ -40,7 +40,13 @@ def make_candidates(cf: CandidatesFile, duration: float) -> list[Candidate]:
     out: list[Candidate] = []
     for i, ev in enumerate(cf.events):
         status = "rejected" if ev.cross_validation == "rejected" else "pending"
-        start, end = default_clip_window(ev.t, ev.type, dur)
+        # honour the pipeline's dynamic window when it looks sane
+        if ev.t_start < ev.t < ev.t_end and 4.0 <= ev.t_end - ev.t_start <= 30.0:
+            start, end = max(0.0, ev.t_start), ev.t_end
+            if dur > 0:
+                end = min(end, dur)
+        else:
+            start, end = default_clip_window(ev.t, ev.type, dur)
         out.append(
             Candidate(
                 id=f"c{i + 1:03d}",
