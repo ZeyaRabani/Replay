@@ -20,6 +20,16 @@ services:
       # browser ("Get cookies.txt" extension) and either paste them into the
       # "YouTube access" panel in the UI (saved per profile), or provide the file:
       # HL_YT_COOKIES: /data/cookies.txt
+      # bgutil POT provider helps YouTube downloads survive bot checks without
+      # cookies; points at the bgutil-provider service below.
+      HL_POT_PROVIDER_URL: ${HL_POT_PROVIDER_URL:-http://bgutil-provider:4416}
+    depends_on:
+      - bgutil-provider
+    restart: unless-stopped
+
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider
+    init: true
     restart: unless-stopped
 
 volumes:

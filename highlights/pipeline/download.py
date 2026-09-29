@@ -14,7 +14,8 @@ BOT_CHECK_MARKERS = ("Sign in to confirm", "not a bot")
 
 BOT_CHECK_MSG = (
     "YouTube blocked the automated download (sign-in / bot check). "
-    "Upload the video file instead, or provide a cookies file "
+    "Check the bgutil-provider service is running (HL_POT_PROVIDER_URL), "
+    "or upload the video file instead / provide a cookies file "
     "(--cookies / HL_YT_COOKIES)."
 )
 
@@ -71,6 +72,10 @@ def download(url: str, dest_dir: str | Path, status=None,
         log("warning: no JS runtime on PATH; YouTube JS challenges may fail")
     if cookiefile:
         opts["cookiefile"] = cookiefile
+    pot_url = os.environ.get("HL_POT_PROVIDER_URL")
+    if pot_url:
+        opts["extractor_args"] = {"youtubepot-bgutilhttp": {"base_url": [pot_url]}}
+        log(f"pot provider: {pot_url}")
 
     # Real-world finding: YouTube DASH formats (271/251) can 403 mid-fetch
     # while the HLS variants download fine. Retry once on 403 with HLS.

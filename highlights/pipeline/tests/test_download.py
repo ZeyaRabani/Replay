@@ -69,6 +69,37 @@ def test_download_success(tmp_path, monkeypatch):
     assert status.status["video_path"] == str(out)
 
 
+class _CaptureYDL(_FakeYDL):
+    """Captures the opts dict passed to YoutubeDL."""
+    instances: ClassVar[list] = []
+
+    def __init__(self, opts):
+        super().__init__(opts)
+        self.instances.append(self)
+
+
+def test_download_pot_provider(tmp_path, monkeypatch):
+    _CaptureYDL.instances = []
+    monkeypatch.setenv("HL_POT_PROVIDER_URL", "http://bgutil-provider:4416")
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _CaptureYDL)
+    logs = []
+    out = dl.download("http://x", tmp_path, status=None, log=logs.append)
+    assert out.name == "match.mp4"
+    opts = _CaptureYDL.instances[0].opts
+    assert opts["extractor_args"]["youtubepot-bgutilhttp"]["base_url"] == [
+        "http://bgutil-provider:4416"]
+    assert any("pot provider" in m for m in logs)
+
+
+def test_download_no_pot_provider(tmp_path, monkeypatch):
+    _CaptureYDL.instances = []
+    monkeypatch.delenv("HL_POT_PROVIDER_URL", raising=False)
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _CaptureYDL)
+    out = dl.download("http://x", tmp_path, status=None, log=lambda m: None)
+    assert out.name == "match.mp4"
+    assert "extractor_args" not in _CaptureYDL.instances[0].opts
+
+
 def test_download_bot_check(tmp_path, monkeypatch):
     monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _BotYDL)
     with pytest.raises(PipelineError) as ei:
