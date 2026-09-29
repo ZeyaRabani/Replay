@@ -86,7 +86,8 @@ def _pairwise_cosine(feats: np.ndarray) -> np.ndarray:
 
 def group_tracklets(tracklets: list[dict], feats: np.ndarray,
                     *, max_per_team: int = MAX_PER_TEAM,
-                    dist_thresh: float = DIST_THRESH) -> list[dict]:
+                    dist_thresh: float = DIST_THRESH,
+                    min_overlap_s: float = MIN_OVERLAP_S) -> list[dict]:
     """Constrained average-linkage clustering, per team pool ("A", "B",
     None = own pool). Average link = mean pairwise cosine distance of the
     union's members; a merge is legal only if no member pair overlaps in
@@ -103,7 +104,7 @@ def group_tracklets(tracklets: list[dict], feats: np.ndarray,
     ends = np.array([t["t_end"] for t in tracklets])
     overlap = (np.minimum(ends[:, None], ends[None, :])
                - np.maximum(starts[:, None], starts[None, :]))
-    clink = overlap >= MIN_OVERLAP_S
+    clink = overlap >= min_overlap_s
 
     # per team pool: cluster distance matrix D (average link) + cluster
     # conflict matrix C (any member pair cannot-link). Merge updates:

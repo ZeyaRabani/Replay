@@ -148,3 +148,18 @@ def test_group_track_ids_cover_merged_members(tmp_path):
     assert len(out["groups"]) == 1
     assert out["groups"][0]["track_ids"] == [1, 2]
     assert out["groups"][0]["n_members"] == 2
+
+
+def test_min_overlap_tolerates_handoff():
+    from highlights.analysis.groups import group_tracklets
+    # same player, fragments overlapping by 2 s (fusion hand-off)
+    tls = [
+        {"id": 1, "team": "A", "t_start": 0.0, "t_end": 10.0, "crops": []},
+        {"id": 2, "team": "A", "t_start": 8.0, "t_end": 20.0, "crops": []},
+    ]
+    feats = np.ones((2, 4)) / 2.0      # identical fingerprints
+    g1 = group_tracklets(tls, feats, min_overlap_s=1.0)
+    assert len(g1) == 2                # 2 s overlap >= 1 s -> cannot link
+    g4 = group_tracklets(tls, feats, min_overlap_s=4.0)
+    assert len(g4) == 1                # 2 s overlap < 4 s -> hand-off ok
+    assert g4[0]["tracklet_ids"] == [1, 2]

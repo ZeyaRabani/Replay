@@ -19,7 +19,7 @@ import numpy as np
 from highlights.io import write_json_atomic
 
 from .fuse_tracks import SPRINT_MS, STEP
-from .groups import DIST_THRESH, FEAT_DIM, MAX_PER_TEAM, group_tracklets, tracklet_fingerprint
+from .groups import DIST_THRESH, FEAT_DIM, MAX_PER_TEAM, MIN_OVERLAP_S, group_tracklets, tracklet_fingerprint
 
 TEAM_ORDER = {"A": 0, "B": 1, None: 2}
 
@@ -80,7 +80,7 @@ def _merge_stats(xy: list) -> tuple[float, int]:
 
 def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 8.0,
                      min_overlap_s: float = 1.0,
-                     max_offset_std_m: float = 1.5) -> list[dict]:
+                     max_offset_std_m: float = 2.5) -> list[dict]:
     """Union-find merge of cross-camera duplicate tracks (greedy sweep
     by start time, only interval-overlapping pairs compared). Each
     super-track: id = longest member's id, member_ids, majority team,
@@ -139,6 +139,7 @@ def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 8.0,
 
 
 def build_groups_v2(v2_dir: Path, *, dist_thresh: float = DIST_THRESH,
+                    min_overlap_s: float = MIN_OVERLAP_S,
                     **merge_kw) -> dict:
     """Cluster tracks.json -> groups.json (one card per player).
     merge_kw is forwarded to merge_duplicates."""
@@ -154,7 +155,8 @@ def build_groups_v2(v2_dir: Path, *, dist_thresh: float = DIST_THRESH,
             [crops_dir / c for c in (t.get("crops") or [])])
         for t in tracklets]) if tracklets else np.zeros((0, FEAT_DIM))
     clusters = group_tracklets(tracklets, feats, max_per_team=MAX_PER_TEAM,
-                               dist_thresh=dist_thresh)
+                               dist_thresh=dist_thresh,
+                               min_overlap_s=min_overlap_s)
     by_id = {int(t["id"]): t for t in merged}
     groups = []
     for c in clusters:
