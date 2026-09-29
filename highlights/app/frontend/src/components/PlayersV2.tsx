@@ -6,7 +6,7 @@ import type { AnalysisStatus, AnalysisTeamInfo, PlayerTeam, PlayersRoster, Playe
 import Swatch from "./Swatch";
 
 const btnPrimary =
-  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
+  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
 const TEAM_ORDER: PlayerTeam[] = ["A", "B", null];
 
@@ -96,8 +96,8 @@ function V2Card({ label, name, crops, mins, distM, sprints, start, end, members,
     setNaming(false);
   };
   return (
-    <div className={`rounded border p-1.5 flex flex-col gap-1.5 min-w-0 ${
-      name ? "border-emerald-900/70 bg-zinc-900" : "border-zinc-800 bg-zinc-900"}`}>
+    <div className={`card p-1.5 flex flex-col gap-1.5 min-w-0 ${
+      name ? "border-emerald-700" : ""}`}>
       <div className="flex gap-1">
         {crops.slice(0, 4).map((c) => (
           <img key={c} src={cropSrc(c)} alt="" loading="lazy"

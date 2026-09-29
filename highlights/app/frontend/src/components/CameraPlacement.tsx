@@ -6,7 +6,7 @@ import type { CalibCamera, CalibResponse, PitchDims } from "../types";
 
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const btnPrimary =
-  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
+  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 
 const MARGIN = 15;         // metres of grey margin around the pitch
 const ARROW_LEN = 7;       // arrow length in metres

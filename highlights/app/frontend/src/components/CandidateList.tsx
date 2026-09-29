@@ -19,7 +19,7 @@ export default function CandidateList(props: Props) {
   const [filter, setFilter] = useState<Status | "all">("all");
   const shown = props.candidates.filter((c) => filter === "all" || c.status === filter);
   const chip = (active: boolean) =>
-    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
+    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
 
   return (
     <div className="flex flex-col h-full min-h-0">

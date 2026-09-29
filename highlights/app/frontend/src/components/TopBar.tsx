@@ -13,15 +13,15 @@ export default function TopBar({ children }: Props) {
   const user = getUser();
   const { isMobile, setMode } = useLayout();
   return (
-    <header className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
-      <Link to="/projects" className="flex items-baseline gap-1.5">
-        <Clapperboard size={16} className="text-amber-400 self-center" />
-        <span className="font-bold uppercase tracking-wide text-white text-sm">Replay</span>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-300">Highlights</span>
+    <header className="flex items-center gap-3 px-6 h-[52px] border-b border-white/[0.06]">
+      <Link to="/projects" className="flex items-center gap-2">
+        <Clapperboard size={16} className="text-amber-400" />
+        <span className="font-semibold tracking-tight text-white text-sm">Replay</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
       </Link>
       <div className="flex items-center gap-2 min-w-0 flex-1">{children}</div>
       <button
-        className="flex items-center justify-center w-8 h-8 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 shrink-0"
+        className="btn btn-ghost !px-2 !py-1.5 justify-center w-8 h-8 shrink-0"
         title={isMobile ? "Switch to desktop view" : "Switch to mobile view"}
         onClick={() => setMode(isMobile ? "desktop" : "mobile")}
       >
@@ -32,7 +32,7 @@ export default function TopBar({ children }: Props) {
           <UserCircle size={16} className="text-zinc-400" />
           <span className="font-medium mob:hidden">{user}</span>
           <button
-            className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-zinc-300"
+            className="btn btn-ghost !px-2 !py-1 text-xs"
             title="Switch user"
             onClick={() => {
               setUser(null);

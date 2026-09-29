@@ -41,7 +41,7 @@ function ratioKeys(ratios: Record<string, number>): string[] {
 const fmtT = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 const fmtS = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
 
-const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
+const card = "card p-4";
 const input =
   "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs font-mono placeholder:text-zinc-500 focus:outline-none focus:border-amber-400";
 
@@ -265,7 +265,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
         <button
           disabled={offBusy}
           onClick={() => void submitOffsets()}
-          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
+          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
         >
           {offBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           Re-run from sync

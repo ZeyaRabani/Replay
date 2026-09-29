@@ -5,7 +5,7 @@ import { fmtClock, parseClock } from "../lib/time";
 import { ANGLE_COLORS } from "./DirectorCut";
 import type { DirectComparison, DirectLearnResult, DirectSession, DirectSuggest } from "../types";
 
-const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
+const card = "card p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const input =
   "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs font-mono placeholder:text-zinc-500 focus:outline-none focus:border-amber-400";

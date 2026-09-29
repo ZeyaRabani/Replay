@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { AnalysisEvent, AnalysisMatchStats, AnalysisResponse, AnalysisTeamInfo, AnalysisTerritory } from "../types";
 
-const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
+const card = "card p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2";
 const thCls = "pb-1 font-medium text-left text-zinc-500";
 const tdCls = "py-1 border-b border-zinc-800/50";
@@ -289,7 +289,7 @@ export default function MatchAnalysis({ onSeek }: { onSeek?: (t: number) => void
           <button
             disabled={busy}
             onClick={() => void start(failed)}
-            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40"
           >
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
             {failed ? "Retry analysis" : "Analyse match"} (~{data.estimate_min} min)

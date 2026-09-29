@@ -259,13 +259,13 @@ export default function ProjectReview({ seekRequest }: Props) {
                 <button
                   disabled={!proxyReady}
                   onClick={() => setQ("fast")}
-                  className={`px-2 py-0.5 ${quality === "fast" ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-400"} disabled:opacity-40`}
+                  className={`px-2 py-0.5 ${quality === "fast" ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-400"} disabled:opacity-40`}
                 >
                   Fast
                 </button>
                 <button
                   onClick={() => setQ("hd")}
-                  className={`px-2 py-0.5 ${quality === "hd" || !proxyReady ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-400"}`}
+                  className={`px-2 py-0.5 ${quality === "hd" || !proxyReady ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-400"}`}
                 >
                   HD
                 </button>

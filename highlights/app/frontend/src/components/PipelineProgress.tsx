@@ -46,7 +46,7 @@ export default function PipelineProgress({ project, status, onRerun, onCancel, b
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             {failed ? (
               <AlertTriangle size={18} className="text-red-400" />
@@ -117,7 +117,7 @@ export default function PipelineProgress({ project, status, onRerun, onCancel, b
               <button
                 disabled={busy}
                 onClick={onRerun}
-                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-2.5 py-1 text-xs disabled:opacity-40"
+                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-2.5 py-1 text-xs disabled:opacity-40"
               >
                 <RotateCcw size={13} /> Re-run
               </button>

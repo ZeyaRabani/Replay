@@ -8,7 +8,7 @@ import CalibCanvas from "./CalibCanvas";
 
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const btnPrimary =
-  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
+  "flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-xs disabled:opacity-40";
 
 export const CALIB_SAVED_EVENT = "hl:calib-saved";
 
@@ -69,7 +69,7 @@ function LandmarkList({ landmarks, placed, sel, onSelect, onRemove }: {
               <button type="button" className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
                 onClick={() => onSelect(l.name)} aria-pressed={on}>
                 <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                  has ? "bg-amber-400 text-white font-semibold" : "bg-zinc-800 text-zinc-500 border border-zinc-700"}`}>
+                  has ? "bg-amber-400 text-zinc-950 font-semibold" : "bg-zinc-800 text-zinc-500 border border-zinc-700"}`}>
                   {i + 1}
                 </span>
                 <span className={`truncate ${has ? "text-zinc-200" : "text-zinc-400"}`}>{l.label}</span>
@@ -211,7 +211,7 @@ export default function CameraCalib({ onSaved, defaultT }: {
             return (
               <button key={i} type="button" onClick={() => { setAngle(i); setSel(null); }}
                 className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs ${
-                  angle === i ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}>
+                  angle === i ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}>
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tone.hex }} />
                 Angle {i + 1}
                 <span className={`text-[10px] ${status.cls}`}>· {status.label}</span>

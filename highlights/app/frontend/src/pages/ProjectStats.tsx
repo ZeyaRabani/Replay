@@ -58,7 +58,7 @@ const tooltipStyle = {
 
 function Card({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-zinc-800 bg-zinc-900 p-3 flex flex-col ${className}`}>
+    <div className={`card p-3 flex flex-col ${className}`}>
       <div className="text-xs font-semibold text-zinc-300 mb-2">{title}</div>
       {children}
     </div>
@@ -76,7 +76,7 @@ function Kpi({ icon, label, value, sub, onClick }: {
   return (
     <Tag
       onClick={onClick}
-      className={`rounded-lg border border-zinc-800 bg-zinc-900 p-3 flex items-start gap-3 text-left ${
+      className={`card p-3 flex items-start gap-3 text-left ${
         onClick ? "hover:border-amber-400/60 cursor-pointer" : ""
       }`}
     >

@@ -59,7 +59,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={busy || !name.trim()}
-            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />} Continue
           </button>

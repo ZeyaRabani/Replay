@@ -62,8 +62,8 @@ export default function CandidateCard(props: Props) {
   return (
     <div
       onClick={() => props.onSelect(c)}
-      className={`rounded-lg border p-2.5 cursor-pointer transition-colors ${
-        props.selected ? "border-amber-400 bg-zinc-800" : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+      className={`card p-4 cursor-pointer transition-colors ${
+        props.selected ? "border-amber-400 bg-zinc-800" : "hover:bg-zinc-800"
       }`}
     >
       <div className="flex gap-2.5">
@@ -82,16 +82,16 @@ export default function CandidateCard(props: Props) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-            <span className="bg-zinc-700 rounded px-1.5 py-0.5 font-mono">#{c.rank}</span>
+            <span className="chip bg-zinc-700 font-mono">#{c.rank}</span>
             <span
-              className="rounded px-1.5 py-0.5 font-semibold uppercase"
+              className="chip"
               style={{ backgroundColor: `${TYPE_COLORS[c.type]}33`, color: TYPE_COLORS[c.type] }}
             >
               {TYPE_LABEL[c.type] ?? c.type}
             </span>
             {Array.isArray(c.signals.angles) && (
               <span
-                className="rounded px-1.5 py-0.5 bg-zinc-700 text-zinc-300 inline-flex items-center gap-1"
+                className="chip bg-zinc-700 text-zinc-300 inline-flex items-center gap-1"
                 title={[
                   `${(c.signals.angles as unknown[]).length >= 2 ? "seen by angles" : "seen by angle"} ${(c.signals.angles as number[]).join(", ")}`,
                   `cross-validation: ${c.cross_validation}`,
@@ -108,7 +108,7 @@ export default function CandidateCard(props: Props) {
                 )}
               </span>
             )}
-            <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[c.status]}`}>{c.status}</span>
+            <span className={`chip ${STATUS_STYLE[c.status]}`}>{c.status}</span>
             <span className="ml-auto font-mono text-xs text-zinc-300">{fmt(c.t)}</span>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -172,16 +172,16 @@ export default function CandidateCard(props: Props) {
           </select>
         )}
         <button
-          className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
-            c.status === "confirmed" ? "bg-emerald-700" : "bg-zinc-700 hover:bg-emerald-800"
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "confirmed" ? "bg-emerald-700" : "btn-ghost"
           }`}
           onClick={() => props.onPatch(c.id, { status: c.status === "confirmed" ? "pending" : "confirmed" })}
         >
           <Check size={12} /> Confirm
         </button>
         <button
-          className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
-            c.status === "rejected" ? "bg-red-800" : "bg-zinc-700 hover:bg-red-900"
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "rejected" ? "bg-red-800" : "btn-ghost"
           }`}
           onClick={() => props.onPatch(c.id, { status: c.status === "rejected" ? "pending" : "rejected" })}
         >

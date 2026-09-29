@@ -9,7 +9,7 @@ import type { CalibResponse, PitchDims, PlayersPaths, RadarPitch } from "../type
 import CameraCalib, { rmsTone } from "./CameraCalib";
 import CameraPlacement from "./CameraPlacement";
 
-const card = "rounded-lg border border-zinc-800 bg-zinc-900 p-4";
+const card = "card p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
 
@@ -350,7 +350,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 </button>
                 {[1, 2, 4].map((s) => (
                   <button key={s} type="button"
-                    className={`rounded px-2 py-1 text-xs ${speed === s ? "bg-amber-500 text-white font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
+                    className={`rounded px-2 py-1 text-xs ${speed === s ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}
                     onClick={() => setSpeed(s)}>
                     {s}×
                   </button>

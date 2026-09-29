@@ -97,7 +97,7 @@ function ProjectCard({
 }) {
   const [thumbErr, setThumbErr] = useState(false);
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900 hover:border-zinc-700 transition-colors flex gap-3 p-3">
+    <div className="card hover:border-zinc-700 transition-colors flex gap-3 p-3">
       <Link to={`/projects/${p.id}`} className="shrink-0">
         {p.thumb_url && !thumbErr ? (
           <img
@@ -293,7 +293,7 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
   };
 
   return (
-    <div ref={innerRef} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-3">
+    <div ref={innerRef} className="card p-4 mb-3">
       <div className="flex items-center justify-between gap-2">
         <div className="font-semibold text-sm flex items-center gap-2">
           <Youtube size={15} className="text-red-400" /> YouTube access
@@ -360,7 +360,7 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
           <button
             disabled={busy || !text.trim()}
             onClick={() => void save()}
-            className="self-start bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5 disabled:opacity-40"
+            className="self-start bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 disabled:opacity-40"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : "Save"}
           </button>
@@ -480,7 +480,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
         : !!file;
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+    <div className="card p-4">
       <div className="flex items-center gap-2 font-semibold text-sm mb-3">
         <Plus size={16} className="text-amber-400" /> New project
       </div>
@@ -550,7 +550,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               Large uploads must go directly to your server:
               <a
                 href={`${uploadOrigin}/projects`}
-                className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5"
+                className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5"
               >
                 Open {uploadOrigin}/projects
               </a>
@@ -657,7 +657,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
           <button
             disabled={busy || !canSubmit}
             onClick={() => void submit()}
-            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+            className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Layers size={15} />}
             Assemble director cut
@@ -693,7 +693,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
             Large uploads must go directly to your server:
             <a
               href={`${uploadOrigin}/projects`}
-              className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-1.5"
+              className="mt-2 inline-block bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5"
             >
               Open {uploadOrigin}/projects
             </a>
@@ -736,7 +736,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
         <button
           disabled={busy || !canSubmit}
           onClick={() => void submit()}
-          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
+          className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-2 text-sm disabled:opacity-40"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
           {tab === "youtube" ? "Download & analyse" : "Upload & analyse"}
@@ -797,7 +797,7 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
       <h2 className="font-semibold mb-2">Archive</h2>
       <div className="flex flex-col gap-2">
         {items.map((m) => (
-          <div key={m.id} className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+          <div key={m.id} className="card p-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium flex-1 min-w-0 truncate">{m.title}</span>
               <span className="text-[11px] text-zinc-500">
