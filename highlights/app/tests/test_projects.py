@@ -329,9 +329,11 @@ def test_demo_project(client, sample_video, tmp_path, monkeypatch):
         )["events"] if e["cross_validation"] != "rejected"
     )
     assert sum(st["events_by_type"].values()) == n_non_rejected
-    # legacy routes map to the demo project
+    # legacy routes map to the demo project; every demo candidate has
+    # t beyond the sample video's duration so all are filtered out
     cands = c.get("/api/candidates").json()
-    assert len(cands) == 47
+    assert cands == []
+    assert d["n_candidates"] == 47
     # media route works without X-User
     r = c.get(scoped(pid, "/video/source.mp4"))
     assert r.status_code == 200

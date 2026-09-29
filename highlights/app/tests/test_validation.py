@@ -129,10 +129,12 @@ def test_source_switch_revalidates_windows(client, sample_video, short_video):
     dur = r.json()["duration_s"]
     for c in client.get(scoped(pid, "/candidates")).json():
         assert 0 <= c["clip_start"] < c["clip_end"] <= dur
-    # candidate beyond duration gets a clamped end-of-video window
-    g = _get(client, pid, goal["id"])
-    assert g["clip_end"] == pytest.approx(dur)
-    assert g["t"] == goal["t"]  # event time preserved
+    # candidate beyond duration gets a clamped end-of-video window;
+    # it is hidden from the list endpoint, so read it from the store
+    import highlights.app.backend.main as m
+    g = m.get_registry().get(pid).get(goal["id"])
+    assert g.clip_end == pytest.approx(dur)
+    assert g.t == goal["t"]  # event time preserved
 
 
 def test_load_candidates_into_short_video_valid(client, short_video):
@@ -144,3 +146,20 @@ def test_load_candidates_into_short_video_valid(client, short_video):
     assert r.status_code == 200
     for c in r.json():
         assert 0 <= c["clip_start"] < c["clip_end"] <= dur
+
+
+def test_out_of_range_candidates_hidden_from_list(client, short_video):
+    pid = new_project(client, short_video)
+    r = client.post(scoped(pid, "/video"), json={"path": str(short_video)})
+    dur = r.json()["duration_s"]
+    r = client.post(scoped(pid, "/candidates/load"),
+                    json={"path": str(SAMPLE / "candidates_short.json")})
+    assert r.status_code == 200
+    # every sample event has t > 6s video duration -> hidden from the list,
+    # but kept in the store (not deleted)
+    listed = client.get(scoped(pid, "/candidates")).json()
+    assert listed == []
+    import highlights.app.backend.main as m
+    store = m.get_registry().get(pid)
+    assert len(store.candidates) == 5
+    assert all(c.t > dur + 1 for c in store.candidates)

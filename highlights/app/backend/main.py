@@ -571,6 +571,8 @@ async def _load_candidates(p: ProjectStore, request: Request) -> list:
 
 def _list_candidates(p: ProjectStore, sort: str = "confidence") -> list:
     cands = p.candidates
+    if p.video and p.video.duration_s > 0:
+        cands = [c for c in cands if c.t <= p.video.duration_s + 1]
     cands = sorted(cands, key=lambda c: c.t) if sort == "time" else sorted(cands, key=lambda c: -c.confidence)
     return [c.model_dump() for c in cands]
 
