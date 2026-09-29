@@ -146,7 +146,7 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
             return []
         picks = [refs[int(i * (len(refs) - 1) / 5)] for i in
                  range(min(6, len(refs)))]
-        out = []
+        jobs: list[tuple[str, Path, sp.Popen | None]] = []
         for j, (_k, cands) in enumerate(picks):
             best = max(cands, key=lambda r: (r["box"][2] - r["box"][0])
                        * (r["box"][3] - r["box"][1]))
@@ -156,13 +156,19 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
             x1, y1, x2, y2 = [int(b) for b in best["box"]]
             name = f"v2_{tr['id']}_{j}.jpg"
             dst = crops_dir / name
+            proc = None
             if not dst.exists():
-                sp.run(["ffmpeg", "-v", "error", "-ss",
-                        f"{best['t_file']:.2f}", "-i", str(v),
-                        "-frames:v", "1", "-vf",
-                        f"crop={x2 - x1}:{y2 - y1}:{x1}:{y1}",
-                        "-q:v", "3", "-y", str(dst)],
-                       capture_output=True)
+                proc = sp.Popen(["ffmpeg", "-v", "error", "-ss",
+                                 f"{best['t_file']:.2f}", "-i", str(v),
+                                 "-frames:v", "1", "-vf",
+                                 f"crop={x2 - x1}:{y2 - y1}:{x1}:{y1}",
+                                 "-q:v", "3", "-y", str(dst)],
+                                stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+            jobs.append((name, dst, proc))
+        out = []
+        for name, dst, proc in jobs:
+            if proc is not None:
+                proc.wait()
             if dst.exists():
                 out.append(name)
         return out
