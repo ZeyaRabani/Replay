@@ -82,7 +82,9 @@ def cut_info(project_dir: Path, cut_dir: Path | None = None,
 
 
 def snapshot_cut(project_dir: Path, style: str | None = None,
-                 cut_range: list[float] | None = None) -> dict | None:
+                 cut_range: list[float] | None = None,
+                 label_suffix: str = "",
+                 extra_meta: dict | None = None) -> dict | None:
     """Snapshot the current cut into multiangle/cuts/<id>/.
 
     Returns the cut meta dict, or None if there is nothing to snapshot.
@@ -113,12 +115,14 @@ def snapshot_cut(project_dir: Path, style: str | None = None,
     st = style or director.get("style") or "normal"
     meta = {
         "id": cid,
-        "label": cut_label(st, zones_used),
+        "label": cut_label(st, zones_used) + label_suffix,
         "style": st,
         "zones_used": zones_used,
         "n_cuts": director.get("n_cuts"),
         "created_at": time.time(),
     }
+    if extra_meta:
+        meta.update(extra_meta)
     if cut_range:
         meta["range"] = list(cut_range)
         meta["range_out"] = [0.0, float(cut_range[1]) - float(cut_range[0])]

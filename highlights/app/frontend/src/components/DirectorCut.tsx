@@ -78,6 +78,12 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [maWinBusy, setMaWinBusy] = useState(false);
   const [prevFrom, setPrevFrom] = useState("");
   const [prevTo, setPrevTo] = useState("");
+  const [homeName, setHomeName] = useState("");
+  const [awayName, setAwayName] = useState("");
+  const [homeHex, setHomeHex] = useState("#2563eb");
+  const [awayHex, setAwayHex] = useState("#ea580c");
+  const [scoreBusy, setScoreBusy] = useState(false);
+  const [scoreNote, setScoreNote] = useState<string | null>(null);
   const zonesLoaded = useRef(false);
   const timer = useRef<number | null>(null);
 
@@ -85,6 +91,12 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     try {
       const i = await api.multiangle();
       setInfo(i);
+      if (!scoreBusy) {
+        setHomeName(i.score.home.label);
+        setAwayName(i.score.away.label);
+        if (i.score.home.hex) setHomeHex(i.score.home.hex);
+        if (i.score.away.hex) setAwayHex(i.score.away.hex);
+      }
       try {
         setCuts(await api.listCuts());
       } catch {
@@ -218,6 +230,42 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setMaWinBusy(false);
+    }
+  };
+
+  const saveScore = async () => {
+    if (!info) return;
+    setScoreBusy(true);
+    try {
+      await api.putScore({
+        home_label: homeName.trim() || "Home",
+        away_label: awayName.trim() || "Away",
+        home_hex: homeHex,
+        away_hex: awayHex,
+      });
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScoreBusy(false);
+    }
+  };
+
+  const burnScoreboard = async () => {
+    setScoreBusy(true);
+    setScoreNote(null);
+    try {
+      const res = await api.postScoreboard();
+      setScoreNote(
+        "Re-encoding the active cut with scoreboard (~30–60 min); " +
+          `it appears as a new version. ${res.goals} goal(s) burned` +
+          (res.unassigned ? `, ${res.unassigned} unassigned` : "") + ".",
+      );
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScoreBusy(false);
     }
   };
 
@@ -812,8 +860,59 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
               {(info.score.unassigned ?? 0) > 0 && (
                 <div className="text-xs text-zinc-400 mt-1">unassigned: {info.score.unassigned}</div>
               )}
-              <div className="text-[11px] text-zinc-500 mt-1">
-                from confirmed goals with team set — set Home/Away on goal candidates in Review
+              <div className="mt-3 flex items-end gap-3 flex-wrap">
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-zinc-500">Home</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="color"
+                      className="w-7 h-7 rounded bg-zinc-800 border border-zinc-700 p-0.5"
+                      value={homeHex}
+                      onChange={(e) => setHomeHex(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                    <input
+                      className={`${input} w-28`}
+                      value={homeName}
+                      placeholder="Home"
+                      onChange={(e) => setHomeName(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                  </span>
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-zinc-500">Away</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="color"
+                      className="w-7 h-7 rounded bg-zinc-800 border border-zinc-700 p-0.5"
+                      value={awayHex}
+                      onChange={(e) => setAwayHex(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                    <input
+                      className={`${input} w-28`}
+                      value={awayName}
+                      placeholder="Away"
+                      onChange={(e) => setAwayName(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                  </span>
+                </label>
+                <button
+                  disabled={live || scoreBusy || cutBusy !== null}
+                  onClick={() => void burnScoreboard()}
+                  className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-1 disabled:opacity-40"
+                >
+                  {scoreBusy ? <Loader2 size={11} className="animate-spin inline" /> : null}
+                  {" "}Burn scoreboard into active cut
+                </button>
+              </div>
+              {scoreNote && (
+                <div className="text-[11px] text-sky-300 mt-2">{scoreNote}</div>
+              )}
+              <div className="text-[11px] text-zinc-500 mt-2">
+                Score comes from confirmed goals with Home/Away set in Review; the clock starts at the detected kickoff.
               </div>
             </div>
 

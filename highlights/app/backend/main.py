@@ -157,6 +157,24 @@ class MaMatchWindowPut(BaseModel):
     end: float | None = None
 
 
+class ScorePut(BaseModel):
+    home_label: str
+    away_label: str
+    home_hex: str | None = None
+    away_hex: str | None = None
+
+
+_HEX_RE = re.compile(r"^#?[0-9a-fA-F]{6}$")
+
+
+def _norm_hex(v: str | None, field: str) -> str | None:
+    if v is None or v == "":
+        return None
+    if not _HEX_RE.match(v.strip()):
+        raise HTTPException(422, f"{field} must be #rrggbb")
+    return "#" + v.strip().lstrip("#").lower()
+
+
 class ZoneKeyframe(BaseModel):
     t: float = 0.0
     zones: list[list[list[float]]] = []
@@ -1365,13 +1383,16 @@ def _read_json(path: Path) -> dict | None:
 
 
 def _multiangle_score(p: ProjectStore) -> dict:
-    score: dict = {}
     st = _read_json(p.pipeline_dir / "stats.json") or {}
     score = (st.get("multiangle") or {}).get("score") or {}
-    if not score:
-        score = _read_json(p.multiangle_dir / "score.json") or {}
-    home_label = (score.get("home") or {}).get("label") or "Home"
-    away_label = (score.get("away") or {}).get("label") or "Away"
+    # user-set labels/colours win over the stats block
+    sd = _read_json(p.multiangle_dir / "score.json") or {}
+    for side in ("home", "away"):
+        for k, v in (sd.get(side) or {}).items():
+            if v is not None:
+                score.setdefault(side, {})[k] = v
+    home = score.get("home") or {}
+    away = score.get("away") or {}
     n_home = n_away = n_un = 0
     for c in p.candidates:
         if c.status != "confirmed" or c.type != "goal":
@@ -1385,8 +1406,10 @@ def _multiangle_score(p: ProjectStore) -> dict:
             n_un += 1
     return {
         **score,
-        "home": {"label": home_label, "goals": n_home},
-        "away": {"label": away_label, "goals": n_away},
+        "home": {"label": home.get("label") or "Home", "goals": n_home,
+                 "hex": home.get("hex")},
+        "away": {"label": away.get("label") or "Away", "goals": n_away,
+                 "hex": away.get("hex")},
         "unassigned": n_un,
         "basis": "confirmed goals with team set",
     }
@@ -1542,6 +1565,76 @@ def get_multiangle(p: ScopedP) -> dict:
         "match_window": match_window,
         "match_window_src": _read_json(p.multiangle_dir / "match_window_src.json"),
     }
+
+
+@scoped.put("/multiangle/score")
+def put_multiangle_score(body: ScorePut, p: ScopedP) -> dict:
+    """Persist team labels/colours for the scoreboard + score card."""
+    _require_multiangle(p)
+    for name, v in (("home_label", body.home_label),
+                    ("away_label", body.away_label)):
+        if not (1 <= len(v.strip()) <= 20):
+            raise HTTPException(422, f"{name} must be 1-20 characters")
+    doc = {
+        "home": {"label": body.home_label.strip(),
+                 "hex": _norm_hex(body.home_hex, "home_hex")},
+        "away": {"label": body.away_label.strip(),
+                 "hex": _norm_hex(body.away_hex, "away_hex")},
+    }
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(p.multiangle_dir / "score.json", doc, indent=1)
+    _hist(p, "score_labels_set", home=doc["home"]["label"],
+          away=doc["away"]["label"])
+    return _multiangle_score(p)
+
+
+@scoped.post("/multiangle/scoreboard")
+def post_multiangle_scoreboard(p: ScopedP) -> dict:
+    """Queue a job that burns scoreboard + clock into the active cut.
+
+    Goals come from confirmed goal candidates with signals.team set
+    (times are OUTPUT time of the active cut); the clock starts at the
+    detected kickoff (pipeline/match_window.json match_window[0])."""
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    if not (p.root / "match.mp4").is_file():
+        raise HTTPException(409, "no rendered cut yet — run the pipeline first")
+    goals, n_un = [], 0
+    for c in p.candidates:
+        if c.status != "confirmed" or c.type != "goal":
+            continue
+        team = (c.signals or {}).get("team")
+        if team in ("home", "away"):
+            goals.append({"t": float(c.t), "team": team})
+        else:
+            n_un += 1
+    kickoff = 0.0
+    mw = _read_json(p.pipeline_dir / "match_window.json") or {}
+    win = mw.get("match_window")
+    if isinstance(win, list) and win:
+        with contextlib.suppress(Exception):
+            kickoff = float(win[0])
+    labels = _read_json(p.multiangle_dir / "score.json") or {}
+    write_json_atomic(p.multiangle_dir / "scoreboard.json", {
+        "home": {"label": (labels.get("home") or {}).get("label") or "Home",
+                 "hex": (labels.get("home") or {}).get("hex")},
+        "away": {"label": (labels.get("away") or {}).get("label") or "Away",
+                 "hex": (labels.get("away") or {}).get("hex")},
+        "goals": goals,
+        "kickoff": kickoff,
+    }, indent=1)
+    _ensure_cut_snapshot(p)   # keep the pre-scoreboard cut selectable
+    try:
+        job = pipeline.spawn_multiangle(
+            p, stages=["scoreboard"], force=True,
+            style=p.meta.get("cut_style"))
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
+    _hist(p, "scoreboard_requested", n_goals=len(goals))
+    return {"job": job, "goals": len(goals), "unassigned": n_un}
 
 
 @scoped.put("/multiangle/match-window")

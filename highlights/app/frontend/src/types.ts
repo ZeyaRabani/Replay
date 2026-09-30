@@ -176,8 +176,8 @@ export interface AngleInfo {
 }
 
 export interface MultiangleScore {
-  home: { label: string; goals: number };
-  away: { label: string; goals: number };
+  home: { label: string; goals: number; hex?: string | null };
+  away: { label: string; goals: number; hex?: string | null };
   unassigned?: number;
   basis?: string;
 }

@@ -21,6 +21,7 @@ export const MULTIANGLE_STAGES: { key: string; label: string }[] = [
   { key: "render", label: "Render director cut" },
   { key: "fuse", label: "Fuse candidates" },
   { key: "stats", label: "Match stats" },
+  { key: "scoreboard", label: "Burn scoreboard" },
 ];
 
 interface Props {
