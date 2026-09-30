@@ -72,3 +72,41 @@ def test_fuse_two_angles_six_players():
     assert by_team == {"A": 3, "B": 3}
     assert doc["summary"]["n_tracks"] == 6
     assert 4 <= doc["summary"]["median_visible"] <= 6
+
+
+# ownership: angle 0's camera is at the y=W end, angle 1's at y=0
+H_CAM0 = [[L, 0, 0], [0, W, 0], [0, 0, 1.0]]
+H_CAM1 = [[L, 0, 0], [0, -W, W], [0, 0, 1.0]]
+
+
+def _det(angle: int, px: float, py: float, t: float = 0.0):
+    """One-angle dets dict with a single detection whose foot projects
+    to pitch (px, py) through that angle's H above."""
+    foot = [px / L, py / W] if angle == 0 else [px / L, (W - py) / W]
+    return {"t": np.array([t]), "foot": np.array([foot]),
+            "conf": np.array([0.9]), "team": np.array([""]),
+            "box": np.array([[0, 0, 20, 40]]), "w": 1.0, "h": 1.0}
+
+
+def test_ownership_keeps_nearest_camera():
+    """Same player at (30, 60) seen by both cameras: it is nearer to
+    camera 0 (50,64) than camera 1 (50,0), so only angle 0's detection
+    survives — one visible observation that step."""
+    dets = {0: _det(0, 30.0, 60.0), 1: _det(1, 30.0, 60.0)}
+    doc = fuse(dets, {0: H_CAM0, 1: H_CAM1}, window=(0.0, 0.0),
+               offsets=[0.0, 0.0], pitch=(L, W), log=lambda m: None)
+    assert doc["summary"]["visible_hist"] == [1]
+    assert doc["summary"]["ownership"] is True
+    assert doc["summary"]["cam_xy"] == {"0": [50.0, 64.0], "1": [50.0, 0.0]}
+
+
+def test_ownership_off_keeps_both():
+    """With ownership disabled, detections 4 m apart exceed MERGE_M and
+    stay two observations."""
+    dets = {0: _det(0, 30.0, 60.0), 1: _det(1, 34.0, 60.0)}
+    doc = fuse(dets, {0: H_CAM0, 1: H_CAM1}, window=(0.0, 0.0),
+               offsets=[0.0, 0.0], pitch=(L, W), ownership=False,
+               log=lambda m: None)
+    assert doc["summary"]["visible_hist"] == [2]
+    assert doc["summary"]["ownership"] is False
+    assert doc["summary"]["cam_xy"] == {}

@@ -30,6 +30,7 @@ GATE_MISS_M = 4.5
 MAX_MISS_S = 6.0
 MIN_LEN_S = 4.0
 FILL_GAP_S = 2.0
+OWNERSHIP = True          # drop detections a farther camera saw better
 CROPS_PER_TRACK = 6
 BALL_CONF = 0.35
 SPRINT_MS = 6.5           # same threshold as players.py? kept local
@@ -124,7 +125,8 @@ def _load_json(path: Path):
 def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
          window: tuple[float, float], offsets: list[float],
          pitch: tuple[float, float], t0: float | None = None,
-         crops_for=None, log=print) -> dict:
+         crops_for=None, ownership: bool = OWNERSHIP,
+         log=print) -> dict:
     """dets: {angle: load_dets() output}. Hs: {angle: 3x3 frame->pitch}.
     window: (lo,hi) shared seconds. Returns the tracks.json doc."""
     from .calib import apply_h
@@ -132,6 +134,19 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
     L, W = pitch
     n_steps = max(1, round((hi - lo) / STEP) + 1)
 
+    # camera ownership: each camera's pitch position is its image
+    # bottom-centre ((0.5, 1.0) normalized — feet are stored normalized
+    # by meta w/h). Angles without meta w/h never own and are never
+    # filtered; "nearest" is compared among cameras with a position.
+    cam_xy: dict[int, tuple[float, float]] = {}
+    if ownership:
+        for a, d in dets.items():
+            H = Hs.get(a)
+            if H is None or not d.get("w") or not d.get("h"):
+                continue
+            cx, cy = apply_h(H, 0.5, 1.0)
+            if math.isfinite(cx) and math.isfinite(cy):
+                cam_xy[a] = (cx, cy)
     # step-indexed footpoints per angle
     per_step: dict[int, list[dict]] = {}
     for a, d in dets.items():
@@ -146,6 +161,12 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
                 continue
             fx, fy = float(d["foot"][i][0]), float(d["foot"][i][1])
             x, y = apply_h(H, fx, fy)
+            if (len(cam_xy) >= 2 and a in cam_xy
+                    and any(math.hypot(x - ox, y - oy)
+                            < math.hypot(x - cam_xy[a][0],
+                                         y - cam_xy[a][1])
+                            for o, (ox, oy) in cam_xy.items() if o != a)):
+                continue
             if not (-EDGE_MARGIN_M <= x <= L + EDGE_MARGIN_M
                     and -EDGE_MARGIN_M <= y <= W + EDGE_MARGIN_M):
                 continue
@@ -223,10 +244,11 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
             next_id += 1
             tracks.append(tr)
     return _finish(tracks, lo, pitch, vis_hist, t0 if t0 is not None else lo,
-                   n_steps, crops_for, log)
+                   n_steps, crops_for, log, ownership, cam_xy)
 
 
-def _finish(tracks, lo, pitch, vis_hist, t0, n_steps, crops_for, log):
+def _finish(tracks, lo, pitch, vis_hist, t0, n_steps, crops_for, log,
+            ownership, cam_xy):
     out = []
     for tr in tracks:
         dur = (tr["step_end"] - tr["step_start"] + 1) * STEP
@@ -269,7 +291,10 @@ def _finish(tracks, lo, pitch, vis_hist, t0, n_steps, crops_for, log):
                        "mean_len_s": round(float(np.mean(lens)), 1)
                        if lens else 0.0,
                        "median_visible": med_vis,
-                       "visible_hist": vis_hist.tolist()}}
+                       "visible_hist": vis_hist.tolist(),
+                       "ownership": bool(ownership),
+                       "cam_xy": {str(a): [round(c, 1) for c in xy]
+                                  for a, xy in cam_xy.items()}}}
     log(f"fuse: {len(out)} tracks, median visible {med_vis:.0f}/step")
     return doc
 
