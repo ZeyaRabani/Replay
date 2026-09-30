@@ -21,6 +21,13 @@ BOT_CHECK_MSG = (
     "(HL_YT_PROXY / the YouTube access panel)."
 )
 
+COOKIES_REJECTED_MSG = (
+    "YouTube rejected the saved cookies (expired/rotated). Re-export them "
+    "from an incognito window (log in to YouTube there, export with the "
+    "Get cookies.txt extension, close the window without browsing) and "
+    "paste into the YouTube access panel, then Restart."
+)
+
 
 def _progress_hook(status, d: dict) -> None:
     if status is None:
@@ -101,6 +108,8 @@ def download(url: str, dest_dir: str | Path, status=None,
         except yt_dlp.utils.DownloadError as e:
             msg = str(e)
             if any(m in msg for m in BOT_CHECK_MARKERS):
+                if cookiefile:
+                    raise PipelineError(COOKIES_REJECTED_MSG) from e
                 raise PipelineError(BOT_CHECK_MSG) from e
             if attempt == 0 and ("403" in msg or "Forbidden" in msg):
                 log("DASH download got 403; retrying with HLS streams")

@@ -130,3 +130,17 @@ def test_download_bot_check(tmp_path, monkeypatch):
     assert "YouTube blocked" in msg
     assert "upload" in msg.lower()
     assert "cookies" in msg
+
+
+def test_download_bot_check_with_cookies(tmp_path, monkeypatch):
+    """Bot check despite a cookiefile -> cookies-expired message, not the
+    generic one."""
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _BotYDL)
+    ck = tmp_path / "cookies.txt"
+    ck.write_text("youtube.com\tTRUE\t/\tFALSE\t0\tX\tY")
+    with pytest.raises(PipelineError) as ei:
+        dl.download("http://x", tmp_path, status=None, cookies=str(ck),
+                    log=lambda m: None)
+    msg = str(ei.value)
+    assert "rejected the saved cookies" in msg
+    assert "incognito" in msg
