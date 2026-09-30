@@ -302,3 +302,107 @@ def test_angle_duration_probe_fallback(client, short_video, monkeypatch):
     probe1 = p.angle_dir(1) / "pipeline" / "probe.json"
     assert probe1.is_file()
     assert json.loads(probe1.read_text())["duration_s"] == d1
+
+
+def test_multiangle_goal_aware_settings_recut_and_director_timeline(client):
+    r = _create(client, 2)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+
+    p = m.get_registry().get(pid)
+    assert client.get(scoped(pid, "/multiangle/settings")).json() == {
+        "goal_aware": True}
+    assert client.get(scoped(pid, "/multiangle")).json()["goal_aware"] is True
+
+    director_path = p.multiangle_dir / "director.json"
+    director = json.loads(director_path.read_text())
+    segments_live = director["segments"]
+    segments_out = [
+        {**segments_live[0], "t_start": 0.0, "t_end": 16.0},
+        {**segments_live[1], "t_start": 16.0, "t_end": 25.0},
+    ]
+    director["segments_out"] = segments_out
+    director["replays"] = [{
+        "goal_id": "g",
+        "t_goal": 5.0,
+        "src_angle": 1,
+        "t_src_start": 0.0,
+        "t_src_end": 6.0,
+        "t_live_at": 2.0,
+        "t_out_start": 2.0,
+        "t_out_end": 14.0,
+        "speed": 0.5,
+    }]
+    director_path.write_text(json.dumps(director))
+    sync_path = p.multiangle_dir / "sync.json"
+    sync = json.loads(sync_path.read_text())
+    sync["coverage"]["union"] = [0.0, 20.0]
+    sync_path.write_text(json.dumps(sync))
+
+    full = client.get(scoped(pid, "/multiangle/director")).json()
+    assert full["segments"] == segments_out
+    assert full["segments_live"] == segments_live
+    assert "segments_out" not in full
+
+    saved = client.put(
+        scoped(pid, "/multiangle/settings"), json={"goal_aware": False})
+    assert saved.status_code == 200
+    assert client.get(scoped(pid, "/multiangle/settings")).json() == {
+        "goal_aware": False}
+    assert client.get(scoped(pid, "/multiangle")).json()["goal_aware"] is False
+
+    r = client.post(scoped(pid, "/multiangle/recut"), json={
+        "style": "normal", "window": [17.0, 20.0], "goal_aware": False})
+    assert r.status_code == 200, r.text
+    assert json.loads(
+        (p.multiangle_dir / "cut_range.json").read_text()) == {
+            "lo": 5.0, "hi": 8.0}
+    argv_path = p.multiangle_dir / "argv.json"
+    for _ in range(50):
+        argv = json.loads(argv_path.read_text())
+        if "--goal-aware" in argv and argv[argv.index("--goal-aware") + 1] == "off":
+            break
+        time.sleep(0.1)
+    assert argv[argv.index("--goal-aware") + 1] == "off"
+    _wait(client, pid)
+    assert p.meta["goal_aware"] is False
+
+
+def test_sync_candidate_timeline_is_idempotent(client):
+    r = _create(client, 2)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+    from highlights.app.backend.pipeline import sync_candidate_timeline
+
+    p = m.get_registry().get(pid)
+    candidate = p.candidates[0]
+    candidate.status = "confirmed"
+    p.meta["replays_applied"] = []
+    p.save()
+    director_path = p.multiangle_dir / "director.json"
+    director = json.loads(director_path.read_text())
+    director["replays"] = [{
+        "goal_id": "g",
+        "t_goal": 5.0,
+        "src_angle": 1,
+        "t_src_start": 0.0,
+        "t_src_end": 6.0,
+        "t_live_at": 2.0,
+        "t_out_start": 2.0,
+        "t_out_end": 14.0,
+        "speed": 0.5,
+    }]
+    director_path.write_text(json.dumps(director))
+
+    sync_candidate_timeline(p)
+    shifted = candidate.model_dump()
+    assert candidate.t == 17.0
+    assert p.meta["replays_applied"] == director["replays"]
+    sync_candidate_timeline(p)
+    assert candidate.model_dump() == shifted

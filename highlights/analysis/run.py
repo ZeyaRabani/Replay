@@ -134,14 +134,18 @@ def resolve_context(project_dir: Path) -> dict:
 
 def _load_candidates(project_dir: Path, lo_out: float) -> list[dict]:
     """Candidates -> [{t_shared, type, status, confidence}]."""
+    from highlights.multiangle.timemap import from_output_time_with_replays
+
     out = []
     pj = _load_json(project_dir / "project.json") or {}
+    replays = (pj.get("meta") or {}).get("replays_applied") or []
     for c in pj.get("candidates") or []:
         try:
             t_out = float(c.get("t", c.get("t_out", 0.0)))
         except (TypeError, ValueError):
             continue
-        out.append({"t_shared": t_out + lo_out,
+        t_live = from_output_time_with_replays(t_out, replays)
+        out.append({"t_shared": t_live + lo_out,
                     "type": str(c.get("type", "other")),
                     "status": str(c.get("status") or "pending"),
                     "confidence": float(c.get("confidence") or 0.0)})
@@ -160,6 +164,23 @@ def _load_candidates(project_dir: Path, lo_out: float) -> list[dict]:
                     "status": status,
                     "confidence": float(e.get("confidence") or 0.0)})
     return out
+
+
+def _map_output_fields(value, replays):
+    from highlights.multiangle.timemap import to_output_time_with_replays
+
+    output_keys = {"t_out", "t_start_out", "t_end_out", "start_out", "end_out"}
+    if isinstance(value, dict):
+        mapped = {}
+        for key, item in value.items():
+            if key in output_keys and item is not None:
+                mapped[key] = to_output_time_with_replays(float(item), replays)
+            else:
+                mapped[key] = _map_output_fields(item, replays)
+        return mapped
+    if isinstance(value, list):
+        return [_map_output_fields(item, replays) for item in value]
+    return value
 
 
 def estimate_minutes(window_s: float) -> int:
@@ -214,16 +235,20 @@ def run_analysis(project_dir: Path, log=print, force: bool = False,
         match_window=ctx["window"], lo_out=ctx["lo_out"],
         offsets=ctx["offsets"], ref_angle=ctx["ref_angle"],
         pitch_type=ctx.get("pitch_type"))
-    write_json_atomic(stats_path, stats, indent=1)
+    summary = build_summary(stats)
+    replays = (_load_json(Path(project_dir) / "multiangle" / "director.json")
+               or {}).get("replays") or []
+    stats_out = _map_output_fields(stats, replays)
+    summary_out = _map_output_fields(summary, replays)
+    write_json_atomic(stats_path, stats_out, indent=1)
     log(f"stats: {len(stats['halves'])} halves, {len(stats['events'])} "
         f"confirmed events, {stats['n_unreviewed']} unreviewed")
 
     _upd(stage="summary", progress=0.95, message="writing summary")
-    summary = build_summary(stats)
-    write_json_atomic(summary_path, summary, indent=1)
+    write_json_atomic(summary_path, summary_out, indent=1)
 
     _upd(stage="done", progress=1.0, message="done")
-    return {"teams": teams, "stats": stats, "summary": summary}
+    return {"teams": teams, "stats": stats_out, "summary": summary_out}
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -59,12 +59,21 @@ def test_direct_suggest_and_sessions(client, short_video, monkeypatch):
     assert d["director"][0]["angle"] == 0
     assert d["director"][5]["angle"] == 1    # seg 4..8.5 -> angle 1
 
+    director_path = p.multiangle_dir / "director.json"
+    director = json.loads(director_path.read_text())
+    director["replays"] = [{
+        "t_src_start": 0.0, "t_src_end": 6.0, "speed": 0.5,
+        "t_live_at": 2.0, "t_out_start": 2.0, "t_out_end": 14.0,
+    }]
+    director_path.write_text(json.dumps(director))
+
     # arbitrary stretch
     r = client.get(scoped(pid, "/multiangle/direct/suggest"),
                    params={"t_start": 4.0, "t_end": 9.0})
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["candidate"] is None
+    assert d["t_start_out"] == 16.0
     assert [row["t"] for row in d["director"]] == [4, 5, 6, 7, 8]
     assert [row["rule"] for row in d["director"]] == \
         ["ball"] * 5                       # seg boundary at t=4
