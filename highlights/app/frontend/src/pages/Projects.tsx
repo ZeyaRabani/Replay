@@ -325,8 +325,8 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
   return (
     <div ref={innerRef} className="card p-4 mb-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="font-semibold text-sm flex items-center gap-2">
-          <Youtube size={15} className="text-red-400" /> YouTube access
+        <div className="font-semibold text-2xl flex items-center gap-2">
+          <Youtube size={30} className="text-red-400" /> YouTube access
         </div>
         {saved ? (
           <span className="text-xs text-zinc-400">
@@ -347,7 +347,7 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
           </span>
         ) : (
           <button
-            className="text-xs text-amber-300 hover:text-amber-200 underline"
+            className="text-xl text-amber-300 hover:text-amber-200 underline"
             onClick={() => setOpen(!open)}
           >
             {open ? "Close" : "Not set — Set up"}
