@@ -26,6 +26,8 @@ import type {
   RadarPitch,
   PlayersRoster,
   PlayersStats,
+  PlayerIdentities,
+  PlayerReel,
   PlayersV2Group,
   PlayersV2Tracks,
   ProjectDetail,
@@ -237,6 +239,18 @@ export function projectApi(id: string) {
     rebuildGroupsV2: () =>
       req<{ groups: PlayersV2Group[]; n_tracks: number; n_grouped: number }>(
         `${base}/analysis/players/v2/groups/rebuild`, json({})),
+    identities: () => req<PlayerIdentities>(`${base}/players/identities`),
+    rebuildIdentities: () =>
+      req<PlayerIdentities>(`${base}/players/identities/rebuild`, json({})),
+    putIdentityName: (iid: string, name: string | null) =>
+      req<{ id: string; name: string | null }>(
+        `${base}/players/identities/${encodeURIComponent(iid)}`,
+        json({ name }, "PUT")),
+    identityReel: (iid: string) =>
+      req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`),
+    makeIdentityReel: (iid: string) =>
+      req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`,
+                      { method: "POST" }),
     radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),
     putRadarPitch: (corners: [number, number][], t: number | null) =>
       req<RadarPitch>(`${base}/analysis/radar/pitch`,

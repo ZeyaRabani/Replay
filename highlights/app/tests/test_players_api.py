@@ -400,3 +400,109 @@ def test_ball_path_rows_format():
     assert _ball_path(feats, 10.0) == [[11.0, 0.4, 0.3],
                                        [13.0, 0.8, 0.85]]
     assert _ball_path({"columns": ["t"], "rows": []}, 0.0) == []
+
+
+def test_player_identities_endpoints(client):
+    import highlights.app.backend.main as m
+    pid = _done_multiangle(client)
+    p = _write_teams(client, pid)
+    assert client.get(scoped(pid, "/players/identities")).status_code == 404
+    v2dir = p.root / "analysis" / "players_v2"
+    v2dir.mkdir(parents=True)
+
+    def walk(tid, start, end, x):
+        n = round((end - start) / 0.5) + 1
+        return {"id": tid, "team": "A", "start": start, "end": end,
+                "xy": [[x, 20.0]] * n, "dist_m": 0.0, "sprints": 0,
+                "crops": [f"v2_{tid}_0.jpg"]}
+    (v2dir / "tracks.json").write_text(json.dumps({
+        "step": 0.5, "t0": 0.0,
+        "tracks": [walk(1, 0.0, 30.0, 10.0), walk(2, 32.0, 60.0, 10.5)],
+        "summary": {"n_tracks": 2, "visible_hist": [1] * 121}}))
+    r = client.post(scoped(pid, "/players/identities/rebuild"), json={})
+    assert r.status_code == 200, r.text
+    d = client.get(scoped(pid, "/players/identities")).json()
+    assert [i["id"] for i in d["identities"]] == ["A1"]
+    ident = d["identities"][0]
+    assert ident["track_ids"] == [1, 2]
+    assert all(c.startswith(f"/api/projects/{pid}/analysis/players/v2/crops/")
+               for c in ident["crops"])
+    assert d["teams"]["A"]["hex"] == "#f08c00"
+
+    r = client.put(scoped(pid, "/players/identities/A1"), json={"name": "Nine"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"id": "A1", "name": "Nine"}
+    names = json.loads((v2dir / "names.json").read_text())
+    assert names["names"]["A1"]["name"] == "Nine"
+    assert client.get(scoped(pid, "/players/identities")
+                      ).json()["identities"][0]["name"] == "Nine"
+    # survives an offline re-link
+    client.post(scoped(pid, "/players/identities/rebuild"), json={})
+    assert client.get(scoped(pid, "/players/identities")
+                      ).json()["identities"][0]["name"] == "Nine"
+    # radar paths carry the identity
+    paths = client.get(scoped(pid, "/analysis/players/paths")).json()
+    assert {t["identity_id"] for t in paths["tracks"]} == {"A1"}
+
+    assert client.put(scoped(pid, "/players/identities/A9"),
+                      json={"name": "x"}).status_code == 404
+    assert client.put(scoped(pid, "/players/identities/bad-id"),
+                      json={"name": "x"}).status_code == 404
+    assert client.put(scoped(pid, "/players/identities/A1"),
+                      json={"name": "x" * 61}).status_code == 422
+    # another user cannot see it
+    other = client.get(scoped(pid, "/players/identities"),
+                       headers={"X-User": "someone-else"})
+    assert other.status_code in (401, 403, 404)
+    assert m.get_registry().get(pid) is not None
+
+
+def test_identity_reel_endpoints(client):
+    import subprocess as sp
+    pid = _done_multiangle(client)
+    p = _write_teams(client, pid)
+    v2dir = p.root / "analysis" / "players_v2"
+    v2dir.mkdir(parents=True)
+    xs = [10.0] * 20 + [10.0 + 3.5 * k for k in range(1, 7)]
+    xs += [xs[-1]] * 20
+    track = {"id": 1, "team": "A", "start": 5.0,
+             "end": 5.0 + 0.5 * (len(xs) - 1),
+             "xy": [[x, 20.0] for x in xs], "dist_m": 0.0, "sprints": 0,
+             "crops": []}
+    (v2dir / "tracks.json").write_text(json.dumps({
+        "step": 0.5, "t0": 0.0, "tracks": [track], "ball": [],
+        "summary": {"n_tracks": 1, "visible_hist": [1] * 60}}))
+    (p.root / "multiangle").mkdir(exist_ok=True)
+    (p.root / "multiangle" / "cut_range.json").write_text(
+        json.dumps({"lo": 0.0, "hi": 40.0}))
+    assert client.post(scoped(pid, "/players/identities/rebuild"),
+                       json={}).status_code == 200
+    reel = scoped(pid, "/players/identities/A1/reel")
+    assert client.get(reel).status_code == 404
+    assert client.post(scoped(pid, "/players/identities/B4/reel")
+                       ).status_code == 404
+    match = p.root / "match.mp4"
+    if match.is_symlink() or match.exists():
+        match.unlink()
+    assert client.post(reel).status_code == 409
+    sp.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+            "testsrc=duration=30:size=160x120:rate=10", "-c:v", "libx264",
+            "-preset", "ultrafast", str(match)], check=True)
+    r = client.post(reel)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"]["state"] in ("queued", "running", "done")
+    deadline = time.time() + 30
+    d = {}
+    while time.time() < deadline:
+        d = client.get(reel).json()
+        if d["status"]["state"] in ("done", "failed"):
+            break
+        time.sleep(0.2)
+    assert d["status"]["state"] == "done", d
+    assert d["url"] == f"/api/projects/{pid}/players/identities/A1/reel.mp4"
+    assert d["manifest"]["items"][0]["type"] == "sprint"
+    mp4 = client.get(d["url"], params={"user": "tester"})
+    assert mp4.status_code == 200
+    assert mp4.headers["content-type"] == "video/mp4"
+    other = client.get(reel, headers={"X-User": "someone-else"})
+    assert other.status_code in (401, 403, 404)

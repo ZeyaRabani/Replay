@@ -182,6 +182,12 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
             f"({g['n_grouped']}/{g['n_tracks']} tracks)")
     except Exception as e:
         log(f"groups: skipped ({type(e).__name__}: {e})")
+    _upd(stage="identities", progress=0.98, message="linking identities")
+    try:
+        from .identity import build_identities
+        build_identities(adir, log=log)
+    except Exception as e:
+        log(f"identities: skipped ({type(e).__name__}: {e})")
     _upd(stage="done", progress=1.0, message="done")
     return doc
 

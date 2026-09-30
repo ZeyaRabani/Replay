@@ -33,3 +33,23 @@ export const fmtDur = (s: number): string => {
 };
 
 export const fmtDist = (m: number): string => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+
+/** Fired after an identity name is saved or identities are re-linked so
+ *  other views (radar) can refetch. */
+export const IDENTITIES_CHANGED_EVENT = "hl:identities-changed";
+
+const IDENTITY_PALETTE = [
+  "#ef4444", "#3b82f6", "#eab308", "#a855f7", "#14b8a6", "#f97316",
+  "#ec4899", "#84cc16", "#06b6d4", "#f43f5e", "#8b5cf6", "#22c55e",
+  "#0ea5e9", "#d946ef", "#facc15", "#10b981", "#fb7185", "#6366f1",
+  "#f59e0b", "#2dd4bf", "#c084fc", "#4ade80",
+];
+
+/** Stable per-identity colour: A1..A11 then B1..B11 walk the palette. */
+export function identityHex(iid: string): string {
+  const team = iid[0] === "B" ? 1 : 0;
+  const n = Math.max(1, Number(iid.slice(1)) || 1);
+  return IDENTITY_PALETTE[(team * 11 + n - 1) % IDENTITY_PALETTE.length];
+}
+
+export const fmtSpeed = (ms: number): string => `${(ms * 3.6).toFixed(1)} km/h`;

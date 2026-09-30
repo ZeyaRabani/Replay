@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { applyH, homography, type Mat3 } from "../lib/homography";
 import { DEFAULT_PITCH, drawPitch, pitchView } from "../lib/pitch";
-import { fetchPlayers } from "../lib/players";
+import { IDENTITIES_CHANGED_EVENT, fetchPlayers, identityHex } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import type { CalibResponse, PitchDims, PlayersPaths, RadarPitch } from "../types";
 import CameraCalib, { rmsTone } from "./CameraCalib";
@@ -79,6 +79,9 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   const [calibOpen, setCalibOpen] = useState(false);
   const [camsOpen, setCamsOpen] = useState(true);
   const [rosterNames, setRosterNames] = useState<Record<string, string>>({});
+  const [identNames, setIdentNames] = useState<Record<string, string | null>>({});
+  const [hover, setHover] = useState<{ x: number; y: number; label: string } | null>(null);
+  const drawn = useRef<{ x: number; y: number; id: number; ident: string | null }[]>([]);
   const [teamHex, setTeamHex] = useState<Record<string, string>>(TEAM_HEX);
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -116,6 +119,18 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [open, paths, api]);
+
+  useEffect(() => {
+    if (!open) return;
+    const load = () => void api.identities()
+      .then((d) => setIdentNames(Object.fromEntries(d.identities.map((i) => [i.id, i.name]))))
+      .catch(() => setIdentNames({}));
+    load();
+    // re-linking renumbers identities: refetch the paths too
+    const relink = () => { load(); setPaths(null); };
+    window.addEventListener(IDENTITIES_CHANGED_EVENT, relink);
+    return () => window.removeEventListener(IDENTITIES_CHANGED_EVENT, relink);
+  }, [open, api]);
 
   const pitch: PitchDims = useMemo(
     () => paths?.pitch ?? calib?.pitch
@@ -164,7 +179,11 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     };
     const r = Math.max(5, W / 140);
     const labels: [string, number, number, number][] = [];
+    const hits: typeof drawn.current = [];
     let on = 0;
+    // cross-camera duplicates of one identity are drawn as a single dot
+    const dots: { tr: PlayersPaths["tracks"][number]; m: [number, number]; a: number; n: number }[] = [];
+    const byIdent = new Map<string, (typeof dots)[number]>();
     for (const tr of paths.tracks) {
       if (tr.hidden) continue;
       const p = posAt(tr.pts, t);
@@ -176,22 +195,38 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
         if (prev && p[2] === 1) m = [prev[0] + 0.5 * (m[0] - prev[0]), prev[1] + 0.5 * (m[1] - prev[1])];
         smooth.current.set(tr.id, m);
       }
-      if (p[2] === 1) on += 1;
+      const iid = tr.identity_id ?? null;
+      const d = iid ? byIdent.get(iid) : undefined;
+      if (d) {
+        d.m = [(d.m[0] * d.n + m[0]) / (d.n + 1), (d.m[1] * d.n + m[1]) / (d.n + 1)];
+        d.n += 1;
+        d.a = Math.max(d.a, p[2]);
+        continue;
+      }
+      const dot = { tr, m: m as [number, number], a: p[2], n: 1 };
+      dots.push(dot);
+      if (iid) byIdent.set(iid, dot);
+    }
+    for (const { tr, m, a } of dots) {
+      if (a === 1) on += 1;
       const x = v.X(m[0]), y = v.Y(m[1]);
-      ctx.globalAlpha = p[2];
+      ctx.globalAlpha = a;
       ctx.beginPath();
       ctx.arc(x, y + 1.5, r, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(0,0,0,0.35)";
       ctx.fill();
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = tr.team ? (teamHex[tr.team] ?? "#a1a1aa") : "#d4d4d8";
+      const team = tr.team ? (teamHex[tr.team] ?? "#a1a1aa") : "#d4d4d8";
+      const iid = tr.identity_id ?? null;
+      ctx.fillStyle = iid ? identityHex(iid) : team;
       ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#09090b";
+      ctx.lineWidth = iid ? 2.5 : 2;
+      ctx.strokeStyle = iid ? team : "#09090b";
       ctx.stroke();
-      const nm = tr.player_id ? rosterNames[tr.player_id] : null;
-      if (nm) labels.push([nm, x, y - r - 5, p[2]]);
+      const nm = (iid && identNames[iid]) || (tr.player_id ? rosterNames[tr.player_id] : null);
+      if (nm) labels.push([nm, x, y - r - 5, a]);
+      if (a === 1) hits.push({ x, y, id: tr.id, ident: iid });
     }
     // labels on top of all dots
     ctx.font = `600 ${Math.max(10, Math.round(W / 90))}px ui-sans-serif, system-ui, sans-serif`;
@@ -235,8 +270,29 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    drawn.current = hits;
     setVisible(on);
-  }, [t, paths, H, inPitch, pitch, teamHex, rosterNames]);
+  }, [t, paths, H, inPitch, pitch, teamHex, rosterNames, identNames]);
+
+  const onCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const cv = e.currentTarget;
+    const rect = cv.getBoundingClientRect();
+    const sx = cv.width / Math.max(1, rect.width);
+    const mx = (e.clientX - rect.left) * sx, my = (e.clientY - rect.top) * sx;
+    const r = Math.max(5, cv.width / 140) * 1.8;
+    let best: (typeof drawn.current)[number] | null = null;
+    let bd = r * r;
+    for (const h of drawn.current) {
+      const d = (h.x - mx) ** 2 + (h.y - my) ** 2;
+      if (d <= bd) { bd = d; best = h; }
+    }
+    if (!best) { setHover(null); return; }
+    const nm = best.ident ? identNames[best.ident] : null;
+    const label = best.ident
+      ? (nm ? `${nm} (${best.ident})` : `${best.ident} · unnamed`)
+      : `track ${best.id}`;
+    setHover({ x: best.x / sx, y: best.y / sx, label });
+  };
 
   const nAngles = calib ? Object.keys(calib.angles).length : 0;
   const nCams = calib ? Object.keys(calib.cameras ?? {}).length : 0;
@@ -337,7 +393,15 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
           ) : (
             <>
               <div className="relative">
-                <canvas ref={cvRef} className="w-full rounded-md" />
+                <canvas ref={cvRef} className="w-full rounded-md" onMouseMove={onCanvasMove}
+                  onMouseLeave={() => setHover(null)} />
+                {hover && (
+                  <div data-radar-hover
+                    className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded bg-zinc-950/90 border border-zinc-700 px-1.5 py-0.5 text-[11px] text-zinc-100 whitespace-nowrap"
+                    style={{ left: hover.x, top: hover.y - 10 }}>
+                    {hover.label}
+                  </div>
+                )}
                 <div className="absolute top-2 left-2 flex items-center gap-2 rounded bg-zinc-950/75 px-2 py-1">
                   <span className="text-[10px] uppercase tracking-wide text-zinc-400">Players visible</span>
                   <span className="font-mono text-sm font-semibold text-amber-300" data-radar-count>{visible}</span>
