@@ -114,6 +114,22 @@ def _gk_side(t: dict, pitch_len: float) -> int:
     return 0
 
 
+def smoothed_steps(xy: list) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(smoothed positions, per-step distance, step-is-valid) for a
+    STEP-spaced xy list; see motion_stats."""
+    a = _valid(xy)
+    sm = a.copy()
+    h = SMOOTH_STEPS // 2
+    for i in range(len(a)):
+        w = a[max(0, i - h):i + h + 1]
+        w = w[~np.isnan(w[:, 0])]
+        if len(w) and not np.isnan(a[i, 0]):
+            sm[i] = w.mean(axis=0)
+    d = np.hypot(*(sm[1:] - sm[:-1]).T)
+    ok = ~np.isnan(d) & (d / STEP <= GLITCH_MS)
+    return sm, d, ok
+
+
 def motion_stats(xy: list) -> dict:
     """Distance / speed / sprints from a STEP-spaced xy list.
 
@@ -121,22 +137,12 @@ def motion_stats(xy: list) -> dict:
     jitter otherwise inflates distance); steps implying > GLITCH_MS are
     projection jumps and are ignored. A sprint is a run of smoothed speed
     >= SPRINT_MS lasting >= SPRINT_MIN_S; its peak is reported."""
-    a = _valid(xy)
-    n = len(a)
     out = {"distance_m": 0.0, "top_speed_ms": 0.0, "sprints": 0,
            "sprint_events": [], "moving_s": 0.0}
-    if n < 2:
+    if len(xy) < 2:
         return out
-    sm = a.copy()
-    h = SMOOTH_STEPS // 2
-    for i in range(n):
-        w = a[max(0, i - h):i + h + 1]
-        w = w[~np.isnan(w[:, 0])]
-        if len(w) and not np.isnan(a[i, 0]):
-            sm[i] = w.mean(axis=0)
-    d = np.hypot(*(sm[1:] - sm[:-1]).T)
+    sm, d, ok = smoothed_steps(xy)
     sp = d / STEP
-    ok = ~np.isnan(sp) & (sp <= GLITCH_MS)
     out["distance_m"] = float(d[ok].sum())
     out["moving_s"] = float(ok.sum() * STEP)
     if ok.any():
