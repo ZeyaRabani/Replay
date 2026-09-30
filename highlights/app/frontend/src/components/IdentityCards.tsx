@@ -1,19 +1,90 @@
-import { Loader2, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Download, Film, Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { fmtClock } from "../lib/time";
 import { fmtDur, fmtSpeed, identityHex } from "../lib/players";
-import type { AnalysisTeamInfo, PlayerIdentities, PlayerIdentity } from "../types";
+import type { AnalysisTeamInfo, PlayerIdentities, PlayerIdentity, PlayerReel } from "../types";
 import Swatch from "./Swatch";
 
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
 
-function IdentityCard({ ident, lo, teamHex, cropSrc, onName }: {
+export interface ReelApi {
+  get: (iid: string) => Promise<PlayerReel>;
+  make: (iid: string) => Promise<PlayerReel>;
+  fileUrl: (u: string) => string;
+}
+
+const reelLive = (r: PlayerReel | null) => r?.status.state === "queued" || r?.status.state === "running";
+
+/** "Make player reel" + progress + download for one identity. */
+function ReelControl({ iid, reelApi }: { iid: string; reelApi: ReelApi }) {
+  const [reel, setReel] = useState<PlayerReel | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [kick, setKick] = useState(0);
+  const timer = useRef<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await reelApi.get(iid);
+        if (!alive) return;
+        setReel(r);
+        if (reelLive(r)) timer.current = window.setTimeout(() => void poll(), 1500);
+      } catch {
+        if (alive) setReel(null);
+      }
+    };
+    void poll();
+    return () => {
+      alive = false;
+      if (timer.current) window.clearTimeout(timer.current);
+    };
+  }, [iid, reelApi, kick]);
+  const make = async () => {
+    setErr(null);
+    try {
+      setReel(await reelApi.make(iid));
+      setKick((k) => k + 1);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const live = reelLive(reel);
+  const st = reel?.status;
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] min-w-0" data-reel={iid}>
+      <button type="button" className={btnGhost} disabled={live} onClick={() => void make()}
+        title="Cut this player's fastest runs + confirmed shots/goals they were involved in from the match cut">
+        {live ? <Loader2 size={12} className="animate-spin" /> : <Film size={12} />}
+        {reel?.url ? "Remake reel" : "Make player reel"}
+      </button>
+      {live && (
+        <span className="flex-1 min-w-0 flex items-center gap-1">
+          <span className="flex-1 h-1 bg-zinc-800 rounded overflow-hidden">
+            <span className="block h-full bg-emerald-500" style={{ width: `${Math.round((st?.progress ?? 0) * 100)}%` }} />
+          </span>
+          <span className="text-zinc-500 truncate">{st?.message ?? "queued"}</span>
+        </span>
+      )}
+      {!live && reel?.url && (
+        <a className="flex items-center gap-1 text-emerald-400 hover:underline" href={reelApi.fileUrl(reel.url)} download>
+          <Download size={12} />
+          reel.mp4 · {st?.n_clips ?? reel.manifest?.items.length} clips · {fmtDur(st?.reel_s ?? reel.manifest?.reel_s ?? 0)}
+        </a>
+      )}
+      {!live && st?.state === "failed" && <span className="text-red-400 truncate" title={st.error ?? ""}>{st.error ?? "failed"}</span>}
+      {err && <span className="text-red-400 truncate" title={err}>{err}</span>}
+    </div>
+  );
+}
+
+function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi }: {
   ident: PlayerIdentity;
   /** match start on the shared timeline (for the first/last clock) */
   lo: number;
   teamHex: string;
   cropSrc: (u: string) => string;
   onName: (name: string | null) => Promise<void>;
+  reelApi?: ReelApi;
 }) {
   const [text, setText] = useState(ident.name ?? "");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -75,12 +146,13 @@ function IdentityCard({ ident, lo, teamHex, cropSrc, onName }: {
         <span>{fmtDur(ident.coverage_s)} on camera · {ident.track_ids.length} tracks</span>
         <span>{state === "saving" ? "saving…" : state === "saved" ? "saved" : state === "error" ? "save failed" : ""}</span>
       </div>
+      {reelApi && <ReelControl iid={ident.id} reelApi={reelApi} />}
     </div>
   );
 }
 
 /** Whole-match player identities (identities.json), one card each, by team. */
-export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cropSrc, onName, onRebuild }: {
+export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cropSrc, onName, onRebuild, reelApi }: {
   doc: PlayerIdentities;
   cols: string;
   busy?: boolean;
@@ -89,6 +161,7 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
   cropSrc: (u: string) => string;
   onName: (iid: string, name: string | null) => Promise<void>;
   onRebuild?: () => void;
+  reelApi?: ReelApi;
 }) {
   const lo = doc.window?.[0] ?? 0;
   const q = doc.quality;
@@ -121,7 +194,7 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
             <div className={`grid ${cols} gap-2`}>
               {items.map((i) => (
                 <IdentityCard key={`${i.id}:${i.track_ids[0] ?? ""}`} ident={i} lo={lo} teamHex={hex}
-                  cropSrc={cropSrc} onName={(n) => onName(i.id, n)} />
+                  cropSrc={cropSrc} onName={(n) => onName(i.id, n)} reelApi={reelApi} />
               ))}
             </div>
           </div>

@@ -607,6 +607,28 @@ export interface PlayerIdentities {
   teams: Record<string, { name: string | null; hex: string | null }>;
 }
 
+export interface PlayerReelItem {
+  id: string;
+  type: string;
+  t: number;
+  clip_start: number;
+  clip_end: number;
+  parts: { type: string; t: number; speed_ms?: number; candidate_id?: string; reason?: string }[];
+}
+
+export interface PlayerReel {
+  status: {
+    state: "queued" | "running" | "done" | "failed";
+    progress?: number;
+    message?: string | null;
+    error?: string | null;
+    n_clips?: number;
+    reel_s?: number;
+  };
+  manifest: { items: PlayerReelItem[]; reel_s: number } | null;
+  url: string | null;
+}
+
 export interface RadarPitch {
   corners: [number, number][] | null;
   t: number | null;

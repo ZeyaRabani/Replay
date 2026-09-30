@@ -26,6 +26,7 @@ import type {
   PlayersRoster,
   PlayersStats,
   PlayerIdentities,
+  PlayerReel,
   PlayersV2Group,
   PlayersV2Tracks,
   ProjectDetail,
@@ -244,6 +245,11 @@ export function projectApi(id: string) {
       req<{ id: string; name: string | null }>(
         `${base}/players/identities/${encodeURIComponent(iid)}`,
         json({ name }, "PUT")),
+    identityReel: (iid: string) =>
+      req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`),
+    makeIdentityReel: (iid: string) =>
+      req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`,
+                      { method: "POST" }),
     radarPitch: () => req<RadarPitch>(`${base}/analysis/radar/pitch`),
     putRadarPitch: (corners: [number, number][], t: number | null) =>
       req<RadarPitch>(`${base}/analysis/radar/pitch`,

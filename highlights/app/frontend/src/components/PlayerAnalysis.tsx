@@ -237,6 +237,9 @@ function PlayersTable({ data, teamInfo, teamLabel }: {
 
 export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void }) {
   const api = useProjectApi();
+  const reelApi = useMemo(
+    () => ({ get: api.identityReel, make: api.makeIdentityReel, fileUrl: api.fileUrl }),
+    [api]);
   const { isMobile } = useLayout();
   const [open, setOpen] = useState(true);
   const [data, setData] = useState<PlayersResponse | null>(null);
@@ -570,7 +573,8 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
               <>
               {idents && idents.identities.length > 0 && (
                 <IdentityCards doc={idents} cols={cols} busy={busy} teamInfo={teamInfo} teamLabel={teamLabel}
-                  cropSrc={api.fileUrl} onName={nameIdentity} onRebuild={() => void relinkIdentities()} />
+                  cropSrc={api.fileUrl} onName={nameIdentity} onRebuild={() => void relinkIdentities()}
+                  reelApi={reelApi} />
               )}
               {idents && idents.identities.length > 0 && (
                 <button type="button" className={`${btnGhost} self-start`} aria-expanded={showFragments}
