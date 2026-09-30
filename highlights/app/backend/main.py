@@ -142,6 +142,11 @@ class RecutPut(BaseModel):
     # previous cut_range in cut_range_base.json; the next non-preview
     # recut restores it first
     preview: bool = False
+    goal_aware: bool | None = None
+
+
+class MaSettingsPut(BaseModel):
+    goal_aware: bool
 
 
 class MatchWindowPut(BaseModel):
@@ -155,6 +160,24 @@ class MaMatchWindowPut(BaseModel):
     angle: int | None = None
     start: float | None = None
     end: float | None = None
+
+
+class ScorePut(BaseModel):
+    home_label: str
+    away_label: str
+    home_hex: str | None = None
+    away_hex: str | None = None
+
+
+_HEX_RE = re.compile(r"^#?[0-9a-fA-F]{6}$")
+
+
+def _norm_hex(v: str | None, field: str) -> str | None:
+    if v is None or v == "":
+        return None
+    if not _HEX_RE.match(v.strip()):
+        raise HTTPException(422, f"{field} must be #rrggbb")
+    return "#" + v.strip().lstrip("#").lower()
 
 
 class ZoneKeyframe(BaseModel):
@@ -1365,13 +1388,16 @@ def _read_json(path: Path) -> dict | None:
 
 
 def _multiangle_score(p: ProjectStore) -> dict:
-    score: dict = {}
     st = _read_json(p.pipeline_dir / "stats.json") or {}
     score = (st.get("multiangle") or {}).get("score") or {}
-    if not score:
-        score = _read_json(p.multiangle_dir / "score.json") or {}
-    home_label = (score.get("home") or {}).get("label") or "Home"
-    away_label = (score.get("away") or {}).get("label") or "Away"
+    # user-set labels/colours win over the stats block
+    sd = _read_json(p.multiangle_dir / "score.json") or {}
+    for side in ("home", "away"):
+        for k, v in (sd.get(side) or {}).items():
+            if v is not None:
+                score.setdefault(side, {})[k] = v
+    home = score.get("home") or {}
+    away = score.get("away") or {}
     n_home = n_away = n_un = 0
     for c in p.candidates:
         if c.status != "confirmed" or c.type != "goal":
@@ -1385,8 +1411,10 @@ def _multiangle_score(p: ProjectStore) -> dict:
             n_un += 1
     return {
         **score,
-        "home": {"label": home_label, "goals": n_home},
-        "away": {"label": away_label, "goals": n_away},
+        "home": {"label": home.get("label") or "Home", "goals": n_home,
+                 "hex": home.get("hex")},
+        "away": {"label": away.get("label") or "Away", "goals": n_away,
+                 "hex": away.get("hex")},
         "unassigned": n_un,
         "basis": "confirmed goals with team set",
     }
@@ -1527,7 +1555,10 @@ def get_multiangle(p: ScopedP) -> dict:
     _require_multiangle(p)
     director = _read_json(p.multiangle_dir / "director.json")
     if director:
-        director = {k: v for k, v in director.items() if k != "segments"}
+        director = {
+            k: v for k, v in director.items()
+            if k not in {"segments", "segments_out"}
+        }
     cr = _read_json(p.multiangle_dir / "cut_range.json")
     match_window = ([float(cr["lo"]), float(cr["hi"])]
                     if cr and cr.get("hi", 0) > cr.get("lo", 0) else None)
@@ -1538,10 +1569,101 @@ def get_multiangle(p: ScopedP) -> dict:
         "score": _multiangle_score(p),
         "status": pipeline.read_status(p),
         "cut_style": p.meta.get("cut_style", "normal"),
+        "goal_aware": bool(p.meta.get("goal_aware", True)),
         "sources_purged": bool(p.meta.get("sources_purged")),
         "match_window": match_window,
         "match_window_src": _read_json(p.multiangle_dir / "match_window_src.json"),
     }
+
+
+@scoped.get("/multiangle/settings")
+def get_multiangle_settings(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    return {"goal_aware": bool(p.meta.get("goal_aware", True))}
+
+
+@scoped.put("/multiangle/settings")
+def put_multiangle_settings(body: MaSettingsPut, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    p.meta["goal_aware"] = body.goal_aware
+    p.save()
+    return {"goal_aware": body.goal_aware}
+
+
+@scoped.put("/multiangle/score")
+def put_multiangle_score(body: ScorePut, p: ScopedP) -> dict:
+    """Persist team labels/colours for the scoreboard + score card."""
+    _require_multiangle(p)
+    for name, v in (("home_label", body.home_label),
+                    ("away_label", body.away_label)):
+        if not (1 <= len(v.strip()) <= 20):
+            raise HTTPException(422, f"{name} must be 1-20 characters")
+    doc = {
+        "home": {"label": body.home_label.strip(),
+                 "hex": _norm_hex(body.home_hex, "home_hex")},
+        "away": {"label": body.away_label.strip(),
+                 "hex": _norm_hex(body.away_hex, "away_hex")},
+    }
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(p.multiangle_dir / "score.json", doc, indent=1)
+    _hist(p, "score_labels_set", home=doc["home"]["label"],
+          away=doc["away"]["label"])
+    return _multiangle_score(p)
+
+
+@scoped.post("/multiangle/scoreboard")
+def post_multiangle_scoreboard(p: ScopedP) -> dict:
+    """Queue a job that burns scoreboard + clock into the active cut.
+
+    Goals come from confirmed goal candidates with signals.team set
+    (times are OUTPUT time of the active cut); the clock starts at the
+    detected kickoff (pipeline/match_window.json match_window[0])."""
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    if not (p.root / "match.mp4").is_file():
+        raise HTTPException(409, "no rendered cut yet — run the pipeline first")
+    active_id = (_read_json(p.multiangle_dir / "cuts" / "active.json") or {}).get("id")
+    if active_id:
+        meta = _read_json(p.multiangle_dir / "cuts" / str(active_id) / "meta.json") or {}
+        if meta.get("scoreboard"):
+            raise HTTPException(409, "active cut already has a scoreboard — "
+                                     "activate the plain cut first")
+    goals, n_un = [], 0
+    for c in p.candidates:
+        if c.status != "confirmed" or c.type != "goal":
+            continue
+        team = (c.signals or {}).get("team")
+        if team in ("home", "away"):
+            goals.append({"t": float(c.t), "team": team})
+        else:
+            n_un += 1
+    kickoff = 0.0
+    mw = _read_json(p.pipeline_dir / "match_window.json") or {}
+    win = mw.get("match_window")
+    if isinstance(win, list) and win:
+        with contextlib.suppress(Exception):
+            kickoff = float(win[0])
+    labels = _read_json(p.multiangle_dir / "score.json") or {}
+    write_json_atomic(p.multiangle_dir / "scoreboard.json", {
+        "home": {"label": (labels.get("home") or {}).get("label") or "Home",
+                 "hex": (labels.get("home") or {}).get("hex")},
+        "away": {"label": (labels.get("away") or {}).get("label") or "Away",
+                 "hex": (labels.get("away") or {}).get("hex")},
+        "goals": goals,
+        "kickoff": kickoff,
+    }, indent=1)
+    _ensure_cut_snapshot(p)   # keep the pre-scoreboard cut selectable
+    try:
+        job = pipeline.spawn_multiangle(
+            p, stages=["scoreboard"], force=True,
+            style=p.meta.get("cut_style"))
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
+    _hist(p, "scoreboard_requested", n_goals=len(goals))
+    return {"job": job, "goals": len(goals), "unassigned": n_un}
 
 
 @scoped.put("/multiangle/match-window")
@@ -1709,6 +1831,18 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
     _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
     p.meta["cut_style"] = body.style
+    if body.goal_aware is not None:
+        p.meta["goal_aware"] = body.goal_aware
+    window = body.window
+    if window:
+        from highlights.multiangle.timemap import from_output_time_with_replays
+        current_director = _read_json(
+            p.multiangle_dir / "director.json") or {}
+        replays = current_director.get("replays") or []
+        window = [
+            from_output_time_with_replays(float(t), replays)
+            for t in window
+        ]
     # optional cut range: window is in the current video's output time,
     # stored as absolute shared-T seconds for the runner's ctx.union()
     cr_path = p.multiangle_dir / "cut_range.json"
@@ -1734,8 +1868,8 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
             dur = float(uhi) - float(ulo)
         except Exception:
             dur = p.video.duration_s if p.video else 0.0
-    full = (body.window is None or not body.window or
-            (body.window[0] <= 0.5 and body.window[1] >= dur - 0.5))
+    full = (window is None or not window or
+            (window[0] <= 0.5 and window[1] >= dur - 0.5))
     if full:
         # "the whole current video": keep an existing cut_range (the
         # current video is itself windowed — deleting it would expand
@@ -1743,9 +1877,9 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         if not cur:
             cr_path.unlink(missing_ok=True)
     else:
-        if len(body.window) != 2:
+        if len(window) != 2:
             raise HTTPException(422, "window must be [start, end]")
-        s, e = float(body.window[0]), float(body.window[1])
+        s, e = float(window[0]), float(window[1])
         if not (0 <= s < e <= dur):
             raise HTTPException(
                 422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
@@ -1784,6 +1918,10 @@ def get_multiangle_director(p: ScopedP) -> dict:
     d = _read_json(p.multiangle_dir / "director.json")
     if d is None:
         raise HTTPException(404, "director.json not available yet")
+    if "segments_out" in d:
+        d = {**d, "segments": d["segments_out"],
+             "segments_live": d.get("segments", [])}
+        d.pop("segments_out", None)
     return d
 
 
@@ -1880,6 +2018,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     """Build the /direct/suggest payload for a stretch (or the busiest
     candidate when no explicit stretch is given)."""
     from highlights.multiangle.manual_direct import director_rows, pick_candidate, suggest_stretch
+    from highlights.multiangle.timemap import to_output_time_with_replays
     ma = p.multiangle_dir
     director = _read_json(ma / "director.json")
     if not director:
@@ -1890,6 +2029,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     if len(offsets) < n_angles:
         offsets += [0.0] * (n_angles - len(offsets))
     segs = director.get("segments") or []
+    replays = director.get("replays") or []
     meta = _active_cut_meta(p)
     rng = meta.get("range")
     if rng:
@@ -1929,7 +2069,8 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     rows = director_rows(segs, lo, s, e)
     return {
         "t_start": round(s, 2), "t_end": round(e, 2),
-        "t_start_out": round(s - lo, 2),
+        "t_start_out": round(
+            to_output_time_with_replays(s - lo, replays), 2),
         "offsets": [round(s - o, 2) for o in offsets],
         "match_window": [round(lo, 2), round(hi, 2)],
         "n_angles": n_angles,
@@ -2260,6 +2401,8 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
     meta = activate_cut(p.root, cut_id)
     if meta is None:
         raise HTTPException(404, "unknown cut")
+    with contextlib.suppress(Exception):
+        pipeline.sync_candidate_timeline(p)
     p.meta["cut_style"] = meta.get("style") or p.meta.get("cut_style", "normal")
     p.save()
     p.invalidate_video()   # drop proxy/thumbs for the previous cut

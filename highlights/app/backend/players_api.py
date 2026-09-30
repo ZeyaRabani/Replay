@@ -144,6 +144,9 @@ def _payload(p) -> dict:
                      for k in ("A", "B") if teams.get(k)}
     doc = _read_json(pdir / "tracklets.json")
     lo = _lo_out(p)
+    from highlights.multiangle.timemap import to_output_time_with_replays
+    director = _read_json(p.multiangle_dir / "director.json") or {}
+    replays = director.get("replays") or []
     roster = _read_json(pdir / "roster.json") or default_roster()
     named_tids = {tid for pl in roster.get("players") or []
                   for tid in pl.get("tracklet_ids") or []}
@@ -164,8 +167,10 @@ def _payload(p) -> dict:
         for tr in strip_for_api(doc)["tracklets"]:
             all_tracklets.append({
                 **tr,
-                "t_start_out": round(tr["t_start"] - lo, 3),
-                "t_end_out": round(tr["t_end"] - lo, 3),
+                "t_start_out": round(to_output_time_with_replays(
+                    tr["t_start"] - lo, replays), 3),
+                "t_end_out": round(to_output_time_with_replays(
+                    tr["t_end"] - lo, replays), 3),
             })
     # keep the naming UI usable: the >=30 s tracks, longest first, at
     # most 40 per team; roster-assigned tracklets are always included

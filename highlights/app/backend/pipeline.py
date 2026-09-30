@@ -60,8 +60,9 @@ def multiangle_runner_cmd() -> list[str]:
 
 
 MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "director",
-                     "render", "fuse", "stats"]
-MULTIANGLE_FROM_SYNC = MULTIANGLE_STAGES[2:]
+                     "render", "fuse", "stats", "scoreboard"]
+# re-run-from-sync never re-applies the scoreboard overlay
+MULTIANGLE_FROM_SYNC = ["sync", "track", "director", "render", "fuse", "stats"]
 
 
 def read_status(p: ProjectStore) -> dict | None:
@@ -140,6 +141,8 @@ def spawn_multiangle(
     style: str | None = None,
 ) -> dict:
     argv = multiangle_runner_cmd() + ["--project-dir", str(p.root)]
+    argv += ["--goal-aware",
+             "on" if (p.meta or {}).get("goal_aware", True) else "off"]
     style = style or (p.meta or {}).get("cut_style")
     if style:
         argv += ["--style", style]
@@ -275,6 +278,54 @@ def reconcile(p: ProjectStore) -> dict | None:
     return status
 
 
+def sync_candidate_timeline(p: ProjectStore, imported: bool = False) -> None:
+    """Keep review-store timestamps aligned with the active replay timeline."""
+    director_path = p.multiangle_dir / "director.json"
+    try:
+        director = json.loads(director_path.read_text())
+    except (OSError, ValueError):
+        director = {}
+    new_replays = director.get("replays") or []
+    old_replays = p.meta.get("replays_applied") or []
+    if imported:
+        if old_replays != new_replays:
+            p.meta["replays_applied"] = new_replays
+            p.save()
+        return
+
+    def replay_signature(replays: list[dict]) -> list[tuple[float, float, float]]:
+        return [
+            (float(replay["t_live_at"]), float(replay["t_out_start"]),
+             float(replay["t_out_end"]))
+            for replay in replays
+        ]
+
+    if replay_signature(old_replays) == replay_signature(new_replays):
+        if old_replays != new_replays:
+            p.meta["replays_applied"] = new_replays
+            p.save()
+        return
+
+    from highlights.multiangle.timemap import events_between
+    candidates = list(p.candidates)
+    original = [{
+        "t": candidate.t,
+        "t_start": candidate.t_start,
+        "t_end": candidate.t_end,
+        "clip_start": candidate.clip_start,
+        "clip_end": candidate.clip_end,
+    } for candidate in candidates]
+    mapped = events_between(original, old_replays, new_replays)
+    for candidate, old, current in zip(candidates, original, mapped):
+        for key in ("t", "t_start", "t_end", "clip_start", "clip_end"):
+            setattr(candidate, key, current[key])
+        if candidate.clip_end <= candidate.clip_start:
+            candidate.clip_end = candidate.clip_start + max(
+                0.1, old["clip_end"] - old["clip_start"])
+    p.meta["replays_applied"] = new_replays
+    p.save()
+
+
 def refresh(p: ProjectStore) -> dict | None:
     """Lazy sync: reconcile dead pids, import results when done."""
     status = reconcile(p)
@@ -289,6 +340,7 @@ def refresh(p: ProjectStore) -> dict | None:
     if state != p.pipeline_state:
         p.set_pipeline_state(state)
     if state == "done":
+        imported_candidates = False
         vp = status.get("video_path")
         if not vp and p.is_multiangle:
             ma_video = p.root / "match.mp4"
@@ -308,8 +360,14 @@ def refresh(p: ProjectStore) -> dict | None:
             try:
                 cf = CandidatesFile(**json.loads((p.pipeline_dir / "candidates.json").read_text()))
                 p.load_candidates(cf)
+                imported_candidates = True
             except Exception as e:
                 print(f"warning: could not import pipeline candidates for {p.id}: {e}")
+        if p.is_multiangle:
+            try:
+                sync_candidate_timeline(p, imported=imported_candidates)
+            except Exception as e:
+                print(f"warning: could not sync candidate timeline for {p.id}: {e}")
     return status
 
 

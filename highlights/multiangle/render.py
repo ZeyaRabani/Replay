@@ -17,6 +17,7 @@ each segment's seg_key, so a rebuilt mezzanine invalidates old segments.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import os
 import subprocess
@@ -26,6 +27,10 @@ CANVAS = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow
 CRF = "18"
 PRESET = "veryfast"
 AUDIO_BITRATE = "192k"
+DRAW_TEXT_FONTS = (
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+)
 
 
 def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
@@ -74,12 +79,56 @@ def mezz_cmd(video: str, t0: float, t1: float, out: str) -> list[str]:
             out]
 
 
-def seg_key(angle: int, t_file: float, dur: float, mezz: str = "") -> str:
+def seg_key(angle: int, t_file: float, dur: float, mezz: str = "",
+            speed: float = 1.0, overlay: str | None = None) -> str:
     """Content key for a cached segment: same inputs -> same file. The
     mezzanine key is mixed in so rebuilding a mezzanine invalidates the
     segments extracted from it."""
     raw = f"{angle}|{t_file:.3f}|{dur:.3f}|{CANVAS}|{CRF}|{PRESET}|{mezz}"
+    if speed != 1.0 or overlay:
+        raw += f"|{speed:.6f}|{overlay or ''}"
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+
+@functools.lru_cache(maxsize=1)
+def _drawtext_available() -> bool:
+    if not _drawtext_font():
+        return False
+    try:
+        output = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-filters"], capture_output=True,
+            text=True, check=False).stdout
+    except OSError:
+        return False
+    return "drawtext" in output
+
+
+def _drawtext_font() -> Path | None:
+    return next((font for font in DRAW_TEXT_FONTS if font.is_file()), None)
+
+
+def replay_cmd(src: str, t_rel: float, dur_src: float, speed: float,
+               out: str, overlay: str | None = None,
+               from_mezz: bool = True) -> list[str]:
+    filters = ([] if from_mezz else [CANVAS])
+    filters.extend([f"setpts=PTS/{speed}", "fps=30"])
+    if overlay and _drawtext_available():
+        font = _drawtext_font()
+        filters.append(
+            f"drawtext=fontfile={font}:text={overlay}:x=48:y=40:"
+            "fontsize=44:fontcolor=white:box=1:boxcolor=black@0.55:"
+            "boxborderw=14")
+    return [
+        "ffmpeg", "-y", "-v", "error",
+        "-ss", f"{t_rel:.3f}", "-t", f"{dur_src:.3f}", "-i", src,
+        "-t", f"{dur_src / speed:.3f}",
+        "-vf", ",".join(filters), "-af", f"atempo={speed}",
+        "-frames:v", str(round(dur_src / speed * 30)),
+        "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
+        "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
+        "-sc_threshold", "0", "-c:a", "aac", "-b:a", AUDIO_BITRATE,
+        "-ar", "48000", "-ac", "2", "-threads", "2", out,
+    ]
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
@@ -138,28 +187,39 @@ def _seg_ok(path: Path) -> bool:
 def plan_segments(segments: list[dict], offsets: list[float],
                   union_lo: float, union_hi: float,
                   durations: list[float]) -> list[dict]:
-    """Map output-time segments to per-angle file time.
-
-    director.json segments are in output time (0 = union_lo, so the
-    renderable range is [0, hi-lo]); angle a's file time for output
-    second t is t + union_lo - offsets[a]. Segments whose start lands
-    beyond that angle's file duration come back with "skip": True.
-    """
-    dur_out = union_hi - union_lo
+    """Map live-source segments to per-angle file time."""
+    dur_live = union_hi - union_lo
     plans = []
     for k, s in enumerate(segments):
         a = s["angle"]
-        t0 = max(0.0, float(s["t_start"]))
-        t1 = min(dur_out, float(s["t_end"]))
-        if t1 <= t0:
+        t0 = float(s["t_start"])
+        t1 = float(s["t_end"])
+        has_src_bounds = "t_src_start" in s or "t_src_end" in s
+        src0 = max(0.0, float(s.get("t_src_start", t0)))
+        src1 = min(dur_live, float(s.get("t_src_end", t1)))
+        speed = float(s.get("speed", 1.0))
+        overlay = s.get("overlay")
+        if src1 <= src0:
             continue
-        t_file = t0 + union_lo - offsets[a]
+        if not has_src_bounds:
+            t0, t1 = src0, src1
+        t_file = src0 + union_lo - offsets[a]
         if a < len(durations) and durations[a] and t_file >= durations[a]:
             plans.append({"seg_index": k, "angle": a, "t_file": t_file,
-                          "skip": True})
+                          "speed": speed, "overlay": overlay, "skip": True})
             continue
-        plans.append({"seg_index": k, "angle": a, "t0": t0, "t1": t1,
-                      "t_file": t_file, "dur": t1 - t0})
+        dur = src1 - src0
+        plans.append({
+            "seg_index": k,
+            "angle": a,
+            "t0": t0,
+            "t1": t1,
+            "t_file": t_file,
+            "dur": dur,
+            "dur_out": dur / speed,
+            "speed": speed,
+            "overlay": overlay,
+        })
     return plans
 
 
@@ -226,7 +286,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     used: set[str] = set()
     reused = 0
     to_encode = []        # (plan, out_path) — cache misses
-    total = max(1.0, union_hi - union_lo)
+    total = max(1.0, max(
+        (float(segment["t_end"]) for segment in segments), default=0.0))
     plans = plan_segments(segments, offsets, union_lo, union_hi, durations)
     for p in plans:
         if p.get("skip"):
@@ -235,7 +296,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
             continue
         a = p["angle"]
         mk = mezzs[a][3] if a in mezzs else ""
-        out = seg_dir / f"{seg_key(a, p['t_file'], p['dur'], mk)}.mp4"
+        out = seg_dir / (
+            f"{seg_key(a, p['t_file'], p['dur'], mk, p['speed'], p['overlay'])}.mp4")
         used.add(out.name)
         if out.exists() and out.stat().st_size > 0:
             reused += 1
@@ -251,10 +313,38 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
         a = p["angle"]
         if a in mezzs:
             mp, m0, _m1, _k = mezzs[a]
-            run(extract_cmd(str(mp), p["t_file"] - m0, p["dur"],
-                            str(tmp)), log)
+            if p["speed"] != 1.0 or p["overlay"]:
+                cmd = replay_cmd(
+                    str(mp), p["t_file"] - m0, p["dur"], p["speed"],
+                    str(tmp), p["overlay"], from_mezz=True)
+                try:
+                    run(cmd, log)
+                except RuntimeError:
+                    if not (p["overlay"] and _drawtext_available()):
+                        raise
+                    log("render: replay drawtext failed; retrying without overlay")
+                    run(replay_cmd(
+                        str(mp), p["t_file"] - m0, p["dur"], p["speed"],
+                        str(tmp), None, from_mezz=True), log)
+            else:
+                run(extract_cmd(str(mp), p["t_file"] - m0, p["dur"],
+                                str(tmp)), log)
         else:
-            run(segment_cmd(videos[a], p["t_file"], p["dur"], str(tmp)), log)
+            if p["speed"] != 1.0 or p["overlay"]:
+                cmd = replay_cmd(
+                    videos[a], p["t_file"], p["dur"], p["speed"],
+                    str(tmp), p["overlay"], from_mezz=False)
+                try:
+                    run(cmd, log)
+                except RuntimeError:
+                    if not (p["overlay"] and _drawtext_available()):
+                        raise
+                    log("render: replay drawtext failed; retrying without overlay")
+                    run(replay_cmd(
+                        videos[a], p["t_file"], p["dur"], p["speed"],
+                        str(tmp), None, from_mezz=False), log)
+            else:
+                run(segment_cmd(videos[a], p["t_file"], p["dur"], str(tmp)), log)
         os.replace(tmp, out)
 
     def _encode_all(jobs: list[tuple[dict, Path]], log_progress: bool) -> None:
@@ -279,7 +369,8 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
             continue
         a = p["angle"]
         mk = mezzs[a][3] if a in mezzs else ""
-        n = seg_key(a, p["t_file"], p["dur"], mk) + ".mp4"
+        n = seg_key(a, p["t_file"], p["dur"], mk,
+                    p["speed"], p["overlay"]) + ".mp4"
         plan_by_name[n] = (p, seg_dir / n)
     bad = [n for n in plan_by_name if not _seg_ok(seg_dir / n)]
     if bad:

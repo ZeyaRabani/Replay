@@ -168,6 +168,7 @@ def main() -> None:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--cookies")
     ap.add_argument("--style")
+    ap.add_argument("--goal-aware", choices=("on", "off"), default="on")
     ap.add_argument("--offsets")
     args = ap.parse_args()
 

@@ -11,15 +11,19 @@ export const ANGLE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#34d399"];
 
 const RULE_COLORS: Record<string, string> = {
   event: "#f87171",
+  goal_hold: "#fbbf24",
   zone: "#fb923c",
   ball: "#10b981",
   cluster: "#0ea5e9",
   hold: "#71717a",
   coverage: "#64748b",
   start: "#94a3b8",
+  replay: "#f4f4f5",
+  resume: "#a1a1aa",
 };
 
 const RULE_LABELS: Record<string, string> = {
+  goal_hold: "Goal hold",
   event: "Event (shot/goal)",
   zone: "Ball zone (manual)",
   ball: "Ball",
@@ -27,9 +31,14 @@ const RULE_LABELS: Record<string, string> = {
   hold: "Hold",
   coverage: "Coverage",
   start: "Start",
+  replay: "Replay (0.5x)",
+  resume: "Resume",
 };
 
-const RULE_ORDER = ["event", "zone", "ball", "cluster", "hold", "coverage", "start"];
+const RULE_ORDER = [
+  "goal_hold", "event", "zone", "ball", "cluster", "hold", "coverage",
+  "start", "replay", "resume",
+];
 
 function ratioKeys(ratios: Record<string, number>): string[] {
   const known = RULE_ORDER.filter((k) => (ratios[k] ?? 0) > 0);
@@ -70,6 +79,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [matchWin, setMatchWin] = useState<[number, number] | null>(null);
   const [videoDur, setVideoDur] = useState(0);
   const [useWindow, setUseWindow] = useState(true);
+  const [goalAware, setGoalAware] = useState(true);
   const [zones, setZones] = useState<ZoneKeyframe[][] | null>(null);
   const [zoneBusy, setZoneBusy] = useState(false);
   const [maWinEdit, setMaWinEdit] = useState(false);
@@ -78,13 +88,30 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const [maWinBusy, setMaWinBusy] = useState(false);
   const [prevFrom, setPrevFrom] = useState("");
   const [prevTo, setPrevTo] = useState("");
+  const [homeName, setHomeName] = useState("");
+  const [awayName, setAwayName] = useState("");
+  const [homeHex, setHomeHex] = useState("#2563eb");
+  const [awayHex, setAwayHex] = useState("#ea580c");
+  const [scoreBusy, setScoreBusy] = useState(false);
+  const [scoreNote, setScoreNote] = useState<string | null>(null);
   const zonesLoaded = useRef(false);
+  const goalAwareLoaded = useRef(false);
   const timer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
       const i = await api.multiangle();
       setInfo(i);
+      if (!goalAwareLoaded.current) {
+        setGoalAware(i.goal_aware ?? true);
+        goalAwareLoaded.current = true;
+      }
+      if (!scoreBusy) {
+        setHomeName(i.score.home.label);
+        setAwayName(i.score.away.label);
+        if (i.score.home.hex) setHomeHex(i.score.home.hex);
+        if (i.score.away.hex) setAwayHex(i.score.away.hex);
+      }
       try {
         setCuts(await api.listCuts());
       } catch {
@@ -154,7 +181,8 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     setRecutBusy(true);
     try {
       const next = style ?? ((info?.cut_style ?? "normal") === "fast" ? "normal" : "fast");
-      await api.recut(next, windowed && useWindow ? matchWin : null);
+      await api.recut(next, windowed && useWindow ? matchWin : null,
+                      false, goalAware);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -174,7 +202,8 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     try {
       const ok = await saveZones();
       if (!ok) return;
-      await api.recut(info?.cut_style === "normal" ? "normal" : "fast", [s, e], true);
+      await api.recut(info?.cut_style === "normal" ? "normal" : "fast",
+                      [s, e], true, goalAware);
       await refresh();
     } catch (er) {
       setError(er instanceof Error ? er.message : String(er));
@@ -218,6 +247,42 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setMaWinBusy(false);
+    }
+  };
+
+  const saveScore = async () => {
+    if (!info) return;
+    setScoreBusy(true);
+    try {
+      await api.putScore({
+        home_label: homeName.trim() || "Home",
+        away_label: awayName.trim() || "Away",
+        home_hex: homeHex,
+        away_hex: awayHex,
+      });
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScoreBusy(false);
+    }
+  };
+
+  const burnScoreboard = async () => {
+    setScoreBusy(true);
+    setScoreNote(null);
+    try {
+      const res = await api.postScoreboard();
+      setScoreNote(
+        "Re-encoding the active cut with scoreboard (~30–60 min); " +
+          `it appears as a new version. ${res.goals} goal(s) burned` +
+          (res.unassigned ? `, ${res.unassigned} unassigned` : "") + ".",
+      );
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScoreBusy(false);
     }
   };
 
@@ -488,7 +553,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                 <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Director decisions
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {windowed && (
                     <label className="flex items-center gap-1 text-[11px] text-zinc-400 cursor-pointer"
                       title="The re-cut covers only the match window set on the Review page">
@@ -497,6 +562,20 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                       Cut only the match window ({fmtClock(matchWin![0])}–{fmtClock(matchWin![1])}, set in Review)
                     </label>
                   )}
+                  <label className="flex items-center gap-1 text-[11px] text-zinc-400 cursor-pointer whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={goalAware}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setGoalAware(enabled);
+                        void api.putMaSettings({ goal_aware: enabled })
+                          .catch((err) =>
+                            setError(err instanceof Error ? err.message : String(err)));
+                      }}
+                    />
+                    Goal-aware: hold goal camera + slow-mo replay
+                  </label>
                   <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300">
                     {(info.cut_style ?? info.director?.style ?? "normal") === "fast"
                       ? "fast cuts" : "normal cuts"}
@@ -555,6 +634,15 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                       </span>
                     )}
                   </div>
+                  {!!info.director.replays?.length && (
+                    <div className="mt-2 text-[11px] text-zinc-400">
+                      {info.director.replays.length} replays · +
+                      {((info.director.duration_out ?? total) -
+                        (info.director.duration_live ?? total)).toFixed(0)} s
+                      {" "}(output {fmtS(info.director.duration_out ?? total)}
+                      {" "}vs live {fmtS(info.director.duration_live ?? total)})
+                    </div>
+                  )}
 
                   {/* angle share */}
                   <div className="mt-4 h-4 rounded overflow-hidden flex bg-zinc-800">
@@ -780,12 +868,29 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                           left: `${(s.t_start / total) * 100}%`,
                           width: `${((s.t_end - s.t_start) / total) * 100}%`,
                           backgroundColor: ANGLE_COLORS[s.angle % ANGLE_COLORS.length],
+                          backgroundImage: s.rule === "replay"
+                            ? "repeating-linear-gradient(135deg, rgba(255,255,255,.72) 0 2px, transparent 2px 7px)"
+                            : undefined,
+                          boxShadow: s.rule === "replay"
+                            ? "inset 0 0 0 1px white" : undefined,
+                          borderTop: s.rule === "goal_hold"
+                            ? "2px solid #fbbf24" : undefined,
                         }}
-                        title={`${fmtS(s.t_start)}–${fmtS(s.t_end)} · ${angleLabel(s.angle)} · ${s.rule}`}
+                        title={`${fmtS(s.t_start)}–${fmtS(s.t_end)} · ${angleLabel(s.angle)} · ${s.rule}${
+                          s.rule === "replay"
+                            ? ` · replay 0.5x of ${fmtS(s.t_src_start ?? s.t_start)}–${fmtS(s.t_src_end ?? s.t_end)}`
+                            : ""}`}
                         onMouseEnter={() => setHoveredSeg(s)}
                         onMouseLeave={() => setHoveredSeg((h) => (h === s ? null : h))}
                         onClick={() => onSeek?.(s.t_start)}
-                      />
+                      >
+                        {s.rule === "replay" &&
+                          ((s.t_end - s.t_start) / total) * 100 >= 2 && (
+                          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white">
+                            R
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                   <div className="mt-1.5 text-[11px] text-zinc-400 h-4">
@@ -793,11 +898,36 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                       <span>
                         {fmtS(hoveredSeg.t_start)}–{fmtS(hoveredSeg.t_end)} · {angleLabel(hoveredSeg.angle)} ·{" "}
                         {hoveredSeg.rule} · score {hoveredSeg.score.toFixed(2)}
+                        {hoveredSeg.rule === "replay" &&
+                          ` · replay 0.5x of ${fmtS(hoveredSeg.t_src_start ?? hoveredSeg.t_start)}–${fmtS(hoveredSeg.t_src_end ?? hoveredSeg.t_end)} (live time)`}
                       </span>
                     ) : (
                       <span className="text-zinc-600">hover a segment · click to seek</span>
                     )}
                   </div>
+                  {(segs.some((segment) => segment.rule === "replay")
+                    || segs.some((segment) => segment.rule === "goal_hold")) && (
+                    <div className="mt-2 flex items-center gap-4 text-[11px] text-zinc-400">
+                      {segs.some((segment) => segment.rule === "replay") && (
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            className="inline-block w-4 h-3 rounded-sm border border-white"
+                            style={{
+                              backgroundColor: ANGLE_COLORS[0],
+                              backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,.72) 0 2px, transparent 2px 7px)",
+                            }}
+                          />
+                          replay
+                        </span>
+                      )}
+                      {segs.some((segment) => segment.rule === "goal_hold") && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-4 h-3 rounded-sm bg-zinc-700 border-t-2 border-amber-400" />
+                          goal hold
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -812,8 +942,59 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
               {(info.score.unassigned ?? 0) > 0 && (
                 <div className="text-xs text-zinc-400 mt-1">unassigned: {info.score.unassigned}</div>
               )}
-              <div className="text-[11px] text-zinc-500 mt-1">
-                from confirmed goals with team set — set Home/Away on goal candidates in Review
+              <div className="mt-3 flex items-end gap-3 flex-wrap">
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-zinc-500">Home</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="color"
+                      className="w-7 h-7 rounded bg-zinc-800 border border-zinc-700 p-0.5"
+                      value={homeHex}
+                      onChange={(e) => setHomeHex(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                    <input
+                      className={`${input} w-28`}
+                      value={homeName}
+                      placeholder="Home"
+                      onChange={(e) => setHomeName(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                  </span>
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-zinc-500">Away</span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="color"
+                      className="w-7 h-7 rounded bg-zinc-800 border border-zinc-700 p-0.5"
+                      value={awayHex}
+                      onChange={(e) => setAwayHex(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                    <input
+                      className={`${input} w-28`}
+                      value={awayName}
+                      placeholder="Away"
+                      onChange={(e) => setAwayName(e.target.value)}
+                      onBlur={() => void saveScore()}
+                    />
+                  </span>
+                </label>
+                <button
+                  disabled={live || scoreBusy || cutBusy !== null}
+                  onClick={() => void burnScoreboard()}
+                  className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-1 disabled:opacity-40"
+                >
+                  {scoreBusy ? <Loader2 size={11} className="animate-spin inline" /> : null}
+                  {" "}Burn scoreboard into active cut
+                </button>
+              </div>
+              {scoreNote && (
+                <div className="text-[11px] text-sky-300 mt-2">{scoreNote}</div>
+              )}
+              <div className="text-[11px] text-zinc-500 mt-2">
+                Score comes from confirmed goals with Home/Away set in Review; the clock starts at the detected kickoff.
               </div>
             </div>
 

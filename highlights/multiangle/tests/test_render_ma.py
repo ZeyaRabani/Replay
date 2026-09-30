@@ -1,5 +1,6 @@
 """Render: command building + 3-segment concat smoke with tiny lavfi videos."""
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -26,6 +27,37 @@ def test_segment_cmd_shape():
     vf = cmd[cmd.index("-vf") + 1]
     assert "scale=1920:1080" in vf and "pad=1920:1080" in vf and "fps=30" in vf
     assert cmd[cmd.index("-crf") + 1] == render.CRF
+
+
+def test_replay_cmd_shape_and_normal_cache_key():
+    cmd = render.replay_cmd(
+        "source.mp4", 1.0, 2.0, 0.5, "replay.mp4", "REPLAY")
+    vf = cmd[cmd.index("-vf") + 1]
+    assert "setpts=PTS/0.5" in vf
+    assert cmd[cmd.index("-af") + 1] == "atempo=0.5"
+    assert cmd[cmd.index("-frames:v") + 1] == "120"
+    assert ("drawtext=" in vf) == render._drawtext_available()
+    old_raw = (f"1|2.000|3.000|{render.CANVAS}|{render.CRF}|"
+               f"{render.PRESET}|mezz")
+    assert render.seg_key(1, 2.0, 3.0, "mezz") == \
+        hashlib.sha1(old_raw.encode()).hexdigest()[:16]
+    assert render.seg_key(1, 2.0, 3.0, "mezz", 0.5, "REPLAY") != \
+        render.seg_key(1, 2.0, 3.0, "mezz")
+
+
+def test_plan_segments_prefers_live_source_bounds():
+    segment = {
+        "t_start": 22.0, "t_end": 26.0, "t_src_start": 5.0,
+        "t_src_end": 7.0, "angle": 1, "speed": 0.5,
+        "overlay": "REPLAY",
+    }
+    plan = render.plan_segments([segment], [0.0, 80.0], 100.0, 120.0,
+                                [200.0, 200.0])[0]
+    assert plan == {
+        "seg_index": 0, "angle": 1, "t0": 22.0, "t1": 26.0,
+        "t_file": 25.0, "dur": 2.0, "dur_out": 4.0,
+        "speed": 0.5, "overlay": "REPLAY",
+    }
 
 
 def test_concat_file(tmp_path):
@@ -168,3 +200,36 @@ def test_mezzanine_render_exact_frames(tmp_path):
     assert abs(float(info["format"]["duration"]) - total) <= 0.1
     v = next(s for s in info["streams"] if s["codec_type"] == "video")
     assert int(v["nb_frames"]) == 30 * total
+
+
+@pytest.mark.skipif(
+    subprocess.run(["which", "ffmpeg"], capture_output=True).returncode != 0,
+    reason="ffmpeg missing")
+def test_slow_motion_replay_render(tmp_path):
+    a0 = _mkvideo(tmp_path / "a0.mp4", 10.0)
+    a1 = _mkvideo(tmp_path / "a1.mp4", 10.0, color="blue")
+    segments = [
+        {"t_start": 0.0, "t_end": 4.0, "t_src_start": 0.0,
+         "t_src_end": 4.0, "angle": 0, "rule": "start", "speed": 1.0},
+        {"t_start": 4.0, "t_end": 8.0, "t_src_start": 1.0,
+         "t_src_end": 3.0, "angle": 1, "rule": "replay",
+         "speed": 0.5, "overlay": "REPLAY"},
+        {"t_start": 8.0, "t_end": 12.0, "t_src_start": 4.0,
+         "t_src_end": 8.0, "angle": 1, "rule": "cluster", "speed": 1.0},
+    ]
+    out = render.render(
+        [str(a0), str(a1)], [0.0, 0.0], segments, 0.0, 8.0,
+        tmp_path / "work", tmp_path / "out.mp4", str(a0), durations=[10, 10],
+        log=lambda *_args: None)
+    info = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format=duration:stream=width,height,codec_type,r_frame_rate",
+         "-of", "json", str(out)],
+        capture_output=True, text=True, check=True).stdout)
+    assert abs(float(info["format"]["duration"]) - 12.0) <= 0.5
+    streams = {stream["codec_type"] for stream in info["streams"]}
+    assert streams == {"video", "audio"}
+    video = next(stream for stream in info["streams"]
+                 if stream["codec_type"] == "video")
+    assert (video["width"], video["height"]) == (1920, 1080)
+    assert video["r_frame_rate"] == "30/1"

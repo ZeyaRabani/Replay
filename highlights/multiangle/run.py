@@ -51,6 +51,8 @@ class Ctx:
     cookies: str | None = None
     force: bool = False
     style: str = "normal"
+    goal_aware: bool = True
+    read_only: bool = False
     durations: list[float] = field(default_factory=list)
     coverage: dict | None = None
     log_fh: object = None
@@ -74,6 +76,18 @@ class Ctx:
                     (self.angles[i]["dir"] / "pipeline" / "probe.json")
                     .read_text())
                 self.durations[i] = float(pr.get("duration_s") or 0.0)
+            except Exception:
+                pass
+        if self.durations[i] <= 0:
+            try:
+                features = json.loads(
+                    (self.angles[i]["dir"] / "track" / "features_1s.json")
+                    .read_text())
+                rows = features.get("rows") or []
+                columns = features.get("columns") or []
+                t_index = columns.index("t") if "t" in columns else 0
+                if rows:
+                    self.durations[i] = float(rows[-1][t_index]) + 1.0
             except Exception:
                 pass
         return self.durations[i]
@@ -102,7 +116,8 @@ class Ctx:
         return None
 
 
-def _load_angles(project_dir: Path, angles_json: str | None) -> list[dict]:
+def _load_angles(project_dir: Path, angles_json: str | None,
+                 create_dirs: bool = True) -> list[dict]:
     """Angle list from --angles-json, else project.json source_info, else dirs."""
     if angles_json:
         spec = json.loads(Path(angles_json).read_text())
@@ -120,7 +135,8 @@ def _load_angles(project_dir: Path, angles_json: str | None) -> list[dict]:
     out = []
     for i, a in enumerate(spec["angles"]):
         d = project_dir / "angles" / f"a{i}"
-        d.mkdir(parents=True, exist_ok=True)
+        if create_dirs:
+            d.mkdir(parents=True, exist_ok=True)
         out.append({"label": a.get("label") or f"angle {i}", "url": a.get("url"), "dir": d})
     return out
 
@@ -247,6 +263,7 @@ def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
     except Exception:
         return
     try:
+        read_only = bool(getattr(ctx, "read_only", False))
         ang = src.get("angle")
         if ang is None:
             # "measured on the longest video" — resolve only once every
@@ -258,17 +275,18 @@ def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
                         "before resolving the longest")
                 return
             ang = int(max(range(len(durs)), key=lambda i: durs[i]))
-            with contextlib.suppress(Exception):
-                write_json_atomic(
-                    ctx.pipe / "match_window_src.json",
-                    {**src, "angle": ang}, indent=1)
+            if not read_only:
+                with contextlib.suppress(Exception):
+                    write_json_atomic(
+                        ctx.pipe / "match_window_src.json",
+                        {**src, "angle": ang}, indent=1)
         ang = int(ang)
         s, e = float(src["start"]), float(src["end"])
         off = float(sync["offsets"][ang])
         lo, hi = max(0.0, s + off), e + off
         cr_path = ctx.pipe / "cut_range.json"
         cur = json.loads(cr_path.read_text()) if cr_path.exists() else None
-        if cur != {"lo": lo, "hi": hi}:
+        if cur != {"lo": lo, "hi": hi} and not read_only:
             write_json_atomic(cr_path, {"lo": lo, "hi": hi}, indent=1)
             ctx.log(f"match window: a{ang} {s:.0f}-{e:.0f} -> "
                     f"shared-T {lo:.0f}-{hi:.0f}")
@@ -529,6 +547,8 @@ def load_director_inputs(ctx: Ctx) -> dict:
         n_ev = int((event > 0).sum())
         tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
                        "ball_x": _row("ball_x"), "ball_y": _row("ball_y"),
+                       "players_cx": _row("players_cx"),
+                       "players_cy": _row("players_cy"),
                        "cluster": _row("cluster_score"), "event": event})
         pxy_src = tr.get("players_xy")
         if pxy_src is not None and len(pxy_src):
@@ -664,16 +684,78 @@ def director_prefs(ctx: Ctx) -> dict | None:
         return None
 
 
+def confirmed_events(ctx: Ctx, old_director: dict | None = None) -> list[dict]:
+    from highlights.multiangle.goal_aware import SHOT_FAMILY
+    from highlights.multiangle.timemap import from_output_time_with_replays
+
+    try:
+        project = json.loads((ctx.project_dir / "project.json").read_text())
+    except (OSError, ValueError):
+        project = {}
+    candidates = project.get("candidates") or []
+    if candidates:
+        replays = (project.get("meta") or {}).get("replays_applied") or []
+    else:
+        candidate_file = ctx.project_dir / "pipeline" / "candidates.json"
+        try:
+            doc = json.loads(candidate_file.read_text())
+        except (OSError, ValueError):
+            doc = {}
+        candidates = doc.get("candidates") or doc.get("events") or []
+        if old_director is None:
+            try:
+                old_director = json.loads(
+                    (ctx.pipe / "director.json").read_text())
+            except (OSError, ValueError):
+                old_director = {}
+        replays = old_director.get("replays") or []
+
+    events = []
+    for candidate in candidates:
+        if (candidate.get("status") != "confirmed"
+                or candidate.get("type") not in SHOT_FAMILY):
+            continue
+        try:
+            t = from_output_time_with_replays(float(candidate["t"]), replays)
+        except (KeyError, TypeError, ValueError):
+            continue
+        events.append({"id": str(candidate["id"]),
+                       "type": str(candidate["type"]), "t": float(t)})
+    return sorted(events, key=lambda event: event["t"])
+
+
 def stage_director(ctx: Ctx) -> dict:
     from highlights.multiangle.director import cut_director
+    from highlights.multiangle.goal_aware import load_calib, plan_goal_aware
+    from highlights.multiangle.timemap import output_playlist
 
+    old_director = {}
+    with contextlib.suppress(OSError, ValueError):
+        old_director = json.loads((ctx.pipe / "director.json").read_text())
     inp = load_director_inputs(ctx)
     zones, zone_ok, zone_kf = inp["zones"], inp["zone_ok"], inp["zone_kf"]
+    plan = (plan_goal_aware(
+        confirmed_events(ctx, old_director), inp["tracks"], inp["avail"],
+        load_calib(ctx.pipe))
+            if ctx.goal_aware else {"windows": [], "replays": [], "events": []})
     out = cut_director(inp["tracks"], inp["avail"], inp["motion"],
                        ctx.style,
                        zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
                        style_overrides=director_style_overrides(ctx),
-                       prefs=director_prefs(ctx))
+                       prefs=director_prefs(ctx),
+                       goal_windows=plan["windows"] or None)
+    if ctx.goal_aware:
+        out["goal_aware"] = {"enabled": True, "events": plan["events"]}
+        for event in plan["events"]:
+            ctx.log(f"goal-aware: {event['id']} t={event['t']:.1f} "
+                    f"method={event['method']} hold={event['hold_angle']} "
+                    f"replay={event['replay_angle']}")
+        if plan["windows"]:
+            out["replays"] = plan["replays"]
+            out["segments_out"] = output_playlist(
+                out["segments"], plan["replays"])
+            out["duration_live"] = float(out["segments"][-1]["t_end"])
+            out["duration_out"] = float(out["segments_out"][-1]["t_end"])
     out["zone_source"] = inp.get("zone_source")
     if zones:
         out["zone_suspended_share"] = [round(s, 4)
@@ -705,8 +787,9 @@ def _zone_view_ok(ctx: Ctx, angle_dir: Path, video: Path,
         return (np.asarray(d["times"], dtype=float),
                 np.asarray(d["ok"], dtype=bool))
     times, ok = view_ok(video, ref_t)
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(cache, {"times": times.tolist(), "ok": ok.tolist()})
+    if not ctx.read_only:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(cache, {"times": times.tolist(), "ok": ok.tolist()})
     return times, ok
 
 
@@ -716,7 +799,8 @@ def stage_render(ctx: Ctx) -> None:
     director = json.loads((ctx.pipe / "director.json").read_text())
     videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
     lo, hi = ctx.union(sync)
-    out = render(videos, sync["offsets"], director["segments"], lo, hi,
+    out = render(videos, sync["offsets"],
+                 director.get("segments_out") or director["segments"], lo, hi,
                  ctx.pipe, ctx.project_dir / "match.mp4", videos[0],
                  durations=list(ctx.durations), log=ctx.log)
     # register the cut as the project video for the Option-1 UI
@@ -730,7 +814,12 @@ def stage_render(ctx: Ctx) -> None:
 
 def stage_fuse(ctx: Ctx) -> dict:
     from highlights.multiangle.fuse import fuse_candidates, to_output_time
+    from highlights.multiangle.timemap import events_to_output, to_output_time_with_replays
     sync = json.loads((ctx.pipe / "sync.json").read_text())
+    director = {}
+    with contextlib.suppress(OSError, ValueError):
+        director = json.loads((ctx.pipe / "director.json").read_text())
+    replays = director.get("replays") or []
     files = [a["dir"] / "pipeline" / "candidates.json" for a in ctx.angles]
     labels = [a["label"] for a in ctx.angles]
     out = fuse_candidates(files, sync["offsets"], labels,
@@ -742,12 +831,19 @@ def stage_fuse(ctx: Ctx) -> dict:
         if key in out:
             out[key] = to_output_time(out[key], lo)
     write_json_atomic(ctx.pipe / "fused_candidates.json", out, indent=1)
+    output = dict(out)
+    for key in ("events", "candidates"):
+        if key in output:
+            output[key] = events_to_output(output[key], replays)
     pdir = ctx.project_dir / "pipeline"
     pdir.mkdir(exist_ok=True)
-    write_json_atomic(pdir / "candidates.json", out, indent=1)
+    write_json_atomic(pdir / "candidates.json", output, indent=1)
     # a0's match window + features, shifted to output time; with a
     # cut_range the rendered video IS the match — window covers it all
-    dur_out = hi - lo
+    dur_live = hi - lo
+    dur_out = dur_live + sum(
+        float(replay["t_out_end"]) - float(replay["t_out_start"])
+        for replay in replays)
     ranged = (ctx.pipe / "cut_range.json").exists()
     shift = sync["offsets"][0] - lo
     mw_src = ctx.angles[0]["dir"] / "pipeline" / "match_window.json"
@@ -755,7 +851,7 @@ def stage_fuse(ctx: Ctx) -> dict:
         mw = json.loads(mw_src.read_text())
 
         def _clamp(v: float) -> float:
-            return min(max(float(v), 0.0), dur_out)
+            return min(max(float(v), 0.0), dur_live)
 
         def _halves() -> list:
             kept = []
@@ -763,13 +859,18 @@ def stage_fuse(ctx: Ctx) -> dict:
                 s = _clamp(h.get("start", 0) + shift)
                 e = _clamp(h.get("end", 0) + shift)
                 if e > s:
-                    kept.append({**h, "start": s, "end": e})
+                    kept.append({
+                        **h,
+                        "start": to_output_time_with_replays(s, replays),
+                        "end": to_output_time_with_replays(e, replays),
+                    })
             return kept
 
         if ranged:
             mw["match_window"] = [0.0, dur_out]
         elif isinstance(mw.get("match_window"), list):
-            mw["match_window"] = [_clamp(v + shift)
+            mw["match_window"] = [
+                to_output_time_with_replays(_clamp(v + shift), replays)
                                   for v in mw["match_window"]]
         if "halves" in mw:
             mw["halves"] = _halves()
@@ -778,26 +879,32 @@ def stage_fuse(ctx: Ctx) -> dict:
     if fsrc.exists():
         df = pd.read_parquet(fsrc)
         df["t"] = df["t"] + shift
-        df = df[(df["t"] >= 0.0) & (df["t"] <= hi - lo)]
+        df = df[(df["t"] >= 0.0) & (df["t"] <= dur_live)]
+        df["t"] = df["t"].map(
+            lambda t: to_output_time_with_replays(float(t), replays))
         write_parquet_atomic(df, pdir / "features_1s.parquet")
     ctx.log(f"fuse: {len(out['events'])} fused events")
     return out
 
 
 def stage_stats(ctx: Ctx) -> None:
+    from highlights.multiangle.timemap import events_to_output
     from highlights.pipeline.stats import compute_stats
     pdir = ctx.project_dir / "pipeline"
     feats = pd.read_parquet(pdir / "features_1s.parquet")
-    cands = json.loads((ctx.pipe / "fused_candidates.json").read_text())["events"]
+    director = json.loads((ctx.pipe / "director.json").read_text())
+    replays = director.get("replays") or []
+    live_cands = json.loads(
+        (ctx.pipe / "fused_candidates.json").read_text())["events"]
+    cands = events_to_output(live_cands, replays)
     mw = json.loads((pdir / "match_window.json").read_text()) \
         if (pdir / "match_window.json").exists() else {}
     # the rendered video covers the effective cut range, not angle 0's file
     sync_dur = json.loads((ctx.pipe / "sync.json").read_text())
     lo, hi = ctx.union(sync_dur)
-    dur = hi - lo
+    dur = float(director.get("duration_out") or hi - lo)
     stats = compute_stats(feats, cands, dur, tuple(mw.get("match_window", ())),
                           mw.get("halves"), None)
-    director = json.loads((ctx.pipe / "director.json").read_text())
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     n_cross = sum(1 for e in cands if e.get("cross_validation") == "confirmed")
     n_single = len(cands) - n_cross
@@ -815,6 +922,64 @@ def stage_stats(ctx: Ctx) -> None:
     }
     write_json_atomic(pdir / "stats.json", stats, indent=1)
     ctx.log("stats: written")
+
+
+def stage_scoreboard(ctx: Ctx) -> None:
+    """Burn scoreboard + clock into match.mp4. Reads
+    multiangle/scoreboard.json (written by POST /multiangle/scoreboard):
+    {home:{label,hex}, away:{label,hex}, goals:[{t,team}], kickoff} and
+    replay intervals from director.json — all times are OUTPUT time."""
+    from highlights.multiangle.scoreboard import apply_scoreboard, find_bold_font, scoreboard_filter
+    spec_path = ctx.pipe / "scoreboard.json"
+    if not spec_path.exists():
+        raise PipelineError(
+            "scoreboard.json missing — request it via the Score card")
+    spec = json.loads(spec_path.read_text())
+    replays = []
+    director_path = ctx.pipe / "director.json"
+    if director_path.is_file():
+        replays = json.loads(director_path.read_text()).get("replays") or []
+    match = ctx.project_dir / "match.mp4"
+    if not match.is_file():
+        raise PipelineError("no match.mp4 to overlay")
+    font = find_bold_font()
+    if not font:
+        raise PipelineError("no usable font for the scoreboard")
+    kickoff = float(spec.get("kickoff") or 0.0)
+    goals = spec.get("goals") or []
+    dur = 0.0
+    with contextlib.suppress(Exception):
+        dur = float(ffprobe(match).get("duration_s") or 0.0)
+    vf = scoreboard_filter(
+        goals,
+        (spec.get("home") or {}).get("label") or "Home",
+        (spec.get("away") or {}).get("label") or "Away",
+        (spec.get("home") or {}).get("hex"),
+        (spec.get("away") or {}).get("hex"),
+        kickoff, font, dur=dur, replays=replays)
+    apply_scoreboard(
+        match, match, vf,
+        progress_cb=lambda f: ctx.status.update(
+            stage_progress=f,
+            message=f"scoreboard {f * 100:.0f}%"),
+        log=ctx.log)
+    pipe1 = ctx.project_dir / "pipeline"
+    pipe1.mkdir(exist_ok=True)
+    info = ffprobe(match)
+    write_json_atomic(pipe1 / "probe.json", info, indent=1)
+    ctx.status.update(video=info, video_path=str(match))
+    cut_from = None
+    try:
+        cr = json.loads((ctx.pipe / "cut_range.json").read_text())
+        cut_from = [float(cr["lo"]), float(cr["hi"])]
+    except Exception:
+        pass
+    write_json_atomic(ctx.pipe / "scoreboard_applied.json",
+                      {"cut_from": cut_from, "goals": goals,
+                       "kickoff": kickoff, "replays": replays,
+                       "created_at": time.time()}, indent=1)
+    ctx.log(f"scoreboard: burned {len(goals)} goals, kickoff {kickoff:.1f}s"
+            f" (dur {dur:.0f}s)")
 
 
 # ------------------------------ driver ------------------------------------
@@ -840,6 +1005,62 @@ def cleanup_caches(ctx: Ctx) -> int:
     return freed
 
 
+class _NoopStatus:
+    def update(self, **_kwargs) -> None:
+        return None
+
+
+def dry_run_goal_aware(project_dir: Path) -> dict:
+    """Compare the existing and goal-aware cuts without writing project files."""
+    project_dir = Path(project_dir)
+    pipe = project_dir / "multiangle"
+    project = json.loads((project_dir / "project.json").read_text())
+    meta = project.get("meta") or {}
+    ctx = Ctx(
+        project_dir=project_dir,
+        pipe=pipe,
+        status=_NoopStatus(),
+        angles=_load_angles(project_dir, None, create_dirs=False),
+        style=meta.get("cut_style", "normal"),
+        goal_aware=True,
+        read_only=True,
+    )
+    ctx.log = lambda _message: None
+    inputs = load_director_inputs(ctx)
+    style_overrides = director_style_overrides(ctx)
+    prefs = director_prefs(ctx)
+    from highlights.multiangle.director import cut_director
+    from highlights.multiangle.goal_aware import load_calib, plan_goal_aware
+    from highlights.multiangle.timemap import output_playlist
+
+    common = {
+        "zones": inputs["zones"],
+        "zone_ok": inputs["zone_ok"],
+        "zone_kf": inputs["zone_kf"],
+        "style_overrides": style_overrides,
+        "prefs": prefs,
+    }
+    old = cut_director(inputs["tracks"], inputs["avail"], inputs["motion"],
+                       ctx.style, **common)
+    plan = plan_goal_aware(
+        confirmed_events(ctx), inputs["tracks"], inputs["avail"],
+        load_calib(pipe))
+    new = cut_director(
+        inputs["tracks"], inputs["avail"], inputs["motion"], ctx.style,
+        goal_windows=plan["windows"] or None, **common)
+    old_duration = float(old["segments"][-1]["t_end"])
+    output_segments = (output_playlist(new["segments"], plan["replays"])
+                       if plan["windows"] else new["segments"])
+    new_duration = (float(output_segments[-1]["t_end"])
+                    if plan["windows"] else old_duration)
+    return {
+        "events": plan["events"],
+        "replays": plan["replays"],
+        "duration_live": old_duration,
+        "duration_out": new_duration,
+    }
+
+
 @dataclass
 class Stage:
     weight: float
@@ -863,6 +1084,8 @@ STAGES: dict[str, Stage] = {
                              c.project_dir / "pipeline" / "candidates.json"]),
     "stats": Stage(0.05, stage_stats,
                    lambda c: [c.project_dir / "pipeline" / "stats.json"]),
+    "scoreboard": Stage(0.2, stage_scoreboard,
+                        lambda c: [c.pipe / "scoreboard_applied.json"]),
 }
 
 
@@ -920,9 +1143,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--style", default="normal",
                     choices=("normal", "fast"))
+    ap.add_argument("--goal-aware", choices=("on", "off"), default="on")
+    ap.add_argument("--dry-run-goal-aware", action="store_true")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
+    if args.dry_run_goal_aware:
+        print(json.dumps(dry_run_goal_aware(project_dir), indent=1))
+        return 0
     pipe = project_dir / "multiangle"
     pipe.mkdir(parents=True, exist_ok=True)
     status = StatusWriter(pipe / "status.json")
@@ -935,7 +1163,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     ctx = Ctx(project_dir=project_dir, pipe=pipe, status=status, angles=angles,
               offsets=offsets, cookies=args.cookies, force=args.force,
-              style=args.style)
+              style=args.style, goal_aware=args.goal_aware == "on")
 
     names = [s.strip() for s in args.stages.split(",") if s.strip()]
     unknown = [n for n in names if n not in STAGES]
@@ -957,8 +1185,9 @@ def main(argv: list[str] | None = None) -> int:
             with job_slot(workdir_for(project_dir), status=status,
                           log=ctx.log):
                 run_stages(ctx, names)
-            if "render" in names:
+            if "render" in names or "scoreboard" in names:
                 from highlights.multiangle.cuts import snapshot_cut
+                sb = "scoreboard" in names
                 cr = None
                 try:
                     crd = json.loads((pipe / "cut_range.json").read_text())
@@ -966,7 +1195,10 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception:
                     pass
                 try:
-                    meta = snapshot_cut(project_dir, ctx.style, cut_range=cr)
+                    meta = snapshot_cut(
+                        project_dir, ctx.style, cut_range=cr,
+                        label_suffix=" + scoreboard" if sb else "",
+                        extra_meta={"scoreboard": True} if sb else None)
                     if meta:
                         ctx.log(f"cut snapshot: {meta['id']} ({meta['label']})")
                 except Exception as e:
