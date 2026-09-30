@@ -19,11 +19,26 @@ from pathlib import Path
 
 from . import ffmpeg as fx
 from .schemas import CandidatesFile, VideoInfo
-from .store import ProjectStore
+from .store import ProjectStore, workdir
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _procs: dict[int, subprocess.Popen] = {}
+
+
+def _shared_proxy() -> str | None:
+    """Server-wide YouTube proxy: HL_YT_PROXY env wins, else the admin-saved
+    <workdir>/shared/youtube_proxy.txt. Value is never logged — it carries
+    credentials."""
+    env = os.environ.get("HL_YT_PROXY")
+    if env and env.strip():
+        return env.strip()
+    path = workdir() / "shared" / "youtube_proxy.txt"
+    try:
+        text = path.read_text().strip()
+    except OSError:
+        return None
+    return text or None
 
 
 class PipelineBusy(RuntimeError):
@@ -168,12 +183,17 @@ def _launch(p: ProjectStore, argv: list[str], *, initial_stage: str) -> dict:
     write_status(p, status)
     p.set_pipeline_state("queued")
 
+    env = os.environ.copy()
+    proxy = _shared_proxy()
+    if proxy:
+        env["HL_YT_PROXY"] = proxy
     log = open(p.log_path, "ab")  # noqa: SIM115
     try:
         proc = subprocess.Popen(
             argv, cwd=REPO_ROOT,
             stdout=log, stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL, start_new_session=True,
+            env=env,
         )
     finally:
         log.close()

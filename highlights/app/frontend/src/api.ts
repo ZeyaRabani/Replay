@@ -97,12 +97,21 @@ export interface CookieStatus {
   is_admin: boolean;
 }
 
+export interface ProxyStatus {
+  set: boolean;
+  host: string | null;
+}
+
 export const meApi = {
   getCookies: () => req<CookieStatus>("/api/me/youtube-cookies"),
   saveCookies: (cookies_text: string, share = false) =>
     req<{ saved: boolean; updated_at: number }>("/api/me/youtube-cookies", json({ cookies_text, share }, "PUT")),
   deleteCookies: () => req<void>("/api/me/youtube-cookies", { method: "DELETE" }),
   deleteSharedCookies: () => req<void>("/api/admin/youtube-cookies", { method: "DELETE" }),
+  getProxy: () => req<ProxyStatus>("/api/admin/youtube-proxy"),
+  saveProxy: (proxy_url: string) =>
+    req<ProxyStatus>("/api/admin/youtube-proxy", json({ proxy_url }, "PUT")),
+  deleteProxy: () => req<void>("/api/admin/youtube-proxy", { method: "DELETE" }),
 };
 
 export const configApi = {

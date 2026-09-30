@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, playlistApi, projectApi, projectsApi, ytId } from "../api";
 import { parseClock } from "../lib/time";
-import type { CookieStatus } from "../api";
+import type { CookieStatus, ProxyStatus } from "../api";
 import CutBadges from "../components/CutBadges";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
@@ -267,8 +267,38 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
   const [text, setText] = useState("");
   const [share, setShare] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [proxy, setProxy] = useState<ProxyStatus | null>(null);
+  const [proxyUrl, setProxyUrl] = useState("");
+  const [proxyBusy, setProxyBusy] = useState(false);
   const input =
     "bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 w-full";
+
+  useEffect(() => {
+    if (isAdmin) meApi.getProxy().then(setProxy).catch(() => setProxy(null));
+  }, [isAdmin]);
+
+  const saveProxy = async () => {
+    setProxyBusy(true);
+    try {
+      setProxy(await meApi.saveProxy(proxyUrl));
+      setProxyUrl("");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProxyBusy(false);
+    }
+  };
+  const removeProxy = async () => {
+    setProxyBusy(true);
+    try {
+      await meApi.deleteProxy();
+      setProxy({ set: false, host: null });
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProxyBusy(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
@@ -364,6 +394,45 @@ function YouTubeAccess({ status, onChanged, onError, innerRef }: {
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : "Save"}
           </button>
+        </div>
+      )}
+      {isAdmin && (
+        <div className="mt-3 pt-3 border-t border-zinc-800 text-xs text-zinc-300 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-zinc-400">
+              Residential proxy (server-wide):{" "}
+              <span className="text-zinc-200">{proxy?.set ? proxy.host : "none"}</span>
+            </span>
+            {proxy?.set && (
+              <button
+                className="text-zinc-500 hover:text-red-300 underline"
+                disabled={proxyBusy}
+                onClick={() => void removeProxy()}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              className={input}
+              placeholder="http://user:pass@host:port"
+              value={proxyUrl}
+              onChange={(e) => setProxyUrl(e.target.value)}
+            />
+            <button
+              disabled={proxyBusy || !proxyUrl.trim()}
+              onClick={() => void saveProxy()}
+              className="self-start bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold rounded px-3 py-1.5 disabled:opacity-40 whitespace-nowrap"
+            >
+              {proxyBusy ? <Loader2 size={13} className="animate-spin" /> : "Save"}
+            </button>
+          </div>
+          <p className="text-zinc-500">
+            Needed because YouTube blocks Oracle's datacenter IP; get one from a
+            residential proxy provider.
+          </p>
         </div>
       )}
     </div>

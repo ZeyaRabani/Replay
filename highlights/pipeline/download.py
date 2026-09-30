@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import urllib.parse
 from pathlib import Path
 
 import yt_dlp
@@ -16,7 +17,8 @@ BOT_CHECK_MSG = (
     "YouTube blocked the automated download (sign-in / bot check). "
     "Check the bgutil-provider service is running (HL_POT_PROVIDER_URL), "
     "or upload the video file instead / provide a cookies file "
-    "(--cookies / HL_YT_COOKIES)."
+    "(--cookies / HL_YT_COOKIES), or set a residential proxy "
+    "(HL_YT_PROXY / the YouTube access panel)."
 )
 
 
@@ -76,6 +78,11 @@ def download(url: str, dest_dir: str | Path, status=None,
     if pot_url:
         opts["extractor_args"] = {"youtubepot-bgutilhttp": {"base_url": [pot_url]}}
         log(f"pot provider: {pot_url}")
+    proxy = os.environ.get("HL_YT_PROXY")
+    if proxy:
+        opts["proxy"] = proxy
+        u = urllib.parse.urlparse(proxy)
+        log(f"yt proxy: {u.scheme}://{u.hostname}:{u.port}")
 
     # Real-world finding: YouTube DASH formats (271/251) can 403 mid-fetch
     # while the HLS variants download fine. Retry once on 403 with HLS.

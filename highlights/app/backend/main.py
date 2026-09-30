@@ -960,6 +960,65 @@ def delete_youtube_cookies(user: UserDep) -> Response:
     return Response(status_code=204)
 
 
+# ---------- server-wide YouTube proxy ----------
+
+PROXY_SCHEMES = {"http", "https", "socks5", "socks5h"}
+
+
+def _shared_proxy_path() -> Path:
+    return workdir() / "shared" / "youtube_proxy.txt"
+
+
+def _yt_proxy() -> str | None:
+    return pipeline._shared_proxy()
+
+
+def _proxy_host(proxy: str) -> str | None:
+    """scheme://host:port, credentials stripped — safe to echo/log."""
+    u = urlparse(proxy)
+    if not u.hostname:
+        return None
+    port = f":{u.port}" if u.port else ""
+    return f"{u.scheme}://{u.hostname}{port}"
+
+
+class ProxyPut(BaseModel):
+    proxy_url: str
+
+
+@app.get("/api/admin/youtube-proxy")
+def get_youtube_proxy(user: UserDep) -> dict:
+    if not _is_admin(user):
+        raise HTTPException(403, "admin only")
+    proxy = _yt_proxy()
+    return {"set": proxy is not None,
+            "host": _proxy_host(proxy) if proxy else None}
+
+
+@app.put("/api/admin/youtube-proxy")
+def put_youtube_proxy(body: ProxyPut, user: UserDep) -> dict:
+    if not _is_admin(user):
+        raise HTTPException(403, "admin only")
+    proxy = (body.proxy_url or "").strip()
+    u = urlparse(proxy)
+    if u.scheme not in PROXY_SCHEMES or not u.hostname:
+        raise HTTPException(
+            422, "proxy_url must be http(s):// or socks5(h):// with a host")
+    path = _shared_proxy_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(proxy)
+    os.chmod(path, 0o600)
+    return {"set": True, "host": _proxy_host(proxy)}
+
+
+@app.delete("/api/admin/youtube-proxy")
+def delete_youtube_proxy(user: UserDep) -> Response:
+    if not _is_admin(user):
+        raise HTTPException(403, "admin only")
+    _shared_proxy_path().unlink(missing_ok=True)
+    return Response(status_code=204)
+
+
 @app.get("/api/config")
 def get_config() -> dict:
     return {"upload_origin": os.environ.get("HL_PUBLIC_URL") or None}
