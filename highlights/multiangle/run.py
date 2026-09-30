@@ -924,6 +924,60 @@ def stage_stats(ctx: Ctx) -> None:
     ctx.log("stats: written")
 
 
+def stage_scoreboard(ctx: Ctx) -> None:
+    """Burn scoreboard + clock into match.mp4. Reads
+    multiangle/scoreboard.json (written by POST /multiangle/scoreboard):
+    {home:{label,hex}, away:{label,hex}, goals:[{t,team}], kickoff} —
+    all times are OUTPUT time of the active cut."""
+    from highlights.multiangle.scoreboard import apply_scoreboard, find_bold_font, scoreboard_filter
+    spec_path = ctx.pipe / "scoreboard.json"
+    if not spec_path.exists():
+        raise PipelineError(
+            "scoreboard.json missing — request it via the Score card")
+    spec = json.loads(spec_path.read_text())
+    match = ctx.project_dir / "match.mp4"
+    if not match.is_file():
+        raise PipelineError("no match.mp4 to overlay")
+    font = find_bold_font()
+    if not font:
+        raise PipelineError("no usable font for the scoreboard")
+    kickoff = float(spec.get("kickoff") or 0.0)
+    goals = spec.get("goals") or []
+    dur = 0.0
+    with contextlib.suppress(Exception):
+        dur = float(ffprobe(match).get("duration_s") or 0.0)
+    vf = scoreboard_filter(
+        goals,
+        (spec.get("home") or {}).get("label") or "Home",
+        (spec.get("away") or {}).get("label") or "Away",
+        (spec.get("home") or {}).get("hex"),
+        (spec.get("away") or {}).get("hex"),
+        kickoff, font, dur=dur)
+    apply_scoreboard(
+        match, match, vf,
+        progress_cb=lambda f: ctx.status.update(
+            stage_progress=f,
+            message=f"scoreboard {f * 100:.0f}%"),
+        log=ctx.log)
+    pipe1 = ctx.project_dir / "pipeline"
+    pipe1.mkdir(exist_ok=True)
+    info = ffprobe(match)
+    write_json_atomic(pipe1 / "probe.json", info, indent=1)
+    ctx.status.update(video=info, video_path=str(match))
+    cut_from = None
+    try:
+        cr = json.loads((ctx.pipe / "cut_range.json").read_text())
+        cut_from = [float(cr["lo"]), float(cr["hi"])]
+    except Exception:
+        pass
+    write_json_atomic(ctx.pipe / "scoreboard_applied.json",
+                      {"cut_from": cut_from, "goals": goals,
+                       "kickoff": kickoff,
+                       "created_at": time.time()}, indent=1)
+    ctx.log(f"scoreboard: burned {len(goals)} goals, kickoff {kickoff:.1f}s"
+            f" (dur {dur:.0f}s)")
+
+
 # ------------------------------ driver ------------------------------------
 
 def cleanup_caches(ctx: Ctx) -> int:
@@ -1026,6 +1080,8 @@ STAGES: dict[str, Stage] = {
                              c.project_dir / "pipeline" / "candidates.json"]),
     "stats": Stage(0.05, stage_stats,
                    lambda c: [c.project_dir / "pipeline" / "stats.json"]),
+    "scoreboard": Stage(0.2, stage_scoreboard,
+                        lambda c: [c.pipe / "scoreboard_applied.json"]),
 }
 
 
@@ -1125,8 +1181,9 @@ def main(argv: list[str] | None = None) -> int:
             with job_slot(workdir_for(project_dir), status=status,
                           log=ctx.log):
                 run_stages(ctx, names)
-            if "render" in names:
+            if "render" in names or "scoreboard" in names:
                 from highlights.multiangle.cuts import snapshot_cut
+                sb = "scoreboard" in names
                 cr = None
                 try:
                     crd = json.loads((pipe / "cut_range.json").read_text())
@@ -1134,7 +1191,10 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception:
                     pass
                 try:
-                    meta = snapshot_cut(project_dir, ctx.style, cut_range=cr)
+                    meta = snapshot_cut(
+                        project_dir, ctx.style, cut_range=cr,
+                        label_suffix=" + scoreboard" if sb else "",
+                        extra_meta={"scoreboard": True} if sb else None)
                     if meta:
                         ctx.log(f"cut snapshot: {meta['id']} ({meta['label']})")
                 except Exception as e:

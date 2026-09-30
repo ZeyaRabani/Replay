@@ -60,8 +60,9 @@ def multiangle_runner_cmd() -> list[str]:
 
 
 MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "director",
-                     "render", "fuse", "stats"]
-MULTIANGLE_FROM_SYNC = MULTIANGLE_STAGES[2:]
+                     "render", "fuse", "stats", "scoreboard"]
+# re-run-from-sync never re-applies the scoreboard overlay
+MULTIANGLE_FROM_SYNC = ["sync", "track", "director", "render", "fuse", "stats"]
 
 
 def read_status(p: ProjectStore) -> dict | None:

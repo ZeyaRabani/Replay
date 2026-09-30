@@ -17,6 +17,7 @@ import type {
   HistoryEvent,
   HistoryMatch,
   MultiangleInfo,
+  MultiangleScore,
   PipelineStatus,
   PitchDims,
   PlayerGroup,
@@ -268,6 +269,11 @@ export function projectApi(id: string) {
     angleFrameUrl: (i: number, t?: number) =>
       mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`,
         t == null ? {} : { t: String(t) }),
+    putScore: (body: { home_label: string; away_label: string; home_hex?: string; away_hex?: string }) =>
+      req<MultiangleScore>(`${base}/multiangle/score`, json(body, "PUT")),
+    postScoreboard: () =>
+      req<{ job: PipelineStatus; goals: number; unassigned: number }>(
+        `${base}/multiangle/scoreboard`, json({})),
     listCuts: () => req<CutsList>(`${base}/multiangle/cuts`),
     activateCut: (id: string) =>
       req<CutsList>(`${base}/multiangle/cuts/${id}/activate`, json({})),
