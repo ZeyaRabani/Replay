@@ -2,12 +2,13 @@ import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Play, RefreshCw, Use
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { useLayout } from "../lib/layout";
-import { fetchPlayers, fmtDist, fmtDur, invalidatePlayers, saveRoster } from "../lib/players";
+import { IDENTITIES_CHANGED_EVENT, fetchPlayers, fmtDist, fmtDur, invalidatePlayers, saveRoster } from "../lib/players";
 import type {
   AnalysisStatus,
   AnalysisTeamInfo,
   CalibResponse,
   PlayerTeam,
+  PlayerIdentities,
   PlayerTracklet,
   PlayersResponse,
   PlayersRoster,
@@ -15,6 +16,7 @@ import type {
   RosterPlayer,
 } from "../types";
 import { CALIB_SAVED_EVENT } from "./CameraCalib";
+import IdentityCards from "./IdentityCards";
 import { PlayersV2Bar, PlayersV2Grid, isLive } from "./PlayersV2";
 import Swatch from "./Swatch";
 
@@ -252,6 +254,8 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   const [v2Status, setV2Status] = useState<AnalysisStatus | null>(null);
   const [calib, setCalib] = useState<CalibResponse | null>(null);
   const [nAngles, setNAngles] = useState(3);
+  const [idents, setIdents] = useState<PlayerIdentities | null>(null);
+  const [showFragments, setShowFragments] = useState(false);
 
   const refresh = useCallback(async () => {
     const d = await fetchPlayers(api, true);
@@ -270,9 +274,22 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   }, [refresh]);
 
   const loadV2 = useCallback(async () => {
-    const r = await api.playersV2Tracks().catch(() => null);
+    const [r, ids] = await Promise.all([
+      api.playersV2Tracks().catch(() => null),
+      api.identities().catch(() => null),
+    ]);
     setV2(r);
+    setIdents(ids);
     if (r?.status) setV2Status(r.status);
+  }, [api]);
+
+  const nameIdentity = useCallback(async (iid: string, name: string | null) => {
+    const r = await api.putIdentityName(iid, name);
+    setIdents((d) => d && {
+      ...d,
+      identities: d.identities.map((i) => (i.id === r.id ? { ...i, name: r.name } : i)),
+    });
+    window.dispatchEvent(new Event(IDENTITIES_CHANGED_EVENT));
   }, [api]);
 
   useEffect(() => {
@@ -503,6 +520,18 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     }
   };
 
+  const relinkIdentities = async () => {
+    setBusy(true);
+    try {
+      setIdents(await api.rebuildIdentities());
+      window.dispatchEvent(new Event(IDENTITIES_CHANGED_EVENT));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const v2Bar = (
     <PlayersV2Bar v2={v2} status={v2Status} missing={missingCalib} busy={busy || v2Live} onRun={() => void runV2()} onRebuild={() => void rebuildGroupsV2()} />
   );
@@ -538,6 +567,19 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
             {tab === "table" && data ? (
               <PlayersTable data={data} teamInfo={teamInfo} teamLabel={teamLabel} />
             ) : (
+              <>
+              {idents && idents.identities.length > 0 && (
+                <IdentityCards doc={idents} cols={cols} busy={busy} teamInfo={teamInfo} teamLabel={teamLabel}
+                  cropSrc={api.fileUrl} onName={nameIdentity} onRebuild={() => void relinkIdentities()} />
+              )}
+              {idents && idents.identities.length > 0 && (
+                <button type="button" className={`${btnGhost} self-start`} aria-expanded={showFragments}
+                  onClick={() => setShowFragments((f) => !f)}>
+                  {showFragments ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  {showFragments ? "Hide fragments" : "Show fragments"}
+                </button>
+              )}
+              {(showFragments || !idents?.identities.length) && (
               <PlayersV2Grid
                 tracks={v2.tracks}
                 groups={v2.groups}
@@ -550,6 +592,8 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
                 onName={({ ids, team }, name) => commit(addPlayer(name, team, ids))}
                 onHide={(ids) => hideTids(ids)}
               />
+              )}
+              </>
             )}
           </div>
         )}

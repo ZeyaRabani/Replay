@@ -476,6 +476,8 @@ export interface RadarTrack {
   id: number;
   team: PlayerTeam;
   player_id: string | null;
+  /** whole-match identity this track was linked into (players v2) */
+  identity_id?: string | null;
   hidden: boolean;
   pts: [number, number, number][];   // [shared_t, fx, fy]
 }
@@ -573,6 +575,36 @@ export interface PlayersV2Tracks {
   n_merged?: number | null;
   summary: { n_tracks: number; median_visible: number; mean_len_s: number };
   status?: AnalysisStatus | null;
+}
+
+export interface PlayerIdentity {
+  id: string;
+  team: "A" | "B";
+  role?: "gk" | "outfield";
+  track_ids: number[];
+  first_s: number;
+  last_s: number;
+  coverage_s: number;
+  coverage_pct: number;
+  distance_m: number;
+  sprints: number;
+  top_speed_ms: number;
+  crops: string[];
+  name: string | null;
+  cohesion?: number;
+}
+
+export interface PlayerIdentities {
+  identities: PlayerIdentity[];
+  unassigned_track_ids: number[];
+  quality: {
+    n_identities?: number;
+    n_unassigned?: number;
+    match_s?: number;
+    mean_coverage_pct?: number;
+  } & Record<string, unknown>;
+  window: [number, number] | null;
+  teams: Record<string, { name: string | null; hex: string | null }>;
 }
 
 export interface RadarPitch {
