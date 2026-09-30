@@ -19,6 +19,7 @@ import argparse
 import contextlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -818,6 +819,27 @@ def stage_stats(ctx: Ctx) -> None:
 
 # ------------------------------ driver ------------------------------------
 
+def cleanup_caches(ctx: Ctx) -> int:
+    """Delete the regenerable render caches (per-angle mezzanines and the
+    extracted segment cache) after a successful run — ~tens of GB per
+    match. Kept when HL_KEEP_CACHES=1 (e.g. debugging a re-cut). Sources,
+    cuts, track features and viewcheck caches are never touched.
+    Returns bytes freed."""
+    if os.environ.get("HL_KEEP_CACHES") == "1":
+        ctx.log("cleanup: HL_KEEP_CACHES=1 — caches kept")
+        return 0
+    freed = 0
+    for d in (ctx.pipe / "mezz", ctx.pipe / "segs"):
+        if not d.is_dir():
+            continue
+        for f in d.iterdir():
+            if f.is_file():
+                freed += f.stat().st_size
+        shutil.rmtree(d)
+    ctx.log(f"cleanup: freed {freed / 1e9:.1f} GB of render caches")
+    return freed
+
+
 @dataclass
 class Stage:
     weight: float
@@ -965,6 +987,10 @@ def main(argv: list[str] | None = None) -> int:
                       stage_progress=1.0, message="done",
                       finished_at=time.time(), force=True)
         ctx.log("multiangle done")
+        try:
+            cleanup_caches(ctx)
+        except Exception as e:
+            ctx.log(f"cleanup: failed ({e})")
         return 0
 
 
