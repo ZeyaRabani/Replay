@@ -39,6 +39,13 @@ class AnalysePlayersPut(BaseModel):
     force: bool = False
 
 
+class IdentityNamePut(BaseModel):
+    name: str | None = None
+
+
+IDENTITY_ID_RE = re.compile(r"^[AB]\d{1,3}$")
+
+
 def _players_dir(p) -> Path:
     return p.root / "analysis" / "players"
 
@@ -362,6 +369,68 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(404, "not found")
         return FileResponse(path, media_type="image/jpeg")
 
+    def _identities_payload(p, doc: dict) -> dict:
+        def crop_url(c: str) -> str:
+            return (f"/api/projects/{p.id}/analysis/players/"
+                    f"v2/crops/{c}")
+        idents = [{**{k: v for k, v in i.items() if k != "crops"},
+                   "crops": [crop_url(c) for c in i.get("crops") or []]}
+                  for i in doc.get("identities") or []]
+        teams = (_read_json(p.root / "analysis" / "teams.json") or {}
+                 ).get("teams") or {}
+        return {"identities": idents,
+                "unassigned_track_ids": doc.get("unassigned_track_ids") or [],
+                "quality": doc.get("quality") or {},
+                "window": doc.get("window"),
+                "generated_at": doc.get("generated_at"),
+                "teams": {k: {"name": v.get("name"), "hex": v.get("hex")}
+                          for k, v in teams.items()}}
+
+    @router.get("/players/identities")
+    def get_identities(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        doc = _read_json(_v2_dir(p) / "identities.json")
+        if not doc:
+            raise HTTPException(404, "player identities have not been "
+                                     "linked yet")
+        return _identities_payload(p, doc)
+
+    @router.post("/players/identities/rebuild")
+    def post_identities_rebuild(p: ScopedP) -> dict:
+        """Re-link identities offline from the saved tracks.json."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        v2d = _v2_dir(p)
+        if not (v2d / "tracks.json").is_file():
+            raise HTTPException(409, "players v2 has not run yet")
+        from highlights.analysis.identity import build_identities
+        try:
+            doc = build_identities(v2d, log=lambda _m: None)
+        except Exception as e:
+            raise HTTPException(500, f"build_identities failed: {e}") from e
+        return _identities_payload(p, doc)
+
+    @router.put("/players/identities/{iid}")
+    def put_identity_name(p: ScopedP, iid: str,
+                          body: IdentityNamePut) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        if not IDENTITY_ID_RE.match(iid):
+            raise HTTPException(404, "unknown identity")
+        name = (body.name or "").strip()
+        if len(name) > 60:
+            raise HTTPException(422, "name too long (max 60)")
+        from highlights.analysis.identity import set_name
+        try:
+            ident = set_name(_v2_dir(p), iid, name or None)
+        except FileNotFoundError as e:
+            raise HTTPException(404, "player identities have not been "
+                                     "linked yet") from e
+        except KeyError as e:
+            raise HTTPException(404, "unknown identity") from e
+        return {"id": ident["id"], "name": ident["name"]}
+
     @router.get("/analysis/players")
     def get_players_analysis(p: ScopedP) -> dict:
         if not p.is_multiangle:
@@ -446,6 +515,9 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         # v2 pitch-space tracks take precedence when present
         v2 = _read_json(_v2_dir(p) / "tracks.json")
         if v2 and v2.get("tracks"):
+            idoc = _read_json(_v2_dir(p) / "identities.json") or {}
+            ident_of = {tid: i["id"] for i in idoc.get("identities") or []
+                        for tid in i.get("track_ids") or []}
             step = float(v2.get("step") or 0.5)
             t0 = float(v2.get("t0") or 0.0)
             tracks = []
@@ -458,6 +530,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                 tracks.append({
                     "id": int(t["id"]), "team": t.get("team"),
                     "player_id": owner.get(t["id"]),
+                    "identity_id": ident_of.get(int(t["id"])),
                     "hidden": t["id"] in hidden,
                     "pts": pts})
             cal = _read_json(p.multiangle_dir / "calib.json") or {}
