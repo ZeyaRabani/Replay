@@ -927,14 +927,18 @@ def stage_stats(ctx: Ctx) -> None:
 def stage_scoreboard(ctx: Ctx) -> None:
     """Burn scoreboard + clock into match.mp4. Reads
     multiangle/scoreboard.json (written by POST /multiangle/scoreboard):
-    {home:{label,hex}, away:{label,hex}, goals:[{t,team}], kickoff} —
-    all times are OUTPUT time of the active cut."""
+    {home:{label,hex}, away:{label,hex}, goals:[{t,team}], kickoff} and
+    replay intervals from director.json — all times are OUTPUT time."""
     from highlights.multiangle.scoreboard import apply_scoreboard, find_bold_font, scoreboard_filter
     spec_path = ctx.pipe / "scoreboard.json"
     if not spec_path.exists():
         raise PipelineError(
             "scoreboard.json missing — request it via the Score card")
     spec = json.loads(spec_path.read_text())
+    replays = []
+    director_path = ctx.pipe / "director.json"
+    if director_path.is_file():
+        replays = json.loads(director_path.read_text()).get("replays") or []
     match = ctx.project_dir / "match.mp4"
     if not match.is_file():
         raise PipelineError("no match.mp4 to overlay")
@@ -952,7 +956,7 @@ def stage_scoreboard(ctx: Ctx) -> None:
         (spec.get("away") or {}).get("label") or "Away",
         (spec.get("home") or {}).get("hex"),
         (spec.get("away") or {}).get("hex"),
-        kickoff, font, dur=dur)
+        kickoff, font, dur=dur, replays=replays)
     apply_scoreboard(
         match, match, vf,
         progress_cb=lambda f: ctx.status.update(
@@ -972,7 +976,7 @@ def stage_scoreboard(ctx: Ctx) -> None:
         pass
     write_json_atomic(ctx.pipe / "scoreboard_applied.json",
                       {"cut_from": cut_from, "goals": goals,
-                       "kickoff": kickoff,
+                       "kickoff": kickoff, "replays": replays,
                        "created_at": time.time()}, indent=1)
     ctx.log(f"scoreboard: burned {len(goals)} goals, kickoff {kickoff:.1f}s"
             f" (dur {dur:.0f}s)")

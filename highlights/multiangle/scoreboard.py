@@ -6,9 +6,9 @@ frame, top-left at x=48, y=40, height 64:
     [team colour block: ABBR home] [black: "H - A"] [team colour: ABBR away]
     [black: mm:ss clock]
 
-The score text swaps once per score state via `enable='between(t,a,b)'`,
-the clock is mm:ss of max(0, t-kickoff) via drawtext `eif` expansion,
-and each goal flashes "GOAL  <ABBR>" beneath the bar for 6 s.
+The score text swaps once per score state via `enable='between(t,a,b)'`.
+The clock uses drawtext `eif` for live play and static text during replays.
+Each goal flashes "GOAL  <ABBR>" beneath the bar for 6 s.
 """
 
 from __future__ import annotations
@@ -93,16 +93,17 @@ def _colour(hexv: str | None, default: str, alpha: float = 0.9) -> str:
     return f"0x{h}@{alpha}"
 
 
-def _clock_text(kickoff: float) -> str:
-    """mm:ss of max(0, t-kickoff) as a drawtext expansion string."""
-    k = f"{float(kickoff):.3f}"
+def _clock_text(base: float) -> str:
+    """mm:ss of max(0, t-base) as a drawtext expansion string."""
+    k = f"{float(base):.3f}"
     return (r"%{eif\:trunc(max(0\,t-" + k + r")/60)\:d\:2}\:"
             r"%{eif\:mod(trunc(max(0\,t-" + k + r"))\,60)\:d\:2}")
 
 
 def scoreboard_filter(goals: list[dict], home_label: str, away_label: str,
                       home_hex: str | None, away_hex: str | None,
-                      kickoff: float, font: str, dur: float) -> str:
+                      kickoff: float, font: str, dur: float,
+                      replays: list[dict] | None = None) -> str:
     """-vf filtergraph for a 1920x1080 frame."""
     f = f"fontfile={font}"
     fs = f"fontsize={FONTSIZE}"
@@ -124,10 +125,57 @@ def scoreboard_filter(goals: list[dict], home_label: str, away_label: str,
         # clock block
         f"drawbox=x={BAR_X + 2 * TEAM_W + SCORE_W}:y={BAR_Y}:w={CLOCK_W}:"
         f"h={BAR_H}:color=black@0.6:t=fill",
-        f"drawtext={f}:text='{_clock_text(kickoff)}':{fs}:fontcolor=white:"
-        f"x={BAR_X + 2 * TEAM_W + SCORE_W}+({CLOCK_W}-text_w)/2:"
-        f"y={BAR_Y}+({BAR_H}-text_h)/2",
     ]
+
+    def add_clock_drawtext(
+            text: str, interval: tuple[float, float] | None = None) -> None:
+        clock_filter = (
+            f"drawtext={f}:text='{text}':{fs}:fontcolor=white:"
+            f"x={BAR_X + 2 * TEAM_W + SCORE_W}+({CLOCK_W}-text_w)/2:"
+            f"y={BAR_Y}+({BAR_H}-text_h)/2")
+        if interval is not None:
+            clock_filter += (
+                f":enable='between(t,{interval[0]:.3f},{interval[1]:.3f})'")
+        filters.append(clock_filter)
+
+    replay_intervals = []
+    for replay in replays or []:
+        try:
+            start = float(replay["t_out_start"])
+            end = float(replay["t_out_end"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if end < 0 or start > float(dur) or end <= start:
+            continue
+        replay_intervals.append((start, end))
+    replay_intervals.sort()
+
+    if not replay_intervals:
+        add_clock_drawtext(_clock_text(kickoff))
+    else:
+        def live(output_time: float) -> float:
+            return output_time - sum(
+                end - start for start, end in replay_intervals
+                if end <= output_time)
+
+        live_kickoff = live(float(kickoff))
+        cursor = 0.0
+        replay_duration = 0.0
+        for start, end in replay_intervals:
+            if start > cursor:
+                add_clock_drawtext(
+                    _clock_text(live_kickoff + replay_duration),
+                    (cursor, start))
+            frozen_s = int(max(0.0, live(start) - live_kickoff))
+            frozen_text = f"{frozen_s // 60:02d}:{frozen_s % 60:02d}"
+            add_clock_drawtext(_esc(frozen_text), (start, end))
+            replay_duration += end - start
+            cursor = end
+        if cursor < float(dur) + 1.0:
+            add_clock_drawtext(
+                _clock_text(live_kickoff + replay_duration),
+                (cursor, float(dur) + 1.0))
+
     timeline = score_timeline(goals)
     for i, (t_from, h, a) in enumerate(timeline):
         t_to = (timeline[i + 1][0] if i + 1 < len(timeline)
