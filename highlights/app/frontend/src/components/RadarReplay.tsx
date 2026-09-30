@@ -181,6 +181,9 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     const labels: [string, number, number, number][] = [];
     const hits: typeof drawn.current = [];
     let on = 0;
+    // cross-camera duplicates of one identity are drawn as a single dot
+    const dots: { tr: PlayersPaths["tracks"][number]; m: [number, number]; a: number; n: number }[] = [];
+    const byIdent = new Map<string, (typeof dots)[number]>();
     for (const tr of paths.tracks) {
       if (tr.hidden) continue;
       const p = posAt(tr.pts, t);
@@ -192,9 +195,22 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
         if (prev && p[2] === 1) m = [prev[0] + 0.5 * (m[0] - prev[0]), prev[1] + 0.5 * (m[1] - prev[1])];
         smooth.current.set(tr.id, m);
       }
-      if (p[2] === 1) on += 1;
+      const iid = tr.identity_id ?? null;
+      const d = iid ? byIdent.get(iid) : undefined;
+      if (d) {
+        d.m = [(d.m[0] * d.n + m[0]) / (d.n + 1), (d.m[1] * d.n + m[1]) / (d.n + 1)];
+        d.n += 1;
+        d.a = Math.max(d.a, p[2]);
+        continue;
+      }
+      const dot = { tr, m: m as [number, number], a: p[2], n: 1 };
+      dots.push(dot);
+      if (iid) byIdent.set(iid, dot);
+    }
+    for (const { tr, m, a } of dots) {
+      if (a === 1) on += 1;
       const x = v.X(m[0]), y = v.Y(m[1]);
-      ctx.globalAlpha = p[2];
+      ctx.globalAlpha = a;
       ctx.beginPath();
       ctx.arc(x, y + 1.5, r, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -209,8 +225,8 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       ctx.strokeStyle = iid ? team : "#09090b";
       ctx.stroke();
       const nm = (iid && identNames[iid]) || (tr.player_id ? rosterNames[tr.player_id] : null);
-      if (nm) labels.push([nm, x, y - r - 5, p[2]]);
-      if (p[2] === 1) hits.push({ x, y, id: tr.id, ident: iid });
+      if (nm) labels.push([nm, x, y - r - 5, a]);
+      if (a === 1) hits.push({ x, y, id: tr.id, ident: iid });
     }
     // labels on top of all dots
     ctx.font = `600 ${Math.max(10, Math.round(W / 90))}px ui-sans-serif, system-ui, sans-serif`;
