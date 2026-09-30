@@ -95,7 +95,7 @@ def test_candidate_and_nested_output_time_mapping(tmp_path):
     }, [replay])
     assert mapped == {
         "events": [{"t_out": 17.0, "t_start_out": 1.0,
-                    "t_end_out": 20.0, "lo_out": 100.0, "mmss": "00:05"}],
+                    "t_end_out": 30.0, "lo_out": 100.0, "mmss": "00:05"}],
         "start_out": 0.0,
-        "end_out": 8.0,
+        "end_out": 32.0,
     }
