@@ -73,6 +73,13 @@ def test_players_run_get_put_crops(client, monkeypatch):
     monkeypatch.setenv("HL_PLAYERS_CMD", f"{sys.executable} {FAKE_PLAYERS}")
     pid = _done_multiangle(client)
     p = _write_teams(client, pid)
+    director_path = p.multiangle_dir / "director.json"
+    director = json.loads(director_path.read_text())
+    director["replays"] = [{
+        "t_src_start": 0.0, "t_src_end": 6.0, "speed": 0.5,
+        "t_live_at": 0.0, "t_out_start": 0.0, "t_out_end": 12.0,
+    }]
+    director_path.write_text(json.dumps(director))
 
     r = client.post(scoped(pid, "/analyse/players"), json={})
     assert r.status_code == 200, r.text
@@ -92,6 +99,9 @@ def test_players_run_get_put_crops(client, monkeypatch):
     t0 = d["tracklets"][0]
     assert "path" not in t0 and t0["duration_s"] > 0
     assert "t_start_out" in t0 and "t_end_out" in t0
+    from highlights.app.backend.players_api import _lo_out
+    assert t0["t_start_out"] == round(5.0 - _lo_out(p) + 12.0, 3)
+    assert t0["t_end_out"] == round(50.0 - _lo_out(p) + 12.0, 3)
     assert d["roster"] == {"players": [], "scorers": {},
                            "hidden_tracklet_ids": []}
     assert d["players_stats"]["unassigned"]["n_tracklets"] == 4

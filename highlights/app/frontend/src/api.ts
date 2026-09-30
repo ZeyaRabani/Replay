@@ -247,9 +247,13 @@ export function projectApi(id: string) {
     putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
     recut: (style: "normal" | "fast", window?: [number, number] | null,
-            preview = false) =>
+            preview = false, goalAware?: boolean) =>
       req<PipelineStatus>(`${base}/multiangle/recut`,
-                          json({ style, window, preview })),
+        json({ style, window, preview,
+               ...(goalAware === undefined ? {} : { goal_aware: goalAware }) })),
+    putMaSettings: (settings: { goal_aware: boolean }) =>
+      req<{ goal_aware: boolean }>(
+        `${base}/multiangle/settings`, json(settings, "PUT")),
     putMatchWindowMa: (start: number | null, end: number | null, angle = 0) =>
       req<{ match_window: [number, number] | null;
             match_window_src: { angle: number; start: number; end: number } | null }>(

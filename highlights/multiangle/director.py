@@ -404,7 +404,8 @@ def cut_director(track: list[dict], available: np.ndarray,
                  zone_ok: np.ndarray | None = None,
                  zone_kf: list[np.ndarray] | None = None,
                  style_overrides: dict | None = None,
-                 prefs: dict | None = None) -> dict:
+                 prefs: dict | None = None,
+                 goal_windows: list[dict] | None = None) -> dict:
     """Full decision. track[i]: {"ball_conf","ball_size","cluster",
     "ball_x","ball_y"} 1 Hz arrays on the shared timeline;
     available[i, t]; motion[i] shared-timeline motion. zones (optional):
@@ -424,8 +425,24 @@ def cut_director(track: list[dict], available: np.ndarray,
     rule_counts = {"event": 0, "zone": 0, "ball": 0, "cluster": 0,
                    "hold": 0, "coverage": 0}
     cur = int(cand_a[0]) if cand_a[0] >= 0 else int(np.argmax(available[:, 0]))
+    gw = np.full(T, -1, dtype=int)
+    initial_goal_window = -1
+    if goal_windows:
+        rule_counts["goal_hold"] = 0
+        for window_index, window in enumerate(goal_windows):
+            start = max(0, int(window["t_start"]))
+            end = min(T, int(window["t_end"]))
+            for t in range(start, end):
+                if gw[t] < 0:
+                    gw[t] = window_index
+        if gw[0] >= 0:
+            window = goal_windows[gw[0]]
+            if available[int(window["angle"]), 0]:
+                cur = int(window["angle"])
+                initial_goal_window = int(gw[0])
     segs: list[dict] = [
-        {"t_start": 0.0, "t_end": float(T - 1), "angle": cur, "rule": "start",
+        {"t_start": 0.0, "t_end": float(T - 1), "angle": cur,
+         "rule": "goal_hold" if initial_goal_window >= 0 else "start",
          "score": round(float(sm[cur, 0]), 4),
          "runner_up": None}]
     hold = 0
@@ -436,6 +453,7 @@ def cut_director(track: list[dict], available: np.ndarray,
     zone_prop = -1
     prev_zone_angle = -1
     last_zone_cut_t = -1 << 30
+    current_goal_window = initial_goal_window
 
     def open_seg(start_t: int, angle: int, rule: str, score: float,
                  runner: dict | None):
@@ -446,6 +464,27 @@ def cut_director(track: list[dict], available: np.ndarray,
 
     for t in range(1, T):
         hold += 1
+        if goal_windows:
+            if gw[t] >= 0 and available[int(goal_windows[gw[t]]["angle"]), t]:
+                window_index = int(gw[t])
+                window_angle = int(goal_windows[window_index]["angle"])
+                if (cur != window_angle or segs[-1]["rule"] != "goal_hold"
+                        or current_goal_window != window_index):
+                    segs[-1]["t_end"] = float(t)
+                    open_seg(t, window_angle, "goal_hold",
+                             float(sm[window_angle, t]),
+                             {"angle": int(cur),
+                              "score": round(float(sm[cur, t]), 4)})
+                cur = window_angle
+                current_goal_window = window_index
+                hold, streak, zero_run, propose = 0, 0, 0, -1
+                zone_streak, zone_prop = 0, -1
+                rule_counts["goal_hold"] += 1
+                continue
+            if gw[t] < 0 and segs[-1]["rule"] == "goal_hold":
+                segs[-1]["t_end"] = float(t)
+                open_seg(t, cur, "resume", float(sm[cur, t]), None)
+                current_goal_window = -1
         # hard cut: incumbent left coverage (hold if nothing is available)
         if not available[cur, t]:
             if not available[:, t].any():
@@ -552,6 +591,23 @@ def cut_director(track: list[dict], available: np.ndarray,
 
     durs = [s["t_end"] - s["t_start"] for s in segs]
     total_dur = sum(durs)
+    if goal_windows:
+        run_durs = []
+        run_angle = None
+        run_end = None
+        for segment in segs:
+            duration = segment["t_end"] - segment["t_start"]
+            if (run_durs and segment["angle"] == run_angle
+                    and segment["t_start"] == run_end):
+                run_durs[-1] += duration
+            else:
+                run_durs.append(duration)
+            run_angle = segment["angle"]
+            run_end = segment["t_end"]
+        n_cuts = max(0, len(run_durs) - 1)
+    else:
+        run_durs = durs
+        n_cuts = len(segs) - 1
     angle_share = {str(i): 0.0 for i in range(n_angles)}
     for s in segs:
         angle_share[str(s["angle"])] += s["t_end"] - s["t_start"]
@@ -568,11 +624,11 @@ def cut_director(track: list[dict], available: np.ndarray,
         "segments": segs,
         "per_second_rule": rule_counts,
         "ratios": {k: round(v / tot, 4) for k, v in rule_counts.items()},
-        "n_cuts": len(segs) - 1,
-        "mean_hold_s": round(total_dur / max(1, len(segs)), 2),
-        "median_hold_s": round(float(np.median(durs)), 2) if durs else 0.0,
-        "min_hold_s": round(float(min(durs)), 2) if durs else 0.0,
-        "cuts_per_10min": round((len(segs) - 1) / span_min * 10, 1),
+        "n_cuts": n_cuts,
+        "mean_hold_s": round(total_dur / max(1, len(run_durs)), 2),
+        "median_hold_s": round(float(np.median(run_durs)), 2) if run_durs else 0.0,
+        "min_hold_s": round(float(min(run_durs)), 2) if run_durs else 0.0,
+        "cuts_per_10min": round(n_cuts / span_min * 10, 1),
         "angle_share": angle_share,
         "cluster_baseline": [round(float(b), 4) for b in baselines],
         **(zone_shares or {}),

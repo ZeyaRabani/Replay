@@ -150,6 +150,35 @@ export interface DirectorSummary {
   cuts_per_10min?: number;
   angle_share: Record<string, number>;
   cluster_baseline?: number[];
+  replays?: ReplayInfo[];
+  duration_live?: number;
+  duration_out?: number;
+  goal_aware?: { enabled: boolean; events: GoalAwareEvent[] };
+}
+
+export interface ReplayInfo {
+  goal_id: string;
+  t_goal: number;
+  src_angle: number;
+  t_src_start: number;
+  t_src_end: number;
+  t_live_at: number;
+  t_out_start: number;
+  t_out_end: number;
+  speed: number;
+}
+
+export interface GoalAwareEvent {
+  id: string;
+  type: EventType;
+  t: number;
+  end: "left" | "right" | null;
+  method: string;
+  x_med: number | null;
+  hold_angle: number;
+  replay_angle: number | null;
+  ranking: number[];
+  replay_reason?: string;
 }
 
 export interface DirectorSegment {
@@ -159,6 +188,11 @@ export interface DirectorSegment {
   rule: "ball" | "cluster" | "hold" | "coverage" | "start" | string;
   score: number;
   runner_up?: { angle: number; score: number } | null;
+  speed?: number;
+  overlay?: string;
+  t_src_start?: number;
+  t_src_end?: number;
+  replay_of?: string;
 }
 
 export interface DirectorFull extends DirectorSummary {
@@ -189,6 +223,7 @@ export interface MultiangleInfo {
   score: MultiangleScore;
   status: PipelineStatus | null;
   cut_style?: string;
+  goal_aware?: boolean;
   sources_purged?: boolean;
   /** [lo, hi] in shared-T seconds, or null when unset */
   match_window?: [number, number] | null;

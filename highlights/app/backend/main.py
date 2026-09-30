@@ -142,6 +142,11 @@ class RecutPut(BaseModel):
     # previous cut_range in cut_range_base.json; the next non-preview
     # recut restores it first
     preview: bool = False
+    goal_aware: bool | None = None
+
+
+class MaSettingsPut(BaseModel):
+    goal_aware: bool
 
 
 class MatchWindowPut(BaseModel):
@@ -1550,7 +1555,10 @@ def get_multiangle(p: ScopedP) -> dict:
     _require_multiangle(p)
     director = _read_json(p.multiangle_dir / "director.json")
     if director:
-        director = {k: v for k, v in director.items() if k != "segments"}
+        director = {
+            k: v for k, v in director.items()
+            if k not in {"segments", "segments_out"}
+        }
     cr = _read_json(p.multiangle_dir / "cut_range.json")
     match_window = ([float(cr["lo"]), float(cr["hi"])]
                     if cr and cr.get("hi", 0) > cr.get("lo", 0) else None)
@@ -1561,10 +1569,25 @@ def get_multiangle(p: ScopedP) -> dict:
         "score": _multiangle_score(p),
         "status": pipeline.read_status(p),
         "cut_style": p.meta.get("cut_style", "normal"),
+        "goal_aware": bool(p.meta.get("goal_aware", True)),
         "sources_purged": bool(p.meta.get("sources_purged")),
         "match_window": match_window,
         "match_window_src": _read_json(p.multiangle_dir / "match_window_src.json"),
     }
+
+
+@scoped.get("/multiangle/settings")
+def get_multiangle_settings(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    return {"goal_aware": bool(p.meta.get("goal_aware", True))}
+
+
+@scoped.put("/multiangle/settings")
+def put_multiangle_settings(body: MaSettingsPut, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    p.meta["goal_aware"] = body.goal_aware
+    p.save()
+    return {"goal_aware": body.goal_aware}
 
 
 @scoped.put("/multiangle/score")
@@ -1808,6 +1831,18 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
     _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
     p.meta["cut_style"] = body.style
+    if body.goal_aware is not None:
+        p.meta["goal_aware"] = body.goal_aware
+    window = body.window
+    if window:
+        from highlights.multiangle.timemap import from_output_time_with_replays
+        current_director = _read_json(
+            p.multiangle_dir / "director.json") or {}
+        replays = current_director.get("replays") or []
+        window = [
+            from_output_time_with_replays(float(t), replays)
+            for t in window
+        ]
     # optional cut range: window is in the current video's output time,
     # stored as absolute shared-T seconds for the runner's ctx.union()
     cr_path = p.multiangle_dir / "cut_range.json"
@@ -1833,8 +1868,8 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
             dur = float(uhi) - float(ulo)
         except Exception:
             dur = p.video.duration_s if p.video else 0.0
-    full = (body.window is None or not body.window or
-            (body.window[0] <= 0.5 and body.window[1] >= dur - 0.5))
+    full = (window is None or not window or
+            (window[0] <= 0.5 and window[1] >= dur - 0.5))
     if full:
         # "the whole current video": keep an existing cut_range (the
         # current video is itself windowed — deleting it would expand
@@ -1842,9 +1877,9 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         if not cur:
             cr_path.unlink(missing_ok=True)
     else:
-        if len(body.window) != 2:
+        if len(window) != 2:
             raise HTTPException(422, "window must be [start, end]")
-        s, e = float(body.window[0]), float(body.window[1])
+        s, e = float(window[0]), float(window[1])
         if not (0 <= s < e <= dur):
             raise HTTPException(
                 422, f"need 0 <= start < end <= duration ({dur:.1f} s)")
@@ -1883,6 +1918,10 @@ def get_multiangle_director(p: ScopedP) -> dict:
     d = _read_json(p.multiangle_dir / "director.json")
     if d is None:
         raise HTTPException(404, "director.json not available yet")
+    if "segments_out" in d:
+        d = {**d, "segments": d["segments_out"],
+             "segments_live": d.get("segments", [])}
+        d.pop("segments_out", None)
     return d
 
 
@@ -1979,6 +2018,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     """Build the /direct/suggest payload for a stretch (or the busiest
     candidate when no explicit stretch is given)."""
     from highlights.multiangle.manual_direct import director_rows, pick_candidate, suggest_stretch
+    from highlights.multiangle.timemap import to_output_time_with_replays
     ma = p.multiangle_dir
     director = _read_json(ma / "director.json")
     if not director:
@@ -1989,6 +2029,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     if len(offsets) < n_angles:
         offsets += [0.0] * (n_angles - len(offsets))
     segs = director.get("segments") or []
+    replays = director.get("replays") or []
     meta = _active_cut_meta(p)
     rng = meta.get("range")
     if rng:
@@ -2028,7 +2069,8 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     rows = director_rows(segs, lo, s, e)
     return {
         "t_start": round(s, 2), "t_end": round(e, 2),
-        "t_start_out": round(s - lo, 2),
+        "t_start_out": round(
+            to_output_time_with_replays(s - lo, replays), 2),
         "offsets": [round(s - o, 2) for o in offsets],
         "match_window": [round(lo, 2), round(hi, 2)],
         "n_angles": n_angles,
@@ -2359,6 +2401,8 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
     meta = activate_cut(p.root, cut_id)
     if meta is None:
         raise HTTPException(404, "unknown cut")
+    with contextlib.suppress(Exception):
+        pipeline.sync_candidate_timeline(p)
     p.meta["cut_style"] = meta.get("style") or p.meta.get("cut_style", "normal")
     p.save()
     p.invalidate_video()   # drop proxy/thumbs for the previous cut

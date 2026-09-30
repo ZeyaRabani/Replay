@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from highlights.multiangle.scoreboard import ABBR, apply_scoreboard, find_bold_font, score_timeline, scoreboard_filter
+from highlights.multiangle.scoreboard import (
+    ABBR,
+    _clock_text,
+    apply_scoreboard,
+    find_bold_font,
+    score_timeline,
+    scoreboard_filter,
+)
 
 OUT = Path("/tmp/scoreboard_test")
 
@@ -50,6 +57,56 @@ def test_filter_structure():
     assert "0xea580c@0.9" in vf                  # bad hex -> default away
     assert "max(0\\,t-2.500)" in vf              # kickoff clamp present
     assert "GOAL  BE" in vf                      # away flash uses abbr
+
+
+def test_filter_without_replays_matches_legacy():
+    font = find_bold_font() or "DejaVuSans-Bold.ttf"
+    args = ([], "Home", "Away", None, None, 10.0, font)
+    legacy = scoreboard_filter(*args, dur=200.0)
+    assert scoreboard_filter(*args, dur=200.0, replays=None) == legacy
+    assert scoreboard_filter(*args, dur=200.0, replays=[]) == legacy
+
+
+def test_filter_clock_stays_on_live_time_across_replay():
+    font = find_bold_font() or "DejaVuSans-Bold.ttf"
+    vf = scoreboard_filter(
+        [], "Home", "Away", None, None, 10.0, font, dur=200.0,
+        replays=[{"t_out_start": 100.0, "t_out_end": 112.0}])
+
+    assert f"text='{_clock_text(10.0)}'" in vf
+    assert "enable='between(t,0.000,100.000)'" in vf
+    assert "text='01\\:30'" in vf
+    assert "enable='between(t,100.000,112.000)'" in vf
+    assert f"text='{_clock_text(22.0)}'" in vf
+    assert "enable='between(t,112.000,201.000)'" in vf
+
+
+def test_filter_clock_bases_accumulate_across_replays():
+    font = find_bold_font() or "DejaVuSans-Bold.ttf"
+    vf = scoreboard_filter(
+        [], "Home", "Away", None, None, 10.0, font, dur=200.0,
+        replays=[
+            {"t_out_start": 100.0, "t_out_end": 112.0},
+            {"t_out_start": 150.0, "t_out_end": 162.0},
+        ])
+
+    assert f"text='{_clock_text(10.0)}'" in vf
+    assert f"text='{_clock_text(22.0)}'" in vf
+    assert f"text='{_clock_text(34.0)}'" in vf
+    assert "text='01\\:30'" in vf
+    assert "text='02\\:08'" in vf
+    assert "enable='between(t,112.000,150.000)'" in vf
+    assert "enable='between(t,162.000,201.000)'" in vf
+
+
+def test_filter_clock_kickoff_inside_replay_uses_live_mapping():
+    font = find_bold_font() or "DejaVuSans-Bold.ttf"
+    vf = scoreboard_filter(
+        [], "Home", "Away", None, None, 105.0, font, dur=200.0,
+        replays=[{"t_out_start": 100.0, "t_out_end": 112.0}])
+
+    assert "text='00\\:00'" in vf
+    assert f"text='{_clock_text(117.0)}'" in vf
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None or
