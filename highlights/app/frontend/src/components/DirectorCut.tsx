@@ -589,8 +589,8 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   {!!info.director.replays?.length && (
                     <div className="mt-2 text-[11px] text-zinc-400">
                       {info.director.replays.length} replays · +
-                      {fmtS((info.director.duration_out ?? total) -
-                        (info.director.duration_live ?? total))} s
+                      {((info.director.duration_out ?? total) -
+                        (info.director.duration_live ?? total)).toFixed(0)} s
                       {" "}(output {fmtS(info.director.duration_out ?? total)}
                       {" "}vs live {fmtS(info.director.duration_live ?? total)})
                     </div>
