@@ -431,6 +431,86 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(404, "unknown identity") from e
         return {"id": ident["id"], "name": ident["name"]}
 
+    def _reel_dir(p, iid: str) -> Path:
+        return _v2_dir(p) / "reels" / iid
+
+    def _reel_payload(p, iid: str) -> dict:
+        rdir = _reel_dir(p, iid)
+        path = rdir / "status.json"
+        status = _read_json(path)
+        if not status:
+            raise HTTPException(404, "no reel for this identity yet")
+        if (status.get("state") in ("queued", "running")
+                and not _status_alive(status)):
+            status.update(state="failed", error="interrupted",
+                          message="interrupted", finished_at=time.time(),
+                          updated_at=time.time())
+            _write_status(path, status)
+        manifest = _read_json(rdir / "reel.json")
+        done = status.get("state") == "done" and (rdir / "reel.mp4").is_file()
+        return {"status": status,
+                "manifest": manifest if done else None,
+                "url": (f"/api/projects/{p.id}/players/identities/"
+                        f"{iid}/reel.mp4") if done else None}
+
+    def _known_identity(p, iid: str) -> None:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        doc = _read_json(_v2_dir(p) / "identities.json") or {}
+        if not IDENTITY_ID_RE.match(iid) or not any(
+                i.get("id") == iid for i in doc.get("identities") or []):
+            raise HTTPException(404, "unknown identity")
+
+    @router.post("/players/identities/{iid}/reel")
+    def post_identity_reel(p: ScopedP, iid: str) -> dict:
+        """Spawn highlights.analysis.player_clips for one identity."""
+        _known_identity(p, iid)
+        if not (p.root / "match.mp4").is_file():
+            raise HTTPException(409, "no active cut match.mp4")
+        rdir = _reel_dir(p, iid)
+        status_path = rdir / "status.json"
+        status = _read_json(status_path)
+        if status and status.get("state") in ("queued", "running") \
+                and _status_alive(status):
+            raise HTTPException(409, "reel already being built")
+        now = time.time()
+        status = {"state": "queued", "stage": "reel", "progress": 0.0,
+                  "stage_progress": 0.0, "message": "queued",
+                  "error": None, "started_at": now, "updated_at": now,
+                  "finished_at": None, "pid": None}
+        _write_status(status_path, status)
+        argv = [sys.executable, "-m", "highlights.analysis.player_clips",
+                "--project-dir", str(p.root), "--identity", iid]
+        log = open(rdir / "log.txt", "ab")  # noqa: SIM115
+        try:
+            proc = subprocess.Popen(
+                argv, cwd=REPO_ROOT,
+                stdout=log, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, start_new_session=True)
+        finally:
+            log.close()
+        _procs[proc.pid] = proc
+        cur = _read_json(status_path) or status
+        if cur.get("pid") is None:
+            cur["pid"] = proc.pid
+            _write_status(status_path, cur)
+        return _reel_payload(p, iid)
+
+    @router.get("/players/identities/{iid}/reel")
+    def get_identity_reel(p: ScopedP, iid: str) -> dict:
+        _known_identity(p, iid)
+        return _reel_payload(p, iid)
+
+    @router.get("/players/identities/{iid}/reel.mp4")
+    def get_identity_reel_mp4(p: PublicP, iid: str) -> FileResponse:
+        if not IDENTITY_ID_RE.match(iid):
+            raise HTTPException(404, "not found")
+        path = _reel_dir(p, iid) / "reel.mp4"
+        if not path.is_file():
+            raise HTTPException(404, "not found")
+        return FileResponse(path, media_type="video/mp4",
+                            filename=f"player_{iid}_reel.mp4")
+
     @router.get("/analysis/players")
     def get_players_analysis(p: ScopedP) -> dict:
         if not p.is_multiangle:

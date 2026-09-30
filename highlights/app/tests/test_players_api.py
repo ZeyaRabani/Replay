@@ -445,3 +445,54 @@ def test_player_identities_endpoints(client):
                        headers={"X-User": "someone-else"})
     assert other.status_code in (401, 403, 404)
     assert m.get_registry().get(pid) is not None
+
+
+def test_identity_reel_endpoints(client):
+    import subprocess as sp
+    pid = _done_multiangle(client)
+    p = _write_teams(client, pid)
+    v2dir = p.root / "analysis" / "players_v2"
+    v2dir.mkdir(parents=True)
+    xs = [10.0] * 20 + [10.0 + 3.5 * k for k in range(1, 7)]
+    xs += [xs[-1]] * 20
+    track = {"id": 1, "team": "A", "start": 5.0,
+             "end": 5.0 + 0.5 * (len(xs) - 1),
+             "xy": [[x, 20.0] for x in xs], "dist_m": 0.0, "sprints": 0,
+             "crops": []}
+    (v2dir / "tracks.json").write_text(json.dumps({
+        "step": 0.5, "t0": 0.0, "tracks": [track], "ball": [],
+        "summary": {"n_tracks": 1, "visible_hist": [1] * 60}}))
+    (p.root / "multiangle").mkdir(exist_ok=True)
+    (p.root / "multiangle" / "cut_range.json").write_text(
+        json.dumps({"lo": 0.0, "hi": 40.0}))
+    assert client.post(scoped(pid, "/players/identities/rebuild"),
+                       json={}).status_code == 200
+    reel = scoped(pid, "/players/identities/A1/reel")
+    assert client.get(reel).status_code == 404
+    assert client.post(scoped(pid, "/players/identities/B4/reel")
+                       ).status_code == 404
+    match = p.root / "match.mp4"
+    if match.is_symlink() or match.exists():
+        match.unlink()
+    assert client.post(reel).status_code == 409
+    sp.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+            "testsrc=duration=30:size=160x120:rate=10", "-c:v", "libx264",
+            "-preset", "ultrafast", str(match)], check=True)
+    r = client.post(reel)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"]["state"] in ("queued", "running", "done")
+    deadline = time.time() + 30
+    d = {}
+    while time.time() < deadline:
+        d = client.get(reel).json()
+        if d["status"]["state"] in ("done", "failed"):
+            break
+        time.sleep(0.2)
+    assert d["status"]["state"] == "done", d
+    assert d["url"] == f"/api/projects/{pid}/players/identities/A1/reel.mp4"
+    assert d["manifest"]["items"][0]["type"] == "sprint"
+    mp4 = client.get(d["url"], params={"user": "tester"})
+    assert mp4.status_code == 200
+    assert mp4.headers["content-type"] == "video/mp4"
+    other = client.get(reel, headers={"X-User": "someone-else"})
+    assert other.status_code in (401, 403, 404)
