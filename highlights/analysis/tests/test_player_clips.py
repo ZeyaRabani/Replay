@@ -129,3 +129,56 @@ def test_build_reel_cli_on_testsrc(tmp_path):
     assert pc.main(["--project-dir", str(tmp_path), "--identity", "B7"]) == 1
     st = json.loads((pc.reels_dir(tmp_path, "B7") / "status.json").read_text())
     assert st["state"] == "failed" and "B7" in st["error"]
+
+
+def _replay(t_live_at, goal_id="g1"):
+    # 6 s of source at 0.5x -> 12 s inserted into match.mp4
+    return {"goal_id": goal_id, "t_goal": t_live_at - 2.0, "src_angle": 1,
+            "t_src_start": t_live_at - 8.0, "t_src_end": t_live_at - 2.0,
+            "t_live_at": t_live_at, "speed": 0.5}
+
+
+def test_select_items_maps_through_director_replays():
+    tr = _dash_track(start=100.0)
+    ident = {"id": "A1", "track_ids": [1], "name": None}
+    lo = 50.0
+    ball = [[112.0, 25.0, 21.0]]
+    base = pc.select_items(ident, [tr], ball=ball, candidates=[], roster={},
+                           lo=lo, duration=500.0)
+    replays = [_replay(40.0)]                    # before both dashes
+    # the shot is in output time: live 62 -> output 74 after the replay
+    cands = [{"id": "e1", "t": 74.0, "type": "shot", "status": "confirmed"},
+             {"id": "e2", "t": 62.0, "type": "shot", "status": "confirmed"}]
+    items = pc.select_items(ident, [tr], ball=ball, candidates=cands,
+                            roster={}, lo=lo, duration=500.0,
+                            replays=replays)
+    runs = [i for i in items if i["type"] == "sprint"]
+    assert len(base) == 2 and len(runs) == 1
+    first = next(i for i in items if i["type"] == "shot")
+    assert first["clip_start"] == pytest.approx(base[0]["clip_start"] + 12.0)
+    assert runs[0]["clip_start"] == pytest.approx(base[1]["clip_start"] + 12.0)
+    assert runs[0]["clip_end"] - runs[0]["clip_start"] == pytest.approx(7.0)
+    ids = {p.get("candidate_id") for i in items for p in i["parts"]}
+    # e2 at output 62 is live 50 after the map-back: player far from ball
+    assert "e1" in ids and "e2" not in ids
+    # a replay inserted inside a sprint window stretches the clip over it
+    mid = pc.select_items(ident, [tr], ball=[], candidates=[], roster={},
+                          lo=lo, duration=500.0,
+                          replays=[_replay(base[1]["t"] - 1.0)])
+    assert mid[1]["clip_end"] - mid[1]["clip_start"] == pytest.approx(19.0)
+
+
+def test_load_replays_prefers_active_cut_snapshot(tmp_path):
+    ma = tmp_path / "multiangle"
+    (ma / "cuts" / "c1").mkdir(parents=True)
+    assert pc.load_replays(tmp_path) == []
+    (ma / "director.json").write_text(json.dumps(
+        {"replays": [_replay(30.0), _replay(10.0, "g0")]}))
+    live = pc.load_replays(tmp_path)
+    assert [r["goal_id"] for r in live] == ["g0", "g1"]
+    assert live[0]["t_out_start"] == 10.0 and live[1]["t_out_start"] == 42.0
+    (ma / "cuts" / "active.json").write_text(json.dumps({"id": "c1"}))
+    assert len(pc.load_replays(tmp_path)) == 2   # no snapshot -> live file
+    (ma / "cuts" / "c1" / "director.json").write_text(json.dumps(
+        {"replays": [_replay(99.0, "snap")]}))
+    assert [r["goal_id"] for r in pc.load_replays(tmp_path)] == ["snap"]

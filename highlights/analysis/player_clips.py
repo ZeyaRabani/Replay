@@ -8,8 +8,11 @@ Cuts the ACTIVE cut (`<project>/match.mp4`, output time) around:
     POST_S after the peak;
   * confirmed goal / shot candidates whose scorer is this identity, or
     where the identity was within BALL_NEAR_M of the fused ball.
-Tracks / ball live on the shared timeline; output t = shared t - lo where
-lo is the active cut's start (same as the radar / players_run mapping).
+Tracks / ball live on the shared timeline; live t = shared t - lo where
+lo is the active cut's start (same as the radar / players_run mapping),
+and output t = to_output_time_with_replays(live t, replays) where replays
+are the director's inserted slow-motion segments (active cut snapshot's
+director.json, else multiangle/director.json). Candidate t is output time.
 Overlapping windows are merged, then ffmpeg.render_reel cuts + concats.
 Writes analysis/players_v2/reels/<iid>/{status.json,log.txt,reel.json,
 reel.mp4,clips/}.
@@ -29,6 +32,11 @@ from pathlib import Path
 import numpy as np
 
 from highlights.app.backend import ffmpeg as fx
+from highlights.multiangle.timemap import (
+    assign_output_times,
+    from_output_time_with_replays,
+    to_output_time_with_replays,
+)
 from highlights.pipeline.status import StatusWriter
 
 from .fuse_tracks import SPRINT_MS, STEP
@@ -81,6 +89,15 @@ def output_offset(project_dir: Path, tracks_doc: dict | None = None) -> float:
     if cr.get("lo") is not None:
         return float(cr["lo"])
     return float((tracks_doc or {}).get("t0") or 0.0)
+
+
+def load_replays(project_dir: Path) -> list[dict]:
+    """Replay inserts of the active cut's match.mp4, with output bounds."""
+    ma = Path(project_dir) / "multiangle"
+    cid = (_read(ma / "cuts" / "active.json") or {}).get("id")
+    snap = ma / "cuts" / str(cid) / "director.json" if cid else None
+    doc = _read(snap) if snap and snap.is_file() else _read(ma / "director.json")
+    return assign_output_times((doc or {}).get("replays") or [])
 
 
 # ---------- identity trajectory ----------
@@ -183,8 +200,14 @@ def ball_at(ball: list, t: float, tol: float = BALL_DT_S
 
 def select_items(ident: dict, tracks: list[dict], *, ball: list,
                  candidates: list[dict], roster: dict, lo: float,
-                 duration: float) -> list[dict]:
+                 duration: float,
+                 replays: list[dict] | None = None) -> list[dict]:
     """render_reel items (output time), merged where windows overlap."""
+    replays = assign_output_times(replays or [])
+
+    def out(t_live: float) -> float:
+        return to_output_time_with_replays(t_live, replays)
+
     start, xy = identity_path(ident, tracks)
     items: list[dict] = []
 
@@ -197,8 +220,8 @@ def select_items(ident: dict, tracks: list[dict], *, ball: list,
                       **extra})
 
     for r in fastest_runs(start, xy):
-        t_out = r["t"] - lo
-        add(r["type"], t_out, t_out - PRE_S, t_out + POST_S,
+        live = r["t"] - lo
+        add(r["type"], out(live), out(live - PRE_S), out(live + POST_S),
             speed_ms=r["speed_ms"])
 
     for c in candidates:
@@ -211,8 +234,9 @@ def select_items(ident: dict, tracks: list[dict], *, ball: list,
         if scorer_matches(str(c.get("id")), ident, roster):
             reason = "scorer"
         else:
-            me = pos_at(start, xy, t_out + lo)
-            b = ball_at(ball, t_out + lo)
+            t_shared = from_output_time_with_replays(t_out, replays) + lo
+            me = pos_at(start, xy, t_shared)
+            b = ball_at(ball, t_shared)
             if me and b and float(np.hypot(me[0] - b[0], me[1] - b[1])
                                   ) <= BALL_NEAR_M:
                 reason = "near_ball"
@@ -265,15 +289,18 @@ def build_reel(project_dir: Path, iid: str, *,
         raise FileNotFoundError("no active cut match.mp4")
     duration = float(fx.probe(src)["duration_s"])
     lo = output_offset(project_dir, tdoc)
+    replays = load_replays(project_dir)
     roster = _read(project_dir / "analysis" / "players" / "roster.json") or {}
     items = select_items(ident, tdoc.get("tracks") or [],
                          ball=tdoc.get("ball") or [],
                          candidates=load_candidates(project_dir),
-                         roster=roster, lo=lo, duration=duration)
+                         roster=roster, lo=lo, duration=duration,
+                         replays=replays)
     if not items:
         raise ValueError(f"{iid}: no sprints or events inside the cut")
     log(f"{iid}: {len(items)} clips "
-        f"({sum(len(i['parts']) for i in items)} moments), lo={lo:.1f}")
+        f"({sum(len(i['parts']) for i in items)} moments), lo={lo:.1f}, "
+        f"{len(replays)} replay inserts")
     out_dir = reels_dir(project_dir, iid)
     clips = out_dir / "clips"
     if clips.is_dir():
@@ -282,6 +309,7 @@ def build_reel(project_dir: Path, iid: str, *,
     res = fx.render_reel(src, items, out_dir, progress_cb=progress_cb)
     manifest = {"identity": iid, "name": ident.get("name"),
                 "team": ident.get("team"), "lo_shared": lo,
+                "n_replays": len(replays),
                 "items": items, "reel_s": round(res["reel_s"], 2),
                 "created_at": time.time()}
     (out_dir / "reel.json").write_text(json.dumps(manifest, indent=1))
