@@ -4,9 +4,9 @@ Per 0.5 s step:
   1. project each angle's footpoints through its calib H -> pitch metres;
      drop boxes < 12 px tall and points > 3 m outside the pitch;
   2. cross-view merge: greedy agglomerate detections from different
-     angles within 2 m into one conf-weighted observation;
-  3. constant-velocity Kalman + Hungarian assignment (gate 3 m,
-     4.5 m after misses; 6 s of misses ends a track; >= 4 s to keep);
+     angles within 5 m into one conf-weighted observation;
+  3. constant-velocity Kalman + Hungarian assignment (gate 4 m,
+     6 m after misses; 8 s of misses ends a track; >= 4 s to keep);
      team conflict never assigned when both sides know the team;
   4. tracks.json + summary.json + up to 6 1080p crops per track;
      ball = per-angle features_1s ball projected through H, conf-merged.
@@ -24,10 +24,10 @@ from highlights.io import write_json_atomic
 STEP = 0.5
 MIN_BOX_H_PX = 12
 EDGE_MARGIN_M = 3.0
-MERGE_M = 2.0
-GATE_M = 3.0
-GATE_MISS_M = 4.5
-MAX_MISS_S = 6.0
+MERGE_M = 5.0
+GATE_M = 4.0
+GATE_MISS_M = 6.0
+MAX_MISS_S = 8.0
 MIN_LEN_S = 4.0
 FILL_GAP_S = 2.0
 OWNERSHIP = True          # drop detections a farther camera saw better

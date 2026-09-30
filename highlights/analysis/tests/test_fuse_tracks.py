@@ -101,9 +101,9 @@ def test_ownership_keeps_nearest_camera():
 
 
 def test_ownership_off_keeps_both():
-    """With ownership disabled, detections 4 m apart exceed MERGE_M and
+    """With ownership disabled, detections 8 m apart exceed MERGE_M and
     stay two observations."""
-    dets = {0: _det(0, 30.0, 60.0), 1: _det(1, 34.0, 60.0)}
+    dets = {0: _det(0, 30.0, 60.0), 1: _det(1, 38.0, 60.0)}
     doc = fuse(dets, {0: H_CAM0, 1: H_CAM1}, window=(0.0, 0.0),
                offsets=[0.0, 0.0], pitch=(L, W), ownership=False,
                log=lambda m: None)
