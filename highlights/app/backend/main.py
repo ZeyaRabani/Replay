@@ -1602,6 +1602,12 @@ def post_multiangle_scoreboard(p: ScopedP) -> dict:
         raise HTTPException(409, "pipeline is running")
     if not (p.root / "match.mp4").is_file():
         raise HTTPException(409, "no rendered cut yet — run the pipeline first")
+    active_id = (_read_json(p.multiangle_dir / "cuts" / "active.json") or {}).get("id")
+    if active_id:
+        meta = _read_json(p.multiangle_dir / "cuts" / str(active_id) / "meta.json") or {}
+        if meta.get("scoreboard"):
+            raise HTTPException(409, "active cut already has a scoreboard — "
+                                     "activate the plain cut first")
     goals, n_un = [], 0
     for c in p.candidates:
         if c.status != "confirmed" or c.type != "goal":
