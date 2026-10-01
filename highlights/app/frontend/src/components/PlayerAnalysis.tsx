@@ -305,6 +305,8 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   const identityTracks = useCallback(
     async (iid: string) => (await api.identityTracks(iid)).tracks,
     [api]);
+  const editApi = useMemo(() => ({ edit: editIdentities, tracks: identityTracks }),
+    [editIdentities, identityTracks]);
 
   useEffect(() => {
     void loadV2();
@@ -586,7 +588,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
                 <IdentityCards doc={idents} cols={cols} busy={busy} teamInfo={teamInfo} teamLabel={teamLabel}
                   cropSrc={api.fileUrl} onName={nameIdentity} onRebuild={() => void relinkIdentities()}
                   reelApi={reelApi} onDoc={setIdents}
-                  editApi={{ edit: editIdentities, tracks: identityTracks }} />
+                  editApi={editApi} />
               )}
               {idents && idents.identities.length > 0 && (
                 <button type="button" className={`${btnGhost} self-start`} aria-expanded={showFragments}
