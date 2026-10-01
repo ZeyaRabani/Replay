@@ -29,7 +29,10 @@ class Obs:
 
 
 def project_frame(dets: list[dict], cal: CameraCalibration, pitch: PitchModel, cam: int,
-                  margin: float = 3.0, min_box_h: int = 12) -> list[Obs]:
+                  margin: float = 3.0, min_box_h: int = 12, min_conf: float = 0.0) -> list[Obs]:
+    if not dets:
+        return []
+    dets = [d for d in dets if d.get("cls", 0) == 0 and float(d.get("conf", 0.0)) >= min_conf]
     if not dets:
         return []
     boxes = np.array([d["box"] for d in dets], dtype=float)
@@ -41,6 +44,23 @@ def project_frame(dets: list[dict], cal: CameraCalibration, pitch: PitchModel, c
         if h < min_box_h or not np.all(np.isfinite(p)) or not pitch.contains(p[0], p[1], margin):
             continue  # off-pitch (spectators, adjacent pitch) or numerically behind the horizon
         out.append(Obs(cam=cam, tid=int(d["id"]), xy=p, conf=float(d["conf"]), box=list(b), weight=float(h)))
+    return out
+
+
+def project_ball(dets: list[dict], cal: CameraCalibration, pitch: PitchModel, cam: int,
+                 margin: float = 3.0) -> list[Obs]:
+    balls = [d for d in dets if d.get("cls") == 32]
+    if not balls:
+        return []
+    boxes = np.array([d["box"] for d in balls], dtype=float)
+    feet = np.stack([(boxes[:, 0] + boxes[:, 2]) / 2, boxes[:, 3]], axis=1)
+    xy = cal.project(feet)
+    out = []
+    for d, p, b in zip(balls, xy, boxes):
+        if not np.all(np.isfinite(p)) or not pitch.contains(p[0], p[1], margin):
+            continue
+        conf = float(d.get("conf", 0.0))
+        out.append(Obs(cam=cam, tid=int(d.get("id", -1)), xy=p, conf=conf, box=list(b), weight=conf))
     return out
 
 
@@ -132,15 +152,19 @@ class GlobalIdentity:
 
 
 def fuse(per_cam_frames: list[list[list[dict]]], calibrations: list[CameraCalibration], pitch: PitchModel,
-         fps: float, merge_dist: float = 2.0, smooth_alpha: float = 0.6) -> list[dict]:
+         fps: float, merge_dist: float = 2.0, smooth_alpha: float = 0.6, margin: float = 3.0,
+         min_box_h: int = 12, min_conf: float = 0.0, ball: bool = False) -> list[dict]:
     n_frames = min(len(f) for f in per_cam_frames)
     ident = GlobalIdentity()
     smoothed: dict[int, np.ndarray] = {}
     timeline = []
     for f in range(n_frames):
         obs: list[Obs] = []
+        balls: list[Obs] = []
         for cam, (frames, cal) in enumerate(zip(per_cam_frames, calibrations)):
-            obs += project_frame(frames[f], cal, pitch, cam)
+            obs += project_frame(frames[f], cal, pitch, cam, margin, min_box_h, min_conf)
+            if ball:
+                balls += project_ball(frames[f], cal, pitch, cam, margin)
         groups = _cluster_frame(obs, merge_dist)
         players = []
         for gid, g in ident.assign(groups, f):
@@ -156,11 +180,25 @@ def fuse(per_cam_frames: list[list[list[dict]]], calibrations: list[CameraCalibr
                 "detections": [{"camera": o.cam, "track_id": o.tid, "box": [round(v, 1) for v in o.box]} for o in g],
             })
         players.sort(key=lambda p: p["id"])
-        timeline.append({"frame": f, "t": round(f / fps, 4), "players": players})
+        frame = {"frame": f, "t": round(f / fps, 4), "players": players}
+        if ball:
+            if balls:
+                best = max(balls, key=lambda o: o.conf)
+                nearby = [o for o in balls if np.linalg.norm(o.xy - best.xy) <= merge_dist]
+                weights = np.array([max(o.conf, 1e-6) for o in nearby])
+                pos = np.average(np.array([o.xy for o in nearby]), axis=0, weights=weights)
+                frame["ball"] = {"x": round(float(pos[0]), 2), "y": round(float(pos[1]), 2),
+                                 "conf": round(float(max(o.conf for o in nearby)), 3),
+                                 "cameras": sorted(o.cam for o in nearby)}
+            else:
+                frame["ball"] = None
+        timeline.append(frame)
     return timeline
 
 
 def summarize(timeline: list[dict]) -> dict:
+    from .postprocess import id_stability
+
     ids = Counter()
     multi = 0
     total = 0
@@ -169,6 +207,10 @@ def summarize(timeline: list[dict]) -> dict:
             ids[p["id"]] += 1
             total += 1
             multi += len(p["cameras"]) > 1
-    return {"unique_ids": len(ids), "mean_players_per_frame": round(total / max(1, len(timeline)), 2),
-            "frac_multi_camera": round(multi / max(1, total), 3),
-            "ids_seen_over_half": sum(1 for c in ids.values() if c > len(timeline) / 2)}
+    out = {"unique_ids": len(ids), "mean_players_per_frame": round(total / max(1, len(timeline)), 2),
+           "frac_multi_camera": round(multi / max(1, total), 3),
+           "ids_seen_over_half": sum(1 for c in ids.values() if c > len(timeline) / 2)}
+    out.update(id_stability(timeline))
+    if any("ball" in fr for fr in timeline):
+        out["frames_with_ball"] = sum(fr.get("ball") is not None for fr in timeline)
+    return out
