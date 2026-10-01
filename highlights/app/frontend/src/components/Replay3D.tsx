@@ -26,7 +26,27 @@ const CAM_MODES: [string, string][] = [
   ["free", "Free orbit"],
 ];
 
-type LivePlayer = { id: string; team: string; label: string | null; ident: boolean; xy: [number, number] };
+type LivePlayer = {
+  id: string; team: string; label: string | null; ident: boolean;
+  xy: [number, number]; bridged: boolean;
+};
+type Seg = { start: number; end: number; first: [number, number]; last: [number, number] };
+type SegMap = Map<string, { team: string; segs: Seg[] }>;
+
+/** Per identity: sorted list of its visible tracks' [start,end] segments. */
+function identitySegments(paths: PlayersPaths): SegMap {
+  const m: SegMap = new Map();
+  for (const tr of paths.tracks) {
+    if (tr.hidden || !tr.identity_id || !tr.pts.length) continue;
+    const p0 = tr.pts[0], p1 = tr.pts[tr.pts.length - 1];
+    const e = m.get(tr.identity_id) ?? { team: tr.team ?? "A", segs: [] };
+    e.segs.push({ start: p0[0], end: p1[0],
+                  first: [p0[1], p0[2]], last: [p1[1], p1[2]] });
+    m.set(tr.identity_id, e);
+  }
+  for (const e of m.values()) e.segs.sort((a, b) => a.start - b.start);
+  return m;
+}
 
 /** World mapping: pitch x 0..L -> three x, pitch y 0..W -> three -z, z up -> three y. */
 const V = (x: number, y: number, z = 0) => new THREE.Vector3(x, z, -y);
@@ -97,6 +117,10 @@ function makePlayer(team: string, name: string | null, ident: boolean): PlayerRi
     new THREE.MeshBasicMaterial({
       color: ident ? col : NO_IDENT_RING, transparent: true, opacity: ident ? 0.7 : 0.4,
     }));
+  body.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh) (m.material as THREE.Material).transparent = true;
+  });
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
   if (name) {
     const lab = makeLabel(name, team === "A" ? "#86efac" : "#fdba74");
@@ -194,7 +218,8 @@ function buildPitch(group: THREE.Group, L: number, W: number) {
 
 /** Players alive at shared t, deduped by identity_id (mean over its tracks). */
 function livePlayers(paths: PlayersPaths, t: number,
-                     identNames: Record<string, string | null>): LivePlayer[] {
+                     identNames: Record<string, string | null>,
+                     segs: SegMap): LivePlayer[] {
   const byIdent = new Map<string, LivePlayer & { n: number }>();
   const out: (LivePlayer & { n?: number })[] = [];
   for (const tr of paths.tracks) {
@@ -213,12 +238,36 @@ function livePlayers(paths: PlayersPaths, t: number,
       const e: LivePlayer & { n: number } = {
         id: iid, team: tr.team ?? "A",
         label: identNames[iid] || iid, ident: true,
-        xy: [p[0], p[1]], n: 1,
+        xy: [p[0], p[1]], n: 1, bridged: false,
       };
       byIdent.set(iid, e); out.push(e);
     } else {
-      out.push({ id: `t${tr.id}`, team: tr.team ?? "A", label: null, ident: false,
-                 xy: [p[0], p[1]] });
+      out.push({ id: `t${tr.id}`, team: tr.team ?? "A", label: null,
+                 ident: false, xy: [p[0], p[1]], bridged: false });
+    }
+  }
+  // bridge short gaps: identities with no live track at t
+  for (const [iid, e] of segs) {
+    if (byIdent.has(iid)) continue;
+    let prev: Seg | null = null, next: Seg | null = null;
+    for (const sg of e.segs) {
+      if (sg.end <= t && (!prev || sg.end > prev.end)) prev = sg;
+      if (sg.start >= t && (!next || sg.start < next.start)) next = sg;
+    }
+    let xy: [number, number] | null = null;
+    if (prev && next && next.start - prev.end <= 45) {
+      const f = (t - prev.end) / Math.max(1e-6, next.start - prev.end);
+      xy = [prev.last[0] + (next.first[0] - prev.last[0]) * f,
+            prev.last[1] + (next.first[1] - prev.last[1]) * f];
+    } else if (prev && t - prev.end <= 8) {
+      xy = prev.last;
+    }
+    if (xy) {
+      const pl: LivePlayer & { n: number } = {
+        id: iid, team: e.team, label: identNames[iid] || iid,
+        ident: true, xy, bridged: true, n: 1,
+      };
+      byIdent.set(iid, pl); out.push(pl);
     }
   }
   return out;
@@ -312,6 +361,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
     ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
     const players = new Map<string, PlayerRig>();
+    const segs = identitySegments(paths);
     const camState = {
       pos: new THREE.Vector3(L / 2, 25, W + 40),
       look: new THREE.Vector3(L / 2, 0, -W / 2),
@@ -340,7 +390,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
         const nt2 = nt > st.win[1] ? st.win[0] : nt;
         st.t = nt2; setT(nt2);
       }
-      const pls = livePlayers(paths, st.t, stateRef.current.idents);
+      const pls = livePlayers(paths, st.t, stateRef.current.idents, segs);
       const bx = ballAt(paths.ball, st.t);
       const bp = bx ? V(bx[0], bx[1], 0) : null;
       const seen = new Set<string>();
@@ -360,6 +410,15 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
           gg.userData.lbl = pl.label;
         }
         g.visible = true;
+        const op = pl.bridged ? 0.45 : 1.0;
+        g.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) {
+            const mat = m.material as THREE.MeshBasicMaterial;
+            mat.opacity = (m.geometry as THREE.RingGeometry).type === "RingGeometry"
+              ? (pl.ident ? 0.7 : 0.4) * op : op;
+          }
+        });
         updatePlayer(g, pl.xy, st.playing ? dt * st.speed : 0, bp);
         seen.add(pl.id);
       }
