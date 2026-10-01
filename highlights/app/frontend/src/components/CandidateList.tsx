@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Candidate, Status } from "../types";
+import type { Candidate, Status, Team } from "../types";
 import CandidateCard from "./CandidateCard";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   sort: "confidence" | "time";
   onSort: (s: "confidence" | "time") => void;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
+  onPatch: (id: string, patch: Partial<Candidate> & { team?: Team }) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 
@@ -19,7 +19,7 @@ export default function CandidateList(props: Props) {
   const [filter, setFilter] = useState<Status | "all">("all");
   const shown = props.candidates.filter((c) => filter === "all" || c.status === filter);
   const chip = (active: boolean) =>
-    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-900 font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
+    `rounded px-2 py-0.5 text-xs ${active ? "bg-amber-500 text-zinc-950 font-semibold font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -37,6 +37,9 @@ export default function CandidateList(props: Props) {
             {f}
           </button>
         ))}
+        <span className="w-full text-[10px] text-zinc-500">
+          Goal = it went in · Confirm = highlight or close chance · Reject = neither
+        </span>
       </div>
       <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
         {shown.map((c) => (

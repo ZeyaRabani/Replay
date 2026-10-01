@@ -3,5 +3,41 @@
 @tailwind utilities;
 
 body {
-  @apply bg-zinc-950 text-zinc-100;
+  @apply bg-[#0a0a0b] text-zinc-200;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.01em;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-white/[0.06] bg-zinc-900/60 backdrop-blur-sm
+      shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset];
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm
+      font-medium transition;
+  }
+  .btn-primary {
+    @apply bg-amber-400 text-zinc-950 hover:bg-amber-300;
+  }
+  .btn-ghost {
+    @apply bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200;
+  }
+  .chip {
+    @apply rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase;
+  }
+}
+
+/* mobile layout: 40px+ tap targets */
+.mobile button,
+.mobile select,
+.mobile [role="button"] {
+  min-height: 40px;
+}
+.mobile input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 40px;
 }

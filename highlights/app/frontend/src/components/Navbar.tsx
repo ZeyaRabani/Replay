@@ -1,4 +1,4 @@
-import { Clapperboard, FileUp, Loader2, Upload, Video } from "lucide-react";
+import { FileUp, Loader2, Upload, Video } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
@@ -15,15 +15,13 @@ export default function Navbar(props: Props) {
   const [candPath, setCandPath] = useState("");
 
   const input =
-    "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs w-64 placeholder:text-zinc-500";
+    "bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs dsk:w-64 mob:w-full placeholder:text-zinc-500";
   const btn =
     "flex items-center gap-1 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 rounded px-2.5 py-1 text-xs font-medium";
 
   return (
-    <nav className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
-      <span className="flex items-center gap-2 font-semibold text-sm mr-2">
-        <Clapperboard size={18} className="text-amber-400" /> Replay Highlights
-      </span>
+    <nav className="mob:hidden flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-wrap">
+      <span className="text-xs text-zinc-500 mr-1">Advanced</span>
       <input
         className={input}
         placeholder="/abs/path/match.mp4"

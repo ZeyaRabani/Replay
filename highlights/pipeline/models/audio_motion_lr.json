@@ -1,0 +1,20 @@
+{
+ "columns": [
+  "motion_total",
+  "motion_goal_roi",
+  "motion_far",
+  "near_frac",
+  "net_disturbance",
+  "rms_db",
+  "z60_rms",
+  "z300_rms",
+  "z300_speech",
+  "onset_density",
+  "whistle_frac",
+  "whistle"
+ ],
+ "window": 3,
+ "auroc_heldout": 0.8022112554149199,
+ "trained_on": "5qj_nsQSzvQ",
+ "version": "audio_motion_lr v1"
+}

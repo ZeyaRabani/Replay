@@ -1,5 +1,6 @@
 import { Flag, Play } from "lucide-react";
 import { forwardRef, useEffect, useRef, useState } from "react";
+import { fmtClock } from "../lib/time";
 import type { Candidate } from "../types";
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
   onSetOut: (t: number) => void;
 }
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 
 const VideoPlayer = forwardRef<HTMLVideoElement, Props>(function VideoPlayer(props, ref) {
   const [time, setTime] = useState(0);
@@ -75,7 +76,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, Props>(function VideoPlayer(pro
   return (
     <div className="bg-black rounded-lg overflow-hidden">
       <video ref={setRefs} src={props.src} controls className="w-full aspect-video bg-black" />
-      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-900">
+      <div className="flex items-center gap-2 px-3 py-2 bg-zinc-900 mob:flex-wrap">
         <span className="text-xs font-mono text-zinc-300">{fmt(time)}</span>
         <span className="flex-1" />
         <button className={btn} disabled={!props.selected} onClick={() => props.onSetIn(time)}>

@@ -1,6 +1,7 @@
 import { Download, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { useProjectApi } from "../api";
+import { fmtClock } from "../lib/time";
 import type { Candidate, RenderJob } from "../types";
 
 interface Props {
@@ -10,9 +11,10 @@ interface Props {
   onError: (msg: string) => void;
 }
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 
 export default function RenderBar(props: Props) {
+  const api = useProjectApi();
   const [overlay, setOverlay] = useState(true);
   const [job, setJob] = useState<RenderJob | null>(null);
   const timer = useRef<number | null>(null);
@@ -69,7 +71,7 @@ export default function RenderBar(props: Props) {
           overlay
         </label>
         <button
-          className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold rounded px-3 py-1.5 text-sm disabled:opacity-40"
+          className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold font-semibold rounded px-3 py-1.5 text-sm disabled:opacity-40"
           disabled={selected.length === 0 || !!running}
           onClick={start}
         >
@@ -87,17 +89,17 @@ export default function RenderBar(props: Props) {
             {job.state === "done" && (
               <span className="flex items-center gap-2 text-xs">
                 {job.reel_url && (
-                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={job.reel_url}>
+                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={api.fileUrl(job.reel_url)}>
                     <Download size={12} /> reel.mp4
                   </a>
                 )}
                 {job.stats_url && (
-                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={job.stats_url}>
+                  <a className="flex items-center gap-1 text-amber-400 hover:underline" href={api.fileUrl(job.stats_url)}>
                     <Download size={12} /> stats.json
                   </a>
                 )}
                 {job.clips.map((c) => (
-                  <a key={c.id} className="text-zinc-300 hover:underline" href={c.url} title={c.id}>
+                  <a key={c.id} className="text-zinc-300 hover:underline" href={api.fileUrl(c.url)} title={c.id}>
                     {c.id}.mp4
                   </a>
                 ))}
@@ -106,7 +108,7 @@ export default function RenderBar(props: Props) {
           </div>
         )}
         <span className="flex-1" />
-        <a className="text-xs text-zinc-400 hover:text-amber-400 hover:underline" href="/api/stats" target="_blank">
+        <a className="text-xs text-zinc-400 hover:text-amber-400 hover:underline" href={api.statsUrl} target="_blank">
           Export stats
         </a>
       </div>
