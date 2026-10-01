@@ -368,6 +368,13 @@ def calibrate_camera(video: Path, pitch: PitchModel, manual: dict | list[dict] |
         cal = manual_calibrate(manual, pitch, frame_size=(w, h))
         warnings += cal.notes
         return cal, warnings
+    from .autocalib import auto_calibrate_small_sided  # local: autocalib imports this module
+    small, reason2, _ = auto_calibrate_small_sided(frame, pitch)
+    if small is not None:
+        warnings.append(f"autocalib (goal line + D arc) used, confidence {small.confidence:.2f}")
+        warnings += small.notes
+        return small, warnings
+    warnings.append(reason2)
     raise RuntimeError(
         f"{video.name}: automatic calibration failed ({reason}). Run\n"
         f"  pitchworld calibrate {video} --camera <i> --pitch <pitch.json> --out calib.json\n"
