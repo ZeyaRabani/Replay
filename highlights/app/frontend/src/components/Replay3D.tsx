@@ -1,12 +1,12 @@
-import { ChevronDown, ChevronRight, Maximize2, Pause, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Maximize2, Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useProjectApi } from "../api";
-import { DEFAULT_PITCH } from "../lib/pitch";
+import { DEFAULT_PITCH, pitchShapes } from "../lib/pitch";
 import { fetchPlayers, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
-import type { Candidate, PlayersPaths } from "../types";
+import type { Candidate, PitchDims, PlayersPaths } from "../types";
 import { posAt } from "./RadarReplay";
 
 const card = "card p-4";
@@ -19,6 +19,7 @@ const chip =
 const TEAM: Record<string, number> = { A: 0x22c55e, B: 0xf97316 };
 const NO_IDENT_RING = 0x9ca3af;
 const CAM_MODES: [string, string][] = [
+  ["follow", "Follow the play"],
   ["broadcast", "Broadcast"],
   ["tactical", "Tactical"],
   ["goalA", "Goal cam left"],
@@ -76,6 +77,7 @@ interface PlayerRig extends THREE.Group {
     body: THREE.Group; lL: THREE.Group; rL: THREE.Group;
     lA: THREE.Group; rA: THREE.Group; team: string;
     prev: { x: number; z: number } | null;
+    sm: { x: number; z: number } | null;
     phase: number; heading: number; speed: number; kick: number;
     lbl: string | null;
   };
@@ -126,13 +128,20 @@ function makePlayer(team: string, name: string | null, ident: boolean): PlayerRi
     const lab = makeLabel(name, team === "A" ? "#86efac" : "#fdba74");
     lab.position.y = 2.15; g.add(lab);
   }
-  g.userData = { body, lL, rL, lA, rA, team, prev: null, phase: 0, heading: 0,
+  g.userData = { body, lL, rL, lA, rA, team, prev: null, sm: null, phase: 0, heading: 0,
                  speed: 0, kick: 0, lbl: name ?? null };
   return g;
 }
 
 function updatePlayer(g: PlayerRig, xy: [number, number], dt: number, ballPos: THREE.Vector3 | null) {
-  const u = g.userData, x = xy[0], z = -xy[1];
+  const u = g.userData, tx = xy[0], tz = -xy[1];
+  if (!u.sm || dt === 0) u.sm = { x: tx, z: tz };
+  else {
+    const k = 1 - Math.exp(-dt * 6);
+    u.sm.x += (tx - u.sm.x) * k;
+    u.sm.z += (tz - u.sm.z) * k;
+  }
+  const x = u.sm.x, z = u.sm.z;
   if (u.prev && dt > 0) {
     const vx = (x - u.prev.x) / dt, vz = (z - u.prev.z) / dt;
     const sp = Math.hypot(vx, vz);
@@ -164,8 +173,9 @@ function updatePlayer(g: PlayerRig, xy: [number, number], dt: number, ballPos: T
   u.body.rotation.x = stride * 0.15;
 }
 
-function buildPitch(group: THREE.Group, L: number, W: number) {
+function buildPitch(group: THREE.Group, pitch: PitchDims) {
   group.clear();
+  const L = pitch.len_m, W = pitch.wid_m;
   const grass = new THREE.Mesh(
     new THREE.PlaneGeometry(L + 12, W + 12),
     new THREE.MeshStandardMaterial({ color: 0x2f8f3a }));
@@ -181,38 +191,40 @@ function buildPitch(group: THREE.Group, L: number, W: number) {
     s.receiveShadow = true; group.add(s);
   }
   const lm = new THREE.LineBasicMaterial({ color: 0xffffff });
-  const line = (pts: number[][]) => {
+  const faint = new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.5 });
+  const dotM = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (const sh of pitchShapes(pitch)) {
+    if (sh.k === "dot") {
+      const dm = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), dotM);
+      dm.rotation.x = -Math.PI / 2; dm.position.set(sh.x, 0.02, -sh.y);
+      group.add(dm);
+      continue;
+    }
+    const pts = sh.closed ? [...sh.pts, sh.pts[0]] : sh.pts;
     group.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(
-        pts.map((p) => new THREE.Vector3(p[0], 0.02, -p[1]))), lm));
-  };
-  line([[0, 0], [L, 0], [L, W], [0, W], [0, 0]]);
-  line([[L / 2, 0], [L / 2, W]]);
-  const circ: number[][] = [];
-  for (let a = 0; a <= 64; a++)
-    circ.push([L / 2 + 7 * Math.cos((a / 64) * 2 * Math.PI),
-               W / 2 + 7 * Math.sin((a / 64) * 2 * Math.PI)]);
-  line(circ);
-  const pb = 0.165 * L, pw = (0.814844 - 0.185156) * W;
-  const sb = 0.055 * L, sw = (0.642969 - 0.357031) * W;
+        pts.map((p) => new THREE.Vector3(p[0], 0.02, -p[1]))),
+      sh.faint ? faint : lm));
+  }
+  const small = pitch.template === "small";
+  const gw = pitch.goal_w_m ?? (small ? 3.66 : 7.32);
+  const gh = small ? 2.0 : 2.44;
+  const nd = small ? 1.0 : 1.5;
   for (const [x0, d] of [[0, 1], [L, -1]] as [number, number][]) {
-    line([[x0, W / 2 - pw / 2], [x0 + d * pb, W / 2 - pw / 2],
-          [x0 + d * pb, W / 2 + pw / 2], [x0, W / 2 + pw / 2]]);
-    line([[x0, W / 2 - sw / 2], [x0 + d * sb, W / 2 - sw / 2],
-          [x0 + d * sb, W / 2 + sw / 2], [x0, W / 2 + sw / 2]]);
     const gm = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    for (const yy of [W / 2 - 1.83, W / 2 + 1.83]) {
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.44), gm);
-      p.position.set(x0, 1.22, -yy); group.add(p);
+    for (const yy of [W / 2 - gw / 2, W / 2 + gw / 2]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, gh), gm);
+      p.position.set(x0, gh / 2, -yy); group.add(p);
     }
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.66), gm);
-    bar.rotation.x = Math.PI / 2; bar.position.set(x0, 2.44, -W / 2); group.add(bar);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, gw), gm);
+    bar.rotation.x = Math.PI / 2; bar.position.set(x0, gh, -W / 2); group.add(bar);
     const net = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 2.44, 3.66),
+      new THREE.BoxGeometry(nd, gh, gw),
       new THREE.MeshStandardMaterial({
         color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide,
       }));
-    net.position.set(x0 - d * 0.75, 1.22, -W / 2); group.add(net);
+    net.position.set(x0 - d * nd / 2, gh / 2, -W / 2); group.add(net);
   }
 }
 
@@ -297,18 +309,23 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [camMode, setCamMode] = useState("broadcast");
+  const [camMode, setCamMode] = useState("follow");
   const [win, setWin] = useState<[number, number]>([0, 0]);
   const [t, setT] = useState(0);
+  const [recording, setRecording] = useState<number | null>(null);
   const showIds = usePlayerIdentities();
   const cvRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const recStopRef = useRef<(() => void) | null>(null);
   const stateRef = useRef<{
     t: number; playing: boolean; speed: number; cam: string;
     win: [number, number]; idents: Record<string, string | null>;
-    ids: boolean;
-  }>({ t: 0, playing: false, speed: 1, cam: "broadcast", win: [0, 0], idents: {}, ids: false });
-  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames, ids: showIds };
+    ids: boolean; rec: boolean; recT: number;
+  }>({ t: 0, playing: false, speed: 1, cam: "follow", win: [0, 0], idents: {},
+       ids: false, rec: false, recT: 0 });
+  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames,
+                       ids: showIds, rec: recording !== null,
+                       recT: recording === null ? 0 : stateRef.current.recT };
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -358,7 +375,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
     Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, far: 200 });
     scene.add(sun);
     const pitchG = new THREE.Group(); scene.add(pitchG);
-    buildPitch(pitchG, L, W);
+    buildPitch(pitchG, pitch);
     const ball = new THREE.Mesh(
       new THREE.SphereGeometry(0.22, 24, 16),
       new THREE.MeshStandardMaterial({ color: 0xffffff }));
@@ -369,13 +386,19 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
     ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
     const players = new Map<string, PlayerRig>();
     const segs = identitySegments(paths);
+    let ballSm: THREE.Vector3 | null = null;
     const camState = {
       pos: new THREE.Vector3(L / 2, 25, W + 40),
       look: new THREE.Vector3(L / 2, 0, -W / 2),
+      aim: new THREE.Vector3(L / 2, 0, -W / 2),
+      vel: new THREE.Vector3(0, 0, 0),
     };
     camera.position.copy(camState.pos);
+    const stopRec = () => {
+      const f = recStopRef.current; recStopRef.current = null; f?.();
+    };
 
-    let raf = 0, last = performance.now();
+    let raf = 0, last = performance.now(), lastRecSec = -1;
     const resize = () => {
       const w = canvas.clientWidth, h = canvas.clientHeight;
       const pr = Math.min(2, window.devicePixelRatio || 1);
@@ -393,9 +416,15 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       resize();
       if (st.playing) {
-        const nt = st.t + dt * st.speed;
-        const nt2 = nt > st.win[1] ? st.win[0] : nt;
-        st.t = nt2; setT(nt2);
+        const nt = st.t + dt * (st.rec ? 1 : st.speed);
+        const wrapped = nt > st.win[1];
+        st.t = wrapped ? st.win[0] : nt; setT(st.t);
+        if (st.rec) {
+          st.recT += dt;
+          const sec = Math.floor(st.recT);
+          if (sec !== lastRecSec) { lastRecSec = sec; setRecording(sec); }
+          if (wrapped || st.recT >= st.win[1] - st.win[0] + 1) stopRec();
+        }
       }
       const pls = livePlayers(paths, st.t, stateRef.current.idents, segs, st.ids);
       const bx = ballAt(paths.ball, st.t);
@@ -433,30 +462,59 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       if (bx) {
         ball.visible = ballShadow.visible = true;
         const v = V(bx[0], bx[1], 0.22);
-        ball.position.copy(v);
-        ballShadow.position.set(v.x, 0.03, v.z);
-      } else ball.visible = ballShadow.visible = false;
+        if (!ballSm || !st.playing) (ballSm ??= new THREE.Vector3()).copy(v);
+        else ballSm.lerp(v, 1 - Math.exp(-dt * 10));
+        ball.position.copy(ballSm);
+        ballShadow.position.set(ballSm.x, 0.03, ballSm.z);
+      } else { ball.visible = ballShadow.visible = false; ballSm = null; }
 
       // camera
       if (st.cam === "free") {
         controls.enabled = true; controls.update();
       } else {
         controls.enabled = false;
-        // aim point: ball, else centroid of the densest cluster
-        let b: THREE.Vector3;
-        if (bp) b = bp;
-        else if (pls.length) {
+        // cluster centroid: median player, mean of those within 12 m
+        let cc = new THREE.Vector3(L / 2, 0, -W / 2);
+        if (pls.length) {
           const xs = [...pls.map((p) => p.xy[0])].sort((a, c) => a - c);
           const ys = [...pls.map((p) => p.xy[1])].sort((a, c) => a - c);
           const mx = xs[Math.floor(xs.length / 2)], my = ys[Math.floor(ys.length / 2)];
           const near = pls.filter((p) => Math.hypot(p.xy[0] - mx, p.xy[1] - my) <= 12);
           const n = near.length || 1;
-          b = new THREE.Vector3(
+          cc = new THREE.Vector3(
             near.reduce((s, p) => s + p.xy[0], 0) / n, 0,
             -near.reduce((s, p) => s + p.xy[1], 0) / n);
-        } else b = new THREE.Vector3(L / 2, 0, -W / 2);
+        }
+        const b = bp ?? cc;
         let tp: THREE.Vector3, tl: THREE.Vector3;
-        if (st.cam === "broadcast") {
+        let k = 1 - Math.exp(-dt * 2.2);
+        if (st.cam === "follow") {
+          const raw = bp && bp.distanceTo(cc) <= 15 ? bp : cc;
+          const ka = st.playing ? 1 - Math.exp(-dt * 1.5) : 1;
+          const px = camState.aim.x, pz = camState.aim.z;
+          camState.aim.x += (raw.x - camState.aim.x) * ka;
+          camState.aim.z += (raw.z - camState.aim.z) * ka;
+          if (st.playing && dt > 0) {
+            camState.vel.x += ((camState.aim.x - px) / dt - camState.vel.x)
+              * Math.min(1, dt * 4);
+            camState.vel.z += ((camState.aim.z - pz) / dt - camState.vel.z)
+              * Math.min(1, dt * 4);
+          } else camState.vel.set(0, 0, 0);
+          const ax = camState.aim.x
+            + THREE.MathUtils.clamp(camState.vel.x * 0.8, -6, 6);
+          const az = camState.aim.z
+            + THREE.MathUtils.clamp(camState.vel.z * 0.8, -6, 6);
+          let spread = 0, ns = 0;
+          for (const p of pls) {
+            const dd = Math.hypot(p.xy[0] - ax, -p.xy[1] - az);
+            if (dd <= 12) { spread += dd * dd; ns++; }
+          }
+          spread = ns ? Math.sqrt(spread / ns) : 0;
+          const d = THREE.MathUtils.clamp(18 + spread * 1.4, 22, 44);
+          tp = new THREE.Vector3(THREE.MathUtils.clamp(ax, 6, L - 6), 0.42 * d, az + d);
+          tl = new THREE.Vector3(ax, 0.8, az);
+          k = st.playing ? 1 - Math.exp(-dt * 1.2) : 1;
+        } else if (st.cam === "broadcast") {
           const x = THREE.MathUtils.clamp(b.x, 8, L - 8);
           tp = new THREE.Vector3(x, 18, W * 0.1 + 30);
           tl = new THREE.Vector3(THREE.MathUtils.clamp(b.x, 4, L - 4), 0.5,
@@ -471,8 +529,8 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
           tp = new THREE.Vector3(L + 12, 6, -W / 2);
           tl = new THREE.Vector3(Math.min(b.x, L - 4), 1, b.z);
         }
-        const k = 1 - Math.exp(-dt * 2.2);
-        camState.pos.lerp(tp, k); camState.look.lerp(tl, k * 1.4);
+        camState.pos.lerp(tp, k);
+        camState.look.lerp(tl, Math.min(1, k * 1.4));
         camera.position.copy(camState.pos); camera.lookAt(camState.look);
       }
       renderer.render(scene, camera);
@@ -491,10 +549,39 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paths, open, pitch.len_m, pitch.wid_m]);
+  }, [paths, open, pitch.len_m, pitch.wid_m, pitch.template,
+      pitch.goal_w_m, pitch.d_radius_m]);
 
   const pickWindow = (w: [number, number]) => {
     setWin(w); setT(w[0]); setPlaying(true);
+  };
+
+  const recSupported = typeof MediaRecorder !== "undefined";
+  const exportClip = () => {
+    const canvas = cvRef.current;
+    if (!canvas || recording !== null || !recSupported) return;
+    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9" : "video/webm";
+    const mr = new MediaRecorder(canvas.captureStream(30), { mimeType: mime });
+    const chunks: Blob[] = [];
+    mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    mr.onstop = () => {
+      const mid = (win[0] + win[1]) / 2;
+      const c = cands.reduce<Candidate | null>((b, x) =>
+        !b || Math.abs(x.t - mid) < Math.abs(b.t - mid) ? x : b, null);
+      const tag = `${c?.type ?? "clip"}-`
+        + fmtClock(c?.t ?? mid).slice(-5).replace(":", "-");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob(chunks, { type: "video/webm" }));
+      a.download = `3d-${tag}.webm`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setRecording(null); setPlaying(false);
+    };
+    stateRef.current.recT = 0;
+    recStopRef.current = () => mr.stop();
+    setT(win[0]); setPlaying(true); setRecording(0);
+    mr.start(250);
   };
 
   return (
@@ -542,28 +629,42 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                 ))}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" className={btnGhost}
+                <button type="button" className={btnGhost} disabled={recording !== null}
                   onClick={() => setPlaying((p) => !p)}>
                   {playing ? <Pause size={12} /> : <Play size={12} />}
                   {playing ? "Pause" : "Play"}
                 </button>
-                <select className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300"
-                  value={camMode} onChange={(e) => setCamMode(e.target.value)}>
+                <select className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 disabled:opacity-40"
+                  value={camMode} disabled={recording !== null}
+                  onChange={(e) => setCamMode(e.target.value)}>
                   {CAM_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
-                <select className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300"
-                  value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+                <select className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 disabled:opacity-40"
+                  value={speed} disabled={recording !== null}
+                  onChange={(e) => setSpeed(Number(e.target.value))}>
                   {[0.25, 0.5, 1, 2].map((s) => <option key={s} value={s}>{s}×</option>)}
                 </select>
-                <input type="range" className="flex-1 accent-amber-400 min-w-32"
+                <input type="range" className="flex-1 accent-amber-400 min-w-32 disabled:opacity-40"
                   min={win[0]} max={win[1]} step={0.1} value={t}
+                  disabled={recording !== null}
                   onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }}
                   aria-label="scrub 3D replay" />
                 <span className="text-[11px] font-mono text-zinc-400">
                   {fmtClock(t)}
                 </span>
-                <button type="button" className={btnGhost} onClick={() => onSeek(Math.max(0, t - lo))}>
+                {recording !== null && (
+                  <span className="text-[11px] text-red-400">Recording… {recording}s</span>
+                )}
+                <button type="button" className={btnGhost} disabled={recording !== null}
+                  onClick={() => onSeek(Math.max(0, t - lo))}>
                   Jump to video
+                </button>
+                <button type="button" className={btnGhost}
+                  disabled={!recSupported || recording !== null || win[1] - win[0] > 60}
+                  title={!recSupported ? "Not supported in this browser"
+                    : win[1] - win[0] > 60 ? "Pick a goal/shot window (≤60 s)" : undefined}
+                  onClick={exportClip}>
+                  <Download size={12} /> Export this clip (WebM)
                 </button>
               </div>
             </>
