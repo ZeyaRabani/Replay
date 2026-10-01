@@ -21,6 +21,12 @@ modal token set
 For local CPU tracking, install the optional dependencies with
 `pip install -e '.[local]'` and pass `--local`.
 
+Run the synthetic calibration tests (no video or GPU needed):
+
+```bash
+pip install pytest && pytest tests/
+```
+
 ## CLI
 
 Run the complete pipeline:
@@ -66,7 +72,8 @@ camera can provide any combination of these constraints:
 
 - `points`: `{"world": "landmark_name" | [x, y], "pixel": [u, v]}`
 - `lines`: `{"world": "line_name" | {"point": [x, y], "dir": [dx, dy]}, "pixels": [[u, v], ...]}`
-- `arcs`: `{"world": "arc_name" | {"centre": [x, y], "radius": r}, "pixels": [[u, v], ...]}`
+- `arcs`: `{"world": "arc_name" | {"centre": [x, y], "radius": r, "start_deg": a0, "end_deg": a1}, "pixels": [[u, v], ...]}`
+  (angles counter-clockwise from +x, default full circle; `A_D` / `B_D` are semicircles)
 - `parallels`: `{"world": "line_name", "pixels": [[u, v], ...]}`
 
 Named lines include `goal_line_A`, `goal_line_B`, `touch_S`, `touch_N`, and
@@ -74,6 +81,13 @@ Named lines include `goal_line_A`, `goal_line_B`, `touch_S`, `touch_N`, and
 the pitch model. Pixel coordinates refer to the calibration frame.
 With traced geometry, calibration is fitted as a physical camera pose; with
 at least four points and no traced geometry, a homography is fitted directly.
+A camera may also give `"camera_xy": [x, y]`, a rough camera position used only
+to pick between poses the constraints cannot distinguish.
+
+Constraint dof rule (a pose has 7 unknowns): a point fixes 2, a traced line 2,
+a traced arc `min(5, n_pixels)`, a parallel trace 1. Fewer than 7 is
+under-determined, fewer than 9 is flagged as thin; constraint sets symmetric
+under a 180-degree rotation about a pitch point are flagged as ambiguous.
 
 ## Output
 

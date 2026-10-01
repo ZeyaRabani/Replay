@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 from .pitch import PitchModel
-from .posefit import Constraints, Pose, fit_pose, homography_pixel_to_world, rotation
+from .posefit import Constraints, Pose, fit_pose_report, homography_pixel_to_world, rotation
 
 
 @dataclass
@@ -137,11 +137,16 @@ def manual_calibrate(entry: dict | list[dict], pitch: PitchModel, frame_size: tu
                          "(e.g. 4 points, or 1 line + 1 arc + 1 more line/point)")
     w, h = frame_size
     cons = Constraints.build(pitch, points, lines, arcs, parallels)
-    pose, res = fit_pose(cons, pitch, w, h)
+    hint = entry.get("camera_xy")  # optional rough camera position, resolves 180-degree twin poses
+    rep = fit_pose_report(cons, pitch, w, h, camera_hint=tuple(hint) if hint else None)
+    pose, res = rep.pose, rep.res_m
+    notes += [n for n in rep.notes if not n.startswith("thin")]  # thin-dof note is added below
+    ambiguous = rep.twins or rep.alternatives or not np.isfinite(rep.predicted_error_m)
+    conf_cap = 0.3 if ambiguous else 1.0
     H = homography_pixel_to_world(pose, w, h)
     err_m = float(np.sqrt(np.mean(np.square(res))))
     err_px = float(np.sqrt(np.mean(np.square(cons.residuals_px(H, np.linalg.inv(H))))))
-    conf = float(np.clip(1.0 - err_m / 1.0, 0.0, 1.0))
+    conf = min(float(np.clip(1.0 - err_m / 1.0, 0.0, 1.0)), conf_cap)
     if dof < 9:
         conf = min(conf, 0.6)
         notes.append(f"constraints are thin ({dof} dof for a 7-dof pose): add another line/landmark to validate")
