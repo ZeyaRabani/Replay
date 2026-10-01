@@ -5,7 +5,7 @@ import json
 import cv2
 import numpy as np
 
-from highlights.analysis.kit import classify_crops, kit_fracs, relabel_tracks
+from highlights.analysis.kit import classify_crops, kit_fracs, relabel_detections, relabel_tracks
 
 # OpenCV hues: orange ~11, yellow-green ~36, grass green ~60
 HUE_A, HUE_B = 11.0, 36.0
@@ -104,3 +104,68 @@ def test_relabel_tracks_skips_unsaturated_kit(tmp_path):
     assert out == {"changed": 0, "unclassified": 0, "total": 0}
     t = json.loads((v2 / "tracks.json").read_text())["tracks"][0]
     assert t["team"] == "A" and "team_det" not in t
+
+
+def _det_frame():
+    """320x160 grass frame with an orange (left) and a yellow-green
+    (right) player box."""
+    img = np.full((160, 320, 3), (40, 110, 50), dtype=np.uint8)
+    img[20:140, 20:60] = (30, 100, 220)   # orange -> A
+    img[20:140, 120:160] = (30, 220, 182)  # yellow-green -> B
+    return img
+
+
+def _det_npz(path, teams=("B", "A", "B", "A")):
+    np.savez(path, t=np.array([0.0, 0.0, 2.0, 2.0]),
+             x1=np.array([20.0, 120.0, 20.0, 120.0]),
+             y1=np.array([20.0] * 4), x2=np.array([60.0, 160.0] * 2),
+             y2=np.array([140.0] * 4), conf=np.array([0.9] * 4),
+             team=np.array(teams))
+
+
+TEAMS = {"teams": {"A": {"hsv": [HUE_A, 150, 160]},
+                   "B": {"hsv": [HUE_B, 100, 130]}}}
+
+
+def test_relabel_detections_corrects_labels(tmp_path):
+    npz = tmp_path / "det_a0.npz"
+    _det_npz(npz)
+    frames = [(0.0, _det_frame()), (1.0, _det_frame()),
+              (2.0, _det_frame())]
+    out = relabel_detections("vid.mp4", npz, TEAMS, fps=1.0,
+                             frames=iter(frames), log=lambda _m: None)
+    assert out["n_dets"] == 4 and out["changed"] == 4
+    z = np.load(npz)
+    # orange boxes -> A, yellow-green -> B; originals kept in team_det
+    assert z["team"].tolist() == ["A", "B", "A", "B"]
+    assert z["team_det"].tolist() == ["B", "A", "B", "A"]
+
+
+def test_relabel_detections_keeps_team_det_on_rerun(tmp_path):
+    npz = tmp_path / "det_a0.npz"
+    _det_npz(npz)
+    relabel_detections("v", npz, TEAMS, fps=1.0,
+                       frames=iter([(0.0, _det_frame()),
+                                    (2.0, _det_frame())]),
+                       log=lambda _m: None)
+    relabel_detections("v", npz, TEAMS, fps=1.0,
+                       frames=iter([(0.0, _det_frame()),
+                                    (2.0, _det_frame())]),
+                       log=lambda _m: None)
+    z = np.load(npz)
+    assert z["team"].tolist() == ["A", "B", "A", "B"]
+    assert z["team_det"].tolist() == ["B", "A", "B", "A"]
+
+
+def test_relabel_detections_skips_unsaturated(tmp_path):
+    npz = tmp_path / "det_a0.npz"
+    _det_npz(npz)
+    white = {"teams": {"A": {"hsv": [0, 20, 240]},
+                       "B": {"hsv": [HUE_B, 100, 130]}}}
+    out = relabel_detections("v", npz, white, fps=1.0,
+                             frames=iter([(0.0, _det_frame())]),
+                             log=lambda _m: None)
+    assert out == {"n_dets": 0, "changed": 0, "blank": 0}
+    z = np.load(npz)
+    assert z["team"].tolist() == ["B", "A", "B", "A"]
+    assert "team_det" not in z

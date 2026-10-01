@@ -143,9 +143,11 @@ def detect_angle(video: str | Path, out: Path, *,
     detection (stored 'A'/'B'/''). Returns the meta dict."""
     from highlights.multiangle.trackfeat import _frame_reader
 
+    from .kit import classify_fracs, kit_fracs, kit_hues
     from .players import assign_team
     from .teams import torso_descriptor
 
+    hues = kit_hues(teams) if teams else None
     w, h = _probe_dims(str(video)) if frames is None else (0, 0)
     if model is None:
         model_path = _ensure_model(model_path or Path("yolov8n.pt"))
@@ -211,7 +213,12 @@ def detect_angle(video: str | Path, out: Path, *,
         for i in range(len(boxes)):
             x1, y1, x2, y2 = [float(v) for v in boxes[i]]
             tm = ""
-            if teams:
+            if hues is not None:
+                crop = frame[max(0, int(y1)):min(h, int(y2) + 1),
+                             max(0, int(x1)):min(w, int(x2) + 1)]
+                if crop.size:
+                    tm = classify_fracs(*kit_fracs(crop, *hues))
+            elif teams:
                 desc = torso_descriptor(frame, (x1, y1, x2, y2))
                 if desc is not None:
                     tm = assign_team(desc, teams) or ""

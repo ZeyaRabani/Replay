@@ -90,7 +90,16 @@ def run_players(project_dir: Path, log=print, force: bool = False,
     return doc
 
 
+def _relabel_det_one(args: tuple) -> dict:
+    """ProcessPoolExecutor worker: kit-relabel one angle's det npz."""
+    video, npz, teams, fps, lo, hi = args
+    from .kit import relabel_detections
+    return relabel_detections(video, npz, teams, fps=fps,
+                              start_s=lo, end_s=hi)
+
+
 def run_players_v2(project_dir: Path, log=print, force: bool = False,
+                   relabel_dets: bool = False,
                    status: StatusWriter | None = None) -> dict:
     """Multi-view hi-res tracking: detect_hr per angle, then fuse into
     pitch-space tracks under analysis/players_v2/."""
@@ -131,6 +140,26 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
                      start_s=max(0.0, lo - off),
                      end_s=max(0.0, hi - off),
                      teams=teams, log=log)
+    if relabel_dets:
+        _upd(stage="relabel", progress=0.85,
+             message="kit-relabelling detections")
+        from .detect_hr import FPS
+        jobs = []
+        for a in range(n):
+            v = _match_ext_video(dirs[a]) if a < len(dirs) else None
+            off = ctx["offsets"][a] if a < len(ctx["offsets"]) else 0.0
+            npz = adir / f"det_a{a}.npz"
+            if v is not None and npz.exists():
+                jobs.append((str(v), npz, teams, FPS,
+                             max(0.0, lo - off), max(0.0, hi - off)))
+        if jobs:
+            import concurrent.futures as cf
+            with cf.ProcessPoolExecutor(max_workers=3) as ex:
+                for a, res in zip((j[0] for j in jobs),
+                                  ex.map(_relabel_det_one, jobs)):
+                    log(f"relabel {Path(a).parent.name}: "
+                        f"{res['changed']}/{res['n_dets']} changed, "
+                        f"{res['blank']} blank")
     _upd(stage="fuse", progress=0.9, message="fusing tracks")
     videos = {a: _match_ext_video(dirs[a]) for a in range(n)
               if a < len(dirs)}
@@ -206,6 +235,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--groups-only", action="store_true")
     ap.add_argument("--v2", action="store_true",
                     help="multi-view hi-res pass: detect+ fusion")
+    ap.add_argument("--relabel-dets", action="store_true",
+                    help="v2: kit-relabel saved det npz before fusion")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -232,7 +263,9 @@ def main(argv: list[str] | None = None) -> int:
             with job_slot(workdir_for(project_dir), status=status, log=log):
                 if args.v2:
                     run_players_v2(project_dir, log=log,
-                                   force=args.force, status=status)
+                                   force=args.force,
+                                   relabel_dets=args.relabel_dets,
+                                   status=status)
                 else:
                     run_players(project_dir, log=log, force=args.force,
                                 status=status,

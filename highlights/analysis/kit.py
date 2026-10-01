@@ -10,6 +10,7 @@ into the identities' unassigned bucket.
 """
 
 import json
+import os
 from pathlib import Path
 
 import cv2
@@ -21,6 +22,26 @@ MIN_SAT = 60  # teams.json hsv[1] below this = white/black kit, can't vote
 MIN_FRAC = 0.12  # per-crop: this share of pixels must match a kit hue
 DOM_RATIO = 2.0  # per-crop: winner must beat the loser by this factor
 MAJ_SHARE = 0.6  # majority-vote share needed to assign a track team
+
+
+def kit_hues(teams: dict) -> tuple[float, float] | None:
+    """(hue_a, hue_b) when both kits are saturated colours, else None."""
+    kits = (teams or {}).get("teams") or {}
+    ha = (kits.get("A") or {}).get("hsv")
+    hb = (kits.get("B") or {}).get("hsv")
+    if (not ha or not hb or len(ha) < 2 or len(hb) < 2
+            or ha[1] < MIN_SAT or hb[1] < MIN_SAT):
+        return None
+    return ha[0], hb[0]
+
+
+def classify_fracs(fa: float, fb: float) -> str:
+    """Kit vote for one crop's colour fractions: 'A', 'B' or '' (no call)."""
+    if fa > MIN_FRAC and fa > DOM_RATIO * fb:
+        return "A"
+    if fb > MIN_FRAC and fb > DOM_RATIO * fa:
+        return "B"
+    return ""
 
 
 def kit_fracs(img_bgr: np.ndarray, hue_a: float, hue_b: float,
@@ -58,11 +79,9 @@ def classify_crops(paths: list[Path], hue_a: float,
         img = cv2.imread(str(p))
         if img is None:
             continue
-        fa, fb = kit_fracs(img, hue_a, hue_b)
-        if fa > MIN_FRAC and fa > DOM_RATIO * fb:
-            votes.append("A")
-        elif fb > MIN_FRAC and fb > DOM_RATIO * fa:
-            votes.append("B")
+        v = classify_fracs(*kit_fracs(img, hue_a, hue_b))
+        if v:
+            votes.append(v)
     if not votes:
         return None, 0.0
     top = max(votes.count("A"), votes.count("B"))
@@ -82,13 +101,11 @@ def relabel_tracks(v2_dir: Path, teams: dict, log=print) -> dict:
     Skipped entirely when either kit is unsaturated (white/black).
     Returns {changed, unclassified, total}.
     """
-    kits = (teams or {}).get("teams") or {}
-    ha = (kits.get("A") or {}).get("hsv")
-    hb = (kits.get("B") or {}).get("hsv")
-    if (not ha or not hb or len(ha) < 2 or len(hb) < 2
-            or ha[1] < MIN_SAT or hb[1] < MIN_SAT):
+    hues = kit_hues(teams)
+    if hues is None:
         log("kit relabel: skipped (kits not both saturated colours)")
         return {"changed": 0, "unclassified": 0, "total": 0}
+    hue_a, hue_b = hues
 
     tracks_path = v2_dir / "tracks.json"
     doc = json.loads(tracks_path.read_text())
@@ -97,7 +114,7 @@ def relabel_tracks(v2_dir: Path, teams: dict, log=print) -> dict:
     changed = unclassified = 0
     for tr in tracks:
         paths = [crops_dir / c for c in tr.get("crops") or []]
-        team, conf = classify_crops(paths, ha[0], hb[0])
+        team, conf = classify_crops(paths, hue_a, hue_b)
         if "team_det" not in tr:
             tr["team_det"] = tr.get("team")
         if tr.get("team") != team:
@@ -111,3 +128,67 @@ def relabel_tracks(v2_dir: Path, teams: dict, log=print) -> dict:
         f"{unclassified} unclassified")
     return {"changed": changed, "unclassified": unclassified,
             "total": len(tracks)}
+
+
+def relabel_detections(video: str | Path, npz_path: Path, teams: dict,
+                       *, fps: float, start_s: float = 0.0,
+                       end_s: float | None = None, frames=None,
+                       log=print) -> dict:
+    """Re-label a saved det_a*.npz from the source video, decode only.
+
+    Reads the same frames detect_angle did (_frame_reader at `fps`),
+    matches each yielded t to the npz rows within half a frame interval,
+    crops every box, and overwrites `team` with the kit-colour vote.
+    Original labels are kept once in `team_det` (never overwritten on a
+    re-run). Atomic write, same .tmp.npz dance as detect_hr._flush.
+    Returns {n_dets, changed, blank}; skipped when kits aren't both
+    saturated colours.
+    """
+    hues = kit_hues(teams)
+    if hues is None:
+        log("kit relabel-dets: skipped (kits not both saturated colours)")
+        return {"n_dets": 0, "changed": 0, "blank": 0}
+    hue_a, hue_b = hues
+
+    z = np.load(npz_path, allow_pickle=False)
+    if "t" not in z or not len(z["t"]):
+        log(f"kit relabel-dets: {npz_path.name} empty — skipped")
+        return {"n_dets": 0, "changed": 0, "blank": 0}
+    rows_t = z["t"]
+    team = z["team"].tolist()
+    team_det = (z["team_det"].tolist() if "team_det" in z
+                else list(team))
+
+    if frames is None:
+        from highlights.multiangle.trackfeat import _frame_reader, _probe_dims
+        w, _h = _probe_dims(str(video))
+        frames = _frame_reader(str(video), fps, w, start_s, end_s)
+
+    tol = 0.5 / fps
+    n_changed = n_blank = 0
+    for t, frame in frames:
+        idx = np.nonzero(np.abs(rows_t - t) <= tol)[0]
+        if not len(idx):
+            continue
+        h, w = frame.shape[:2]
+        for i in idx:
+            x1 = int(np.clip(z["x1"][i], 0, w - 1))
+            y1 = int(np.clip(z["y1"][i], 0, h - 1))
+            x2 = int(np.clip(z["x2"][i], x1 + 1, w))
+            y2 = int(np.clip(z["y2"][i], y1 + 1, h))
+            v = classify_fracs(*kit_fracs(frame[y1:y2, x1:x2],
+                                          hue_a, hue_b))
+            if v != team[i]:
+                n_changed += 1
+            if not v:
+                n_blank += 1
+            team[i] = v
+    tmp = npz_path.with_suffix(".tmp.npz")
+    np.savez(tmp, t=rows_t, x1=z["x1"], y1=z["y1"], x2=z["x2"],
+             y2=z["y2"], conf=z["conf"], team=np.asarray(team),
+             team_det=np.asarray(team_det))
+    os.replace(tmp, npz_path)
+    n = len(rows_t)
+    log(f"kit relabel-dets: {npz_path.name} {n_changed}/{n} changed, "
+        f"{n_blank} blank")
+    return {"n_dets": n, "changed": n_changed, "blank": n_blank}
