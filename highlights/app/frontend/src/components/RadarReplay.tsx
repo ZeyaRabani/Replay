@@ -21,7 +21,7 @@ type Pt = [number, number, number];
 
 /** interpolated (a,b) of a track's pts at shared t, or null if the track
  *  isn't alive; third value = alpha fade after the last point */
-function posAt(pts: Pt[], t: number): Pt | null {
+export function posAt(pts: Pt[], t: number): Pt | null {
   if (!pts.length || t < pts[0][0] - 0.5) return null;
   const last = pts[pts.length - 1][0];
   if (t > last) {

@@ -6,6 +6,13 @@ const target = process.env.MOCK === "1" ? "http://127.0.0.1:8001" : (process.env
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: { three: ["three"] },
+      },
+    },
+  },
   server: {
     proxy: {
       "/api": target,
