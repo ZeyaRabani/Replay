@@ -164,6 +164,11 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
     videos = {a: _match_ext_video(dirs[a]) for a in range(n)
               if a < len(dirs)}
     crops_dir = adir / "crops"
+    if crops_dir.is_dir():
+        # track ids restart at 100001 every fusion, so leftover
+        # v2_*_*.jpg crops would be reused for unrelated tracks
+        shutil.rmtree(crops_dir)
+        log("crops: cleared stale directory before re-fuse")
     crops_dir.mkdir(exist_ok=True)
 
     def _crops_for(tr):
