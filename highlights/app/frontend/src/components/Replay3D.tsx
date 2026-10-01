@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useProjectApi } from "../api";
 import { DEFAULT_PITCH } from "../lib/pitch";
-import { fetchPlayers } from "../lib/players";
+import { fetchPlayers, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import type { Candidate, PlayersPaths } from "../types";
 import { posAt } from "./RadarReplay";
@@ -219,7 +219,7 @@ function buildPitch(group: THREE.Group, L: number, W: number) {
 /** Players alive at shared t, deduped by identity_id (mean over its tracks). */
 function livePlayers(paths: PlayersPaths, t: number,
                      identNames: Record<string, string | null>,
-                     segs: SegMap): LivePlayer[] {
+                     segs: SegMap, showIds: boolean): LivePlayer[] {
   const byIdent = new Map<string, LivePlayer & { n: number }>();
   const out: (LivePlayer & { n?: number })[] = [];
   for (const tr of paths.tracks) {
@@ -237,7 +237,8 @@ function livePlayers(paths: PlayersPaths, t: number,
       }
       const e: LivePlayer & { n: number } = {
         id: iid, team: tr.team ?? "A",
-        label: identNames[iid] || iid, ident: true,
+        label: showIds ? identNames[iid] || iid : null,
+        ident: showIds,
         xy: [p[0], p[1]], n: 1, bridged: false,
       };
       byIdent.set(iid, e); out.push(e);
@@ -264,8 +265,9 @@ function livePlayers(paths: PlayersPaths, t: number,
     }
     if (xy) {
       const pl: LivePlayer & { n: number } = {
-        id: iid, team: e.team, label: identNames[iid] || iid,
-        ident: true, xy, bridged: true, n: 1,
+        id: iid, team: e.team,
+        label: showIds ? identNames[iid] || iid : null,
+        ident: showIds, xy, bridged: true, n: 1,
       };
       byIdent.set(iid, pl); out.push(pl);
     }
@@ -298,13 +300,15 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const [camMode, setCamMode] = useState("broadcast");
   const [win, setWin] = useState<[number, number]>([0, 0]);
   const [t, setT] = useState(0);
+  const showIds = usePlayerIdentities();
   const cvRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<{
     t: number; playing: boolean; speed: number; cam: string;
     win: [number, number]; idents: Record<string, string | null>;
-  }>({ t: 0, playing: false, speed: 1, cam: "broadcast", win: [0, 0], idents: {} });
-  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames };
+    ids: boolean;
+  }>({ t: 0, playing: false, speed: 1, cam: "broadcast", win: [0, 0], idents: {}, ids: false });
+  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames, ids: showIds };
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -325,11 +329,14 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   }, [open, paths, api]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !showIds) {
+      setIdentNames({});
+      return;
+    }
     void api.identities()
       .then((d) => setIdentNames(Object.fromEntries(d.identities.map((i) => [i.id, i.name]))))
       .catch(() => setIdentNames({}));
-  }, [open, api]);
+  }, [open, api, showIds]);
 
   // renderer lifecycle — created once paths exist and the card is open
   useEffect(() => {
@@ -390,7 +397,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
         const nt2 = nt > st.win[1] ? st.win[0] : nt;
         st.t = nt2; setT(nt2);
       }
-      const pls = livePlayers(paths, st.t, stateRef.current.idents, segs);
+      const pls = livePlayers(paths, st.t, stateRef.current.idents, segs, st.ids);
       const bx = ballAt(paths.ball, st.t);
       const bp = bx ? V(bx[0], bx[1], 0) : null;
       const seen = new Set<string>();

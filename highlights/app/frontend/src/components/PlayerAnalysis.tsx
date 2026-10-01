@@ -2,7 +2,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Loader2, Play, RefreshCw, Use
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { useLayout } from "../lib/layout";
-import { IDENTITIES_CHANGED_EVENT, fetchPlayers, fmtDist, fmtDur, invalidatePlayers, saveRoster } from "../lib/players";
+import { IDENTITIES_CHANGED_EVENT, fetchPlayers, fmtDist, fmtDur, invalidatePlayers, saveRoster, setShowPlayerIdentities, usePlayerIdentities } from "../lib/players";
 import type {
   AnalysisStatus,
   AnalysisTeamInfo,
@@ -260,6 +260,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   const [nAngles, setNAngles] = useState(3);
   const [idents, setIdents] = useState<PlayerIdentities | null>(null);
   const [showFragments, setShowFragments] = useState(false);
+  const showIds = usePlayerIdentities();
 
   const refresh = useCallback(async () => {
     const d = await fetchPlayers(api, true);
@@ -499,27 +500,40 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   };
 
   const header = (
-    <button
-      type="button"
-      className="flex items-center gap-2 w-full text-left"
-      onClick={() => setOpen((o) => !o)}
-      aria-expanded={open}
-    >
-      {open ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
-      <Users size={14} className="text-zinc-500" />
-      <span className={head}>Player analysis (optional)</span>
-      {v2?.tracks.length ? (
+    <div className="flex items-center gap-2 w-full">
+      <button
+        type="button"
+        className="flex items-center gap-2 text-left min-w-0"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
+        <Users size={14} className="text-zinc-500" />
+        <span className={head}>Player analysis (optional)</span>
+      </button>
+      <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 shrink-0">
+        <input type="checkbox" checked={showIds}
+          onChange={(e) => setShowPlayerIdentities(e.target.checked)} />
+        Show per-player cards (experimental)
+      </label>
+      {showIds && v2?.tracks.length ? (
         <span className="ml-auto text-[11px] text-zinc-500">
           {v2.groups?.length
             ? `${v2.groups.length} players grouped from ${v2.summary.n_tracks} tracks`
             : `${roster.players.length} players · ${v2.summary.n_tracks} multi-camera tracks`}
         </span>
-      ) : data?.tracklets.length ? (
+      ) : showIds && data?.tracklets.length ? (
         <span className="ml-auto text-[11px] text-zinc-500">
           {roster.players.length} players · {data.players_stats.unassigned.n_tracklets} unassigned
         </span>
       ) : null}
-    </button>
+    </div>
+  );
+
+  const idsOff = (
+    <div className="mt-3 text-xs text-zinc-500">
+      Per-player tracking is experimental and off — team stats and radar are unaffected.
+    </div>
   );
 
   const hasV2 = !!v2?.tracks.length;
@@ -575,7 +589,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     return (
       <div className={`${card} min-w-0`}>
         {header}
-        {open && (
+        {open && (!showIds ? idsOff : (
           <div className="mt-3 flex flex-col gap-3 min-w-0">
             {tabBar(null)}
             {v2Bar}
@@ -614,7 +628,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
               </>
             )}
           </div>
-        )}
+        ))}
       </div>
     );
   }
@@ -623,12 +637,12 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     return (
       <div className={card}>
         {header}
-        {open && (
+        {open && (!showIds ? idsOff : (
           <div className="text-sm text-zinc-500 flex items-center gap-2 mt-3">
             {!error && <Loader2 size={14} className="animate-spin" />}
             {error ?? "Loading…"}
           </div>
-        )}
+        ))}
       </div>
     );
   }
@@ -788,7 +802,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   return (
     <div className={`${card} min-w-0`}>
       {header}
-      {open && body}
+      {open && (!showIds ? idsOff : body)}
     </div>
   );
 }

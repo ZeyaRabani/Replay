@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ProjectApi } from "../api";
 import type { PlayersResponse, PlayersRoster } from "../types";
 
@@ -37,6 +38,39 @@ export const fmtDist = (m: number): string => (m >= 1000 ? `${(m / 1000).toFixed
 /** Fired after an identity name is saved or identities are re-linked so
  *  other views (radar) can refetch. */
 export const IDENTITIES_CHANGED_EVENT = "hl:identities-changed";
+
+/** Opt-in per-player identity cards (experimental, off by default).
+ *  localStorage-backed; a window event keeps every mounted view
+ *  (cards, radar, 3D replay) in sync when it changes. */
+export const SHOW_IDS_KEY = "replay.showPlayerIdentities";
+export const PLAYER_IDS_EVENT = "hl:player-identities-toggle";
+
+export function showPlayerIdentities(): boolean {
+  try {
+    return localStorage.getItem(SHOW_IDS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setShowPlayerIdentities(on: boolean): void {
+  try {
+    localStorage.setItem(SHOW_IDS_KEY, on ? "1" : "0");
+  } catch {
+    /* private mode */
+  }
+  window.dispatchEvent(new Event(PLAYER_IDS_EVENT));
+}
+
+export function usePlayerIdentities(): boolean {
+  const [on, setOn] = useState(showPlayerIdentities);
+  useEffect(() => {
+    const h = () => setOn(showPlayerIdentities());
+    window.addEventListener(PLAYER_IDS_EVENT, h);
+    return () => window.removeEventListener(PLAYER_IDS_EVENT, h);
+  }, []);
+  return on;
+}
 
 const IDENTITY_PALETTE = [
   "#ef4444", "#3b82f6", "#eab308", "#a855f7", "#14b8a6", "#f97316",

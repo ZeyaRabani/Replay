@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { applyH, homography, type Mat3 } from "../lib/homography";
 import { DEFAULT_PITCH, drawPitch, pitchView } from "../lib/pitch";
-import { IDENTITIES_CHANGED_EVENT, fetchPlayers, identityHex } from "../lib/players";
+import { IDENTITIES_CHANGED_EVENT, fetchPlayers, identityHex, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import type { CalibResponse, PitchDims, PlayersPaths, RadarPitch } from "../types";
 import CameraCalib, { rmsTone } from "./CameraCalib";
@@ -91,6 +91,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   const cvRef = useRef<HTMLCanvasElement>(null);
   const smooth = useRef(new Map<number, [number, number]>());
   const lastTs = useRef(0);
+  const showIds = usePlayerIdentities();
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -121,7 +122,10 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   }, [open, paths, api]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !showIds) {
+      setIdentNames({});
+      return;
+    }
     const load = () => void api.identities()
       .then((d) => setIdentNames(Object.fromEntries(d.identities.map((i) => [i.id, i.name]))))
       .catch(() => setIdentNames({}));
@@ -130,7 +134,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     const relink = () => { load(); setPaths(null); };
     window.addEventListener(IDENTITIES_CHANGED_EVENT, relink);
     return () => window.removeEventListener(IDENTITIES_CHANGED_EVENT, relink);
-  }, [open, api]);
+  }, [open, api, showIds]);
 
   const pitch: PitchDims = useMemo(
     () => paths?.pitch ?? calib?.pitch
@@ -219,12 +223,14 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       ctx.arc(x, y, r, 0, Math.PI * 2);
       const team = tr.team ? (teamHex[tr.team] ?? "#a1a1aa") : "#d4d4d8";
       const iid = tr.identity_id ?? null;
-      ctx.fillStyle = iid ? identityHex(iid) : team;
+      ctx.fillStyle = showIds && iid ? identityHex(iid) : team;
       ctx.fill();
-      ctx.lineWidth = iid ? 2.5 : 2;
-      ctx.strokeStyle = iid ? team : "#09090b";
+      ctx.lineWidth = showIds && iid ? 2.5 : 2;
+      ctx.strokeStyle = showIds && iid ? team : "#09090b";
       ctx.stroke();
-      const nm = (iid && identNames[iid]) || (tr.player_id ? rosterNames[tr.player_id] : null);
+      const nm = showIds
+        ? (iid && identNames[iid]) || (tr.player_id ? rosterNames[tr.player_id] : null)
+        : null;
       if (nm) labels.push([nm, x, y - r - 5, a]);
       if (a === 1) hits.push({ x, y, id: tr.id, ident: iid });
     }
@@ -272,7 +278,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     }
     drawn.current = hits;
     setVisible(on);
-  }, [t, paths, H, inPitch, pitch, teamHex, rosterNames, identNames]);
+  }, [t, paths, H, inPitch, pitch, teamHex, rosterNames, identNames, showIds]);
 
   const onCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const cv = e.currentTarget;
@@ -287,8 +293,8 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       if (d <= bd) { bd = d; best = h; }
     }
     if (!best) { setHover(null); return; }
-    const nm = best.ident ? identNames[best.ident] : null;
-    const label = best.ident
+    const nm = showIds && best.ident ? identNames[best.ident] : null;
+    const label = showIds && best.ident
       ? (nm ? `${nm} (${best.ident})` : `${best.ident} · unnamed`)
       : `track ${best.id}`;
     setHover({ x: best.x / sx, y: best.y / sx, label });
