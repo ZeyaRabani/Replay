@@ -174,6 +174,13 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
         return out
 
     doc = run_fuse(project_dir, adir, log=log, crops_for=_crops_for)
+    _upd(stage="kit relabel", progress=0.96,
+         message="re-voting track teams from crops")
+    try:
+        from .kit import relabel_tracks
+        relabel_tracks(adir, teams, log=log)
+    except Exception as e:
+        log(f"kit relabel: skipped ({type(e).__name__}: {e})")
     _upd(stage="groups", progress=0.97, message="grouping tracks")
     try:
         from .groups_v2 import build_groups_v2

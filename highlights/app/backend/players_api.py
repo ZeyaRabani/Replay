@@ -410,7 +410,10 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         if not (v2d / "tracks.json").is_file():
             raise HTTPException(409, "players v2 has not run yet")
         from highlights.analysis.identity import build_identities
+        from highlights.analysis.kit import relabel_tracks
+        teams = _read_json(p.root / "analysis" / "teams.json") or {}
         try:
+            relabel_tracks(v2d, teams, log=lambda _m: None)
             doc = build_identities(v2d, log=lambda _m: None)
         except Exception as e:
             raise HTTPException(500, f"build_identities failed: {e}") from e
@@ -580,6 +583,9 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(409, "players v2 has not run yet")
         try:
             from highlights.analysis.groups_v2 import build_groups_v2
+            from highlights.analysis.kit import relabel_tracks
+            teams = _read_json(p.root / "analysis" / "teams.json") or {}
+            relabel_tracks(v2d, teams, log=lambda _m: None)
             out = build_groups_v2(v2d)
         except Exception as e:
             raise HTTPException(500, f"build_groups_v2 failed: {e}") from e
