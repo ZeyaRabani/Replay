@@ -26,6 +26,8 @@ import type {
   RadarPitch,
   PlayersRoster,
   PlayersStats,
+  IdentityEditOp,
+  IdentityTrack,
   PlayerIdentities,
   PlayerReel,
   PlayersV2Group,
@@ -246,6 +248,11 @@ export function projectApi(id: string) {
       req<{ id: string; name: string | null }>(
         `${base}/players/identities/${encodeURIComponent(iid)}`,
         json({ name }, "PUT")),
+    identityTracks: (iid: string) =>
+      req<{ tracks: IdentityTrack[] }>(
+        `${base}/players/identities/${encodeURIComponent(iid)}/tracks`),
+    editIdentities: (op: IdentityEditOp) =>
+      req<PlayerIdentities>(`${base}/players/identities/edit`, json(op)),
     identityReel: (iid: string) =>
       req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`),
     makeIdentityReel: (iid: string) =>

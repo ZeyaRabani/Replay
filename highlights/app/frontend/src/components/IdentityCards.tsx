@@ -1,8 +1,8 @@
-import { Download, Film, Loader2, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Download, Film, Loader2, RefreshCw, Scissors } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fmtClock } from "../lib/time";
 import { fmtDur, fmtSpeed, identityHex } from "../lib/players";
-import type { AnalysisTeamInfo, PlayerIdentities, PlayerIdentity, PlayerReel } from "../types";
+import type { AnalysisTeamInfo, IdentityEditOp, IdentityTrack, PlayerIdentities, PlayerIdentity, PlayerReel } from "../types";
 import Swatch from "./Swatch";
 
 const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
@@ -11,6 +11,12 @@ export interface ReelApi {
   get: (iid: string) => Promise<PlayerReel>;
   make: (iid: string) => Promise<PlayerReel>;
   fileUrl: (u: string) => string;
+}
+
+/** Manual merge/split API surface (PlayerAnalysis wires it to api.ts). */
+export interface EditApi {
+  edit: (op: IdentityEditOp) => Promise<PlayerIdentities>;
+  tracks: (iid: string) => Promise<IdentityTrack[]>;
 }
 
 const reelLive = (r: PlayerReel | null) => r?.status.state === "queued" || r?.status.state === "running";
@@ -77,7 +83,154 @@ function ReelControl({ iid, reelApi }: { iid: string; reelApi: ReelApi }) {
   );
 }
 
-function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi }: {
+/** Inline track strip for manual merge/split of one identity card. */
+function TrackEditor({ iid, lo, doc, editApi, onDoc, onRetarget }: {
+  iid: string;
+  lo: number;
+  doc: PlayerIdentities;
+  editApi: EditApi;
+  onDoc: (d: PlayerIdentities) => void;
+  /** switch the editor to another (surviving) card after a merge */
+  onRetarget: (iid: string | null) => void;
+}) {
+  const [items, setItems] = useState<IdentityTrack[] | null>(null);
+  const [view, setView] = useState<"card" | "unassigned">("card");
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const [mergeTo, setMergeTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async (id: string) => {
+    try {
+      const r = await editApi.tracks(id);
+      setItems(r);
+      setErr(null);
+    } catch (e) {
+      setItems([]);
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }, [editApi]);
+
+  useEffect(() => {
+    setItems(null);
+    setSel(new Set());
+    setAnchor(null);
+    void load(view === "card" ? iid : "unassigned");
+  }, [iid, view, load]);
+
+  const ident = doc.identities.find((i) => i.id === iid);
+  const sameTeam = doc.identities.filter((i) => i.id !== iid && ident && i.team === ident.team);
+
+  const click = (idx: number, id: number, e: React.MouseEvent) => {
+    if (e.shiftKey && anchor !== null && items) {
+      const [a, b] = [Math.min(anchor, idx), Math.max(anchor, idx)];
+      setSel(new Set(items.slice(a, b + 1).map((t) => t.id)));
+    } else {
+      setSel((s) => {
+        const n = new Set(s);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return n;
+      });
+      setAnchor(idx);
+    }
+  };
+
+  const apply = async (op: IdentityEditOp, retarget?: string) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const d = await editApi.edit(op);
+      onDoc(d);
+      setSel(new Set());
+      if (retarget) onRetarget(retarget);
+      else if (d.identities.some((i) => i.id === iid)) await load(iid);
+      else onRetarget(null); // card was emptied + deleted
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selIds = [...sel];
+  const allSel = items != null && items.length > 0 && sel.size === items.length;
+  return (
+    <div className="col-span-full card p-2 flex flex-col gap-2 min-w-0" data-identity-editor={iid}>
+      <div className="flex items-center gap-2 text-xs flex-wrap">
+        <Scissors size={12} className="text-zinc-400" />
+        <span className="font-mono text-zinc-300">{iid}</span>
+        <span className="text-zinc-500">{items?.length ?? "…"} tracks · click to select, shift-click for a range</span>
+        <button type="button" className={btnGhost} disabled={busy}
+          onClick={() => setView(view === "card" ? "unassigned" : "card")}
+          title={view === "card"
+            ? "Show unassigned fragments — select them and use Assign"
+            : `Back to ${iid}'s tracks`}>
+          {view === "card"
+            ? `unassigned (${doc.unassigned_track_ids.length})`
+            : `back to ${iid}`}
+        </button>
+      </div>
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {(items ?? []).map((t, idx) => (
+          <button key={t.id} type="button"
+            className={`shrink-0 w-12 rounded border-2 ${sel.has(t.id) ? "border-amber-400" : "border-transparent"}`}
+            title={`${fmtDur(t.dur_s)} · ${t.n_crops} crops`}
+            disabled={busy}
+            onClick={(e) => click(idx, t.id, e)}>
+            {t.crop
+              ? <img src={t.crop} alt="" loading="lazy" className="w-12 h-[96px] object-contain bg-zinc-950 rounded-sm" />
+              : <div className="w-12 h-[96px] bg-zinc-950 rounded-sm" />}
+            <div className="text-[9px] font-mono text-zinc-400 text-center truncate">
+              {fmtClock(t.start - lo)}
+            </div>
+          </button>
+        ))}
+        {items && !items.length && <span className="text-xs text-zinc-500">no tracks</span>}
+        {items === null && !err && <Loader2 size={14} className="animate-spin text-zinc-500" />}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        {view === "card" && ident && (
+          <>
+            <button type="button" className={btnGhost} disabled={busy || !sel.size || allSel}
+              onClick={() => void apply({ op: "split", iid, track_ids: selIds })}
+              title="Move the selected tracks into a new card on the same team">
+              Split {sel.size ? `${sel.size} selected` : "selected"} into new card
+            </button>
+            <button type="button" className={btnGhost} disabled={busy || !sel.size}
+              onClick={() => void apply({ op: "detach", iid, track_ids: selIds })}
+              title="Move the selected tracks back to unassigned">
+              Remove selected
+            </button>
+            <select className="bg-zinc-800 rounded px-2 py-1 text-xs disabled:opacity-40" value={mergeTo}
+              disabled={busy || !sameTeam.length}
+              onChange={(e) => {
+                const v = e.target.value;
+                setMergeTo("");
+                if (v) void apply({ op: "merge", into: v, from: iid }, v);
+              }}>
+              <option value="">Merge whole card into…</option>
+              {sameTeam.map((i) => (
+                <option key={i.id} value={i.id}>{i.id}{i.name ? ` — ${i.name}` : ""}</option>
+              ))}
+            </select>
+          </>
+        )}
+        {view === "unassigned" && ident && (
+          <button type="button" className={btnGhost} disabled={busy || !sel.size}
+            onClick={() => void apply({ op: "assign", iid, track_ids: selIds })}
+            title="Attach the selected unassigned tracks to this card">
+            Assign {sel.size ? `${sel.size} selected` : "selected"} to {iid}
+          </button>
+        )}
+        {busy && <Loader2 size={12} className="animate-spin text-zinc-500" />}
+        {err && <span className="text-red-400" title={err}>{err}</span>}
+      </div>
+    </div>
+  );
+}
+
+function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi, editing, onToggleEdit }: {
   ident: PlayerIdentity;
   /** match start on the shared timeline (for the first/last clock) */
   lo: number;
@@ -85,6 +238,8 @@ function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi }: {
   cropSrc: (u: string) => string;
   onName: (name: string | null) => Promise<void>;
   reelApi?: ReelApi;
+  editing?: boolean;
+  onToggleEdit?: () => void;
 }) {
   const [text, setText] = useState(ident.name ?? "");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -146,13 +301,21 @@ function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi }: {
         <span>{fmtDur(ident.coverage_s)} on camera · {ident.track_ids.length} tracks</span>
         <span>{state === "saving" ? "saving…" : state === "saved" ? "saved" : state === "error" ? "save failed" : ""}</span>
       </div>
+      {onToggleEdit && (
+        <button type="button" className={`${btnGhost} self-start ${editing ? "bg-amber-500/20 text-amber-300" : ""}`}
+          aria-expanded={editing} onClick={onToggleEdit}
+          title="Merge / split this card's tracks">
+          <Scissors size={12} />
+          Edit tracks
+        </button>
+      )}
       {reelApi && <ReelControl iid={ident.id} reelApi={reelApi} />}
     </div>
   );
 }
 
 /** Whole-match player identities (identities.json), one card each, by team. */
-export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cropSrc, onName, onRebuild, reelApi }: {
+export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cropSrc, onName, onRebuild, reelApi, editApi, onDoc }: {
   doc: PlayerIdentities;
   cols: string;
   busy?: boolean;
@@ -162,18 +325,35 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
   onName: (iid: string, name: string | null) => Promise<void>;
   onRebuild?: () => void;
   reelApi?: ReelApi;
+  editApi?: EditApi;
+  onDoc?: (d: PlayerIdentities) => void;
 }) {
+  const [editing, setEditing] = useState<string | null>(null);
   const lo = doc.window?.[0] ?? 0;
   const q = doc.quality;
+  const relink = () => {
+    if (!window.confirm(
+      doc.n_edits
+        ? `Re-link identities? ${doc.n_edits} manual merge/split edit${doc.n_edits > 1 ? "s" : ""} will be lost.`
+        : "Re-link identities from the saved tracks?")) return;
+    setEditing(null);
+    onRebuild?.();
+  };
+  // drop the editor if the edited card no longer exists (merged away / emptied)
+  useEffect(() => {
+    if (editing && editing !== "unassigned"
+        && !doc.identities.some((i) => i.id === editing)) setEditing(null);
+  }, [doc, editing]);
   return (
     <div className="flex flex-col gap-3 min-w-0" data-identity-cards>
       <div className="flex items-center gap-2 text-[11px] flex-wrap">
         <span className="text-zinc-400">
           {doc.identities.length} whole-match players · mean {Math.round(q.mean_coverage_pct ?? 0)}% of the match tracked
           · {q.n_unassigned ?? doc.unassigned_track_ids.length} fragments unassigned
+          {(doc.n_edits ?? 0) > 0 && ` · ${doc.n_edits} manual edits`}
         </span>
         {onRebuild && (
-          <button type="button" className={`${btnGhost} ml-auto`} disabled={busy} onClick={onRebuild}
+          <button type="button" className={`${btnGhost} ml-auto`} disabled={busy} onClick={relink}
             title="Re-link identities from the saved tracks (names are kept)">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             Re-link
@@ -184,6 +364,7 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
         const items = doc.identities.filter((i) => i.team === team);
         if (!items.length) return null;
         const hex = doc.teams[team]?.hex || teamInfo(team)?.hex || "#71717a";
+        const editingHere = editing && items.some((i) => i.id === editing);
         return (
           <div key={team} className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-zinc-300 mb-1.5">
@@ -194,8 +375,14 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
             <div className={`grid ${cols} gap-2`}>
               {items.map((i) => (
                 <IdentityCard key={`${i.id}:${i.track_ids[0] ?? ""}`} ident={i} lo={lo} teamHex={hex}
-                  cropSrc={cropSrc} onName={(n) => onName(i.id, n)} reelApi={reelApi} />
+                  cropSrc={cropSrc} onName={(n) => onName(i.id, n)} reelApi={reelApi}
+                  editing={editing === i.id}
+                  onToggleEdit={editApi ? () => setEditing(editing === i.id ? null : i.id) : undefined} />
               ))}
+              {editingHere && editing && editApi && onDoc && (
+                <TrackEditor iid={editing} lo={lo} doc={doc} editApi={editApi}
+                  onDoc={onDoc} onRetarget={setEditing} />
+              )}
             </div>
           </div>
         );

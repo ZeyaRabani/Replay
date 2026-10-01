@@ -632,6 +632,8 @@ export interface PlayerIdentity {
 export interface PlayerIdentities {
   identities: PlayerIdentity[];
   unassigned_track_ids: number[];
+  /** count of manual merge/split edits recorded in identity_edits.json */
+  n_edits?: number;
   quality: {
     n_identities?: number;
     n_unassigned?: number;
@@ -640,6 +642,23 @@ export interface PlayerIdentities {
   } & Record<string, unknown>;
   window: [number, number] | null;
   teams: Record<string, { name: string | null; hex: string | null }>;
+}
+
+export interface IdentityTrack {
+  id: number;
+  start: number;
+  end: number;
+  dur_s: number;
+  crop: string | null;
+  n_crops: number;
+}
+
+export interface IdentityEditOp {
+  op: "split" | "merge" | "detach" | "assign";
+  iid?: string;
+  into?: string;
+  from?: string;
+  track_ids?: number[];
 }
 
 export interface PlayerReelItem {

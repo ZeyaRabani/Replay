@@ -7,6 +7,7 @@ import type {
   AnalysisStatus,
   AnalysisTeamInfo,
   CalibResponse,
+  IdentityEditOp,
   PlayerTeam,
   PlayerIdentities,
   PlayerTracklet,
@@ -295,6 +296,16 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     window.dispatchEvent(new Event(IDENTITIES_CHANGED_EVENT));
   }, [api]);
 
+  const editIdentities = useCallback(async (op: IdentityEditOp) => {
+    const d = await api.editIdentities(op);
+    setIdents(d);
+    window.dispatchEvent(new Event(IDENTITIES_CHANGED_EVENT));
+    return d;
+  }, [api]);
+  const identityTracks = useCallback(
+    async (iid: string) => (await api.identityTracks(iid)).tracks,
+    [api]);
+
   useEffect(() => {
     void loadV2();
     void api.multiangle().then((m) => setNAngles(Math.max(1, m.angles.length))).catch(() => undefined);
@@ -574,7 +585,8 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
               {idents && idents.identities.length > 0 && (
                 <IdentityCards doc={idents} cols={cols} busy={busy} teamInfo={teamInfo} teamLabel={teamLabel}
                   cropSrc={api.fileUrl} onName={nameIdentity} onRebuild={() => void relinkIdentities()}
-                  reelApi={reelApi} />
+                  reelApi={reelApi} onDoc={setIdents}
+                  editApi={{ edit: editIdentities, tracks: identityTracks }} />
               )}
               {idents && idents.identities.length > 0 && (
                 <button type="button" className={`${btnGhost} self-start`} aria-expanded={showFragments}
