@@ -448,7 +448,7 @@ def _quality(identities, tracks, unassigned, window, team_size,
         for ident in (i for i in identities if i["team"] == team):
             active = np.zeros(n, dtype=bool)
             ivs = []
-            for u in ident["unit_ids"]:
+            for u in ident.get("unit_ids") or []:
                 t = by_id.get(u)
                 if t is None:
                     continue
@@ -676,6 +676,207 @@ def set_name(v2_dir: Path, iid: str, name: str | None) -> dict:
     ident["name"] = name
     write_json_atomic(v2_dir / "identities.json", doc, indent=1)
     return ident
+
+
+# ---------- manual merge / split ----------
+
+
+def _edit_members(ident: dict, units: list[dict],
+                  by_id: dict) -> list[dict]:
+    """Unit list for an edited identity: merged units fully inside its
+    track set, plus raw tracks (as 1-member units) for the rest."""
+    want = set(int(t) for t in ident["track_ids"])
+    members = [u for u in units if set(u["member_ids"]) <= want]
+    got = {m for u in members for m in u["member_ids"]}
+    members += [dict(by_id[tid], member_ids=[tid])
+                for tid in sorted(want - got) if tid in by_id]
+    members.sort(key=lambda u: float(u["start"]))
+    return members
+
+
+def _edit_crops(ident: dict, by_id: dict, crops_dir: Path) -> list[str]:
+    """Middle crop of each of the 6 longest member tracks — cheap stand-in
+    for _pick_crops (no fingerprints) on single edits."""
+    longest = sorted((by_id[t] for t in ident["track_ids"] if t in by_id),
+                     key=lambda t: -(float(t["end"]) - float(t["start"]))
+                     )[:N_CROPS]
+    out = []
+    for t in longest:
+        cs = t.get("crops") or []
+        if cs:
+            out.append(cs[len(cs) // 2])
+    return out
+
+
+def edit_identities(v2_dir: Path, op: dict) -> dict:
+    """Apply a manual {"op": split|merge|detach|assign} to identities.json
+    and rewrite it (plus names.json / identity_edits.json). Stats are
+    re-aggregated for every touched card; names survive. ValueError on
+    invalid ops. Returns the rewritten identities doc."""
+    v2_dir = Path(v2_dir)
+    doc = _load(v2_dir / "identities.json")
+    if not doc:
+        raise ValueError("player identities have not been linked yet")
+    idents = doc.get("identities") or []
+    by_iid = {i["id"]: i for i in idents}
+    unassigned = set(int(t) for t in doc.get("unassigned_track_ids") or [])
+    tracks = (json.loads((v2_dir / "tracks.json").read_text())
+            .get("tracks") or [])
+    by_id = {int(t["id"]): t for t in tracks}
+    window = doc.get("window") or [0.0, max(
+        (float(t["end"]) for t in tracks), default=0.0)]
+    match_s = max(1e-6, float(window[1]) - float(window[0]))
+    units = merge_duplicates(tracks)
+    crops_dir = v2_dir / "crops"
+    kind = op.get("op")
+    touched: list[dict] = []
+    names_path = v2_dir / "names.json"
+    names = _load(names_path) or {"names": {}}
+    nents = names.setdefault("names", {})
+
+    def _set_name_entry(ident: dict) -> None:
+        nm = ident.get("name")
+        if nm:
+            nents[ident["id"]] = {"name": nm,
+                                  "track_ids": ident["track_ids"]}
+        else:
+            nents.pop(ident["id"], None)
+
+    def _free_id(team: str) -> str:
+        n = 1
+        while f"{team}{n}" in by_iid:
+            n += 1
+            if n > 999:
+                raise ValueError("no free identity id")
+        return f"{team}{n}"
+
+    if kind == "split":
+        ident = by_iid.get(op.get("iid"))
+        if ident is None:
+            raise ValueError(f"unknown identity {op.get('iid')}")
+        tids = {int(t) for t in op.get("track_ids") or []}
+        have = set(int(t) for t in ident["track_ids"])
+        if not tids or not tids <= have:
+            raise ValueError("track_ids must be a subset of the card")
+        if tids == have:
+            raise ValueError("split would empty the card")
+        new = {"id": _free_id(ident["team"]), "team": ident["team"],
+               "role": ident.get("role"), "name": None,
+               "track_ids": sorted(tids)}
+        ident["track_ids"] = sorted(have - tids)
+        idents.append(new)
+        by_iid[new["id"]] = new
+        touched += [ident, new]
+    elif kind == "merge":
+        into = by_iid.get(op.get("into"))
+        frm = by_iid.get(op.get("from"))
+        if into is None or frm is None:
+            raise ValueError("unknown identity in merge")
+        if into["team"] != frm["team"]:
+            raise ValueError("cannot merge across teams")
+        into["track_ids"] = sorted(set(into["track_ids"])
+                                   | set(frm["track_ids"]))
+        if not into.get("name") and frm.get("name"):
+            into["name"] = frm["name"]
+        idents.remove(frm)
+        nents.pop(frm["id"], None)
+        touched.append(into)
+    elif kind == "detach":
+        ident = by_iid.get(op.get("iid"))
+        if ident is None:
+            raise ValueError(f"unknown identity {op.get('iid')}")
+        tids = {int(t) for t in op.get("track_ids") or []}
+        have = set(int(t) for t in ident["track_ids"])
+        if not tids or not tids <= have:
+            raise ValueError("track_ids must be a subset of the card")
+        if tids == have:
+            idents.remove(ident)
+            nents.pop(ident["id"], None)
+        else:
+            ident["track_ids"] = sorted(have - tids)
+            touched.append(ident)
+        unassigned |= tids
+    elif kind == "assign":
+        ident = by_iid.get(op.get("iid"))
+        if ident is None:
+            raise ValueError(f"unknown identity {op.get('iid')}")
+        tids = {int(t) for t in op.get("track_ids") or []}
+        if not tids or not tids <= unassigned:
+            raise ValueError("track_ids must be unassigned")
+        ident["track_ids"] = sorted(set(ident["track_ids"]) | tids)
+        unassigned -= tids
+        touched.append(ident)
+    else:
+        raise ValueError(f"unknown op {kind!r}")
+
+    for ident in touched:
+        stats = _aggregate(_edit_members(ident, units, by_id),
+                           by_id, match_s)
+        keep = {k: ident.get(k) for k in ("id", "team", "role", "name")}
+        ident.clear()
+        ident.update(stats, **keep,
+                     n_links=None, link_cost_mean=None, cohesion=None,
+                     edited=True,
+                     crops=_edit_crops({"track_ids": stats["track_ids"]},
+                                       by_id, crops_dir))
+        _set_name_entry(ident)
+    doc["unassigned_track_ids"] = sorted(unassigned)
+    doc["edited_at"] = time.time()
+    per_team = (doc.get("quality") or {}).get("per_team") or {}
+    for team in ("A", "B"):
+        pq = per_team.get(team) or {}
+        ids = [i for i in idents if i["team"] == team]
+        s_ass = sum(sum(float(by_id[t]["end"]) - float(by_id[t]["start"])
+                        for t in i["track_ids"] if t in by_id)
+                    for i in ids)
+        s_all = sum(float(t["end"]) - float(t["start"]) for t in tracks
+                    if t.get("team") == team)
+        pq.update(n_identities=len(ids),
+                  track_s=round(s_all, 1),
+                  assigned_track_s=round(s_ass, 1),
+                  assigned_frac=round(s_ass / s_all, 4) if s_all else 0.0)
+        per_team[team] = pq
+    doc["quality"] = _quality(idents, tracks, sorted(unassigned),
+                              tuple(window), (doc.get("quality") or {})
+                              .get("team_size") or MAX_PER_TEAM, per_team)
+    edits = _load(v2_dir / "identity_edits.json") or []
+    edits.append({**op, "at": doc["edited_at"]})
+    write_json_atomic(v2_dir / "identity_edits.json", edits, indent=1)
+    write_json_atomic(names_path, names, indent=1)
+    write_json_atomic(v2_dir / "identities.json", doc, indent=1)
+    return doc
+
+
+def identity_tracks(v2_dir: Path, iid: str) -> list[dict]:
+    """Time-ordered track summaries for one identity (or 'unassigned'):
+    [{id, start, end, dur_s, crop, n_crops}]."""
+    v2_dir = Path(v2_dir)
+    doc = _load(v2_dir / "identities.json")
+    if not doc:
+        raise FileNotFoundError("identities.json")
+    if iid == "unassigned":
+        tids = [int(t) for t in doc.get("unassigned_track_ids") or []]
+    else:
+        ident = next((i for i in doc.get("identities") or []
+                      if i["id"] == iid), None)
+        if ident is None:
+            raise KeyError(iid)
+        tids = [int(t) for t in ident["track_ids"]]
+    tracks = (json.loads((v2_dir / "tracks.json").read_text())
+            .get("tracks") or [])
+    by_id = {int(t["id"]): t for t in tracks}
+    out = []
+    for tid in sorted(tids, key=lambda t: float(by_id[t]["start"])
+                      if t in by_id else 0.0):
+        t = by_id.get(tid)
+        if t is None:
+            continue
+        cs = t.get("crops") or []
+        out.append({"id": tid, "start": t["start"], "end": t["end"],
+                    "dur_s": round(float(t["end"]) - float(t["start"]), 1),
+                    "crop": cs[len(cs) // 2] if cs else None,
+                    "n_crops": len(cs)})
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

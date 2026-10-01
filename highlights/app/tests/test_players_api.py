@@ -506,3 +506,78 @@ def test_identity_reel_endpoints(client):
     assert mp4.headers["content-type"] == "video/mp4"
     other = client.get(reel, headers={"X-User": "someone-else"})
     assert other.status_code in (401, 403, 404)
+
+
+def test_identity_edit_endpoints(client):
+    """Manual split/merge/detach/assign + member-tracks listing."""
+    pid = _done_multiangle(client)
+    p = _write_teams(client, pid)
+    v2dir = p.root / "analysis" / "players_v2"
+    v2dir.mkdir(parents=True)
+
+    def walk(tid, team, start, end, x):
+        n = round((end - start) / 0.5) + 1
+        return {"id": tid, "team": team, "start": start, "end": end,
+                "xy": [[x, 20.0]] * n, "dist_m": 0.0, "sprints": 0,
+                "crops": [f"v2_{tid}_0.jpg"]}
+    (v2dir / "tracks.json").write_text(json.dumps({
+        "step": 0.5, "t0": 0.0,
+        "tracks": [walk(1, "A", 0.0, 30.0, 10.0),
+                   walk(2, "A", 32.0, 60.0, 10.5),
+                   walk(3, "A", 62.0, 90.0, 11.0),
+                   walk(4, None, 0.0, 10.0, 40.0)],
+        "summary": {"n_tracks": 4, "visible_hist": [1] * 181}}))
+    r = client.post(scoped(pid, "/players/identities/rebuild"), json={})
+    assert r.status_code == 200, r.text
+    doc = client.get(scoped(pid, "/players/identities")).json()
+    assert doc["n_edits"] == 0
+    iid = doc["identities"][0]["id"]
+
+    # member tracks, time-ordered with crop urls
+    tr = client.get(scoped(pid, f"/players/identities/{iid}/tracks"))
+    assert tr.status_code == 200, tr.text
+    items = tr.json()["tracks"]
+    assert items[0]["id"] == 1
+    assert items[0]["crop"].startswith(
+        f"/api/projects/{pid}/analysis/players/v2/crops/")
+    un = client.get(scoped(pid, "/players/identities/unassigned/tracks"))
+    assert un.status_code == 200
+    assert [t["id"] for t in un.json()["tracks"]] == [4]
+
+    # split track 3 off into a new card
+    r = client.post(scoped(pid, "/players/identities/edit"),
+                    json={"op": "split", "iid": iid, "track_ids": [3]})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["n_edits"] == 1
+    assert len(d["identities"]) == 2
+    new = next(i for i in d["identities"] if i["id"] != iid)
+    assert new["track_ids"] == [3] and new["team"] == "A"
+
+    # merge it back (from_ alias "from")
+    r = client.post(scoped(pid, "/players/identities/edit"),
+                    json={"op": "merge", "into": iid, "from": new["id"]})
+    assert r.status_code == 200, r.text
+    kept = next(i for i in r.json()["identities"] if i["id"] == iid)
+    assert kept["track_ids"] == [1, 2, 3]
+
+    # detach to unassigned then re-assign
+    r = client.post(scoped(pid, "/players/identities/edit"),
+                    json={"op": "detach", "iid": iid, "track_ids": [2]})
+    assert r.status_code == 200
+    assert 2 in r.json()["unassigned_track_ids"]
+    r = client.post(scoped(pid, "/players/identities/edit"),
+                    json={"op": "assign", "iid": iid, "track_ids": [2]})
+    assert r.status_code == 200
+    assert next(i for i in r.json()["identities"]
+                if i["id"] == iid)["track_ids"] == [1, 2, 3]
+
+    # invalid ops -> 422 / 404
+    assert client.post(scoped(pid, "/players/identities/edit"),
+                       json={"op": "split", "iid": iid,
+                             "track_ids": [99]}).status_code == 422
+    assert client.post(scoped(pid, "/players/identities/edit"),
+                       json={"op": "merge", "into": iid,
+                             "from": "Z9"}).status_code == 404
+    assert client.get(scoped(pid, "/players/identities/Z9/tracks")
+                      ).status_code == 404

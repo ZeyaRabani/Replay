@@ -19,10 +19,11 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from highlights.io import write_json_atomic
 
@@ -41,6 +42,16 @@ class AnalysePlayersPut(BaseModel):
 
 class IdentityNamePut(BaseModel):
     name: str | None = None
+
+
+class IdentityEditPost(BaseModel):
+    op: Literal["split", "merge", "detach", "assign"]
+    iid: str | None = None
+    into: str | None = None
+    from_: str | None = Field(default=None, alias="from")
+    track_ids: list[int] | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 IDENTITY_ID_RE = re.compile(r"^[AB]\d{1,3}$")
@@ -383,11 +394,13 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                   for i in doc.get("identities") or []]
         teams = (_read_json(p.root / "analysis" / "teams.json") or {}
                  ).get("teams") or {}
+        edits = _read_json(_v2_dir(p) / "identity_edits.json") or []
         return {"identities": idents,
                 "unassigned_track_ids": doc.get("unassigned_track_ids") or [],
                 "quality": doc.get("quality") or {},
                 "window": doc.get("window"),
                 "generated_at": doc.get("generated_at"),
+                "n_edits": len(edits),
                 "teams": {k: {"name": v.get("name"), "hex": v.get("hex")}
                           for k, v in teams.items()}}
 
@@ -417,6 +430,52 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             doc = build_identities(v2d, log=lambda _m: None)
         except Exception as e:
             raise HTTPException(500, f"build_identities failed: {e}") from e
+        return _identities_payload(p, doc)
+
+    @router.get("/players/identities/{iid}/tracks")
+    def get_identity_tracks(p: ScopedP, iid: str) -> dict:
+        """Time-ordered member tracks (or iid='unassigned') for the
+        manual merge/split editor."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        if iid != "unassigned" and not IDENTITY_ID_RE.match(iid):
+            raise HTTPException(404, "unknown identity")
+        from highlights.analysis.identity import identity_tracks
+        try:
+            items = identity_tracks(_v2_dir(p), iid)
+        except FileNotFoundError as e:
+            raise HTTPException(404, "player identities have not been "
+                                     "linked yet") from e
+        except KeyError as e:
+            raise HTTPException(404, "unknown identity") from e
+        for it in items:
+            if it.get("crop"):
+                it["crop"] = (f"/api/projects/{p.id}/analysis/players/"
+                              f"v2/crops/{it['crop']}")
+        return {"tracks": items}
+
+    @router.post("/players/identities/edit")
+    def post_identity_edit(p: ScopedP, body: IdentityEditPost) -> dict:
+        """Manual split/merge/detach/assign of identity cards."""
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        for iid in (body.iid, body.into, body.from_):
+            if iid is not None and not IDENTITY_ID_RE.match(iid):
+                raise HTTPException(404, "unknown identity")
+        v2d = _v2_dir(p)
+        if not (v2d / "identities.json").is_file():
+            raise HTTPException(409, "player identities have not been "
+                                     "linked yet")
+        from highlights.analysis.identity import edit_identities
+        op = {"op": body.op}
+        for k in ("iid", "into", "from", "track_ids"):
+            v = getattr(body, "from_" if k == "from" else k)
+            if v is not None:
+                op[k] = v
+        try:
+            doc = edit_identities(v2d, op)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
         return _identities_payload(p, doc)
 
     @router.put("/players/identities/{iid}")
