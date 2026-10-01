@@ -270,7 +270,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
         const w: [number, number] = p.window_shared ?? [0, 30];
         setWin(w); setT(w[0]);
         setCands(cs.filter(
-          (c) => c.cross_validation === "confirmed" && (c.type === "goal" || c.type === "shot")));
+          (c) => c.status === "confirmed" && (c.type === "goal" || c.type === "shot")));
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [open, paths, api]);
@@ -468,8 +468,8 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                 {cands.map((c) => (
                   <button key={c.id} type="button" className={chip}
                     onClick={() => pickWindow([
-                      Math.max(lo, lo + c.t - 10),
-                      Math.min(hi, lo + c.t + 10),
+                      Math.max(lo, c.t - 10),
+                      Math.min(hi, c.t + 10),
                     ])}>
                     {c.type === "goal" ? "Goal" : "Shot"} {fmtClock(c.t)}
                   </button>
