@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, Download, Maximize2, Pause, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Maximize2, Pause, Play,
+         Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -6,7 +7,9 @@ import { useProjectApi } from "../api";
 import { DEFAULT_PITCH, pitchShapes } from "../lib/pitch";
 import { fetchPlayers, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
-import type { Candidate, PitchDims, PlayersPaths } from "../types";
+import { fromOut, inReplay, toOut } from "../lib/timemap";
+import type { Candidate, DirectorFull, DirectorSegment, PitchDims,
+              PlayersPaths, ReplayInfo } from "../types";
 import { posAt } from "./RadarReplay";
 
 const card = "card p-4";
@@ -313,19 +316,38 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const [win, setWin] = useState<[number, number]>([0, 0]);
   const [t, setT] = useState(0);
   const [recording, setRecording] = useState<number | null>(null);
+  const [footage, setFootage] = useState(() => {
+    try { return localStorage.getItem("replay.3d.footage") !== "0"; }
+    catch { return true; }
+  });
+  const [vidSrc, setVidSrc] = useState<string | null>(null);
+  const [director, setDirector] = useState<DirectorFull | null>(null);
+  const [cutLo, setCutLo] = useState<number | null>(null);
+  const [angleLabels, setAngleLabels] = useState<string[]>([]);
+  const [muted, setMuted] = useState(true);
+  const [vidChip, setVidChip] = useState("");
   const showIds = usePlayerIdentities();
   const cvRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const recStopRef = useRef<(() => void) | null>(null);
   const stateRef = useRef<{
     t: number; playing: boolean; speed: number; cam: string;
     win: [number, number]; idents: Record<string, string | null>;
     ids: boolean; rec: boolean; recT: number;
+    foot: boolean; replays: ReplayInfo[]; loV: number;
+    segs: DirectorSegment[]; alabels: string[];
   }>({ t: 0, playing: false, speed: 1, cam: "follow", win: [0, 0], idents: {},
-       ids: false, rec: false, recT: 0 });
+       ids: false, rec: false, recT: 0, foot: false, replays: [], loV: 0,
+       segs: [], alabels: [] });
   stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames,
                        ids: showIds, rec: recording !== null,
-                       recT: recording === null ? 0 : stateRef.current.recT };
+                       recT: recording === null ? 0 : stateRef.current.recT,
+                       foot: footage && vidSrc !== null,
+                       replays: director?.replays ?? [],
+                       loV: cutLo ?? (paths?.window_shared?.[0] ?? 0),
+                       segs: director?.segments ?? [],
+                       alabels: angleLabels };
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -344,6 +366,50 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [open, paths, api]);
+
+  // director-cut footage: video URL (+ proxy if ready), director segments /
+  // replays for the live↔output time map, cut range, camera labels
+  useEffect(() => {
+    if (!open || !paths) return;
+    let dead = false;
+    void (async () => {
+      try {
+        const [v, ps, dir, cuts, ma] = await Promise.all([
+          api.getVideo(),
+          api.proxyStatus().catch(() => ({ ready: false, progress: 0 })),
+          api.multiangleDirector().catch(() => null),
+          api.listCuts().catch(() => null),
+          api.multiangle().catch(() => null),
+        ]);
+        if (dead) return;
+        setVidSrc(api.videoUrl(ps.ready ? "proxy" : "source",
+                               String(v.registered_at)));
+        setDirector(dir);
+        setCutLo(cuts?.range?.[0] ?? null);
+        setAngleLabels(
+          (ma?.angles ?? []).map((a) => a.label || `Camera ${a.index + 1}`));
+      } catch {
+        if (!dead) setVidSrc(null);
+      }
+    })();
+    return () => { dead = true; };
+  }, [open, paths, api]);
+
+  // video element masters playback only while playing w/ footage on;
+  // here we just keep its transport in sync with that decision
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (playing && footage && vidSrc && recording === null) {
+      v.playbackRate = speed;
+      void v.play().catch(() => { /* autoplay blocked: 3D keeps running */ });
+    } else v.pause();
+  }, [playing, speed, footage, vidSrc, recording]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.muted = muted;
+  }, [muted, vidSrc, footage]);
 
   useEffect(() => {
     if (!open || !showIds) {
@@ -398,7 +464,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       const f = recStopRef.current; recStopRef.current = null; f?.();
     };
 
-    let raf = 0, last = performance.now(), lastRecSec = -1;
+    let raf = 0, last = performance.now(), lastRecSec = -1, lastChip = "";
     const resize = () => {
       const w = canvas.clientWidth, h = canvas.clientHeight;
       const pr = Math.min(2, window.devicePixelRatio || 1);
@@ -415,7 +481,20 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       const st = stateRef.current;
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       resize();
-      if (st.playing) {
+      const vid = videoRef.current;
+      const vidMaster = st.playing && st.foot && !st.rec && vid;
+      if (vidMaster) {
+        // video is the master clock: map its output time back to shared t
+        const out = vid.currentTime;
+        if (out >= toOut(st.win[1] - st.loV, st.replays)) {
+          st.t = st.win[0]; setT(st.t);
+          vid.currentTime = toOut(st.win[0] - st.loV, st.replays);
+        } else {
+          st.t = THREE.MathUtils.clamp(
+            fromOut(out, st.replays) + st.loV, st.win[0], st.win[1]);
+          setT(st.t);
+        }
+      } else if (st.playing) {
         const nt = st.t + dt * (st.rec ? 1 : st.speed);
         const wrapped = nt > st.win[1];
         st.t = wrapped ? st.win[0] : nt; setT(st.t);
@@ -425,6 +504,21 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
           if (sec !== lastRecSec) { lastRecSec = sec; setRecording(sec); }
           if (wrapped || st.recT >= st.win[1] - st.win[0] + 1) stopRec();
         }
+      }
+      if (vid && st.foot && !vidMaster) {
+        // 3D clock is master (paused, scrubbing, recording): keep the
+        // video parked on the right output frame
+        const target = toOut(st.t - st.loV, st.replays);
+        const thr = st.rec ? 0.5 : 0.25;
+        if (Math.abs(vid.currentTime - target) > thr) vid.currentTime = target;
+      }
+      if (vid && st.foot) {
+        const o = vid.currentTime;
+        const seg = st.segs.find((s) => o >= s.t_start && o < s.t_end);
+        const lbl = seg
+          ? (st.alabels[seg.angle] ?? `Camera ${seg.angle + 1}`) : "";
+        const txt = lbl + (inReplay(o, st.replays) ? " · REPLAY" : "");
+        if (txt !== lastChip) { lastChip = txt; setVidChip(txt); }
       }
       const pls = livePlayers(paths, st.t, stateRef.current.idents, segs, st.ids);
       const bx = ballAt(paths.ball, st.t);
@@ -554,6 +648,9 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
 
   const pickWindow = (w: [number, number]) => {
     setWin(w); setT(w[0]); setPlaying(true);
+    const v = videoRef.current;
+    if (v) v.currentTime = toOut(w[0] - stateRef.current.loV,
+                                 stateRef.current.replays);
   };
 
   const recSupported = typeof MediaRecorder !== "undefined";
@@ -615,6 +712,20 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                   <Maximize2 size={12} />
                 </button>
               </div>
+              {footage && vidSrc && (
+                <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
+                  <video ref={videoRef} src={vidSrc} muted={muted} playsInline
+                    preload="metadata" className="absolute inset-0 w-full h-full" />
+                  <span className="absolute top-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[11px] text-zinc-200">
+                    {vidChip || "Footage"}
+                  </span>
+                  <button type="button" className={`${btnGhost} absolute top-2 right-2`}
+                    onClick={() => setMuted((m) => !m)}
+                    aria-label={muted ? "unmute footage" : "mute footage"}>
+                    {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" className={chip}
                   onClick={() => pickWindow([lo, hi])}>Whole match</button>
@@ -656,7 +767,9 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                   <span className="text-[11px] text-red-400">Recording… {recording}s</span>
                 )}
                 <button type="button" className={btnGhost} disabled={recording !== null}
-                  onClick={() => onSeek(Math.max(0, t - lo))}>
+                  onClick={() => onSeek(toOut(
+                    Math.max(0, t - stateRef.current.loV),
+                    stateRef.current.replays))}>
                   Jump to video
                 </button>
                 <button type="button" className={btnGhost}
@@ -666,6 +779,18 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                   onClick={exportClip}>
                   <Download size={12} /> Export this clip (WebM)
                 </button>
+                <label className="flex items-center gap-1 text-[11px] text-zinc-400"
+                  title={vidSrc ? undefined : "No video on this project"}>
+                  <input type="checkbox" checked={footage} disabled={!vidSrc}
+                    onChange={(e) => {
+                      setFootage(e.target.checked);
+                      try {
+                        localStorage.setItem("replay.3d.footage",
+                                             e.target.checked ? "1" : "0");
+                      } catch { /* private mode */ }
+                    }} />
+                  Footage
+                </label>
               </div>
             </>
           )}
