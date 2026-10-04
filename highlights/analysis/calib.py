@@ -184,6 +184,11 @@ def _dlt(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
     return H / H[2, 2]
 
 
+def effective_h(entry: dict) -> list | None:
+    """H_refined (joint anchor refinement) wins over the static H."""
+    return (entry or {}).get("H_refined") or (entry or {}).get("H")
+
+
 def apply_h(H, fx: float, fy: float) -> tuple[float, float]:
     H = np.asarray(H, dtype=float)
     v = H @ np.array([fx, fy, 1.0])

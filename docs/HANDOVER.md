@@ -260,3 +260,26 @@ Direct upload always works.
 4. Player identity: kept optional; a stronger appearance model (shorts/skin/
    hair) was estimated at ~half a day with uncertain gain.
 5. Oracle has no CI/CD; deploys are manual `git pull && compose up --build`.
+
+## Addendum — saved anchors on 28/8 (added after the main handover)
+
+The user has saved named anchors on 28/8 (`/data/projects/d2e54e589ea4/analysis/players_v2/anchors.json`
+on Oracle): 3 moments (~1242 s, ~3052 s, ~4862 s), 89 clicks across all 3 cameras, 14 names
+(asim, bilal, faris, furkan, haji, javed, khalil, mark, mihai, mo, murt, sulieman, yusuf, zeya).
+
+User-stated semantics — treat these as hard rules for any analysis:
+- Everyone was put on the same team ("A") for now; the user will split teams later. Team on an
+  anchor is a *hint only* (see `anchors.resolve_clicks`: wrong team costs +1.5 m, it never excludes).
+- Only players visible in the chosen frame were clicked. A name missing from a moment/camera is
+  expected, not an error — never fabricate anchors for unseen players.
+- Two children appear in the footage and were deliberately left unlabelled. Do not assign them names.
+
+Code for using the anchors (committed with this addendum):
+- `highlights/analysis/refine_calib.py` — joint per-camera `H_refined` from cross-camera anchor
+  pairs (reference camera's landmarks weight 3, other landmarks 0.3, anchor pairs 1). Non-reference
+  cameras are first initialised by DLT from their anchor pairs against the reference camera
+  (`_init_from_ref`) — the static H fitted from mislabelled landmarks is too far off for the local
+  solver otherwise. Readers must use `calib.effective_h(entry)`.
+- `players_run.py --refine-only` — skip detection, keep stabilisation, refine calib, re-fuse from
+  saved detections, re-resolve anchors (`anchors.reresolve`), regroup/identities.
+- Tests: `highlights/analysis/tests/test_refine_calib.py`.

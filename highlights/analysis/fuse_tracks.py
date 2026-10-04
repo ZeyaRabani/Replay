@@ -323,7 +323,9 @@ def run_fuse(project_dir: Path, players_v2: Path, log=print,
     pitch = calib.get("pitch") or {}
     L = float(pitch.get("len_m") or 100.0)
     W = float(pitch.get("wid_m") or 64.0)
-    Hs = {int(k): v["H"] for k, v in angles.items()}
+    from .calib import effective_h
+    Hs = {int(k): effective_h(v) for k, v in angles.items()
+          if effective_h(v)}
     dets = {}
     stabs: dict[int, dict] = {}
     from .stabilize import load_stab

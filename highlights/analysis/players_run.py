@@ -100,6 +100,7 @@ def _relabel_det_one(args: tuple) -> dict:
 
 def run_players_v2(project_dir: Path, log=print, force: bool = False,
                    relabel_dets: bool = False, stabilize_only: bool = False,
+                   refine_only: bool = False,
                    status: StatusWriter | None = None) -> dict:
     """Multi-view hi-res tracking: detect_hr per angle, then fuse into
     pitch-space tracks under analysis/players_v2/."""
@@ -126,7 +127,7 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
     from .detect_hr import detect_angle
     lo, hi = ctx["window"]
     dirs = _angle_dirs(project_dir)
-    if not stabilize_only:
+    if not stabilize_only and not refine_only:
         for a in range(n):
             v = _match_ext_video(dirs[a]) if a < len(dirs) else None
             if v is None:
@@ -164,7 +165,8 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
          message="stabilising cameras")
     try:
         from .stabilize import run_stabilize
-        run_stabilize(project_dir, adir, force=force, log=log)
+        run_stabilize(project_dir, adir, force=force and not refine_only,
+                      log=log)
     except Exception as e:
         log(f"stabilize: skipped ({type(e).__name__}: {e})")
     return _post_detect(project_dir, adir, dirs, ctx, lo, hi, teams,
@@ -178,6 +180,14 @@ def _post_detect(project_dir: Path, adir: Path, dirs, ctx: dict,
     relabel -> groups -> identities."""
     n = int(ctx["n_angles"])
     from .fuse_tracks import run_fuse
+    try:
+        from . import anchors as anch_mod
+        _adoc = anch_mod.load(adir)
+        if _adoc and _adoc.get("clicks"):
+            from .refine_calib import apply_refine
+            apply_refine(project_dir, adir, log=log)
+    except Exception as e:
+        log(f"refine calib: skipped ({type(e).__name__}: {e})")
     _upd(stage="fuse", progress=0.9, message="fusing tracks")
     videos = {a: _match_ext_video(dirs[a]) for a in range(n)
               if a < len(dirs)}
@@ -233,6 +243,13 @@ def _post_detect(project_dir: Path, adir: Path, dirs, ctx: dict,
         relabel_tracks(adir, teams, log=log)
     except Exception as e:
         log(f"kit relabel: skipped ({type(e).__name__}: {e})")
+    try:
+        from . import anchors as anch_mod
+        calib = _load_json(project_dir / "multiangle" / "calib.json") or {}
+        if anch_mod.reresolve(project_dir, adir, calib):
+            log("anchors: re-resolved against the new tracks")
+    except Exception as e:
+        log(f"anchors reresolve: skipped ({type(e).__name__}: {e})")
     _upd(stage="groups", progress=0.97, message="grouping tracks")
     try:
         from .groups_v2 import build_groups_v2
@@ -263,6 +280,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--stabilize-only", action="store_true",
                     help="v2: skip detection; stabilize cameras then "
                     "re-fuse from the saved det npz")
+    ap.add_argument("--refine-only", action="store_true",
+                    help="v2: skip detection; refine calib then re-fuse "
+                    "(stab kept unless missing)")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -292,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
                                    force=args.force,
                                    relabel_dets=args.relabel_dets,
                                    stabilize_only=args.stabilize_only,
+                                   refine_only=args.refine_only,
                                    status=status)
                 else:
                     run_players(project_dir, log=log, force=args.force,

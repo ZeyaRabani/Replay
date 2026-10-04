@@ -228,7 +228,7 @@ def test_calib_endpoints(client):
     assert "corner_near_left" in lm
     assert next(l for l in d["landmarks"]
                 if l["name"] == "corner_near_left"
-                )["label"] == "Corner - near left"
+                )["label"] == "Corner — Left end · Side 1"
     # 6 landmarks through a known pitch->frame H
     import numpy as np
     Hk = np.array([[400.0, 30.0, 100.0], [20.0, 500.0, 200.0],

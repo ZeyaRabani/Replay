@@ -442,9 +442,15 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         v2d = _v2_dir(p)
         if not (v2d / "tracks.json").is_file():
             raise HTTPException(409, "players v2 has not run yet")
+        from highlights.analysis import anchors as anch
         from highlights.analysis.identity import build_identities
         from highlights.analysis.kit import relabel_tracks
         teams = _read_json(p.root / "analysis" / "teams.json") or {}
+        try:
+            calib = _read_json(p.multiangle_dir / "calib.json") or {}
+            anch.reresolve(p.root, v2d, calib)
+        except Exception:
+            pass
         try:
             relabel_tracks(v2d, teams, log=lambda _m: None)
             doc = build_identities(v2d, log=lambda _m: None)
@@ -460,19 +466,11 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         """({moment: {angle: [boxes]}} payload, {(angle, moment): boxes})
         — per-angle detections at each anchor moment (file seconds)."""
         from highlights.analysis import anchors as anch
+        flat = anch.dets_by_moments(v2d, offsets, n_angles, moments)
         nested: dict = {}
-        flat: dict = {}
-        for m in moments or []:
-            mid = str(m["id"])
-            t = float(m["t"])
-            per = {}
-            for a in range(n_angles):
-                off = float(offsets[a]) if a < len(offsets) else 0.0
-                bs = anch.dets_at(v2d, a, t - off)
-                flat[(a, mid)] = bs
-                if bs:
-                    per[str(a)] = bs
-            nested[mid] = per
+        for (a, mid), bs in flat.items():
+            if bs:
+                nested.setdefault(mid, {})[str(a)] = bs
         return nested, flat
 
     def _anchors_payload(p) -> dict:
@@ -1066,6 +1064,9 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                          "fx": float(q["fx"]), "fy": float(q["fy"])}
                         for q in pts],
                 "H": H, "rms_m": round(rms, 4)}
+        if angles_in:
+            # landmarks moved -> any jointly refined H is stale
+            doc.pop("refine", None)
         doc["pitch"] = pitch
         write_json_atomic(p.multiangle_dir / "calib.json",
                           doc, indent=1)

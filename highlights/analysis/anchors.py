@@ -26,7 +26,7 @@ import numpy as np
 
 from highlights.io import write_json_atomic
 
-from .calib import apply_h
+from .calib import apply_h, effective_h
 from .fuse_tracks import STEP, load_dets
 
 MAX_DIST_M = 3.0          # a click further than this from any track stays unresolved
@@ -109,6 +109,48 @@ def _pick_box(boxes: list[dict], fx: float, fy: float) -> dict | None:
     return best
 
 
+def dets_by_moments(v2d: Path, offsets: list, n_angles: int,
+                    moments: list[dict]) -> dict:
+    """{(angle, moment_id): [boxes]} for each anchor moment — file time
+    = shared t - offsets[angle]."""
+    flat: dict = {}
+    for m in moments or []:
+        mid = str(m["id"])
+        t = float(m["t"])
+        for a in range(n_angles):
+            off = float(offsets[a]) if a < len(offsets) else 0.0
+            flat[(a, mid)] = dets_at(v2d, a, t - off)
+    return flat
+
+
+def reresolve(project_dir: Path, v2d: Path, calib: dict
+              ) -> dict | None:
+    """Re-resolve saved anchors.json against the current tracks.json
+    (fuse renumbers track ids) and stabs; returns the doc or None."""
+    doc = load(v2d)
+    if not doc or not doc.get("clicks"):
+        return None
+    from .run import _load_json
+    tdoc = _load_json(Path(v2d) / "tracks.json")
+    if not tdoc:
+        return None
+    from .stabilize import load_stab
+    sync = _load_json(Path(project_dir) / "multiangle" / "sync.json"
+                      ) or {}
+    offsets = sync.get("offsets") or []
+    n_angles = max(len(offsets),
+                   max((int(k) + 1 for k in
+                        (calib.get("angles") or {})), default=0))
+    dets_by = dets_by_moments(v2d, offsets, n_angles,
+                              doc.get("moments"))
+    stabs = {a: s for a in range(n_angles)
+             if (s := load_stab(Path(v2d) / f"stab_a{a}.npz"))}
+    out = resolve_clicks(doc, tdoc, calib, dets_by,
+                         stabs=stabs, offsets=offsets)
+    save(v2d, out)
+    return out
+
+
 def _project(H, stab, ft: float | None, px: float, py: float) -> list:
     """Stab-warp (px,py) onto the calibration frame, then apply_h."""
     if stab is not None and ft is not None:
@@ -172,7 +214,7 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
     for c in live:
         c["track_team"] = None
     for c in live:
-        H = (angles.get(str(c.get("angle"))) or {}).get("H")
+        H = effective_h(angles.get(str(c.get("angle"))))
         if not H:
             c["note"] = "camera not calibrated"
             continue
