@@ -361,7 +361,14 @@ export default function IdentityCards({ doc, cols, busy, teamInfo, teamLabel, cr
         )}
       </div>
       {(["A", "B"] as const).map((team) => {
-        const items = doc.identities.filter((i) => i.team === team);
+        const items = doc.identities.filter((i) => i.team === team)
+          .sort((a, b) => {
+            const an = (a.name || a.anchor_name || "").toLowerCase();
+            const bn = (b.name || b.anchor_name || "").toLowerCase();
+            if (an && bn) return an.localeCompare(bn);
+            if (an || bn) return an ? -1 : 1;
+            return (b.coverage_pct ?? 0) - (a.coverage_pct ?? 0);
+          });
         if (!items.length) return null;
         const hex = doc.teams[team]?.hex || teamInfo(team)?.hex || "#71717a";
         const editingHere = editing && items.some((i) => i.id === editing);
