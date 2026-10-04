@@ -456,9 +456,28 @@ def make_router(ScopedP, PublicP) -> APIRouter:
     def post_identities_rebuild(p: ScopedP) -> dict:
         return _relink_identities(p)
 
+    def _anchors_dets(p, v2d, offsets, n_angles, moments) -> tuple:
+        """({moment: {angle: [boxes]}} payload, {(angle, moment): boxes})
+        — per-angle detections at each anchor moment (file seconds)."""
+        from highlights.analysis import anchors as anch
+        nested: dict = {}
+        flat: dict = {}
+        for m in moments or []:
+            mid = str(m["id"])
+            t = float(m["t"])
+            per = {}
+            for a in range(n_angles):
+                off = float(offsets[a]) if a < len(offsets) else 0.0
+                bs = anch.dets_at(v2d, a, t - off)
+                flat[(a, mid)] = bs
+                if bs:
+                    per[str(a)] = bs
+            nested[mid] = per
+        return nested, flat
+
     def _anchors_payload(p) -> dict:
         """anchors.json (+ defaults when absent), camera offsets, fused
-        window and team colours for the anchoring UI."""
+        window, detection boxes and team colours for the anchoring UI."""
         from highlights.analysis import anchors as anch
         v2d = _v2_dir(p)
         tdoc = _read_json(v2d / "tracks.json") or {}
@@ -468,12 +487,15 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         }
         sync = _read_json(p.multiangle_dir / "sync.json") or {}
         offsets = sync.get("offsets") or []
+        n_angles = max(len(p.source_info.get("angles") or []),
+                       len(offsets))
+        dets, _flat = _anchors_dets(p, v2d, offsets, n_angles,
+                                    doc.get("moments"))
         t0, hi = anch.window_of(tdoc)
         teams = (_read_json(p.root / "analysis" / "teams.json") or {}
                  ).get("teams") or {}
-        return {"doc": doc, "offsets": offsets,
-                "n_angles": max(len(p.source_info.get("angles") or []),
-                                len(offsets)),
+        return {"doc": doc, "offsets": offsets, "dets": dets,
+                "n_angles": n_angles,
                 "window": [t0, hi] if tdoc else None,
                 "teams": {k: {"name": v.get("name"), "hex": v.get("hex")}
                           for k, v in teams.items()}}
@@ -494,10 +516,16 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             raise HTTPException(409, "players v2 has not run yet")
         from highlights.analysis import anchors as anch
         calib = _read_json(p.multiangle_dir / "calib.json") or {}
+        sync = _read_json(p.multiangle_dir / "sync.json") or {}
+        offsets = sync.get("offsets") or []
+        n_angles = max(len(p.source_info.get("angles") or []),
+                       len(offsets))
+        moments = [m.model_dump() for m in body.moments]
+        _nested, flat = _anchors_dets(p, v2d, offsets, n_angles, moments)
         doc = anch.resolve_clicks(
-            {"moments": [m.model_dump() for m in body.moments],
+            {"moments": moments,
              "clicks": [c.model_dump() for c in body.clicks]},
-            tdoc, calib)
+            tdoc, calib, flat)
         anch.save(v2d, doc)
         return _anchors_payload(p)
 

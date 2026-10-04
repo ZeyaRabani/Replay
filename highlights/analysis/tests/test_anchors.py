@@ -41,7 +41,11 @@ def test_wrong_team_and_inactive_ignored():
 
 def test_far_click_unresolved_with_note():
     tracks = [_tr(1, "A", 0, 200, 10, 10)]
-    out = _resolve([_clk("c", 30, 30)], tracks)
+    box = {"x1": 29.0, "y1": 29.0, "x2": 31.0, "y2": 31.0, "team": "A"}
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("c", 30, 30)]},
+        {"tracks": tracks}, CAL, {(0, "mid"): [box]})
     c = out["clicks"][0]
     assert c["track_id"] is None
     assert "within 3 m" in c["note"]
@@ -100,6 +104,53 @@ def test_constraints_map():
          "team": "B", "label": "Dana", "track_id": None},
     ]}
     assert anch.constraints(doc) == {42: ("A", "Rui")}
+
+
+CAL2 = {"angles": {"0": {"H": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]},
+                   "1": {"H": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]}}}
+
+
+def test_same_name_different_angles_allowed():
+    # the same player clicked in two cameras at one moment is not a
+    # duplicate — each resolves to its own track
+    tracks = [_tr(1, "A", 0, 200, 10, 10), _tr(2, "A", 0, 200, 50, 10)]
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("a", 10, 10, label="Rui", angle=0),
+                    _clk("b", 50, 10, label="Rui", angle=1)]},
+        {"tracks": tracks}, CAL2)
+    by_id = {c["id"]: c for c in out["clicks"]}
+    assert by_id["a"]["track_id"] == 1
+    assert by_id["b"]["track_id"] == 2
+    assert by_id["b"]["note"] is None
+
+
+def test_click_snaps_to_detection_foot():
+    # identity H maps normalized coords to pitch metres: clicking the
+    # torso (11, 8) projects 12 m wrong; the box foot (11, 20) resolves
+    tracks = [_tr(1, "A", 0, 200, 11, 20)]
+    box = {"x1": 10.0, "y1": 5.0, "x2": 12.0, "y2": 20.0, "team": "A"}
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("c", 11, 8, label="Rui")]},
+        {"tracks": tracks}, CAL, {(0, "mid"): [box]})
+    c = out["clicks"][0]
+    assert c["box"] == [10.0, 5.0, 12.0, 20.0]
+    assert c["xy"] == [11.0, 20.0]
+    assert c["track_id"] == 1
+
+
+def test_no_detection_under_click_note():
+    # no box near the click: raw projection is used and, when that stays
+    # unresolved, the note says the click missed every detection
+    tracks = [_tr(1, "A", 0, 200, 60, 60)]
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("c", 10, 10, label="Rui")]},
+        {"tracks": tracks}, CAL, {(0, "mid"): []})
+    c = out["clicks"][0]
+    assert c["track_id"] is None
+    assert c["note"] == "no detection under click"
 
 
 def test_default_moments_spaced():

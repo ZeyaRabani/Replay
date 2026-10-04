@@ -2,7 +2,7 @@ import { Crosshair, RefreshCw, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { IDENTITIES_CHANGED_EVENT } from "../lib/players";
-import type { AnchorClick, PlayerAnchors, PlayerIdentities } from "../types";
+import type { AnchorClick, AnchorDetBox, PlayerAnchors, PlayerIdentities } from "../types";
 
 const btnGhost =
   "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 text-xs disabled:opacity-40";
@@ -25,9 +25,10 @@ const mmss = (t: number) => {
 };
 
 /** One camera still filling the canvas; clicks in [0,1] image coords. */
-function Still({ src, markers, hexFor, onPick, onDelete }: {
+function Still({ src, markers, dets, hexFor, onPick, onDelete }: {
   src: string;
   markers: AnchorClick[];
+  dets: AnchorDetBox[];
   hexFor: HexFor;
   onPick: (fx: number, fy: number) => void;
   onDelete: (id: string) => void;
@@ -58,7 +59,23 @@ function Still({ src, markers, hexFor, onPick, onDelete }: {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, w, cv.height);
     if (im) ctx.drawImage(im, 0, 0, w, cv.height);
+    // raw detections: thin team-tinted rectangles the user clicks inside
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = 1;
+    for (const b of dets) {
+      ctx.strokeStyle = b.team ? hexFor(b.team) : "#a1a1aa";
+      ctx.strokeRect(b.x1 * w, b.y1 * cv.height,
+                     (b.x2 - b.x1) * w, (b.y2 - b.y1) * cv.height);
+    }
+    ctx.globalAlpha = 1;
     for (const m of markers) {
+      if (m.box) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = hexFor(m.team);
+        ctx.strokeRect(m.box[0] * w, m.box[1] * cv.height,
+                       (m.box[2] - m.box[0]) * w,
+                       (m.box[3] - m.box[1]) * cv.height);
+      }
       const x = m.fx * w, y = m.fy * cv.height;
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, Math.PI * 2);
@@ -77,7 +94,7 @@ function Still({ src, markers, hexFor, onPick, onDelete }: {
       ctx.fillStyle = hexFor(m.team);
       ctx.fillText(short, x, y - 8);
     }
-  }, [markers, hexFor, ready]);
+  }, [markers, dets, hexFor, ready]);
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -218,7 +235,8 @@ export default function AnchorPlayers({ onDoc }: {
           Anchor players (start / middle / end)
         </span>
         <span className="text-[11px] text-zinc-500">
-          — click every player on each team, give their name
+          — click inside the box of each player; the same player can be
+          clicked in several cameras
         </span>
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -260,6 +278,7 @@ export default function AnchorPlayers({ onDoc }: {
           <Still
             src={api.angleFrameUrl(a, momentT() - (doc.offsets[a] ?? 0), 720)}
             markers={forMoment(a)}
+            dets={(moment && doc.dets?.[moment.id]?.[String(a)]) || []}
             hexFor={hexFor}
             onPick={(fx, fy) => { setPend({ angle: a, fx, fy }); setName(""); }}
             onDelete={(id) => setDoc({

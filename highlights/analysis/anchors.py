@@ -22,10 +22,12 @@ import math
 import time
 from pathlib import Path
 
+import numpy as np
+
 from highlights.io import write_json_atomic
 
 from .calib import apply_h
-from .fuse_tracks import STEP
+from .fuse_tracks import STEP, load_dets
 
 MAX_DIST_M = 3.0          # a click further than this from any track stays unresolved
 
@@ -67,6 +69,46 @@ def default_moments(v2_doc: dict) -> list[dict]:
             {"id": "end", "t": round(max(hi - 90.0, t0), 1)}]
 
 
+def dets_at(players_v2: Path, angle: int, file_t: float,
+            tol: float = 0.6) -> list[dict]:
+    """Detection boxes (normalized 0-1) on `angle` at the det frame
+    nearest `file_t` (file seconds); [] when none within tol."""
+    p = Path(players_v2) / f"det_a{angle}.npz"
+    if not p.is_file():
+        return []
+    d = load_dets(p)
+    if not len(d["t"]):
+        return []
+    i = int(np.abs(d["t"] - file_t).argmin())
+    if abs(float(d["t"][i]) - file_t) > tol:
+        return []
+    sel = np.flatnonzero(d["t"] == d["t"][i])
+    w, h = float(d.get("w") or 1.0), float(d.get("h") or 1.0)
+    out = []
+    for j in sel:
+        x1, y1, x2, y2 = (float(v) for v in d["box"][j])
+        tm = d["team"][j]
+        out.append({"x1": x1 / w, "y1": y1 / h, "x2": x2 / w,
+                    "y2": y2 / h,
+                    "team": str(tm) if tm in ("A", "B") else ""})
+    return out
+
+
+def _pick_box(boxes: list[dict], fx: float, fy: float) -> dict | None:
+    """Box containing (fx,fy), else the nearest box whose centre lies
+    within one box-height of the click."""
+    best, best_d = None, None
+    for b in boxes:
+        if b["x1"] <= fx <= b["x2"] and b["y1"] <= fy <= b["y2"]:
+            return b
+        h = max(1e-6, b["y2"] - b["y1"])
+        d = math.hypot(fx - (b["x1"] + b["x2"]) / 2.0,
+                       fy - (b["y1"] + b["y2"]) / 2.0)
+        if d <= h and (best_d is None or d < best_d):
+            best, best_d = b, d
+    return best
+
+
 def _track_xy_at(tr: dict, t: float) -> tuple[float, float] | None:
     """Track position at shared t, or None when inactive/unobserved."""
     if not (float(tr["start"]) <= t <= float(tr["end"])):
@@ -81,12 +123,16 @@ def _track_xy_at(tr: dict, t: float) -> tuple[float, float] | None:
     return float(p[0]), float(p[1])
 
 
-def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict) -> dict:
+def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
+                   dets_by: dict | None = None) -> dict:
     """Project each click to the pitch and attach it to the nearest
-    same-team track active at its moment. Per-moment greedy global
-    assignment so two clicks never resolve to the same track; clicks
-    further than MAX_DIST_M stay unresolved with a note. Returns a new
-    doc (moments kept, clicks annotated)."""
+    same-team track active at its moment. dets_by: {(angle, moment):
+    [boxes]} — a click inside/near a detection projects that box's foot
+    point (torsos don't lie on the ground plane). Per-moment greedy
+    global assignment so two clicks never resolve to the same track;
+    clicks further than MAX_DIST_M stay unresolved with a note.
+    Returns a new doc (moments kept, clicks annotated)."""
+    dets_by = dets_by or {}
     doc = dict(doc)
     clicks = [dict(c) for c in doc.get("clicks") or []]
     tracks = tracks_doc.get("tracks") or []
@@ -94,25 +140,38 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict) -> dict:
                for m in doc.get("moments") or []}
     angles = (calib or {}).get("angles") or {}
     for c in clicks:
-        c.update(track_id=None, dist_m=None, xy=None, note=None)
+        c.update(track_id=None, dist_m=None, xy=None, note=None,
+                 box=None)
 
-    # duplicate (moment, team, label): only the first counts
+    # duplicate (moment, team, label, angle): only the first counts —
+    # clicking the same player in a different camera is valid
     seen: set[tuple] = set()
     for c in clicks:
-        key = (c.get("moment"), c.get("team"),
+        key = (c.get("moment"), c.get("team"), c.get("angle"),
                str(c.get("label") or "").strip().lower())
         if key in seen:
             c["note"] = "duplicate name"
         seen.add(key)
 
     live = [c for c in clicks if c["note"] is None]
+    nodet: set[int] = set()
     for c in live:
         H = (angles.get(str(c.get("angle"))) or {}).get("H")
         if not H:
             c["note"] = "camera not calibrated"
             continue
-        c["xy"] = list(apply_h(H, float(c.get("fx") or 0.0),
-                               float(c.get("fy") or 0.0)))
+        fx = float(c.get("fx") or 0.0)
+        fy = float(c.get("fy") or 0.0)
+        box = _pick_box(dets_by.get((int(c.get("angle") or 0),
+                                    str(c.get("moment")))) or [],
+                        fx, fy)
+        if box is not None:
+            c["box"] = [box["x1"], box["y1"], box["x2"], box["y2"]]
+            c["xy"] = list(apply_h(H, (box["x1"] + box["x2"]) / 2.0,
+                                   box["y2"]))
+        else:
+            nodet.add(id(c))
+            c["xy"] = list(apply_h(H, fx, fy))
     live = [c for c in live if c["note"] is None]
 
     for mid in {c.get("moment") for c in live}:
@@ -147,10 +206,15 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict) -> dict:
             group[ci]["dist_m"] = round(d, 2)
         for ci, c in enumerate(group):
             if c["track_id"] is None and c["note"] is None:
-                d = nearest.get(ci)
-                c["note"] = (
-                    f"no {c.get('team')} player within {MAX_DIST_M:.0f} m"
-                    + (f" (nearest {d:.1f} m)" if d is not None else ""))
+                if id(c) in nodet:
+                    c["note"] = "no detection under click"
+                else:
+                    d = nearest.get(ci)
+                    c["note"] = (
+                        f"no {c.get('team')} player within "
+                        f"{MAX_DIST_M:.0f} m"
+                        + (f" (nearest {d:.1f} m)"
+                           if d is not None else ""))
 
     # conflicting labels on one track void both clicks
     by_track: dict[int, set[str]] = {}

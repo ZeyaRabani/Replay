@@ -645,16 +645,25 @@ export interface AnchorClick {
   fy: number;
   team: "A" | "B";
   label: string;
+  /** detection box the click snapped to (normalized 0-1), if any */
+  box?: [number, number, number, number] | null;
   track_id?: number | null;
   dist_m?: number | null;
   xy?: [number, number] | null;
   note?: string | null;
 }
 
+export interface AnchorDetBox {
+  x1: number; y1: number; x2: number; y2: number;
+  team: string;   // "A" | "B" | ""
+}
+
 export interface PlayerAnchors {
   doc: { moments: AnchorMoment[]; clicks: AnchorClick[];
          updated_at?: number };
   offsets: number[];
+  /** detection boxes per moment id -> angle index -> boxes */
+  dets?: Record<string, Record<string, AnchorDetBox[]>>;
   n_angles: number;
   window: [number, number] | null;
   teams: Record<string, { name: string | null; hex: string | null }>;
