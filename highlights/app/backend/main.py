@@ -2455,7 +2455,8 @@ def get_cut_file(cut_id: str, p: PublicP) -> FileResponse:
 
 
 @scoped.get("/multiangle/angle/{angle_idx}/frame.jpg")
-def get_angle_frame(angle_idx: int, p: PublicP, t: float | None = None) -> FileResponse:
+def get_angle_frame(angle_idx: int, p: PublicP, t: float | None = None,
+                    h: int = 180) -> FileResponse:
     _require_multiangle(p)
     angles = p.source_info.get("angles") or []
     if not (0 <= angle_idx < len(angles)):
@@ -2466,10 +2467,12 @@ def get_angle_frame(angle_idx: int, p: PublicP, t: float | None = None) -> FileR
     if t is None:
         probe = _read_json(p.angle_dir(angle_idx) / "pipeline" / "probe.json") or {}
         t = float(probe.get("duration_s") or 60.0) * 0.3
-    out = p.thumb_dir() / f"angle{angle_idx}_{t:.0f}.jpg"
+    h = max(120, min(1080, int(h)))
+    out = p.thumb_dir() / (f"angle{angle_idx}_{t:.0f}.jpg" if h == 180
+                           else f"angle{angle_idx}_{t:.0f}_h{h}.jpg")
     if not out.is_file():
         try:
-            fx.thumbnail(v, t, out)
+            fx.thumbnail(v, t, out, height=h)
         except Exception as e:
             raise HTTPException(500, f"frame extract failed: {e}") from e
     return FileResponse(out, media_type="image/jpeg")

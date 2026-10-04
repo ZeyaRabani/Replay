@@ -76,13 +76,15 @@ def mmss(t: float) -> str:
     return f"{int(t // 60):02d}:{int(t % 60):02d}"
 
 
-def thumbnail(src: str | Path, t: float, out: str | Path) -> Path:
+def thumbnail(src: str | Path, t: float, out: str | Path,
+              height: int = 180) -> Path:
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     r = _run(
         [
             "ffmpeg", "-y", "-ss", f"{t:.3f}", "-i", str(src),
-            "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "4", str(out),
+            "-frames:v", "1", "-vf", f"scale=-2:{height}", "-q:v", "4",
+            str(out),
         ]
     )
     if r.returncode != 0:

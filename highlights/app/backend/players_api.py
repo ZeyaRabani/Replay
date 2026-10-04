@@ -54,6 +54,26 @@ class IdentityEditPost(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class AnchorMoment(BaseModel):
+    id: str
+    t: float
+
+
+class AnchorClick(BaseModel):
+    id: str
+    moment: str
+    angle: int
+    fx: float
+    fy: float
+    team: Literal["A", "B"]
+    number: int = Field(ge=1, le=99)
+
+
+class AnchorsPut(BaseModel):
+    moments: list[AnchorMoment]
+    clicks: list[AnchorClick]
+
+
 IDENTITY_ID_RE = re.compile(r"^[AB]\d{1,3}$")
 
 
@@ -414,9 +434,9 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                                      "linked yet")
         return _identities_payload(p, doc)
 
-    @router.post("/players/identities/rebuild")
-    def post_identities_rebuild(p: ScopedP) -> dict:
-        """Re-link identities offline from the saved tracks.json."""
+    def _relink_identities(p) -> dict:
+        """Re-link identities offline from the saved tracks.json
+        (anchors.json is picked up automatically when present)."""
         if not p.is_multiangle:
             raise HTTPException(404, "not a multi-angle project")
         v2d = _v2_dir(p)
@@ -431,6 +451,60 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         except Exception as e:
             raise HTTPException(500, f"build_identities failed: {e}") from e
         return _identities_payload(p, doc)
+
+    @router.post("/players/identities/rebuild")
+    def post_identities_rebuild(p: ScopedP) -> dict:
+        return _relink_identities(p)
+
+    def _anchors_payload(p) -> dict:
+        """anchors.json (+ defaults when absent), camera offsets, fused
+        window and team colours for the anchoring UI."""
+        from highlights.analysis import anchors as anch
+        v2d = _v2_dir(p)
+        tdoc = _read_json(v2d / "tracks.json") or {}
+        doc = anch.load(v2d) or {
+            "moments": anch.default_moments(tdoc),
+            "clicks": [],
+        }
+        sync = _read_json(p.multiangle_dir / "sync.json") or {}
+        offsets = sync.get("offsets") or []
+        t0, hi = anch.window_of(tdoc)
+        teams = (_read_json(p.root / "analysis" / "teams.json") or {}
+                 ).get("teams") or {}
+        return {"doc": doc, "offsets": offsets,
+                "n_angles": max(len(p.source_info.get("angles") or []),
+                                len(offsets)),
+                "window": [t0, hi] if tdoc else None,
+                "teams": {k: {"name": v.get("name"), "hex": v.get("hex")}
+                          for k, v in teams.items()}}
+
+    @router.get("/players/anchors")
+    def get_anchors(p: ScopedP) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        return _anchors_payload(p)
+
+    @router.put("/players/anchors")
+    def put_anchors(p: ScopedP, body: AnchorsPut) -> dict:
+        if not p.is_multiangle:
+            raise HTTPException(404, "not a multi-angle project")
+        v2d = _v2_dir(p)
+        tdoc = _read_json(v2d / "tracks.json")
+        if not tdoc:
+            raise HTTPException(409, "players v2 has not run yet")
+        from highlights.analysis import anchors as anch
+        calib = _read_json(p.multiangle_dir / "calib.json") or {}
+        doc = anch.resolve_clicks(
+            {"moments": [m.model_dump() for m in body.moments],
+             "clicks": [c.model_dump() for c in body.clicks]},
+            tdoc, calib)
+        anch.save(v2d, doc)
+        return _anchors_payload(p)
+
+    @router.post("/players/anchors/relink")
+    def post_anchors_relink(p: ScopedP) -> dict:
+        """Re-link identities with the saved anchors as hard constraints."""
+        return _relink_identities(p)
 
     @router.get("/players/identities/{iid}/tracks")
     def get_identity_tracks(p: ScopedP, iid: str) -> dict:

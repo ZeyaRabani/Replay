@@ -190,3 +190,49 @@ def test_cli(tmp_path, capsys):
     assert ident.main([str(v2), "--team-size", "2"]) == 0
     assert json.loads((v2 / "identities.json").read_text())["identities"]
     assert ident.main([str(tmp_path / "nope")]) == 1
+
+
+# ---------- user anchors (shirt numbers) ----------
+
+def test_anchor_different_numbers_never_link():
+    # track 1 ends at t=20 near x=30; both continuations are plausible,
+    # but only track 2 carries the same anchored number
+    tracks = [
+        _walk(1, "A", 0.0, 20.0, 10.0, 20.0, vx=1.0),
+        _walk(2, "A", 23.0, 60.0, 34.0, 20.0, vx=0.2),
+        _walk(3, "A", 23.0, 60.0, 33.0, 20.0, vx=0.2),
+    ]
+    anchors = {1: ("A", 7), 2: ("A", 7), 3: ("A", 9)}
+    doc = link_identities(tracks, team_size=3, merge=False,
+                          window=(0.0, 60.0), anchors=anchors)
+    owner = {t: i["id"] for i in doc["identities"] for t in i["track_ids"]}
+    assert owner[1] == owner[2]
+    assert owner[3] != owner[1]
+    assert next(i for i in doc["identities"] if 1 in i["track_ids"])["number"] == 7
+
+
+def test_anchor_same_number_bridges_long_gap():
+    # 100 s apart is beyond MAX_GAP_S: no flow edge, but the shared
+    # number concatenates the chains post-flow
+    tracks = [
+        _walk(1, "A", 0.0, 30.0, 10.0, 20.0),
+        _walk(2, "A", 140.0, 200.0, 15.0, 25.0),
+        _walk(3, "A", 0.0, 200.0, 40.0, 10.0),
+    ]
+    anchors = {1: ("A", 7), 2: ("A", 7)}
+    doc = link_identities(tracks, team_size=3, merge=False,
+                          window=(0.0, 200.0), anchors=anchors)
+    ident = next(i for i in doc["identities"] if i["number"] == 7)
+    assert set(ident["track_ids"]) == {1, 2}
+    assert ident["anchored"] is True
+
+
+def test_anchored_short_track_still_assigned():
+    tracks = [
+        _walk(1, "A", 0.0, 2.0, 10.0, 20.0),   # < MIN_TRACK_S
+        _walk(2, "A", 10.0, 60.0, 12.0, 20.0),
+    ]
+    doc = link_identities(tracks, team_size=2, merge=False,
+                          window=(0.0, 60.0), anchors={1: ("A", 5)})
+    assert 1 not in doc["unassigned_track_ids"]
+    assert next(i for i in doc["identities"] if 1 in i["track_ids"])["number"] == 5

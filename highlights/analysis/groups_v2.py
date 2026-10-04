@@ -80,7 +80,8 @@ def _merge_stats(xy: list) -> tuple[float, int]:
 
 def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 8.0,
                      min_overlap_s: float = 1.0,
-                     max_offset_std_m: float = 2.5) -> list[dict]:
+                     max_offset_std_m: float = 2.5,
+                     cannot=None) -> list[dict]:
     """Union-find merge of cross-camera duplicate tracks (greedy sweep
     by start time, only interval-overlapping pairs compared). Each
     super-track: id = longest member's id, member_ids, majority team,
@@ -100,7 +101,8 @@ def merge_duplicates(tracks: list[dict], *, max_gap_m: float = 8.0,
             b = ordered[j]
             if float(b["start"]) > float(a["end"]):
                 break
-            if find(i) != find(j) and _is_dup(
+            if find(i) != find(j) and (cannot is None or not cannot(a, b)) \
+                    and _is_dup(
                     a, b, max_gap_m=max_gap_m, min_overlap_s=min_overlap_s,
                     max_offset_std_m=max_offset_std_m):
                 parent[find(j)] = find(i)
