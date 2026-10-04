@@ -16,6 +16,8 @@ const btnGhost = "flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 rounded 
 const TEAM_HEX: Record<string, string> = { A: "#22c55e", B: "#f97316" };
 const TRAIL_S = 1.5;
 const VISIBLE_STEP_S = 0.5;
+/** seconds a dot stays drawn (alpha 1 -> 0.35) after its last sample */
+const HOLD_S = 2.0;
 
 type Pt = [number, number, number];
 
@@ -25,8 +27,10 @@ export function posAt(pts: Pt[], t: number): Pt | null {
   if (!pts.length || t < pts[0][0] - 0.5) return null;
   const last = pts[pts.length - 1][0];
   if (t > last) {
-    const a = 1 - Math.min(1, (t - last) / 1.5);
-    return a <= 0 ? null : [pts[pts.length - 1][1], pts[pts.length - 1][2], a];
+    const g = t - last;
+    if (g > HOLD_S) return null;
+    return [pts[pts.length - 1][1], pts[pts.length - 1][2],
+            1 - 0.65 * (g / HOLD_S)];
   }
   let lo = 0, hi = pts.length - 1;
   while (lo < hi) {

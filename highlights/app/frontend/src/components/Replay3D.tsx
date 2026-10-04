@@ -92,7 +92,7 @@ interface PlayerRig extends THREE.Group {
     prev: { x: number; z: number } | null;
     sm: { x: number; z: number } | null;
     phase: number; heading: number; speed: number; kick: number;
-    lbl: string | null;
+    lbl: string | null; ident: boolean;
   };
 }
 
@@ -144,7 +144,7 @@ function makePlayer(team: string, name: string | null, ident: boolean,
     lab.position.y = 2.15; g.add(lab);
   }
   g.userData = { body, lL, rL, lA, rA, team, prev: null, sm: null, phase: 0, heading: 0,
-                 speed: 0, kick: 0, lbl: name ?? null };
+                 speed: 0, kick: 0, lbl: name ?? null, ident };
   return g;
 }
 
@@ -152,7 +152,7 @@ function updatePlayer(g: PlayerRig, xy: [number, number], dt: number, ballPos: T
   const u = g.userData, tx = xy[0], tz = -xy[1];
   if (!u.sm || dt === 0) u.sm = { x: tx, z: tz };
   else {
-    const k = 1 - Math.exp(-dt * 6);
+    const k = 1 - Math.exp(-dt * 8);
     u.sm.x += (tx - u.sm.x) * k;
     u.sm.z += (tz - u.sm.z) * k;
   }
@@ -186,6 +186,21 @@ function updatePlayer(g: PlayerRig, xy: [number, number], dt: number, ballPos: T
   u.lA.rotation.x = -sw * 0.8; u.rA.rotation.x = sw * 0.8;
   u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.05 * stride;
   u.body.rotation.x = stride * 0.15;
+}
+
+/** seconds a player stays rendered (fading 1 -> 0.35) after its last sample */
+const HOLD_S = 2.0;
+
+function setPlayerOpacity(g: PlayerRig, op: number) {
+  const ident = !!g.userData.ident;
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh) {
+      const mat = m.material as THREE.MeshBasicMaterial;
+      mat.opacity = (m.geometry as THREE.RingGeometry).type === "RingGeometry"
+        ? (ident ? 0.7 : 0.4) * op : op;
+    }
+  });
 }
 
 function buildPitch(group: THREE.Group, pitch: PitchDims) {
@@ -472,6 +487,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
     ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
     const players = new Map<string, PlayerRig>();
+    const lastSeen = new Map<string, { t: number; xy: [number, number] }>();
     const segs = identitySegments(paths);
     let ballSm: THREE.Vector3 | null = null;
     const camState = {
@@ -565,19 +581,21 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
           gg.userData.lbl = pl.label;
         }
         g.visible = true;
-        const op = pl.bridged ? 0.45 : 1.0;
-        g.traverse((o) => {
-          const m = o as THREE.Mesh;
-          if (m.isMesh) {
-            const mat = m.material as THREE.MeshBasicMaterial;
-            mat.opacity = (m.geometry as THREE.RingGeometry).type === "RingGeometry"
-              ? (pl.ident ? 0.7 : 0.4) * op : op;
-          }
-        });
+        setPlayerOpacity(g, pl.bridged ? 0.45 : 1.0);
         updatePlayer(g, pl.xy, st.playing ? dt * st.speed : 0, bp);
+        lastSeen.set(pl.id, { t: st.t, xy: pl.xy });
         seen.add(pl.id);
       }
-      for (const [id, g] of players) if (!seen.has(id)) g.visible = false;
+      for (const [id, g] of players) {
+        if (seen.has(id)) continue;
+        const ls = lastSeen.get(id);
+        const gap = ls ? st.t - ls.t : Infinity;
+        if (ls && gap >= 0 && gap <= HOLD_S) {
+          g.visible = true;
+          setPlayerOpacity(g, 1 - 0.65 * (gap / HOLD_S));
+          updatePlayer(g, ls.xy, st.playing ? dt * st.speed : 0, bp);
+        } else g.visible = false;
+      }
       if (bx) {
         ball.visible = ballShadow.visible = true;
         const v = V(bx[0], bx[1], 0.22);
