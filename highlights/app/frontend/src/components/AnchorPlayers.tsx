@@ -9,6 +9,9 @@ const btnGhost =
 const TEAM_HEX: Record<string, string> = { A: "#86efac", B: "#fdba74" };
 const HIT_PX = 14;
 
+/** team key -> css hex: teams.json colour when present, else fallback. */
+type HexFor = (t: string) => string;
+
 /** mm:ss (optionally h:mm:ss) -> seconds, null when unparseable. */
 function parseClock(s: string): number | null {
   const m = /^\s*(?:(\d+):)?([0-5]?\d):([0-5]?\d)\s*$/.exec(s);
@@ -22,9 +25,10 @@ const mmss = (t: number) => {
 };
 
 /** One camera still filling the canvas; clicks in [0,1] image coords. */
-function Still({ src, markers, onPick, onDelete }: {
+function Still({ src, markers, hexFor, onPick, onDelete }: {
   src: string;
   markers: AnchorClick[];
+  hexFor: HexFor;
   onPick: (fx: number, fy: number) => void;
   onDelete: (id: string) => void;
 }) {
@@ -58,7 +62,7 @@ function Still({ src, markers, onPick, onDelete }: {
       const x = m.fx * w, y = m.fy * cv.height;
       ctx.beginPath();
       ctx.arc(x, y, 11, 0, Math.PI * 2);
-      ctx.fillStyle = TEAM_HEX[m.team] ?? "#e4e4e7";
+      ctx.fillStyle = hexFor(m.team);
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#09090b";
@@ -69,7 +73,7 @@ function Still({ src, markers, onPick, onDelete }: {
       ctx.textBaseline = "middle";
       ctx.fillText(String(m.number), x, y + 0.5);
     }
-  }, [markers, ready]);
+  }, [markers, hexFor, ready]);
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -200,6 +204,7 @@ export default function AnchorPlayers({ onDoc }: {
 
   const teamName = (t: string) =>
     doc.teams?.[t]?.name || (t === "A" ? "Team A" : "Team B");
+  const hexFor = (t: string) => doc.teams?.[t]?.hex || TEAM_HEX[t] || "#e4e4e7";
 
   return (
     <div className="rounded border border-zinc-800 p-3 mt-3 flex flex-col gap-2 min-w-0">
@@ -251,6 +256,7 @@ export default function AnchorPlayers({ onDoc }: {
           <Still
             src={api.angleFrameUrl(a, momentT() - (doc.offsets[a] ?? 0), 720)}
             markers={forMoment(a)}
+            hexFor={hexFor}
             onPick={(fx, fy) => { setPend({ angle: a, fx, fy }); setNum(""); }}
             onDelete={(id) => setDoc({
               ...doc,
@@ -262,7 +268,7 @@ export default function AnchorPlayers({ onDoc }: {
                 <button key={t} type="button"
                   className="rounded px-2 py-0.5 text-xs font-semibold"
                   style={{
-                    background: team === t ? (TEAM_HEX[t]) : "#27272a",
+                    background: team === t ? hexFor(t) : "#27272a",
                     color: team === t ? "#09090b" : "#d4d4d8",
                   }}
                   onClick={() => setTeam(t)}>
@@ -293,8 +299,8 @@ export default function AnchorPlayers({ onDoc }: {
       {clicks.filter((c) => c.moment === moment?.id).length > 0 && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
           {clicks.filter((c) => c.moment === moment?.id).map((c) => (
-            <span key={c.id}>
-              <span style={{ color: TEAM_HEX[c.team] }}>#{c.number}</span>
+            <span key={c.id} title={`${teamName(c.team)} #${c.number}`}>
+              <span style={{ color: hexFor(c.team) }}>#{c.number}</span>
               <span className="text-zinc-500"> ·{labels[c.angle] ?? `Cam ${c.angle + 1}`} </span>
               {c.track_id != null ? (
                 <span className="text-zinc-400">

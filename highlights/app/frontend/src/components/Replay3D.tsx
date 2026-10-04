@@ -20,6 +20,16 @@ const chip =
   "rounded-full px-2.5 py-0.5 text-[11px] bg-zinc-800 text-zinc-300 hover:bg-zinc-700";
 
 const TEAM: Record<string, number> = { A: 0x22c55e, B: 0xf97316 };
+const TEAM_HEX: Record<string, string> = { A: "#22c55e", B: "#f97316" };
+
+const hexNum = (h?: string | null): number | undefined =>
+  h ? parseInt(h.slice(1), 16) : undefined;
+const lighten = (h: string, f = 0.45): string => {
+  const n = parseInt(h.slice(1), 16);
+  const m = (c: number) => Math.round(c + (255 - c) * f);
+  return `#${((1 << 24) | (m(n >> 16) << 16) | (m((n >> 8) & 255) << 8)
+    | m(n & 255)).toString(16).slice(1)}`;
+};
 const NO_IDENT_RING = 0x9ca3af;
 const CAM_MODES: [string, string][] = [
   ["follow", "Follow the play"],
@@ -86,9 +96,11 @@ interface PlayerRig extends THREE.Group {
   };
 }
 
-function makePlayer(team: string, name: string | null, ident: boolean): PlayerRig {
+function makePlayer(team: string, name: string | null, ident: boolean,
+                    kitHex: Record<string, number>,
+                    lhex: Record<string, string>): PlayerRig {
   const g = new THREE.Group() as PlayerRig;
-  const col = TEAM[team] ?? 0x9ca3af;
+  const col = kitHex[team] ?? 0x9ca3af;
   const kit = new THREE.MeshStandardMaterial({ color: col });
   const skin = new THREE.MeshStandardMaterial({ color: 0xd9b38c });
   const white = new THREE.MeshStandardMaterial({ color: 0xf3f4f6 });
@@ -128,7 +140,7 @@ function makePlayer(team: string, name: string | null, ident: boolean): PlayerRi
   });
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
   if (name) {
-    const lab = makeLabel(name, team === "A" ? "#86efac" : "#fdba74");
+    const lab = makeLabel(name, lhex[team] ?? "#e4e4e7");
     lab.position.y = 2.15; g.add(lab);
   }
   g.userData = { body, lL, rL, lA, rA, team, prev: null, sm: null, phase: 0, heading: 0,
@@ -316,6 +328,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const [win, setWin] = useState<[number, number]>([0, 0]);
   const [t, setT] = useState(0);
   const [recording, setRecording] = useState<number | null>(null);
+  const [teamHex, setTeamHex] = useState<Record<string, string>>(TEAM_HEX);
   const [footage, setFootage] = useState(() => {
     try { return localStorage.getItem("replay.3d.footage") !== "0"; }
     catch { return true; }
@@ -337,9 +350,10 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
     ids: boolean; rec: boolean; recT: number;
     foot: boolean; replays: ReplayInfo[]; loV: number;
     segs: DirectorSegment[]; alabels: string[];
+    kit: Record<string, number>; lhex: Record<string, string>;
   }>({ t: 0, playing: false, speed: 1, cam: "follow", win: [0, 0], idents: [],
        ids: false, rec: false, recT: 0, foot: false, replays: [], loV: 0,
-       segs: [], alabels: [] });
+       segs: [], alabels: [], kit: TEAM, lhex: TEAM_HEX });
   stateRef.current = { t, playing, speed, cam: camMode, win, idents: identList,
                        ids: showIds, rec: recording !== null,
                        recT: recording === null ? 0 : stateRef.current.recT,
@@ -347,7 +361,11 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
                        replays: director?.replays ?? [],
                        loV: cutLo ?? (paths?.window_shared?.[0] ?? 0),
                        segs: director?.segments ?? [],
-                       alabels: angleLabels };
+                       alabels: angleLabels,
+                       kit: { A: hexNum(teamHex.A) ?? TEAM.A,
+                              B: hexNum(teamHex.B) ?? TEAM.B },
+                       lhex: { A: lighten(teamHex.A),
+                               B: lighten(teamHex.B) } };
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -357,8 +375,12 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   useEffect(() => {
     if (!open || paths) return;
     Promise.all([api.playerPaths(), fetchPlayers(api), api.listCandidates("time").catch(() => [])])
-      .then(([p, , cs]) => {
+      .then(([p, pl, cs]) => {
         setPaths(p);
+        if (pl?.teams) setTeamHex({
+          A: pl.teams.A?.hex || TEAM_HEX.A,
+          B: pl.teams.B?.hex || TEAM_HEX.B,
+        });
         const w: [number, number] = p.window_shared ?? [0, 30];
         setWin(w); setT(w[0]);
         setCands(cs.filter(
@@ -530,14 +552,14 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       for (const pl of pls) {
         let g = players.get(pl.id);
         if (!g) {
-          g = makePlayer(pl.team, pl.label, pl.ident);
+          g = makePlayer(pl.team, pl.label, pl.ident, st.kit, st.lhex);
           players.set(pl.id, g); scene.add(g);
         } else if (g.userData.lbl !== pl.label) {
           const gg = g;
           gg.children.filter((o) => (o as THREE.Sprite).isSprite)
             .forEach((o) => gg.remove(o));
           if (pl.label) {
-            const lab = makeLabel(pl.label, pl.team === "A" ? "#86efac" : "#fdba74");
+            const lab = makeLabel(pl.label, st.lhex[pl.team] ?? "#e4e4e7");
             lab.position.y = 2.15; gg.add(lab);
           }
           gg.userData.lbl = pl.label;
