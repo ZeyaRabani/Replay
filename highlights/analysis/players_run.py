@@ -99,7 +99,7 @@ def _relabel_det_one(args: tuple) -> dict:
 
 
 def run_players_v2(project_dir: Path, log=print, force: bool = False,
-                   relabel_dets: bool = False,
+                   relabel_dets: bool = False, stabilize_only: bool = False,
                    status: StatusWriter | None = None) -> dict:
     """Multi-view hi-res tracking: detect_hr per angle, then fuse into
     pitch-space tracks under analysis/players_v2/."""
@@ -124,42 +124,60 @@ def run_players_v2(project_dir: Path, log=print, force: bool = False,
             status.update(**kw)
 
     from .detect_hr import detect_angle
-    from .fuse_tracks import run_fuse
     lo, hi = ctx["window"]
     dirs = _angle_dirs(project_dir)
-    for a in range(n):
-        v = _match_ext_video(dirs[a]) if a < len(dirs) else None
-        if v is None:
-            raise PipelineError(
-                f"no source video for angle {a} — sources purged?")
-        off = ctx["offsets"][a] if a < len(ctx["offsets"]) else 0.0
-        _upd(stage=f"detect a{a}", progress=0.05 + 0.8 * a / max(1, n),
-             stage_progress=0.0,
-             message=f"hi-res detection angle {a + 1}/{n}")
-        detect_angle(str(v), adir / f"det_a{a}.npz",
-                     start_s=max(0.0, lo - off),
-                     end_s=max(0.0, hi - off),
-                     teams=teams, log=log)
-    if relabel_dets:
-        _upd(stage="relabel", progress=0.85,
-             message="kit-relabelling detections")
-        from .detect_hr import FPS
-        jobs = []
+    if not stabilize_only:
         for a in range(n):
             v = _match_ext_video(dirs[a]) if a < len(dirs) else None
+            if v is None:
+                raise PipelineError(
+                    f"no source video for angle {a} — sources purged?")
             off = ctx["offsets"][a] if a < len(ctx["offsets"]) else 0.0
-            npz = adir / f"det_a{a}.npz"
-            if v is not None and npz.exists():
-                jobs.append((str(v), npz, teams, FPS,
-                             max(0.0, lo - off), max(0.0, hi - off)))
-        if jobs:
-            import concurrent.futures as cf
-            with cf.ProcessPoolExecutor(max_workers=3) as ex:
-                for a, res in zip((j[0] for j in jobs),
-                                  ex.map(_relabel_det_one, jobs)):
-                    log(f"relabel {Path(a).parent.name}: "
-                        f"{res['changed']}/{res['n_dets']} changed, "
-                        f"{res['blank']} blank")
+            _upd(stage=f"detect a{a}", progress=0.05 + 0.8 * a / max(1, n),
+                 stage_progress=0.0,
+                 message=f"hi-res detection angle {a + 1}/{n}")
+            detect_angle(str(v), adir / f"det_a{a}.npz",
+                         start_s=max(0.0, lo - off),
+                         end_s=max(0.0, hi - off),
+                         teams=teams, log=log)
+        if relabel_dets:
+            _upd(stage="relabel", progress=0.85,
+                 message="kit-relabelling detections")
+            from .detect_hr import FPS
+            jobs = []
+            for a in range(n):
+                v = _match_ext_video(dirs[a]) if a < len(dirs) else None
+                off = ctx["offsets"][a] if a < len(ctx["offsets"]) else 0.0
+                npz = adir / f"det_a{a}.npz"
+                if v is not None and npz.exists():
+                    jobs.append((str(v), npz, teams, FPS,
+                                 max(0.0, lo - off), max(0.0, hi - off)))
+            if jobs:
+                import concurrent.futures as cf
+                with cf.ProcessPoolExecutor(max_workers=3) as ex:
+                    for a, res in zip((j[0] for j in jobs),
+                                      ex.map(_relabel_det_one, jobs)):
+                        log(f"relabel {Path(a).parent.name}: "
+                            f"{res['changed']}/{res['n_dets']} changed, "
+                            f"{res['blank']} blank")
+    _upd(stage="stabilize", progress=0.88,
+         message="stabilising cameras")
+    try:
+        from .stabilize import run_stabilize
+        run_stabilize(project_dir, adir, force=force, log=log)
+    except Exception as e:
+        log(f"stabilize: skipped ({type(e).__name__}: {e})")
+    return _post_detect(project_dir, adir, dirs, ctx, lo, hi, teams,
+                        log=log, _upd=_upd)
+
+
+def _post_detect(project_dir: Path, adir: Path, dirs, ctx: dict,
+                 lo: float, hi: float, teams: dict, *, log,
+                 _upd) -> dict:
+    """Tail of run_players_v2 after detection: crops -> fuse -> kit
+    relabel -> groups -> identities."""
+    n = int(ctx["n_angles"])
+    from .fuse_tracks import run_fuse
     _upd(stage="fuse", progress=0.9, message="fusing tracks")
     videos = {a: _match_ext_video(dirs[a]) for a in range(n)
               if a < len(dirs)}
@@ -242,6 +260,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="multi-view hi-res pass: detect+ fusion")
     ap.add_argument("--relabel-dets", action="store_true",
                     help="v2: kit-relabel saved det npz before fusion")
+    ap.add_argument("--stabilize-only", action="store_true",
+                    help="v2: skip detection; stabilize cameras then "
+                    "re-fuse from the saved det npz")
     args = ap.parse_args(argv)
 
     project_dir = args.project_dir
@@ -270,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
                     run_players_v2(project_dir, log=log,
                                    force=args.force,
                                    relabel_dets=args.relabel_dets,
+                                   stabilize_only=args.stabilize_only,
                                    status=status)
                 else:
                     run_players(project_dir, log=log, force=args.force,

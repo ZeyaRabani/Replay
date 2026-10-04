@@ -153,6 +153,33 @@ def test_no_detection_under_click_note():
     assert c["note"] == "no detection under click"
 
 
+def test_team_is_hint_other_team_wins_when_alone():
+    # click labelled A but only a B track is in range -> resolves to B
+    tracks = [_tr(1, "B", 0, 200, 10.5, 10), _tr(2, "A", 0, 200, 20, 10)]
+    out = _resolve([_clk("c", 10, 10, team="A")], tracks)
+    c = out["clicks"][0]
+    assert c["track_id"] == 1
+    assert c["track_team"] == "B"
+    assert anch.constraints(out) == {1: ("B", "Rui")}
+
+
+def test_stab_warps_click_to_other_track():
+    # stab shifts foot +20 m in x (normalized = pitch metres under
+    # identity H); the click then resolves to the far track
+    import numpy as np
+    tracks = [_tr(1, "A", 0, 200, 10, 10), _tr(2, "A", 0, 200, 30, 10)]
+    Hs = np.tile(np.eye(3), (300, 1, 1))
+    Hs[:, 0, 2] = 20.0
+    stab = {"t": np.arange(300.0), "H": Hs, "step_s": 1.0}
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("c", 10, 10, label="Rui")]},
+        {"tracks": tracks}, CAL, stabs={0: stab}, offsets=[0.0])
+    c = out["clicks"][0]
+    assert c["xy"] == [30.0, 10.0]
+    assert c["track_id"] == 2
+
+
 def test_default_moments_spaced():
     doc = {"t0": 100.0, "summary": {"visible_hist": [1] * 1001},
            "tracks": []}

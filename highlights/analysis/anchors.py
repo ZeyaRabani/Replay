@@ -109,6 +109,14 @@ def _pick_box(boxes: list[dict], fx: float, fy: float) -> dict | None:
     return best
 
 
+def _project(H, stab, ft: float | None, px: float, py: float) -> list:
+    """Stab-warp (px,py) onto the calibration frame, then apply_h."""
+    if stab is not None and ft is not None:
+        from .stabilize import warp_at
+        px, py = warp_at(stab, ft, px, py)
+    return list(apply_h(H, px, py))
+
+
 def _track_xy_at(tr: dict, t: float) -> tuple[float, float] | None:
     """Track position at shared t, or None when inactive/unobserved."""
     if not (float(tr["start"]) <= t <= float(tr["end"])):
@@ -124,15 +132,21 @@ def _track_xy_at(tr: dict, t: float) -> tuple[float, float] | None:
 
 
 def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
-                   dets_by: dict | None = None) -> dict:
+                   dets_by: dict | None = None, *,
+                   stabs: dict | None = None,
+                   offsets: list | None = None) -> dict:
     """Project each click to the pitch and attach it to the nearest
-    same-team track active at its moment. dets_by: {(angle, moment):
-    [boxes]} — a click inside/near a detection projects that box's foot
-    point (torsos don't lie on the ground plane). Per-moment greedy
-    global assignment so two clicks never resolve to the same track;
-    clicks further than MAX_DIST_M stay unresolved with a note.
+    track active at its moment. dets_by: {(angle, moment): [boxes]} — a
+    click inside/near a detection projects that box's foot point
+    (torsos don't lie on the ground plane); stabs/offsets warp the foot
+    from the click's frame onto the calibration frame (shared t minus
+    offsets[angle]). The click's team is a hint: same-team (or unteamed)
+    tracks are always preferred, other-team tracks are only taken when
+    no hint-matching candidate is within MAX_DIST_M. Per-moment greedy
+    global assignment so two clicks never resolve to the same track.
     Returns a new doc (moments kept, clicks annotated)."""
     dets_by = dets_by or {}
+    stabs = stabs or {}
     doc = dict(doc)
     clicks = [dict(c) for c in doc.get("clicks") or []]
     tracks = tracks_doc.get("tracks") or []
@@ -156,22 +170,32 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
     live = [c for c in clicks if c["note"] is None]
     nodet: set[int] = set()
     for c in live:
+        c["track_team"] = None
+    for c in live:
         H = (angles.get(str(c.get("angle"))) or {}).get("H")
         if not H:
             c["note"] = "camera not calibrated"
             continue
         fx = float(c.get("fx") or 0.0)
         fy = float(c.get("fy") or 0.0)
-        box = _pick_box(dets_by.get((int(c.get("angle") or 0),
+        a_idx = int(c.get("angle") or 0)
+        stab = stabs.get(a_idx)
+        ft = None
+        if stab is not None and offsets is not None:
+            mt = moments.get(str(c.get("moment")))
+            if mt is not None:
+                ft = mt - (float(offsets[a_idx])
+                           if a_idx < len(offsets) else 0.0)
+        box = _pick_box(dets_by.get((a_idx,
                                     str(c.get("moment")))) or [],
                         fx, fy)
         if box is not None:
             c["box"] = [box["x1"], box["y1"], box["x2"], box["y2"]]
-            c["xy"] = list(apply_h(H, (box["x1"] + box["x2"]) / 2.0,
-                                   box["y2"]))
+            c["xy"] = _project(H, stab, ft,
+                               (box["x1"] + box["x2"]) / 2.0, box["y2"])
         else:
             nodet.add(id(c))
-            c["xy"] = list(apply_h(H, fx, fy))
+            c["xy"] = _project(H, stab, ft, fx, fy)
     live = [c for c in live if c["note"] is None]
 
     for mid in {c.get("moment") for c in live}:
@@ -179,31 +203,37 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
         t = moments.get(mid)
         if t is None:
             continue
-        pairs: list[tuple[float, int, int]] = []
+        pairs: list[tuple] = []
+        nearest: dict[int, float] = {}
         for ci, c in enumerate(group):
             xy = c.get("xy")
             if xy is None or math.isinf(xy[0]):
                 continue
             for tr in tracks:
-                if tr.get("team") not in (c.get("team"), None):
-                    continue
                 p = _track_xy_at(tr, t)
                 if p is None:
                     continue
                 d = math.hypot(p[0] - xy[0], p[1] - xy[1])
-                pairs.append((d, ci, int(tr["id"])))
-        pairs.sort(key=lambda x: (x[0], x[1], x[2]))
-        nearest: dict[int, float] = {}
+                if d < nearest.get(ci, np.inf):
+                    nearest[ci] = d
+                if d > MAX_DIST_M:
+                    continue
+                hint = tr.get("team") in (c.get("team"), None)
+                cost = d if hint else d + 1.5
+                pairs.append((0 if hint else 1, cost, d, ci,
+                              int(tr["id"])))
+        pairs.sort()
+        team_by_id = {int(tr["id"]): tr.get("team") for tr in tracks}
         used_c: set[int] = set()
         used_t: set[int] = set()
-        for d, ci, tid in pairs:
-            nearest.setdefault(ci, d)
-            if ci in used_c or tid in used_t or d > MAX_DIST_M:
+        for _flag, _cost, d, ci, tid in pairs:
+            if ci in used_c or tid in used_t:
                 continue
             used_c.add(ci)
             used_t.add(tid)
             group[ci]["track_id"] = tid
             group[ci]["dist_m"] = round(d, 2)
+            group[ci]["track_team"] = team_by_id.get(tid)
         for ci, c in enumerate(group):
             if c["track_id"] is None and c["note"] is None:
                 if id(c) in nodet:
@@ -247,6 +277,6 @@ def constraints(doc: dict) -> dict[int, tuple[str, str]]:
         by_track.setdefault(tid, set()).add(
             str(c.get("label") or "").strip().lower())
         raw.setdefault(tid, str(c.get("label") or "").strip())
-        team_of[tid] = str(c["team"])
+        team_of[tid] = str(c.get("track_team") or c["team"])
     return {tid: (team_of[tid], raw[tid])
             for tid, labs in by_track.items() if len(labs) == 1}

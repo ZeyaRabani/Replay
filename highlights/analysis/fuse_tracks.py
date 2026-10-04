@@ -126,10 +126,14 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
          window: tuple[float, float], offsets: list[float],
          pitch: tuple[float, float], t0: float | None = None,
          crops_for=None, ownership: bool = OWNERSHIP,
+         stabs: dict[int, dict] | None = None,
          log=print) -> dict:
     """dets: {angle: load_dets() output}. Hs: {angle: 3x3 frame->pitch}.
-    window: (lo,hi) shared seconds. Returns the tracks.json doc."""
+    window: (lo,hi) shared seconds. stabs: {angle: load_stab() output}
+    warps each footpoint from its frame onto the calibration frame.
+    Returns the tracks.json doc."""
     from .calib import apply_h
+    from .stabilize import warp_at
     lo, hi = window
     L, W = pitch
     n_steps = max(1, round((hi - lo) / STEP) + 1)
@@ -160,6 +164,8 @@ def fuse(dets: dict[int, dict], Hs: dict[int, list], *,
             if not (0 <= k < n_steps):
                 continue
             fx, fy = float(d["foot"][i][0]), float(d["foot"][i][1])
+            if stabs and a in stabs:
+                fx, fy = warp_at(stabs[a], float(d["t"][i]), fx, fy)
             x, y = apply_h(H, fx, fy)
             if (len(cam_xy) >= 2 and a in cam_xy
                     and any(math.hypot(x - ox, y - oy)
@@ -319,15 +325,23 @@ def run_fuse(project_dir: Path, players_v2: Path, log=print,
     W = float(pitch.get("wid_m") or 64.0)
     Hs = {int(k): v["H"] for k, v in angles.items()}
     dets = {}
+    stabs: dict[int, dict] = {}
+    from .stabilize import load_stab
     for a in range(n):
         f = players_v2 / f"det_a{a}.npz"
         if f.exists():
             dets[a] = load_dets(f)
+        s = load_stab(players_v2 / f"stab_a{a}.npz")
+        if s is not None:
+            stabs[a] = s
+    if stabs:
+        log(f"fuse: camera stabilization on angle(s) "
+            f"{sorted(stabs)}")
     doc = fuse(dets, Hs, window=(ctx["window"][0], ctx["window"][1]),
                offsets=ctx["offsets"], pitch=(L, W),
-               crops_for=crops_for, log=log)
+               crops_for=crops_for, stabs=stabs, log=log)
     # ball: per-angle features_1s ball through H, conf-weighted
-    ball = _fuse_ball(project_dir, ctx, Hs, L, W)
+    ball = _fuse_ball(project_dir, ctx, Hs, L, W, stabs=stabs)
     if ball:
         doc["ball"] = ball
     write_json_atomic(players_v2 / "tracks.json", doc, indent=0)
@@ -336,9 +350,10 @@ def run_fuse(project_dir: Path, players_v2: Path, log=print,
     return doc
 
 
-def _fuse_ball(project_dir, ctx, Hs, L, W):
+def _fuse_ball(project_dir, ctx, Hs, L, W, stabs=None):
     from .calib import apply_h
     from .run import _load_json
+    from .stabilize import warp_at
     rows_by_t: dict[int, list] = {}
     for a, H in Hs.items():
         feats = _load_json(project_dir / "angles" / f"a{a}" / "track"
@@ -351,6 +366,8 @@ def _fuse_ball(project_dir, ctx, Hs, L, W):
             bc, bx, by = r[ci["ball_conf"]], r[ci["ball_x"]], r[ci["ball_y"]]
             if bc < BALL_CONF or bx <= 0 or by <= 0:
                 continue
+            if stabs and a in stabs:
+                bx, by = warp_at(stabs[a], float(i), bx, by)
             x, y = apply_h(H, bx, by)
             if not (0 <= x <= L and 0 <= y <= W):
                 continue

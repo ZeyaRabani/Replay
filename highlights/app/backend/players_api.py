@@ -522,10 +522,13 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                        len(offsets))
         moments = [m.model_dump() for m in body.moments]
         _nested, flat = _anchors_dets(p, v2d, offsets, n_angles, moments)
+        from highlights.analysis.stabilize import load_stab
+        stabs = {a: s for a in range(n_angles)
+                 if (s := load_stab(v2d / f"stab_a{a}.npz")) is not None}
         doc = anch.resolve_clicks(
             {"moments": moments,
              "clicks": [c.model_dump() for c in body.clicks]},
-            tdoc, calib, flat)
+            tdoc, calib, flat, stabs=stabs, offsets=offsets)
         anch.save(v2d, doc)
         return _anchors_payload(p)
 
