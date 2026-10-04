@@ -110,9 +110,10 @@ CAL2 = {"angles": {"0": {"H": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]},
                    "1": {"H": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]}}}
 
 
-def test_same_name_different_angles_allowed():
+def test_same_name_different_angles_is_one_player():
     # the same player clicked in two cameras at one moment is not a
-    # duplicate — each resolves to its own track
+    # duplicate, but it is one person: only one track is taken and the
+    # camera whose projection lands elsewhere is left unresolved
     tracks = [_tr(1, "A", 0, 200, 10, 10), _tr(2, "A", 0, 200, 50, 10)]
     out = anch.resolve_clicks(
         {"moments": [{"id": "mid", "t": 100.0}],
@@ -121,8 +122,8 @@ def test_same_name_different_angles_allowed():
         {"tracks": tracks}, CAL2)
     by_id = {c["id"]: c for c in out["clicks"]}
     assert by_id["a"]["track_id"] == 1
-    assert by_id["b"]["track_id"] == 2
-    assert by_id["b"]["note"] is None
+    assert by_id["b"]["track_id"] is None
+    assert by_id["b"]["note"] == "same name resolved from another camera"
 
 
 def test_click_snaps_to_detection_foot():
@@ -187,3 +188,20 @@ def test_default_moments_spaced():
     assert ms["start"] == 190.0
     assert ms["mid"] == 350.0
     assert ms["end"] == 510.0
+
+
+def test_same_name_across_cameras_shares_one_track():
+    # Rui clicked in cameras 0 and 1 at the same moment must resolve to
+    # the same fused track, leaving the neighbour for Dana
+    cal = {"angles": {"0": CAL["angles"]["0"], "1": CAL["angles"]["0"]}}
+    tracks = [_tr(1, "A", 0, 200, 10, 10), _tr(2, "A", 0, 200, 11.2, 10)]
+    out = anch.resolve_clicks(
+        {"moments": [{"id": "mid", "t": 100.0}],
+         "clicks": [_clk("r0", 10.1, 10, label="Rui"),
+                    _clk("r1", 10.3, 10, label="Rui", angle=1),
+                    _clk("d1", 10.9, 10, label="Dana", angle=1)]},
+        {"tracks": tracks}, cal)
+    by_id = {c["id"]: c for c in out["clicks"]}
+    assert by_id["r0"]["track_id"] == by_id["r1"]["track_id"] == 1
+    assert by_id["d1"]["track_id"] == 2
+    assert by_id["r1"]["note"] is None

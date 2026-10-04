@@ -240,45 +240,65 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict,
             c["xy"] = _project(H, stab, ft, fx, fy)
     live = [c for c in live if c["note"] is None]
 
+    def _lab(c):
+        return str(c.get("label") or "").strip().lower()
+
     for mid in {c.get("moment") for c in live}:
         group = [c for c in live if c.get("moment") == mid]
         t = moments.get(mid)
         if t is None:
             continue
-        pairs: list[tuple] = []
-        nearest: dict[int, float] = {}
+        # the same name clicked in several cameras is one player: the
+        # name-group competes for a single fused track (median distance
+        # over its cameras' projections)
+        names: dict[str, list[int]] = {}
         for ci, c in enumerate(group):
             xy = c.get("xy")
             if xy is None or math.isinf(xy[0]):
                 continue
+            names.setdefault(_lab(c) or f"#{ci}", []).append(ci)
+        pairs: list[tuple] = []
+        nearest: dict[int, float] = {}
+        for name, cis in names.items():
+            hint_team = group[cis[0]].get("team")
             for tr in tracks:
                 p = _track_xy_at(tr, t)
                 if p is None:
                     continue
-                d = math.hypot(p[0] - xy[0], p[1] - xy[1])
-                if d < nearest.get(ci, np.inf):
-                    nearest[ci] = d
-                if d > MAX_DIST_M:
+                ds = {ci: math.hypot(p[0] - group[ci]["xy"][0],
+                                     p[1] - group[ci]["xy"][1])
+                      for ci in cis}
+                for ci, d in ds.items():
+                    if d < nearest.get(ci, np.inf):
+                        nearest[ci] = d
+                # cameras whose projection of this name lands on the
+                # track; a mis-projected camera just drops out
+                inl = {ci: d for ci, d in ds.items() if d <= MAX_DIST_M}
+                if not inl:
                     continue
-                hint = tr.get("team") in (c.get("team"), None)
-                cost = d if hint else d + 1.5
-                pairs.append((0 if hint else 1, cost, d, ci,
-                              int(tr["id"])))
-        pairs.sort()
+                hint = tr.get("team") in (hint_team, None)
+                cost = (float(np.median(list(inl.values())))
+                        + (0.0 if hint else 1.5) - 0.5 * (len(inl) - 1))
+                pairs.append((0 if hint else 1, cost, name, int(tr["id"]),
+                              inl))
+        pairs.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
         team_by_id = {int(tr["id"]): tr.get("team") for tr in tracks}
-        used_c: set[int] = set()
+        used_n: set[str] = set()
         used_t: set[int] = set()
-        for _flag, _cost, d, ci, tid in pairs:
-            if ci in used_c or tid in used_t:
+        for _flag, _cost, name, tid, ds in pairs:
+            if name in used_n or tid in used_t:
                 continue
-            used_c.add(ci)
+            used_n.add(name)
             used_t.add(tid)
-            group[ci]["track_id"] = tid
-            group[ci]["dist_m"] = round(d, 2)
-            group[ci]["track_team"] = team_by_id.get(tid)
+            for ci, d in ds.items():
+                group[ci]["track_id"] = tid
+                group[ci]["dist_m"] = round(d, 2)
+                group[ci]["track_team"] = team_by_id.get(tid)
         for ci, c in enumerate(group):
             if c["track_id"] is None and c["note"] is None:
-                if id(c) in nodet:
+                if _lab(c) in used_n:
+                    c["note"] = "same name resolved from another camera"
+                elif id(c) in nodet:
                     c["note"] = "no detection under click"
                 else:
                     d = nearest.get(ci)

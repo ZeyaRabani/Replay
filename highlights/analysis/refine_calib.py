@@ -223,6 +223,27 @@ def refine(calib: dict, anchors_doc: dict, stabs: dict[int, dict],
             "H": {a: H1[a].tolist() for a in keys}}
 
 
+MAX_LM_RMS_M = 2.0
+
+
+def rejection_reason(summary: dict, calib: dict) -> str | None:
+    """A refined H must still land every camera's own landmarks: inconsistent
+    anchors (cameras that panned away from the calibration frame, wrong
+    moments) otherwise pull the solve into a degenerate H that only fits
+    the anchor pairs."""
+    angles = calib.get("angles") or {}
+    bad = []
+    for a, rms in (summary.get("lm_rms_m") or {}).items():
+        static = float((angles.get(str(a)) or {}).get("rms_m") or 0.0)
+        if rms > max(MAX_LM_RMS_M, 3.0 * static):
+            bad.append(f"a{a} landmarks {rms:.1f} m")
+    if bad:
+        return "anchors inconsistent with landmarks: " + ", ".join(bad)
+    if summary["pair_median_m_after"] >= summary["pair_median_m_before"]:
+        return "cross-camera agreement did not improve"
+    return None
+
+
 def apply_refine(project_dir: Path, players_v2: Path, log=print,
                  ref_angle: int | None = None) -> dict | None:
     """Load calib/anchors/stabs/dets, refine, persist H_refined +
@@ -251,7 +272,11 @@ def apply_refine(project_dir: Path, players_v2: Path, log=print,
             dets[a] = load_dets(f)
     summary = refine(calib, anchor_doc, stabs, offsets, dets,
                      ref_angle=ref_angle)
-    if summary is None:
+    why = (None if summary is None and not anchor_doc.get("clicks")
+           else "not enough anchor pairs" if summary is None
+           else rejection_reason(summary, calib))
+
+    def _clear():
         if any((e or {}).get("H_refined") for e in angles.values()) \
                 or "refine" in calib:
             for e in angles.values():
@@ -259,7 +284,14 @@ def apply_refine(project_dir: Path, players_v2: Path, log=print,
                     e.pop("H_refined", None)
             calib.pop("refine", None)
             write_json_atomic(cpath, calib, indent=1)
-        log("calib refine: not enough anchor pairs — skipped")
+
+    if summary is None:
+        _clear()
+        log(f"calib refine: {why or 'no anchors'} — skipped")
+        return None
+    if why:
+        _clear()
+        log(f"calib refine: rejected ({why}); static H kept")
         return None
     for a, H in summary["H"].items():
         if str(a) in angles:

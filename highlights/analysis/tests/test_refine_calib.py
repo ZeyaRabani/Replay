@@ -153,3 +153,15 @@ def test_reresolve_updates_track_ids(tmp_path):
     assert out is not None
     assert out["clicks"][0]["track_id"] == 200001
     assert out["clicks"][0]["track_team"] == "A"
+
+
+def test_rejection_on_degenerate_landmarks():
+    from highlights.analysis.refine_calib import rejection_reason
+    calib = {"angles": {"0": {"rms_m": 0.7}, "1": {"rms_m": 0.7}}}
+    good = {"lm_rms_m": {"0": 0.6, "1": 1.2}, "pair_median_m_before": 12.0,
+            "pair_median_m_after": 1.9}
+    assert rejection_reason(good, calib) is None
+    bad = dict(good, lm_rms_m={"0": 37.5, "1": 0.6})
+    assert "a0 landmarks 37.5 m" in rejection_reason(bad, calib)
+    worse = dict(good, pair_median_m_after=12.5)
+    assert "did not improve" in rejection_reason(worse, calib)
