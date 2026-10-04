@@ -78,10 +78,21 @@ def _lm_pts(entry: dict, lm_xy: dict) -> list[tuple]:
     return out
 
 
+def _lm_rms(entry: dict, lm_xy: dict) -> float:
+    pts = _lm_pts(entry, lm_xy)
+    H = np.asarray(entry["H"], float)
+    if not pts:
+        return 1e9
+    e = [np.hypot(*(np.array(apply_h(H, fx, fy)) - (X, Y)))
+         for fx, fy, X, Y in pts]
+    return float(np.sqrt(np.mean(np.square(e))))
+
+
 def _pick_ref(angles: dict, stabs: dict, dets: dict | None,
-              L: float, W: float) -> int | None:
+              L: float, W: float, lm_xy: dict | None = None) -> int | None:
     """Reference camera: best static-H coverage among cameras whose
-    detections span >= 0.6*L in x; else lowest landmark rms."""
+    detections span >= 0.6*L in x, ties broken by the H's own landmark
+    reprojection rms; else lowest landmark rms."""
     if dets:
         best = None
         for a in sorted(angles):
@@ -106,7 +117,8 @@ def _pick_ref(angles: dict, stabs: dict, dets: dict | None,
                     if len(xs) >= 8 else 0.0)
             if span < 0.6 * L:
                 frac = 0.0
-            cand = (frac, -span, -a)          # more frac, smaller span
+            own = _lm_rms(angles[a], lm_xy) if lm_xy else 0.0
+            cand = (round(frac, 3), -own, -a)
             if best is None or cand > best[0]:
                 best = (cand, a)
         if best is not None and best[0][0] > 0:
@@ -161,7 +173,7 @@ def refine(calib: dict, anchors_doc: dict, stabs: dict[int, dict],
     if not keys:
         return None
     if ref_angle is None:
-        ref_angle = _pick_ref(angles, stabs, dets, L, W)
+        ref_angle = _pick_ref(angles, stabs, dets, L, W, lm_xy)
     if ref_angle is None:
         return None
 

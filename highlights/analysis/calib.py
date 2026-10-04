@@ -181,7 +181,34 @@ def _dlt(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
     if s[-2] < 1e-10:                      # rank deficient -> degenerate
         raise ValueError("points are collinear or degenerate")
     H = np.linalg.inv(Td) @ vt[-1].reshape(3, 3) @ Ts
-    return H / H[2, 2]
+    H = H / H[2, 2]
+    return _geometric_refine(src, dst, H)
+
+
+def _geometric_refine(src: np.ndarray, dst: np.ndarray,
+                      H: np.ndarray) -> np.ndarray:
+    """Polish the algebraic DLT by minimising reprojection error in dst
+    units (Levenberg-Marquardt). The algebraic minimum can sit tens of
+    metres off for the common behind-the-goal layout where most clicks
+    lie on two parallel lines."""
+    from scipy.optimize import least_squares
+
+    def resid(x):
+        Hx = np.array([x[0:3], x[3:6], [x[6], x[7], 1.0]])
+        q = np.c_[src, np.ones(len(src))] @ Hx.T
+        return ((q[:, :2] / q[:, 2:3]) - dst).ravel()
+
+    try:
+        sol = least_squares(resid, H.ravel()[:8], method="lm",
+                            max_nfev=2000)
+    except (ValueError, np.linalg.LinAlgError):
+        return H
+    if not np.all(np.isfinite(sol.x)):
+        return H
+    Hr = np.array([sol.x[0:3], sol.x[3:6], [sol.x[6], sol.x[7], 1.0]])
+    r0 = float(np.mean(np.square(resid(H.ravel()[:8]))))
+    r1 = float(np.mean(np.square(resid(sol.x))))
+    return Hr if r1 <= r0 else H
 
 
 def effective_h(entry: dict) -> list | None:
