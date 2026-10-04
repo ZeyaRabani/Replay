@@ -543,8 +543,8 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
       }
       const idl = Object.fromEntries(st.idents.map((i) => [i.id,
         st.ids
-          ? (i.name || (i.number != null ? `#${i.number}` : i.id))
-          : (i.number != null ? `#${i.number}` : null)]));
+          ? (i.name || i.anchor_name || i.id)
+          : (i.anchor_name || null)]));
       const pls = livePlayers(paths, st.t, idl, segs, st.ids);
       const bx = ballAt(paths.ball, st.t);
       const bp = bx ? V(bx[0], bx[1], 0) : null;

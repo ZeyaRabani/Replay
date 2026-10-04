@@ -627,8 +627,8 @@ export interface PlayerIdentity {
   crops: string[];
   name: string | null;
   cohesion?: number;
-  /** user-anchored shirt number, when the card carries one */
-  number?: number | null;
+  /** user-anchored player name, when the card carries one */
+  anchor_name?: string | null;
   anchored?: boolean;
 }
 
@@ -644,7 +644,7 @@ export interface AnchorClick {
   fx: number;
   fy: number;
   team: "A" | "B";
-  number: number;
+  label: string;
   track_id?: number | null;
   dist_m?: number | null;
   xy?: [number, number] | null;

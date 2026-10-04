@@ -55,7 +55,7 @@ C_LINK = 0.0             # fixed cost per link (s of coverage)
 W_GAP = 0.2              # per second of gap
 W_DIST = 5.0             # per (d / reach)^2
 W_APP = 12.0             # per unit cosine distance of crop fingerprints
-W_ANCHOR = 25.0          # bonus: same user-anchored shirt number
+W_ANCHOR = 25.0          # bonus: same user-anchored player name
 W_ROLE = 0.0             # goalkeeper <-> outfield mismatch (off: hurt
                          # held-out re-linking on 28/8, see PR)
 C_ENTER = 4.0            # starting a new identity
@@ -291,30 +291,34 @@ def link_identities(tracks: list[dict], *, team_size: int = MAX_PER_TEAM,
                     pitch_len: float = 100.0,
                     window: tuple[float, float] | None = None,
                     merge: bool = True,
-                    anchors: dict[int, tuple[str, int]] | None = None
+                    anchors: dict[int, tuple[str, str]] | None = None
                     ) -> dict:
     """Core linker (no I/O). tracks: tracks.json entries. feats: track id
     -> L2-normalised appearance vector. anchors: track id -> (team,
-    shirt number) from user clicks — hard constraints: different
-    numbers never merge or link, same-number links get a W_ANCHOR
+    player name) from user clicks — hard constraints: different
+    names never merge or link, same-name links get a W_ANCHOR
     bonus, anchored units skip MIN_TRACK_S and the anchor team wins.
     Returns the identities doc (without crops paths resolved / names)."""
     feats = feats or {}
     anchors = anchors or {}
 
-    def _num(t: dict) -> int | None:
+    def _norm(s: str) -> str:
+        return s.strip().lower()
+
+    def _num(t: dict) -> str | None:
         a = anchors.get(int(t["id"]))
-        return a[1] if a else None
+        return _norm(a[1]) if a else None
 
     blocked = ((lambda a, b: _num(a) is not None and _num(b) is not None
                 and _num(a) != _num(b)) if anchors else None)
     units = merge_duplicates(tracks, cannot=blocked) if merge else [
         dict(t, member_ids=[int(t["id"])]) for t in tracks]
-    # unit label = set of anchored shirt numbers of its member tracks;
-    # the user's team label wins over the detected team
-    labels: dict[int, set[int]] = {}
+    # unit label = set of anchored names (normalised) of its member
+    # tracks; the user's team label wins over the detected team
+    labels: dict[int, set[str]] = {}
     for u in units:
-        nums = {anchors[m][1] for m in u["member_ids"] if m in anchors}
+        nums = {_norm(anchors[m][1]) for m in u["member_ids"]
+                if m in anchors}
         ateams = {anchors[m][0] for m in u["member_ids"] if m in anchors}
         if len(ateams) == 1 and u.get("team") != next(iter(ateams)):
             u["team"] = next(iter(ateams))
@@ -379,9 +383,9 @@ def link_identities(tracks: list[dict], *, team_size: int = MAX_PER_TEAM,
                     links.append((i, j, c))
         enter = np.full(n, C_ENTER)
         chains = _min_cost_paths(n, dur, enter, links, k_team) if n else []
-        # post-flow: chains that share an anchor number are the same
+        # post-flow: chains that share an anchor name are the same
         # player — concatenate when their timelines don't overlap
-        by_num: dict[int, list[int]] = {}
+        by_num: dict[str, list[int]] = {}
         for ci, ch in enumerate(chains):
             for nb in set().union(*(plabels[i] for i in ch)):
                 by_num.setdefault(nb, []).append(ci)
@@ -417,7 +421,10 @@ def link_identities(tracks: list[dict], *, team_size: int = MAX_PER_TEAM,
             ident = _aggregate(members, by_id, match_s)
             ident["team"] = team
             nums = set().union(*(plabels[i] for i in ch))
-            ident["number"] = next(iter(nums)) if len(nums) == 1 else None
+            raws = [str(anchors[m][1]).strip()
+                    for i in ch for m in pool[i]["member_ids"]
+                    if m in anchors]
+            ident["anchor_name"] = raws[0] if len(nums) == 1 else None
             ident["anchored"] = bool(nums)
             ident["role"] = ("gk" if sum(dur[i] for i in ch if roles[i])
                              > 0.5 * sum(dur[i] for i in ch) else "outfield")
@@ -607,7 +614,7 @@ def build_identities(v2_dir: Path, *, team_size: int = MAX_PER_TEAM,
         f = tracklet_fingerprint([crops_dir / c for c in t.get("crops") or []])
         if f.shape == (FEAT_DIM,) and np.linalg.norm(f) > 0:
             feats[int(t["id"])] = f
-    anchor_map: dict[int, tuple[str, int]] = {}
+    anchor_map: dict[int, tuple[str, str]] = {}
     anchor_doc = None
     try:
         from . import anchors as _anch
@@ -637,6 +644,9 @@ def build_identities(v2_dir: Path, *, team_size: int = MAX_PER_TEAM,
             ident["name"] = (ndoc["names"].get(ident["id"]) or {}
                              ).get("name")
         write_json_atomic(names_path, ndoc, indent=1)
+    for ident in out["identities"]:
+        if not ident.get("name") and ident.get("anchor_name"):
+            ident["name"] = ident["anchor_name"]
     out["generated_at"] = time.time()
     out["pitch_len_m"] = pitch_len
     out["window"] = list(window) if window else None
@@ -889,7 +899,7 @@ def edit_identities(v2_dir: Path, op: dict) -> dict:
     else:
         raise ValueError(f"unknown op {kind!r}")
 
-    anchor_map: dict[int, tuple[str, int]] = {}
+    anchor_map: dict[int, tuple[str, str]] = {}
     try:
         from . import anchors as _anch
         _adoc = _anch.load(v2_dir)
@@ -908,10 +918,14 @@ def edit_identities(v2_dir: Path, op: dict) -> dict:
                      edited=True,
                      crops=_edit_crops({"track_ids": stats["track_ids"]},
                                        by_id, crops_dir))
-        nums = {anchor_map[t][1] for t in ident["track_ids"]
-                if t in anchor_map}
-        ident["number"] = next(iter(nums)) if len(nums) == 1 else None
+        nums = {anchor_map[t][1].strip().lower()
+                for t in ident["track_ids"] if t in anchor_map}
+        raws = [anchor_map[t][1].strip()
+                for t in ident["track_ids"] if t in anchor_map]
+        ident["anchor_name"] = raws[0] if len(nums) == 1 else None
         ident["anchored"] = bool(nums)
+        if not ident["name"] and ident["anchor_name"]:
+            ident["name"] = ident["anchor_name"]
         _set_name_entry(ident)
     doc["unassigned_track_ids"] = sorted(unassigned)
     doc["edited_at"] = time.time()

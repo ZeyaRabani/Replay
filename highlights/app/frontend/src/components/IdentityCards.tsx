@@ -241,7 +241,7 @@ function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi, editing, o
   editing?: boolean;
   onToggleEdit?: () => void;
 }) {
-  const [text, setText] = useState(ident.name ?? "");
+  const [text, setText] = useState(ident.name ?? ident.anchor_name ?? "");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const save = async () => {
     const n = text.trim();
@@ -287,7 +287,7 @@ function IdentityCard({ ident, lo, teamHex, cropSrc, onName, reelApi, editing, o
         onBlur={() => void save()}
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") { setText(ident.name ?? ""); e.currentTarget.blur(); }
+          if (e.key === "Escape") { setText(ident.name ?? ident.anchor_name ?? ""); e.currentTarget.blur(); }
         }} />
       <div className="grid grid-cols-4 gap-1 text-center">
         {stats.map(([v, l]) => (

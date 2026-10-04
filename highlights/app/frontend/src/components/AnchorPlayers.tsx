@@ -61,17 +61,21 @@ function Still({ src, markers, hexFor, onPick, onDelete }: {
     for (const m of markers) {
       const x = m.fx * w, y = m.fy * cv.height;
       ctx.beginPath();
-      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
       ctx.fillStyle = hexFor(m.team);
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#09090b";
       ctx.stroke();
-      ctx.fillStyle = "#09090b";
-      ctx.font = "bold 11px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = "bold 13px ui-sans-serif, system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(m.number), x, y + 0.5);
+      ctx.textBaseline = "bottom";
+      const short = m.label.length > 10 ? `${m.label.slice(0, 9)}…` : m.label;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#09090b";
+      ctx.strokeText(short, x, y - 8);
+      ctx.fillStyle = hexFor(m.team);
+      ctx.fillText(short, x, y - 8);
     }
   }, [markers, hexFor, ready]);
 
@@ -108,10 +112,10 @@ export default function AnchorPlayers({ onDoc }: {
   const [times, setTimes] = useState<Record<string, string>>({});
   const [pend, setPend] = useState<{ angle: number; fx: number; fy: number } | null>(null);
   const [team, setTeam] = useState<"A" | "B">("A");
-  const [num, setNum] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const numRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void api.anchors().then((d) => {
@@ -125,7 +129,7 @@ export default function AnchorPlayers({ onDoc }: {
       .catch(() => setLabels([]));
   }, [api]);
 
-  useEffect(() => { if (pend) numRef.current?.focus(); }, [pend]);
+  useEffect(() => { if (pend) nameRef.current?.focus(); }, [pend]);
 
   if (!doc) return null;
   const lo = doc.window?.[0] ?? 0;
@@ -142,8 +146,8 @@ export default function AnchorPlayers({ onDoc }: {
   };
 
   const addClick = (angle: number, fx: number, fy: number) => {
-    const n = parseInt(num, 10);
-    if (!moment || !(n >= 1 && n <= 99)) return;
+    const label = name.trim().slice(0, 40);
+    if (!moment || !label) return;
     setDoc({
       ...doc,
       doc: {
@@ -153,12 +157,12 @@ export default function AnchorPlayers({ onDoc }: {
           moment: moment.id, angle,
           fx: Math.min(1, Math.max(0, fx)),
           fy: Math.min(1, Math.max(0, fy)),
-          team, number: n,
+          team, label,
         }],
       },
     });
     setPend(null);
-    setNum("");
+    setName("");
   };
 
   const save = async () => {
@@ -174,7 +178,7 @@ export default function AnchorPlayers({ onDoc }: {
         moments: momentsOut,
         clicks: clicks.map((c) => ({
           id: c.id, moment: c.moment, angle: c.angle, fx: c.fx, fy: c.fy,
-          team: c.team, number: c.number,
+          team: c.team, label: c.label,
         })),
       });
       setDoc(d);
@@ -214,7 +218,7 @@ export default function AnchorPlayers({ onDoc }: {
           Anchor players (start / middle / end)
         </span>
         <span className="text-[11px] text-zinc-500">
-          — click every green and orange player, give their number
+          — click every player on each team, give their name
         </span>
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -257,7 +261,7 @@ export default function AnchorPlayers({ onDoc }: {
             src={api.angleFrameUrl(a, momentT() - (doc.offsets[a] ?? 0), 720)}
             markers={forMoment(a)}
             hexFor={hexFor}
-            onPick={(fx, fy) => { setPend({ angle: a, fx, fy }); setNum(""); }}
+            onPick={(fx, fy) => { setPend({ angle: a, fx, fy }); setName(""); }}
             onDelete={(id) => setDoc({
               ...doc,
               doc: { ...doc.doc, clicks: clicks.filter((c) => c.id !== id) },
@@ -275,16 +279,23 @@ export default function AnchorPlayers({ onDoc }: {
                   {teamName(t)}
                 </button>
               ))}
-              <input ref={numRef} value={num} inputMode="numeric" placeholder="#"
-                className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs w-12 text-center"
-                onChange={(e) => setNum(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              <input ref={nameRef} value={name} placeholder="Player name"
+                list={`anchor-names-${team}`} maxLength={40}
+                className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs w-36"
+                onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addClick(a, pend.fx, pend.fy);
                   if (e.key === "Escape") setPend(null);
                 }}
-                aria-label="shirt number" />
+                aria-label="player name" />
+              <datalist id={`anchor-names-${team}`}>
+                {[...new Set(clicks.filter((c) => c.team === team)
+                  .map((c) => c.label))].map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
               <button type="button" className={btnGhost}
-                disabled={!(parseInt(num, 10) >= 1)}
+                disabled={!name.trim()}
                 onClick={() => addClick(a, pend.fx, pend.fy)}>
                 OK
               </button>
@@ -299,8 +310,8 @@ export default function AnchorPlayers({ onDoc }: {
       {clicks.filter((c) => c.moment === moment?.id).length > 0 && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
           {clicks.filter((c) => c.moment === moment?.id).map((c) => (
-            <span key={c.id} title={`${teamName(c.team)} #${c.number}`}>
-              <span style={{ color: hexFor(c.team) }}>#{c.number}</span>
+            <span key={c.id} title={`${teamName(c.team)} — ${c.label}`}>
+              <span style={{ color: hexFor(c.team) }}>{c.label}</span>
               <span className="text-zinc-500"> ·{labels[c.angle] ?? `Cam ${c.angle + 1}`} </span>
               {c.track_id != null ? (
                 <span className="text-zinc-400">

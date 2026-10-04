@@ -66,7 +66,7 @@ class AnchorClick(BaseModel):
     fx: float
     fy: float
     team: Literal["A", "B"]
-    number: int = Field(ge=1, le=99)
+    label: str = Field(min_length=1, max_length=40)
 
 
 class AnchorsPut(BaseModel):

@@ -1,16 +1,16 @@
-"""User-placed player anchors: shirt-number clicks on camera stills.
+"""User-placed player anchors: named clicks on camera stills.
 
 The user clicks every visible player at three moments (start / middle /
-end of the fused window), giving team + shirt number. Each click is
+end of the fused window), giving team + player name. Each click is
 projected through the camera homography and resolved to the nearest
 same-team v2 track active at that moment. Resolved anchors become hard
-constraints for link_identities (same number = same player, different
-numbers = never the same player).
+constraints for link_identities (same name = same player, different
+names = never the same player).
 
 anchors.json lives in analysis/players_v2/:
 
     {"moments": [{"id": "start"|"mid"|"end", "t": <shared s>}],
-     "clicks":  [{"id", "moment", "angle", "fx", "fy", "team", "number",
+     "clicks":  [{"id", "moment", "angle", "fx", "fy", "team", "label",
                   "track_id", "dist_m", "xy", "note"}],
      "updated_at": <epoch>}
 """
@@ -96,12 +96,13 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict) -> dict:
     for c in clicks:
         c.update(track_id=None, dist_m=None, xy=None, note=None)
 
-    # duplicate (moment, team, number): only the first counts
+    # duplicate (moment, team, label): only the first counts
     seen: set[tuple] = set()
     for c in clicks:
-        key = (c.get("moment"), c.get("team"), c.get("number"))
+        key = (c.get("moment"), c.get("team"),
+               str(c.get("label") or "").strip().lower())
         if key in seen:
-            c["note"] = "duplicate number"
+            c["note"] = "duplicate name"
         seen.add(key)
 
     live = [c for c in clicks if c["note"] is None]
@@ -151,34 +152,37 @@ def resolve_clicks(doc: dict, tracks_doc: dict, calib: dict) -> dict:
                     f"no {c.get('team')} player within {MAX_DIST_M:.0f} m"
                     + (f" (nearest {d:.1f} m)" if d is not None else ""))
 
-    # conflicting numbers on one track void both clicks
-    by_track: dict[int, set[int]] = {}
+    # conflicting labels on one track void both clicks
+    by_track: dict[int, set[str]] = {}
     for c in clicks:
         if c.get("track_id") is not None:
             by_track.setdefault(int(c["track_id"]), set()).add(
-                int(c["number"]))
+                str(c.get("label") or "").strip().lower())
     for c in clicks:
         tid = c.get("track_id")
         if tid is not None and len(by_track.get(int(tid)) or set()) > 1:
             c["track_id"] = None
             c["dist_m"] = None
-            c["note"] = "conflicting numbers"
+            c["note"] = "conflicting names"
 
     doc["clicks"] = clicks
     doc["updated_at"] = time.time()
     return doc
 
 
-def constraints(doc: dict) -> dict[int, tuple[str, int]]:
-    """track_id -> (team, number) for resolved clicks; a track carrying
-    two different numbers is dropped entirely."""
-    by_track: dict[int, set[int]] = {}
+def constraints(doc: dict) -> dict[int, tuple[str, str]]:
+    """track_id -> (team, label) for resolved clicks; a track carrying
+    two different labels is dropped entirely."""
+    by_track: dict[int, set[str]] = {}
+    raw: dict[int, str] = {}
     team_of: dict[int, str] = {}
     for c in doc.get("clicks") or []:
         if c.get("track_id") is None:
             continue
         tid = int(c["track_id"])
-        by_track.setdefault(tid, set()).add(int(c["number"]))
+        by_track.setdefault(tid, set()).add(
+            str(c.get("label") or "").strip().lower())
+        raw.setdefault(tid, str(c.get("label") or "").strip())
         team_of[tid] = str(c["team"])
-    return {tid: (team_of[tid], next(iter(nums)))
-            for tid, nums in by_track.items() if len(nums) == 1}
+    return {tid: (team_of[tid], raw[tid])
+            for tid, labs in by_track.items() if len(labs) == 1}

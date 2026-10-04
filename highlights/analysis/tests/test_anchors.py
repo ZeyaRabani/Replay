@@ -13,9 +13,9 @@ def _tr(tid, team, start, end, x, y):
             "xy": [[x, y]] * n}
 
 
-def _clk(cid, x, y, team="A", num=7, moment="mid", angle=0):
+def _clk(cid, x, y, team="A", label="Rui", moment="mid", angle=0):
     return {"id": cid, "moment": moment, "angle": angle,
-            "fx": x, "fy": y, "team": team, "number": num}
+            "fx": x, "fy": y, "team": team, "label": label}
 
 
 def _resolve(clicks, tracks, moments=((("mid", 100.0),))):
@@ -51,21 +51,23 @@ def test_far_click_unresolved_with_note():
 def test_greedy_never_double_assigns():
     # c2 hugs track 2; greedy must leave track 1 for c1
     tracks = [_tr(1, "A", 0, 200, 0, 0), _tr(2, "A", 0, 200, 1, 0)]
-    out = _resolve([_clk("c1", 0.9, 0, num=7), _clk("c2", 0.95, 0, num=9)],
+    out = _resolve([_clk("c1", 0.9, 0, label="Rui"),
+                    _clk("c2", 0.95, 0, label="Dana")],
                    tracks)
     by_id = {c["id"]: c for c in out["clicks"]}
     assert by_id["c1"]["track_id"] == 1
     assert by_id["c2"]["track_id"] == 2
 
 
-def test_duplicate_number_second_unresolved():
+def test_duplicate_name_second_unresolved():
     tracks = [_tr(1, "A", 0, 200, 10, 10)]
-    out = _resolve([_clk("a", 10, 10, num=7), _clk("b", 10.5, 10, num=7)],
+    out = _resolve([_clk("a", 10, 10, label="Rui"),
+                    _clk("b", 10.5, 10, label=" rui ")],
                    tracks)
     by_id = {c["id"]: c for c in out["clicks"]}
     assert by_id["a"]["track_id"] == 1
     assert by_id["b"]["track_id"] is None
-    assert by_id["b"]["note"] == "duplicate number"
+    assert by_id["b"]["note"] == "duplicate name"
 
 
 def test_uncalibrated_camera():
@@ -77,27 +79,27 @@ def test_uncalibrated_camera():
     assert out["clicks"][0]["note"] == "camera not calibrated"
 
 
-def test_conflicting_numbers_void_both():
+def test_conflicting_names_void_both():
     tracks = [_tr(1, "A", 0, 200, 10, 10)]
     out = anch.resolve_clicks(
         {"moments": [{"id": "start", "t": 50.0}, {"id": "end", "t": 150.0}],
-         "clicks": [_clk("a", 10, 10, num=7, moment="start"),
-                    _clk("b", 10, 10, num=9, moment="end")]},
+         "clicks": [_clk("a", 10, 10, label="Rui", moment="start"),
+                    _clk("b", 10, 10, label="Dana", moment="end")]},
         {"tracks": tracks}, CAL)
     for c in out["clicks"]:
         assert c["track_id"] is None
-        assert c["note"] == "conflicting numbers"
+        assert c["note"] == "conflicting names"
     assert anch.constraints(out) == {}
 
 
 def test_constraints_map():
     doc = {"clicks": [
         {"id": "a", "moment": "start", "angle": 0, "fx": 0, "fy": 0,
-         "team": "A", "number": 7, "track_id": 42},
+         "team": "A", "label": "Rui", "track_id": 42},
         {"id": "b", "moment": "start", "angle": 0, "fx": 0, "fy": 0,
-         "team": "B", "number": 3, "track_id": None},
+         "team": "B", "label": "Dana", "track_id": None},
     ]}
-    assert anch.constraints(doc) == {42: ("A", 7)}
+    assert anch.constraints(doc) == {42: ("A", "Rui")}
 
 
 def test_default_moments_spaced():
