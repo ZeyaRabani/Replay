@@ -17,6 +17,7 @@ import type {
   RosterPlayer,
 } from "../types";
 import { CALIB_SAVED_EVENT } from "./CameraCalib";
+import AnchorPlayers from "./AnchorPlayers";
 import IdentityCards from "./IdentityCards";
 import { PlayersV2Bar, PlayersV2Grid, isLive } from "./PlayersV2";
 import Swatch from "./Swatch";
@@ -589,6 +590,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     return (
       <div className={`${card} min-w-0`}>
         {header}
+        {open && <AnchorPlayers onDoc={setIdents} />}
         {open && (!showIds ? idsOff : (
           <div className="mt-3 flex flex-col gap-3 min-w-0">
             {tabBar(null)}
@@ -637,6 +639,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
     return (
       <div className={card}>
         {header}
+        {open && <AnchorPlayers onDoc={setIdents} />}
         {open && (!showIds ? idsOff : (
           <div className="text-sm text-zinc-500 flex items-center gap-2 mt-3">
             {!error && <Loader2 size={14} className="animate-spin" />}
@@ -802,6 +805,7 @@ export default function PlayerAnalysis(_props: { onSeek?: (t: number) => void })
   return (
     <div className={`${card} min-w-0`}>
       {header}
+      {open && <AnchorPlayers onDoc={setIdents} />}
       {open && (!showIds ? idsOff : body)}
     </div>
   );

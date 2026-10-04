@@ -9,7 +9,7 @@ import { fetchPlayers, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
 import { fromOut, inReplay, toOut } from "../lib/timemap";
 import type { Candidate, DirectorFull, DirectorSegment, PitchDims,
-              PlayersPaths, ReplayInfo } from "../types";
+              PlayerIdentity, PlayersPaths, ReplayInfo } from "../types";
 import { posAt } from "./RadarReplay";
 
 const card = "card p-4";
@@ -233,7 +233,7 @@ function buildPitch(group: THREE.Group, pitch: PitchDims) {
 
 /** Players alive at shared t, deduped by identity_id (mean over its tracks). */
 function livePlayers(paths: PlayersPaths, t: number,
-                     identNames: Record<string, string | null>,
+                     labels: Record<string, string | null>,
                      segs: SegMap, showIds: boolean): LivePlayer[] {
   const byIdent = new Map<string, LivePlayer & { n: number }>();
   const out: (LivePlayer & { n?: number })[] = [];
@@ -252,7 +252,7 @@ function livePlayers(paths: PlayersPaths, t: number,
       }
       const e: LivePlayer & { n: number } = {
         id: iid, team: tr.team ?? "A",
-        label: showIds ? identNames[iid] || iid : null,
+        label: labels[iid] ?? null,
         ident: showIds,
         xy: [p[0], p[1]], n: 1, bridged: false,
       };
@@ -281,7 +281,7 @@ function livePlayers(paths: PlayersPaths, t: number,
     if (xy) {
       const pl: LivePlayer & { n: number } = {
         id: iid, team: e.team,
-        label: showIds ? identNames[iid] || iid : null,
+        label: labels[iid] ?? null,
         ident: showIds, xy, bridged: true, n: 1,
       };
       byIdent.set(iid, pl); out.push(pl);
@@ -307,7 +307,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const api = useProjectApi();
   const [open, setOpen] = useState(false);
   const [paths, setPaths] = useState<PlayersPaths | null>(null);
-  const [identNames, setIdentNames] = useState<Record<string, string | null>>({});
+  const [identList, setIdentList] = useState<PlayerIdentity[]>([]);
   const [cands, setCands] = useState<Candidate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -333,14 +333,14 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
   const recStopRef = useRef<(() => void) | null>(null);
   const stateRef = useRef<{
     t: number; playing: boolean; speed: number; cam: string;
-    win: [number, number]; idents: Record<string, string | null>;
+    win: [number, number]; idents: PlayerIdentity[];
     ids: boolean; rec: boolean; recT: number;
     foot: boolean; replays: ReplayInfo[]; loV: number;
     segs: DirectorSegment[]; alabels: string[];
-  }>({ t: 0, playing: false, speed: 1, cam: "follow", win: [0, 0], idents: {},
+  }>({ t: 0, playing: false, speed: 1, cam: "follow", win: [0, 0], idents: [],
        ids: false, rec: false, recT: 0, foot: false, replays: [], loV: 0,
        segs: [], alabels: [] });
-  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identNames,
+  stateRef.current = { t, playing, speed, cam: camMode, win, idents: identList,
                        ids: showIds, rec: recording !== null,
                        recT: recording === null ? 0 : stateRef.current.recT,
                        foot: footage && vidSrc !== null,
@@ -411,15 +411,14 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
     if (v) v.muted = muted;
   }, [muted, vidSrc, footage]);
 
+  // identities fetched whenever open: anchored numbers show even with
+  // the per-player-cards toggle off (404 -> none)
   useEffect(() => {
-    if (!open || !showIds) {
-      setIdentNames({});
-      return;
-    }
+    if (!open) return;
     void api.identities()
-      .then((d) => setIdentNames(Object.fromEntries(d.identities.map((i) => [i.id, i.name]))))
-      .catch(() => setIdentNames({}));
-  }, [open, api, showIds]);
+      .then((d) => setIdentList(d.identities))
+      .catch(() => setIdentList([]));
+  }, [open, api]);
 
   // renderer lifecycle — created once paths exist and the card is open
   useEffect(() => {
@@ -520,7 +519,11 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
         const txt = lbl + (inReplay(o, st.replays) ? " · REPLAY" : "");
         if (txt !== lastChip) { lastChip = txt; setVidChip(txt); }
       }
-      const pls = livePlayers(paths, st.t, stateRef.current.idents, segs, st.ids);
+      const idl = Object.fromEntries(st.idents.map((i) => [i.id,
+        st.ids
+          ? (i.name || (i.number != null ? `#${i.number}` : i.id))
+          : (i.number != null ? `#${i.number}` : null)]));
+      const pls = livePlayers(paths, st.t, idl, segs, st.ids);
       const bx = ballAt(paths.ball, st.t);
       const bp = bx ? V(bx[0], bx[1], 0) : null;
       const seen = new Set<string>();

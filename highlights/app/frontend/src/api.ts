@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 import type {
+  AnchorClick,
+  AnchorMoment,
   AnalysisResponse,
   AnalysisStatus,
   CalibCamera,
@@ -28,6 +30,7 @@ import type {
   PlayersStats,
   IdentityEditOp,
   IdentityTrack,
+  PlayerAnchors,
   PlayerIdentities,
   PlayerReel,
   PlayersV2Group,
@@ -253,6 +256,11 @@ export function projectApi(id: string) {
         `${base}/players/identities/${encodeURIComponent(iid)}/tracks`),
     editIdentities: (op: IdentityEditOp) =>
       req<PlayerIdentities>(`${base}/players/identities/edit`, json(op)),
+    anchors: () => req<PlayerAnchors>(`${base}/players/anchors`),
+    putAnchors: (body: { moments: AnchorMoment[]; clicks: AnchorClick[] }) =>
+      req<PlayerAnchors>(`${base}/players/anchors`, json(body, "PUT")),
+    relinkAnchors: () =>
+      req<PlayerIdentities>(`${base}/players/anchors/relink`, json({})),
     identityReel: (iid: string) =>
       req<PlayerReel>(`${base}/players/identities/${encodeURIComponent(iid)}/reel`),
     makeIdentityReel: (iid: string) =>
@@ -287,9 +295,11 @@ export function projectApi(id: string) {
     putZones: (angles: ZoneKeyframe[][]) =>
       req<{ version: 2; angles: ZoneKeyframe[][] }>(
         `${base}/multiangle/zones`, json({ angles }, "PUT")),
-    angleFrameUrl: (i: number, t?: number) =>
-      mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`,
-        t == null ? {} : { t: String(t) }),
+    angleFrameUrl: (i: number, t?: number, h?: number) =>
+      mediaUrl(`${base}/multiangle/angle/${i}/frame.jpg`, {
+        ...(t == null ? {} : { t: String(t) }),
+        ...(h == null ? {} : { h: String(h) }),
+      }),
     putScore: (body: { home_label: string; away_label: string; home_hex?: string; away_hex?: string }) =>
       req<MultiangleScore>(`${base}/multiangle/score`, json(body, "PUT")),
     postScoreboard: () =>

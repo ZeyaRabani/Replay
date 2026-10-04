@@ -627,6 +627,37 @@ export interface PlayerIdentity {
   crops: string[];
   name: string | null;
   cohesion?: number;
+  /** user-anchored shirt number, when the card carries one */
+  number?: number | null;
+  anchored?: boolean;
+}
+
+export interface AnchorMoment {
+  id: string;
+  t: number;   // shared-timeline seconds
+}
+
+export interface AnchorClick {
+  id: string;
+  moment: string;
+  angle: number;
+  fx: number;
+  fy: number;
+  team: "A" | "B";
+  number: number;
+  track_id?: number | null;
+  dist_m?: number | null;
+  xy?: [number, number] | null;
+  note?: string | null;
+}
+
+export interface PlayerAnchors {
+  doc: { moments: AnchorMoment[]; clicks: AnchorClick[];
+         updated_at?: number };
+  offsets: number[];
+  n_angles: number;
+  window: [number, number] | null;
+  teams: Record<string, { name: string | null; hex: string | null }>;
 }
 
 export interface PlayerIdentities {
