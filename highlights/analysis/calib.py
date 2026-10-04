@@ -51,14 +51,19 @@ _LM: dict[str, tuple[float, float]] = {
     "goalpost_r_far": (1.0, 0.442812),
 }
 
-_LABELS = {
-    "corner": "Corner", "halfway": "Halfway", "centre_spot": "Centre spot",
-    "pen_area_l": "Penalty box L", "pen_area_r": "Penalty box R",
-    "six_l": "Six-yard L", "six_r": "Six-yard R",
-    "pen_spot_l": "Penalty spot L", "pen_spot_r": "Penalty spot R",
-    "goalpost_l": "Goal post L", "goalpost_r": "Goal post R",
-    "d_l": "D left", "d_r": "D right",
+# base label for the landmark tokens left after the end (l/r/left/
+# right) and side (near/far) tokens are taken out
+_BASE_LABELS = {
+    "corner": "Corner", "halfway": "Halfway line",
+    "centre spot": "Centre spot",
+    "pen area goal": "Penalty box goal line",
+    "pen area edge": "Penalty box edge",
+    "six goal": "Six-yard goal line", "six edge": "Six-yard edge",
+    "pen spot": "Penalty spot", "goalpost": "Goal post",
+    "d": "D arc end", "d apex": "D apex",
 }
+
+_END_TOKENS = {"l": "l", "left": "l", "r": "r", "right": "r"}
 
 # small-sided (9-a-side) template: marked touchlines + halfway + centre
 # circle, portable goals, and a semicircular "D" arc (radius d_radius_m)
@@ -92,31 +97,56 @@ def _small_lm(L: float, W: float, goal_w: float, r: float
 
 def landmarks_for(pitch: dict) -> list[dict]:
     """[{"name","label","x","y"}] for a pitch dict
-    {"len_m","wid_m","template","goal_w_m","d_radius_m"} — "full"
-    is the standard 29-landmark table, "small" the 9-a-side one."""
+    {"len_m","wid_m","template","goal_w_m","d_radius_m",
+     "end_names": {"l","r"}, "side_names": {"near","far"}} — "full"
+    is the standard 29-landmark table, "small" the 9-a-side one.
+    end_names/side_names relabel the fixed pitch ends/sides so every
+    camera clicks the same real-world points."""
     template = pitch.get("template", "full")
+    ends = pitch.get("end_names") or {}
+    sides = pitch.get("side_names") or {}
     L, W = float(pitch["len_m"]), float(pitch["wid_m"])
     if template == "small":
         goal_w = float(pitch.get("goal_w_m") or 3.66)
         r = float(pitch.get("d_radius_m") or 9.0)
         lm = _small_lm(L, W, goal_w, r)
-        return [{"name": n, "label": _label(n), "x": x, "y": y}
+        return [{"name": n, "label": _label(n, ends, sides), "x": x, "y": y}
                 for n, (x, y) in lm.items()]
-    return landmarks(L, W)
+    return landmarks(L, W, ends=ends, sides=sides)
 
 
-def _label(name: str) -> str:
-    for prefix, lab in _LABELS.items():
-        if name.startswith(prefix):
-            tail = name[len(prefix):].strip("_").replace("_", " ")
-            return f"{lab} - {tail}" if tail else lab
-    return name
+def _label(name: str, ends: dict | None = None,
+           sides: dict | None = None) -> str:
+    """Human label: base landmark + named end/side, e.g.
+    "Corner — Left end · Side 1". l/r/left/right name the x=0 / x=L
+    ends, near/far the y=W / y=0 touchlines — fixed pitch-frame sides,
+    never camera-relative."""
+    en = {"l": "Left end", "r": "Right end"}
+    en.update({k: str(v) for k, v in (ends or {}).items()
+               if v and k in en})
+    sd = {"near": "Side 1", "far": "Side 2"}
+    sd.update({k: str(v) for k, v in (sides or {}).items()
+               if v and k in sd})
+    end = side = None
+    base = []
+    for t in name.split("_"):
+        if t in _END_TOKENS:
+            end = en[_END_TOKENS[t]]
+        elif t in sd:
+            side = sd[t]
+        else:
+            base.append(t)
+    lab = _BASE_LABELS.get(" ".join(base), " ".join(base).title())
+    if end:
+        return f"{lab} — {end}" + (f" · {side}" if side else "")
+    return f"{lab} · {side}" if side else lab
 
 
-def landmarks(len_m: float, wid_m: float) -> list[dict]:
+def landmarks(len_m: float, wid_m: float, ends: dict | None = None,
+              sides: dict | None = None) -> list[dict]:
     """[{"name","label","x","y"}] for a len_m x wid_m pitch (full)."""
     L, W = float(len_m), float(wid_m)
-    return [{"name": n, "label": _label(n),
+    return [{"name": n, "label": _label(n, ends, sides),
              "x": fx * L, "y": fy * W} for n, (fx, fy) in _LM.items()]
 
 

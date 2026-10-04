@@ -27,9 +27,22 @@ function MiniPitch({ pitch, landmarks, placed, sel }: {
   const pad = 4, W = pitch.wid_m;
   const P = (x: number, y: number) => `${x.toFixed(2)},${y.toFixed(2)}`;
   const s = landmarks.find((l) => l.name === sel);
+  const enL = pitch.end_names?.l || "Left end";
+  const enR = pitch.end_names?.r || "Right end";
+  const sN = pitch.side_names?.near || "Side 1";
+  const sF = pitch.side_names?.far || "Side 2";
+  const edge = { fontSize: 2.6, fill: "rgba(255,255,255,0.75)",
+    textAnchor: "middle" as const };
   return (
     <svg viewBox={`${-pad} ${-pad} ${pitch.len_m + 2 * pad} ${W + 2 * pad}`}
       className="w-full rounded bg-[#1a5f36]" role="img" aria-label="pitch map">
+      {/* fixed pitch-frame ends/sides — same real-world refs per camera */}
+      <text x={pitch.len_m / 2} y={-1.2} {...edge}>{sF}</text>
+      <text x={pitch.len_m / 2} y={W + 3.4} {...edge}>{sN}</text>
+      <text x={-1.2} y={W / 2} {...edge}
+        transform={`rotate(-90 ${-1.2} ${W / 2})`}>{enL}</text>
+      <text x={pitch.len_m + 1.2} y={W / 2} {...edge}
+        transform={`rotate(90 ${pitch.len_m + 1.2} ${W / 2})`}>{enR}</text>
       {pitchShapes(pitch).map((sh, i) =>
         sh.k === "dot" ? (
           <circle key={i} cx={sh.x} cy={sh.y} r={0.5} fill="rgba(255,255,255,0.7)" />
@@ -106,6 +119,7 @@ export default function CameraCalib({ onSaved, defaultT }: {
   const [frameT, setFrameT] = useState<number | undefined>(defaultT ?? undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nm, setNm] = useState({ l: "", r: "", near: "", far: "" });
 
   useEffect(() => {
     Promise.all([
@@ -115,7 +129,11 @@ export default function CameraCalib({ onSaved, defaultT }: {
     ])
       .then(([lm, c, n]) => {
         setLandmarks(lm.landmarks);
-        setPitch(c?.pitch ?? lm.pitch);
+        const pd = c?.pitch ?? lm.pitch;
+        setPitch(pd);
+        setNm({ l: pd.end_names?.l ?? "", r: pd.end_names?.r ?? "",
+                near: pd.side_names?.near ?? "",
+                far: pd.side_names?.far ?? "" });
         setNAngles(Math.max(1, n));
         if (c) {
           setSaved(c);
@@ -182,6 +200,22 @@ export default function CameraCalib({ onSaved, defaultT }: {
     }
   };
 
+  // persist the end/side names with the pitch dims, then refetch
+  // landmarks so labels pick them up
+  const saveNames = async () => {
+    const p2: PitchDims = {
+      ...pitch,
+      end_names: { l: nm.l.trim(), r: nm.r.trim() },
+      side_names: { near: nm.near.trim(), far: nm.far.trim() },
+    };
+    try {
+      await api.putCalibPitch(p2);
+      setPitch(p2);
+      const l2 = await api.calibLandmarks().catch(() => null);
+      if (l2) setLandmarks(l2.landmarks);
+    } catch { /* naming is a convenience; ignore */ }
+  };
+
   const applyT = () => {
     const t = parseClock(tText);
     setFrameT(t == null ? undefined : Math.max(0, t));
@@ -201,6 +235,28 @@ export default function CameraCalib({ onSaved, defaultT }: {
 
   return (
     <div className="flex flex-col gap-2.5 rounded border border-zinc-800 bg-zinc-950/40 p-3">
+      <div className="flex items-center gap-2 flex-wrap text-[11px] text-zinc-500">
+        <span>Name the ends/sides so every camera uses the same reference:</span>
+        {([["l", "Left end", "e.g. Sports hall goal"],
+           ["r", "Right end", "e.g. Houses goal"],
+           ["near", "Side 1", "e.g. Path side"],
+           ["far", "Side 2", "e.g. Fence side"]] as const)
+          .map(([k, lab, ph]) => (
+            <label key={k} className="flex items-center gap-1">
+              {lab} =
+              <input value={nm[k]} placeholder={ph} maxLength={40}
+                className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs w-32 text-zinc-200"
+                onChange={(e) => setNm((m) => ({ ...m, [k]: e.target.value }))}
+                onBlur={() => void saveNames()}
+                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+            </label>
+          ))}
+      </div>
+      <div className="text-[11px] text-zinc-600">
+        Left/Right and Side 1/2 are the SAME real-world ends and sides in
+        every camera — not relative to where the camera stands. Click the
+        base of each goal post where it meets the ground.
+      </div>
       <div className="flex items-center gap-2 flex-wrap">
         <span className={head}>Camera calibration</span>
         <div className="flex gap-1 ml-2">

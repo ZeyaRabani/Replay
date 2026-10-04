@@ -24,7 +24,7 @@ def test_landmarks_table():
     assert LM["goalpost_l_near"][1] == pytest.approx(35.66, abs=0.01)
     # 4 corners + 2 halfway + centre + 8 pen + 8 six + 2 spots + 4 posts
     assert len(LM) == 29
-    assert LML["corner_near_left"]["label"] == "Corner - near left"
+    assert LML["corner_near_left"]["label"] == "Corner — Left end · Side 1"
     assert LML["centre_spot"]["label"] == "Centre spot"
 
 
@@ -50,9 +50,31 @@ def test_landmarks_small_template():
     # 4 corners + 2 halfway + centre + 4 posts + 4 D-ends + 2 apices
     assert len(lm) == 17
     lab = {l["name"]: l["label"] for l in landmarks_for(pitch)}
-    assert lab["d_l_apex"] == "D left - apex"
+    assert lab["d_l_apex"] == "D apex — Left end"
+    assert lab["d_r_far"] == "D arc end — Right end · Side 2"
+    assert lab["halfway_near"] == "Halfway line · Side 1"
+    assert lab["goalpost_r_far"] == "Goal post — Right end · Side 2"
     # unknown template falls back to the full table
     assert len(landmarks_for({"len_m": 100.0, "wid_m": 64.0})) == 29
+
+
+def test_landmarks_named_ends_sides():
+    # user-named ends/sides appear in labels; keys and coords unchanged
+    pitch = {"len_m": 70.0, "wid_m": 45.0, "template": "small",
+             "goal_w_m": 3.66, "d_radius_m": 9.0,
+             "end_names": {"l": "Sports hall goal", "r": "Houses goal"},
+             "side_names": {"near": "Path side", "far": "Fence side"}}
+    lab = {l["name"]: l["label"] for l in landmarks_for(pitch)}
+    lm = {l["name"]: [l["x"], l["y"]] for l in landmarks_for(pitch)}
+    assert lab["corner_near_left"] == (
+        "Corner — Sports hall goal · Path side")
+    assert lab["goalpost_r_far"] == "Goal post — Houses goal · Fence side"
+    assert lab["d_l_apex"] == "D apex — Sports hall goal"
+    assert lab["centre_spot"] == "Centre spot"
+    plain = {l["name"]: [l["x"], l["y"]] for l in landmarks_for(
+        {"len_m": 70.0, "wid_m": 45.0, "template": "small",
+         "goal_w_m": 3.66, "d_radius_m": 9.0})}
+    assert lm == plain
 
 
 def test_solve_recovers_known_h():

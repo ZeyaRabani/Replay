@@ -524,6 +524,9 @@ export interface PitchDims {
   template?: "full" | "small";
   goal_w_m?: number | null;    // 3.66 small / 7.32 full
   d_radius_m?: number | null;  // small template only
+  /** user names for the fixed pitch ends/sides (calibration labels) */
+  end_names?: { l?: string; r?: string } | null;
+  side_names?: { near?: string; far?: string } | null;
 }
 
 export interface PlayersPaths {

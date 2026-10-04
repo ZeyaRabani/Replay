@@ -901,6 +901,8 @@ def make_router(ScopedP, PublicP) -> APIRouter:
             "template": stored.get("template") or "full",
             "goal_w_m": float(stored.get("goal_w_m") or 0) or None,
             "d_radius_m": float(stored.get("d_radius_m") or 0) or None,
+            "end_names": stored.get("end_names"),
+            "side_names": stored.get("side_names"),
         }
 
     _PITCH_RANGES = {"len_m": (30, 130), "wid_m": (20, 90),
@@ -927,6 +929,17 @@ def make_router(ScopedP, PublicP) -> APIRouter:
                 raise HTTPException(
                     422, f"pitch.{key} must be in [{lo}, {hi}]")
             out[key] = v
+        for key, subs in (("end_names", ("l", "r")),
+                          ("side_names", ("near", "far"))):
+            v = body.get(key)
+            if v is None:
+                continue
+            if not isinstance(v, dict):
+                raise HTTPException(422, f"pitch.{key} must be an object")
+            named = {k: str(v[k]).strip()[:40]
+                     for k in subs if v.get(k)}
+            if named:
+                out[key] = named
         return out
 
     @router.get("/analysis/calib/landmarks")
