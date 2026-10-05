@@ -90,6 +90,20 @@ def test_create_multiangle(client, sample_video, monkeypatch):
     assert client.get(scoped(other, "/multiangle")).status_code == 404
 
 
+def test_angle_proxy_status_missing(client, sample_video, monkeypatch):
+    """A fresh multiangle project has no per-angle proxy yet."""
+    monkeypatch.setenv("FAKE_MA_VIDEO", str(sample_video))
+    r = _create(client, 3, title="angle proxy")
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    _wait(client, pid)
+    d = client.get(scoped(pid, "/multiangle/angle/0/proxy/status"))
+    assert d.status_code == 200, d.text
+    assert d.json()["status"] == "missing"
+    assert client.get(
+        scoped(pid, "/multiangle/angle/9/proxy/status")).status_code == 404
+
+
 def test_multiangle_validation(client):
     r = _create(client, 1)
     assert r.status_code == 422

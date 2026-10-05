@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type {
   AnchorClick,
   AnchorMoment,
+  AngleProxyStatus,
   AnalysisResponse,
   AnalysisStatus,
   CalibCamera,
@@ -275,6 +276,11 @@ export function projectApi(id: string) {
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
     putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
+    angleProxyUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/proxy`),
+    angleProxyStatus: (i: number) =>
+      req<AngleProxyStatus>(`${base}/multiangle/angle/${i}/proxy/status`),
+    startAngleProxy: (i: number) =>
+      req<AngleProxyStatus>(`${base}/multiangle/angle/${i}/proxy`, json({})),
     recut: (style: "normal" | "fast", window?: [number, number] | null,
             preview = false, goalAware?: boolean) =>
       req<PipelineStatus>(`${base}/multiangle/recut`,

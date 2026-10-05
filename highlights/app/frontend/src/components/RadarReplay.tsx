@@ -1,11 +1,11 @@
-import { ChevronDown, ChevronRight, Loader2, Maximize2, Pause, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Maximize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { applyH, homography, type Mat3 } from "../lib/homography";
 import { DEFAULT_PITCH, drawPitch, pitchView } from "../lib/pitch";
 import { IDENTITIES_CHANGED_EVENT, fetchPlayers, identityHex, usePlayerIdentities } from "../lib/players";
 import { fmtClock } from "../lib/time";
-import type { CalibResponse, PitchDims, PlayersPaths, RadarPitch } from "../types";
+import type { CalibResponse, MultiangleInfo, PitchDims, PlayersPaths, RadarPitch } from "../types";
 import CameraCalib, { rmsTone } from "./CameraCalib";
 import CameraPlacement from "./CameraPlacement";
 
@@ -124,6 +124,24 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
   const smooth = useRef(new Map<number, [number, number]>());
   const lastTs = useRef(0);
   const showIds = usePlayerIdentities();
+  // synced camera footage panel
+  const [footage, setFootage] = useState(() => {
+    try { return localStorage.getItem("replay.radar.footage") !== "0"; }
+    catch { return true; }
+  });
+  const [cam, setCam] = useState(0);
+  const [maInfo, setMaInfo] = useState<MultiangleInfo | null>(null);
+  const [vidSrc, setVidSrc] = useState<string | null>(null);
+  const [muted, setMuted] = useState(true);
+  const [vidDur, setVidDur] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const offsets = maInfo?.sync?.offsets ?? [];
+  const camClamped = Math.min(cam, Math.max(0, (maInfo?.angles.length ?? 1) - 1));
+  const off = offsets[camClamped] ?? 0;
+  // shared-T = file_t + offset  ->  file_t = t - offset
+  const fileT = t - off;
+  const angleDur = vidDur || (maInfo?.angles[camClamped]?.duration ?? 0);
+  const covered = vidSrc != null && fileT >= -0.05 && (angleDur <= 0 || fileT <= angleDur);
 
   const lo = paths?.window_shared?.[0] ?? 0;
   const hi = paths?.window_shared?.[1] ?? 0;
@@ -180,13 +198,82 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     [inPitch, paths, calib, corners, pitch],
   );
 
+  // multiangle info for the footage panel (labels + sync offsets)
+  useEffect(() => {
+    if (!open || !footage || maInfo !== null) return;
+    let dead = false;
+    void api.multiangle()
+      .then((m) => { if (!dead) setMaInfo(m); })
+      .catch(() => { if (!dead) setMaInfo({} as MultiangleInfo); });
+    return () => { dead = true; };
+  }, [open, footage, maInfo, api]);
+
+  // pick the video source for the chosen camera: proxy if ready, else the
+  // source immediately + kick off the proxy build and poll until ready
+  useEffect(() => {
+    if (!open || !footage || !maInfo) return;
+    const n = maInfo.angles?.length ?? 0;
+    if (!n) { setVidSrc(null); return; }
+    const i = Math.min(cam, n - 1);
+    let dead = false, poll = 0;
+    void api.angleProxyStatus(i).then((s) => {
+      if (dead) return;
+      if (s.status === "ready") { setVidSrc(api.angleProxyUrl(i)); return; }
+      setVidSrc(api.angleVideoUrl(i));
+      if (s.status === "missing") void api.startAngleProxy(i).catch(() => undefined);
+      const tick = () => {
+        void api.angleProxyStatus(i).then((st) => {
+          if (dead) return;
+          if (st.status === "ready") setVidSrc(api.angleProxyUrl(i));
+          else poll = window.setTimeout(tick, 15000);
+        }).catch(() => { poll = window.setTimeout(tick, 15000); });
+      };
+      poll = window.setTimeout(tick, 15000);
+    }).catch(() => { if (!dead) setVidSrc(api.angleVideoUrl(i)); });
+    return () => { dead = true; window.clearTimeout(poll); };
+  }, [open, footage, maInfo, cam, api]);
+
+  // video transport: master clock while playing; paused otherwise
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (playing && footage && vidSrc) {
+      v.playbackRate = Math.min(4, speed);
+      void v.play().catch(() => { /* autoplay blocked: radar keeps running */ });
+    } else v.pause();
+  }, [playing, speed, footage, vidSrc]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.muted = muted;
+  }, [muted, vidSrc]);
+
+  // paused/scrubbing or camera/source switch: park the video on the mapped
+  // file time (debounced so dragging the slider doesn't thrash seeks)
+  useEffect(() => {
+    if (playing || !footage || !vidSrc) return;
+    const id = window.setTimeout(() => {
+      const v = videoRef.current;
+      if (!v) return;
+      const ft = t - off;
+      if (ft >= 0 && Math.abs(v.currentTime - ft) > 0.3) v.currentTime = ft;
+    }, 150);
+    return () => window.clearTimeout(id);
+  }, [t, playing, footage, vidSrc, camClamped, off]);
+
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
     const step = (ts: number) => {
-      if (lastTs.current) {
-        setT((v) => {
-          const nt = v + ((ts - lastTs.current) / 1000) * speed;
+      const v = videoRef.current;
+      if (footage && vidSrc && v) {
+        // video is the master clock
+        const shared = v.currentTime + off;
+        if (shared >= hi) { setT(lo); v.currentTime = lo - off; }
+        else setT(shared);
+      } else if (lastTs.current) {
+        setT((v2) => {
+          const nt = v2 + ((ts - lastTs.current) / 1000) * speed;
           return nt >= hi ? lo : nt;
         });
       }
@@ -195,7 +282,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     };
     raf = requestAnimationFrame(step);
     return () => { cancelAnimationFrame(raf); lastTs.current = 0; };
-  }, [playing, speed, lo, hi]);
+  }, [playing, speed, lo, hi, footage, vidSrc, off]);
 
   useEffect(() => {
     const cv = cvRef.current;
@@ -221,7 +308,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     const dots: { tr: PlayersPaths["tracks"][number]; m: [number, number]; a: number; n: number; out: boolean }[] = [];
     const byIdent = new Map<string, (typeof dots)[number]>();
     for (const tr of paths.tracks) {
-      if (tr.hidden) continue;
+      if (tr.hidden || (tr.team !== "A" && tr.team !== "B")) continue;
       const q = posAtEx(tr.pts, t);
       if (!q) continue;
       const p: Pt = [q.x, q.y, q.alpha];
@@ -254,7 +341,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
       ctx.fill();
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      const team = tr.team ? (teamHex[tr.team] ?? "#a1a1aa") : "#d4d4d8";
+      const team = teamHex[tr.team ?? ""] ?? "#a1a1aa";
       const iid = tr.identity_id ?? null;
       ctx.fillStyle = showIds && iid ? identityHex(iid) : team;
       ctx.fill();
@@ -461,6 +548,18 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                 <span className="text-[11px] font-mono text-zinc-400 ml-1">
                   {fmtClock(t - lo)} / {fmtClock(hi - lo)}
                 </span>
+                <label className="flex items-center gap-1 text-[11px] text-zinc-400"
+                  title={vidSrc ? undefined : "No multi-camera footage on this project"}>
+                  <input type="checkbox" checked={footage} disabled={!vidSrc}
+                    onChange={(e) => {
+                      setFootage(e.target.checked);
+                      try {
+                        localStorage.setItem("replay.radar.footage",
+                                             e.target.checked ? "1" : "0");
+                      } catch { /* private mode */ }
+                    }} />
+                  Footage
+                </label>
                 {onSeek && (
                   <button type="button" className={`${btnGhost} ml-auto`} onClick={() => onSeek(Math.max(0, t - lo))}>
                     Jump video here
@@ -480,6 +579,42 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                   aria-label="scrub radar"
                 />
               </div>
+              {footage && (maInfo?.angles?.length ?? 0) > 0 && (
+                <div className="rounded-md border border-zinc-800 overflow-hidden">
+                  <div className="flex items-center gap-2 px-2 py-1.5 bg-zinc-900">
+                    <select
+                      className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-xs text-zinc-300"
+                      value={camClamped} onChange={(e) => setCam(Number(e.target.value))}
+                      aria-label="footage camera">
+                      {(maInfo?.angles ?? []).map((a) => (
+                        <option key={a.index} value={a.index}>
+                          {a.label || `Camera ${a.index + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className={btnGhost}
+                      onClick={() => setMuted((m) => !m)}
+                      title={muted ? "Unmute" : "Mute"}>
+                      {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                      {muted ? "Muted" : "Sound"}
+                    </button>
+                  </div>
+                  <div className="relative bg-black">
+                    {vidSrc && (
+                      <video ref={videoRef} src={vidSrc} muted playsInline
+                        preload="auto" className="w-full max-h-72"
+                        onLoadedMetadata={(e) =>
+                          setVidDur(e.currentTarget.duration || 0)} />
+                    )}
+                    {!covered && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/70 text-xs text-zinc-400">
+                        {(maInfo?.angles[camClamped]?.label
+                          || `Camera ${camClamped + 1}`)} not covering this moment
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

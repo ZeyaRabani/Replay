@@ -67,6 +67,7 @@ NO_DOWNLOAD_STAGES = ["probe", "audio", "motion", "features", "score", "candidat
 _jobs: dict[str, RenderJob] = {}
 _job_owner: dict[str, str] = {}  # job_id -> project_id
 _proxy_jobs: dict[str, fx.ProxyJob] = {}  # project_id -> job
+_angle_proxy_jobs: dict[tuple[str, int], fx.ProxyJob] = {}  # (project_id, angle) -> job
 _trim_jobs: dict[str, fx.TrimJob] = {}    # "pid:start:end" -> job
 _jobs_lock = threading.Lock()
 
@@ -1928,13 +1929,63 @@ def get_multiangle_director(p: ScopedP) -> dict:
 @scoped.get("/multiangle/angle/{angle_idx}/video")
 def get_angle_video(angle_idx: int, p: PublicP) -> FileResponse:
     _require_multiangle(p)
-    angles = p.source_info.get("angles") or []
-    if not (0 <= angle_idx < len(angles)):
-        raise HTTPException(404, "angle out of range")
+    _check_angle_idx(p, angle_idx)
     v = p.angle_video(angle_idx)
     if v is None:
         raise HTTPException(404, "angle video not found")
     return _serve(v)
+
+
+def _check_angle_idx(p: ProjectStore, angle_idx: int) -> None:
+    angles = p.source_info.get("angles") or []
+    if not (0 <= angle_idx < len(angles)):
+        raise HTTPException(404, "angle out of range")
+
+
+def _angle_proxy_path(p: ProjectStore, angle_idx: int) -> Path:
+    return p.angle_dir(angle_idx) / "proxy.mp4"
+
+
+def _angle_proxy_state(p: ProjectStore, angle_idx: int) -> str:
+    if _angle_proxy_path(p, angle_idx).is_file():
+        return "ready"
+    job = _angle_proxy_jobs.get((p.id, angle_idx))
+    if job is not None and not job.done and job.error is None:
+        return "started"
+    return "missing"
+
+
+@scoped.get("/multiangle/angle/{angle_idx}/proxy")
+def get_angle_proxy(angle_idx: int, p: PublicP) -> FileResponse:
+    _require_multiangle(p)
+    _check_angle_idx(p, angle_idx)
+    return _serve(_angle_proxy_path(p, angle_idx))
+
+
+@scoped.get("/multiangle/angle/{angle_idx}/proxy/status")
+def get_angle_proxy_status(angle_idx: int, p: PublicP) -> dict:
+    _require_multiangle(p)
+    _check_angle_idx(p, angle_idx)
+    return {"status": _angle_proxy_state(p, angle_idx)}
+
+
+@scoped.post("/multiangle/angle/{angle_idx}/proxy")
+def start_angle_proxy(angle_idx: int, p: ScopedP) -> dict:
+    _require_multiangle(p)
+    _check_angle_idx(p, angle_idx)
+    status = _angle_proxy_state(p, angle_idx)
+    if status != "missing":
+        return {"status": status}
+    src = p.angle_video(angle_idx)
+    if src is None:
+        raise HTTPException(404, "angle video not found")
+    duration = (_angles_info(p)[angle_idx].get("duration") or 0.0)
+    # ProxyJob writes <name>.part.mp4 and renames on success, so a
+    # half-written proxy.mp4 is never served.
+    job = fx.ProxyJob(src, _angle_proxy_path(p, angle_idx), float(duration))
+    _angle_proxy_jobs[(p.id, angle_idx)] = job
+    job.start()
+    return {"status": "started"}
 
 
 @scoped.get("/multiangle/zones")

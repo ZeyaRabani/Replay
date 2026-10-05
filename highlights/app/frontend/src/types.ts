@@ -216,6 +216,10 @@ export interface MultiangleScore {
   basis?: string;
 }
 
+export interface AngleProxyStatus {
+  status: "ready" | "started" | "missing";
+}
+
 export interface MultiangleInfo {
   sync: SyncInfo | null;
   director: DirectorSummary | null;

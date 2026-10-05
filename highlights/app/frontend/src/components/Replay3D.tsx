@@ -52,8 +52,9 @@ function identitySegments(paths: PlayersPaths): SegMap {
   const m: SegMap = new Map();
   for (const tr of paths.tracks) {
     if (tr.hidden || !tr.identity_id || !tr.pts.length) continue;
+    if (tr.team !== "A" && tr.team !== "B") continue;
     const p0 = tr.pts[0], p1 = tr.pts[tr.pts.length - 1];
-    const e = m.get(tr.identity_id) ?? { team: tr.team ?? "A", segs: [] };
+    const e = m.get(tr.identity_id) ?? { team: tr.team, segs: [] };
     e.segs.push({ start: p0[0], end: p1[0],
                   first: [p0[1], p0[2]], last: [p1[1], p1[2]] });
     m.set(tr.identity_id, e);
@@ -265,7 +266,7 @@ function livePlayers(paths: PlayersPaths, t: number,
   const byIdent = new Map<string, LivePlayer & { n: number }>();
   const out: (LivePlayer & { n?: number })[] = [];
   for (const tr of paths.tracks) {
-    if (tr.hidden) continue;
+    if (tr.hidden || (tr.team !== "A" && tr.team !== "B")) continue;
     const q = posAtEx(tr.pts, t);
     if (!q || q.out) continue;
     const p: [number, number, number] = [q.x, q.y, q.alpha];
@@ -279,14 +280,14 @@ function livePlayers(paths: PlayersPaths, t: number,
         continue;
       }
       const e: LivePlayer & { n: number } = {
-        id: iid, team: tr.team ?? "A",
+        id: iid, team: tr.team,
         label: labels[iid] ?? null,
         ident: showIds,
         xy: [p[0], p[1]], n: 1, bridged: false, alpha: p[2],
       };
       byIdent.set(iid, e); out.push(e);
     } else {
-      out.push({ id: `t${tr.id}`, team: tr.team ?? "A", label: null,
+      out.push({ id: `t${tr.id}`, team: tr.team, label: null,
                  ident: false, xy: [p[0], p[1]], bridged: false, alpha: p[2] });
     }
   }
