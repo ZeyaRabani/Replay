@@ -21,16 +21,28 @@ const HOLD_S = 2.0;
 
 type Pt = [number, number, number];
 
-/** interpolated (a,b) of a track's pts at shared t, or null if the track
- *  isn't alive; third value = alpha fade after the last point */
-export function posAt(pts: Pt[], t: number): Pt | null {
+/** seconds a dot ramps in (alpha 0.35 -> 1) after its first sample */
+const FADE_IN_S = 0.6;
+
+export type PosEx = { x: number; y: number; alpha: number; out: boolean };
+
+function catmull(p0: number, p1: number, p2: number, p3: number, f: number): number {
+  const f2 = f * f, f3 = f2 * f;
+  return 0.5 * ((2 * p1) + (-p0 + p2) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f2
+    + (-p0 + 3 * p1 - 3 * p2 + p3) * f3);
+}
+
+/** position of a track at shared t with Catmull-Rom interpolation between
+ *  samples; alpha ramps in over FADE_IN_S and fades 1 -> 0.35 over HOLD_S
+ *  after the last sample (out=true while holding). null if not alive. */
+export function posAtEx(pts: Pt[], t: number): PosEx | null {
   if (!pts.length || t < pts[0][0] - 0.5) return null;
   const last = pts[pts.length - 1][0];
   if (t > last) {
     const g = t - last;
     if (g > HOLD_S) return null;
-    return [pts[pts.length - 1][1], pts[pts.length - 1][2],
-            1 - 0.65 * (g / HOLD_S)];
+    return { x: pts[pts.length - 1][1], y: pts[pts.length - 1][2],
+             alpha: 1 - 0.65 * (g / HOLD_S), out: true };
   }
   let lo = 0, hi = pts.length - 1;
   while (lo < hi) {
@@ -39,8 +51,24 @@ export function posAt(pts: Pt[], t: number): Pt | null {
   }
   const a = pts[lo];
   const b = pts[Math.min(lo + 1, pts.length - 1)];
-  const f = Math.min(1, Math.max(0, (t - a[0]) / Math.max(1e-6, b[0] - a[0])));
-  return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, 1];
+  const dt = b[0] - a[0];
+  const f = Math.min(1, Math.max(0, (t - a[0]) / Math.max(1e-6, dt)));
+  const since = t - pts[0][0];
+  const alpha = since >= FADE_IN_S ? 1 : 0.35 + 0.65 * Math.max(0, since) / FADE_IN_S;
+  // only curve across regular samples; a long gap is bridged linearly
+  if (dt > 0 && dt <= 1.6) {
+    const p0 = pts[Math.max(0, lo - 1)], p3 = pts[Math.min(pts.length - 1, lo + 2)];
+    return { x: catmull(p0[1], a[1], b[1], p3[1], f),
+             y: catmull(p0[2], a[2], b[2], p3[2], f), alpha, out: false };
+  }
+  return { x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, alpha, out: false };
+}
+
+/** interpolated (a,b) of a track's pts at shared t, or null if the track
+ *  isn't alive; third value = alpha (fade-in / hold fade-out) */
+export function posAt(pts: Pt[], t: number): Pt | null {
+  const p = posAtEx(pts, t);
+  return p ? [p.x, p.y, p.alpha] : null;
 }
 
 /** frame-space (old data) -> pitch metres: calibrated H of the reference
@@ -190,17 +218,18 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
     const hits: typeof drawn.current = [];
     let on = 0;
     // cross-camera duplicates of one identity are drawn as a single dot
-    const dots: { tr: PlayersPaths["tracks"][number]; m: [number, number]; a: number; n: number }[] = [];
+    const dots: { tr: PlayersPaths["tracks"][number]; m: [number, number]; a: number; n: number; out: boolean }[] = [];
     const byIdent = new Map<string, (typeof dots)[number]>();
     for (const tr of paths.tracks) {
       if (tr.hidden) continue;
-      const p = posAt(tr.pts, t);
-      if (!p) continue;
+      const q = posAtEx(tr.pts, t);
+      if (!q) continue;
+      const p: Pt = [q.x, q.y, q.alpha];
       let m = toM(p[0], p[1]);
       if (!inPitch) {
         // EMA smoothing of the jittery single-camera projection
         const prev = smooth.current.get(tr.id);
-        if (prev && p[2] === 1) m = [prev[0] + 0.5 * (m[0] - prev[0]), prev[1] + 0.5 * (m[1] - prev[1])];
+        if (prev && !q.out) m = [prev[0] + 0.6 * (m[0] - prev[0]), prev[1] + 0.6 * (m[1] - prev[1])];
         smooth.current.set(tr.id, m);
       }
       const iid = tr.identity_id ?? null;
@@ -211,12 +240,12 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
         d.a = Math.max(d.a, p[2]);
         continue;
       }
-      const dot = { tr, m: m as [number, number], a: p[2], n: 1 };
+      const dot = { tr, m: m as [number, number], a: p[2], n: 1, out: q.out };
       dots.push(dot);
       if (iid) byIdent.set(iid, dot);
     }
-    for (const { tr, m, a } of dots) {
-      if (a === 1) on += 1;
+    for (const { tr, m, a, out } of dots) {
+      if (!out) on += 1;
       const x = v.X(m[0]), y = v.Y(m[1]);
       ctx.globalAlpha = a;
       ctx.beginPath();
@@ -236,7 +265,7 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
         ? (iid && identNames[iid]) || (tr.player_id ? rosterNames[tr.player_id] : null)
         : null;
       if (nm) labels.push([nm, x, y - r - 5, a]);
-      if (a === 1) hits.push({ x, y, id: tr.id, ident: iid });
+      if (!out) hits.push({ x, y, id: tr.id, ident: iid });
     }
     // labels on top of all dots
     ctx.font = `600 ${Math.max(10, Math.round(W / 90))}px ui-sans-serif, system-ui, sans-serif`;

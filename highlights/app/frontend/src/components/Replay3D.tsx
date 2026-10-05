@@ -10,7 +10,7 @@ import { fmtClock } from "../lib/time";
 import { fromOut, inReplay, toOut } from "../lib/timemap";
 import type { Candidate, DirectorFull, DirectorSegment, PitchDims,
               PlayerIdentity, PlayersPaths, ReplayInfo } from "../types";
-import { posAt } from "./RadarReplay";
+import { posAtEx } from "./RadarReplay";
 
 const card = "card p-4";
 const head = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
@@ -42,7 +42,7 @@ const CAM_MODES: [string, string][] = [
 
 type LivePlayer = {
   id: string; team: string; label: string | null; ident: boolean;
-  xy: [number, number]; bridged: boolean;
+  xy: [number, number]; bridged: boolean; alpha: number;
 };
 type Seg = { start: number; end: number; first: [number, number]; last: [number, number] };
 type SegMap = Map<string, { team: string; segs: Seg[] }>;
@@ -266,8 +266,9 @@ function livePlayers(paths: PlayersPaths, t: number,
   const out: (LivePlayer & { n?: number })[] = [];
   for (const tr of paths.tracks) {
     if (tr.hidden) continue;
-    const p = posAt(tr.pts, t);
-    if (!p || p[2] < 1) continue;
+    const q = posAtEx(tr.pts, t);
+    if (!q || q.out) continue;
+    const p: [number, number, number] = [q.x, q.y, q.alpha];
     const iid = tr.identity_id ?? null;
     if (iid) {
       const d = byIdent.get(iid);
@@ -281,12 +282,12 @@ function livePlayers(paths: PlayersPaths, t: number,
         id: iid, team: tr.team ?? "A",
         label: labels[iid] ?? null,
         ident: showIds,
-        xy: [p[0], p[1]], n: 1, bridged: false,
+        xy: [p[0], p[1]], n: 1, bridged: false, alpha: p[2],
       };
       byIdent.set(iid, e); out.push(e);
     } else {
       out.push({ id: `t${tr.id}`, team: tr.team ?? "A", label: null,
-                 ident: false, xy: [p[0], p[1]], bridged: false });
+                 ident: false, xy: [p[0], p[1]], bridged: false, alpha: p[2] });
     }
   }
   // bridge short gaps: identities with no live track at t
@@ -309,7 +310,7 @@ function livePlayers(paths: PlayersPaths, t: number,
       const pl: LivePlayer & { n: number } = {
         id: iid, team: e.team,
         label: labels[iid] ?? null,
-        ident: showIds, xy, bridged: true, n: 1,
+        ident: showIds, xy, bridged: true, n: 1, alpha: 1,
       };
       byIdent.set(iid, pl); out.push(pl);
     }
@@ -581,7 +582,7 @@ export default function Replay3D({ onSeek }: { onSeek: (t: number) => void }) {
           gg.userData.lbl = pl.label;
         }
         g.visible = true;
-        setPlayerOpacity(g, pl.bridged ? 0.45 : 1.0);
+        setPlayerOpacity(g, pl.bridged ? 0.45 : pl.alpha);
         updatePlayer(g, pl.xy, st.playing ? dt * st.speed : 0, bp);
         lastSeen.set(pl.id, { t: st.t, xy: pl.xy });
         seen.add(pl.id);
