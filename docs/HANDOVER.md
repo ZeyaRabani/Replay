@@ -283,3 +283,40 @@ Code for using the anchors (committed with this addendum):
 - `players_run.py --refine-only` — skip detection, keep stabilisation, refine calib, re-fuse from
   saved detections, re-resolve anchors (`anchors.reresolve`), regroup/identities.
 - Tests: `highlights/analysis/tests/test_refine_calib.py`.
+
+## Addendum 2 — radar/3D quality pass (flicker, wrong positions, doubles, too few players, jerky motion)
+
+Owner request (verbatim): "dots flicker / wrong positions / players doubled / too few players /
+jerky motion we need to get better on all of them". Analysis is restricted to 28/8 by the owner.
+
+### Diagnosis on the saved 28/8 data (no re-detection)
+- `multiangle/calib.json` in production held the **anchor-fitted** `H` written by the cam2-ref
+  refinement. It fits the ~63 anchor pairs (pair medians 3.3 / 1.6 / 0.7 m) but violates the
+  cameras' own pitch-line landmarks: landmark RMS 207 m (cam0), 34 m (cam1), 19 m (cam2). That run
+  produced the current 1001-track / 14-visible result — i.e. wrong positions and dropped players.
+- The landmark-only `H` (backup `calib.pre_cam2ref.json`) has 1.6 m RMS per camera but the
+  cameras disagree with each other: Hungarian-matching projected detections per 0.5 s step gives
+  median offsets cam0→cam2 (-4.7, +2.0) m, cam0→cam1 (-2.3, +2.5) m, cam1→cam2 ≈ 0 with ±2.5 m
+  x-dependent drift; |d| median 5–6 m vs `MERGE_M = 5` → the same player appears twice.
+- The anchors alone are too few/noisy (foot points of far players, clicks matched to detections)
+  to fix calibration; a mirror/flip of any camera was tested and is **not** the cause.
+- cam0 pans a lot (unstabilised foot points span the whole frame); its stabilisation quality
+  (`stab_a0.npz`, 3800/3800 valid) directly drives its positions.
+- Fusion: `OWNERSHIP` drops a camera's detection whenever *another camera is nearer* to that pitch
+  point, even if that camera did not see the player → "too few players". Output `xy` is the raw
+  merged measurement (not the Kalman state), gaps > 2 s become `None` and the frontend holds/fades
+  for 2 s → flicker when a player is re-acquired as a new track id.
+- Frontend interpolation was linear between 0.5 s samples (+ per-frame EMA) → visibly jerky.
+
+### Fix (this pass)
+- `highlights/analysis/joint_calib.py`: joint refinement of all three `H` using landmarks (weight 3)
+  + thousands of cross-camera detection matches (robust loss), accepted only if landmark RMS stays
+  ≤ 2.5 m and every pair's residual improves; replaces the anchor-based refinement as default in
+  `players_run.py`. `overlay_check.py` draws pitch lines / detections / tracks back onto a camera
+  frame for visual calibration checks.
+- `fuse_tracks.py`: camera-distance-aware merge/Kalman noise instead of ownership pre-filtering,
+  smoothed (RTS) output positions, gap fill ≤ 3 s, post-hoc stitching of track fragments and
+  merging of persistent same-team duplicates.
+- Frontend `RadarReplay.tsx` / `Replay3D.tsx`: Catmull-Rom interpolation (`posAtEx`), 0.6 s
+  fade-in for new tracks, hold/fade-out kept, time-consistent smoothing.
+Results on 28/8 are recorded in the commit messages of this pass and in `analysis/players_v2/summary.json`.
