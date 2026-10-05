@@ -603,8 +603,12 @@ export default function RadarReplay({ onSeek }: { onSeek?: (t: number) => void }
                     {vidSrc && (
                       <video ref={videoRef} src={vidSrc} muted playsInline
                         preload="auto" className="w-full max-h-72"
-                        onLoadedMetadata={(e) =>
-                          setVidDur(e.currentTarget.duration || 0)} />
+                        onLoadedMetadata={(e) => {
+                          const v = e.currentTarget;
+                          setVidDur(v.duration || 0);
+                          const ft = t - off;
+                          if (ft >= 0) v.currentTime = ft;
+                        }} />
                     )}
                     {!covered && (
                       <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/70 text-xs text-zinc-400">
