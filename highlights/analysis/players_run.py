@@ -181,13 +181,10 @@ def _post_detect(project_dir: Path, adir: Path, dirs, ctx: dict,
     n = int(ctx["n_angles"])
     from .fuse_tracks import run_fuse
     try:
-        from . import anchors as anch_mod
-        _adoc = anch_mod.load(adir)
-        if _adoc and _adoc.get("clicks"):
-            from .refine_calib import apply_refine
-            apply_refine(project_dir, adir, log=log)
+        from .joint_calib import apply_joint
+        apply_joint(project_dir, adir, log=log)
     except Exception as e:
-        log(f"refine calib: skipped ({type(e).__name__}: {e})")
+        log(f"joint calib: skipped ({type(e).__name__}: {e})")
     _upd(stage="fuse", progress=0.9, message="fusing tracks")
     videos = {a: _match_ext_video(dirs[a]) for a in range(n)
               if a < len(dirs)}
