@@ -1,5 +1,6 @@
 """480p analysis proxy: offset mapping, fallback chain, duration check."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -93,6 +94,45 @@ def test_ytdlp_bad_duration_falls_back(tmp_path, monkeypatch):
         log=logs.append)
     assert pi.src == "transcode-480p"
     assert any("failed" in m for m in logs)
+
+
+def test_ytdlp_iterates_joined_cookiefiles(tmp_path, monkeypatch):
+    """An os.pathsep-joined cookies string must try each file, not pass the
+    whole joined string as one filename."""
+    import yt_dlp
+
+    seen: list = []
+
+    class FakeYDL:
+        def __init__(self, opts):
+            self.opts = dict(opts)
+            seen.append(self.opts.get("cookiefile"))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, url, download=True):
+            if self.opts.get("cookiefile") == str(a):
+                raise yt_dlp.utils.DownloadError(
+                    "Sign in to confirm you're not a bot")
+            part = self.opts["outtmpl"].replace("%(ext)s", "mp4")
+            Path(part).write_bytes(b"x")
+
+    a = tmp_path / "a.txt"
+    b = tmp_path / "b.txt"
+    a.write_text("x")
+    b.write_text("y")
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
+    logs: list[str] = []
+    dest = tmp_path / "analysis_480p.mp4"
+    proxy._ytdlp_480("https://youtu.be/x", dest,
+                     os.pathsep.join([str(a), str(b)]), logs.append)
+    assert seen == [str(a), str(b)]
+    assert dest.exists()
+    assert any("trying next" in m for m in logs)
 
 
 def test_all_failures_fall_back_to_original(tmp_path, monkeypatch):

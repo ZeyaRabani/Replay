@@ -52,7 +52,12 @@ def _ytdlp_480(url: str, dest: Path, cookies: str | None, log) -> Path:
     cookie + retry behaviour). Returns dest or raises."""
     import yt_dlp
 
-    ck = cookies or os.environ.get("HL_YT_COOKIES")
+    # `cookies` may be os.pathsep-joined (several saved files); try each in
+    # order, then once without — same fallback order as the main download.
+    from highlights.pipeline.download import _is_bot_check
+    cookiefiles = [c for c in
+                   (cookies or os.environ.get("HL_YT_COOKIES") or "")
+                   .split(os.pathsep) if c]
     opts: dict = {
         "format": ("bestvideo[height<=480][ext=mp4]/"
                    "bestvideo[height<=480]/worst"),
@@ -64,8 +69,6 @@ def _ytdlp_480(url: str, dest: Path, cookies: str | None, log) -> Path:
         "fragment_retries": 20,
         "concurrent_fragment_downloads": 4,
     }
-    if ck:
-        opts["cookiefile"] = ck
     import shutil
     js = {}
     if shutil.which("deno"):
@@ -74,8 +77,26 @@ def _ytdlp_480(url: str, dest: Path, cookies: str | None, log) -> Path:
         js["node"] = {}
     if js:
         opts["js_runtimes"] = js
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.extract_info(url, download=True)
+    for i, ck in enumerate([*cookiefiles, None]):
+        if ck is None:
+            opts.pop("cookiefile", None)
+        else:
+            opts["cookiefile"] = ck
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.extract_info(url, download=True)
+            break
+        except yt_dlp.utils.DownloadError as e:
+            if not _is_bot_check(str(e)):
+                raise
+            if ck is not None and i + 1 < len(cookiefiles):
+                log(f"proxy: cookies rejected (file {i + 1}/"
+                    f"{len(cookiefiles)}); trying next")
+                continue
+            if ck is not None:
+                log("proxy: saved cookies rejected; retrying once without them")
+                continue
+            raise
     parts = sorted(dest.parent.glob(dest.name + ".part.*"),
                    key=lambda p: p.stat().st_mtime, reverse=True)
     if not parts:
