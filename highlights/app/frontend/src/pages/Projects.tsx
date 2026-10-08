@@ -45,7 +45,7 @@ function SourceBadge({ p }: { p: ProjectSummary }) {
 }
 
 const isBotBlock = (msg?: string | null) =>
-  !!msg && /bot check|sign in/i.test(msg);
+  !!msg && /bot check|sign in|rejected the saved cookies/i.test(msg);
 
 function DownloadCount({ url, downloads }: { url: string | null | undefined; downloads: Record<string, DownloadInfo> }) {
   const id = ytId(url);
