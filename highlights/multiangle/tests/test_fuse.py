@@ -68,3 +68,14 @@ def test_to_output_time():
     assert out[1]["clip_start"] == 843.2 and out[1]["clip_end"] == 858.2
     # original untouched, absent keys not invented
     assert evs[0]["t"] == -640.2 and "clip_start" not in out[0]
+
+
+def test_drop_outside_window():
+    """events outside [0, dur_live] are dropped; kept ones re-id'd."""
+    from highlights.multiangle.fuse import drop_outside_window
+    evs = [{"t": -5.0, "confidence": 0.9, "id": "event_001", "rank": 1},
+           {"t": 10.0, "confidence": 0.7, "id": "event_002", "rank": 2},
+           {"t": 101.0, "confidence": 0.8, "id": "event_003", "rank": 3}]
+    out = drop_outside_window(evs, 100.0)
+    assert [e["t"] for e in out] == [10.0]
+    assert out[0]["id"] == "event_001" and out[0]["rank"] == 1

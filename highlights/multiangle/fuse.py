@@ -83,6 +83,18 @@ def to_output_time(events: list[dict], lo: float) -> list[dict]:
     return out
 
 
+def drop_outside_window(events: list[dict], dur_live: float) -> list[dict]:
+    """Drop events whose output t falls outside the rendered [0, dur_live]
+    window (e.g. detected before a cut_range start), then re-number ids and
+    ranks so they stay contiguous in confidence-desc order."""
+    kept = [e for e in events if 0.0 <= float(e.get("t", 0.0)) <= dur_live]
+    kept.sort(key=lambda e: -float(e.get("confidence", 0.0)))
+    for k, e in enumerate(kept, 1):
+        e["id"] = f"event_{k:03d}"
+        e["rank"] = k
+    return kept
+
+
 def fuse_candidates(candidates_files: list[str | Path], offsets: list[float],
                     labels: list[str], out_path: str | Path) -> dict:
     events_by_angle = []

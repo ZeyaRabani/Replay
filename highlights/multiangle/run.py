@@ -813,7 +813,11 @@ def stage_render(ctx: Ctx) -> None:
 
 
 def stage_fuse(ctx: Ctx) -> dict:
-    from highlights.multiangle.fuse import fuse_candidates, to_output_time
+    from highlights.multiangle.fuse import (
+        drop_outside_window,
+        fuse_candidates,
+        to_output_time,
+    )
     from highlights.multiangle.timemap import events_to_output, to_output_time_with_replays
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     director = {}
@@ -825,11 +829,18 @@ def stage_fuse(ctx: Ctx) -> dict:
     out = fuse_candidates(files, sync["offsets"], labels,
                           ctx.pipe / "fused_candidates.json")
     lo, hi = ctx.union(sync)
+    dur_live = hi - lo
     # fused events are on shared T; the UI plays the rendered video whose
-    # time axis is output time (0 = union start) -> shift everything by -lo
+    # time axis is output time (0 = union start) -> shift everything by -lo,
+    # then drop events the render doesn't cover (before/after a cut_range)
     for key in ("events", "candidates"):
         if key in out:
-            out[key] = to_output_time(out[key], lo)
+            shifted = to_output_time(out[key], lo)
+            kept = drop_outside_window(shifted, dur_live)
+            if len(kept) != len(shifted):
+                ctx.log(f"fuse: dropped {len(shifted) - len(kept)} events "
+                        "outside the rendered window")
+            out[key] = kept
     write_json_atomic(ctx.pipe / "fused_candidates.json", out, indent=1)
     output = dict(out)
     for key in ("events", "candidates"):
@@ -840,7 +851,6 @@ def stage_fuse(ctx: Ctx) -> dict:
     write_json_atomic(pdir / "candidates.json", output, indent=1)
     # a0's match window + features, shifted to output time; with a
     # cut_range the rendered video IS the match — window covers it all
-    dur_live = hi - lo
     dur_out = dur_live + sum(
         float(replay["t_out_end"]) - float(replay["t_out_start"])
         for replay in replays)
