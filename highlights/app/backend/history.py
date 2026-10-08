@@ -414,7 +414,8 @@ def download_counts(owner: str | None = None) -> dict[str, dict]:
 
     def add(vid: str | None, match_id: str, slot: str,
             title: str, deleted: bool) -> None:
-        if not vid:
+        if not vid or match_id not in downloaded:
+            # only count matches whose download actually finished
             return
         uses.setdefault(vid, set()).add((match_id, slot))
         projs.setdefault(vid, {})[match_id] = {
@@ -431,6 +432,16 @@ def download_counts(owner: str | None = None) -> dict[str, dict]:
         ev = db.execute(
             "SELECT match_id, detail FROM events WHERE kind='source_added'"
         ).fetchall()
+        # evidence a match got past its download stage: download stage
+        # completed, or ANY later stage ran (done or failed)
+        st = db.execute(
+            "SELECT match_id, kind, stage FROM events "
+            "WHERE kind IN ('stage_done','stage_failed','stage_start')"
+        ).fetchall()
+    downloaded = {e["match_id"] for e in st
+                  if e["stage"] is not None and e["stage"] != "download"}
+    downloaded |= {e["match_id"] for e in st
+                   if e["kind"] == "stage_done"}
     owners = {r["id"]: (r["title"], r["deleted_at"] is not None)
               for r in rows}
     for r in rows:

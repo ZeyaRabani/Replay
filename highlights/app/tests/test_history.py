@@ -241,11 +241,17 @@ def test_download_counts_live_deleted_replace(client, short_video):
                 not in ("queued", "running"):
             break
         _t.sleep(0.25)
-    # second project, later deleted, using the same a0 video
+    # second project, later deleted, using the same a0 video — it must
+    # finish downloading before deletion to count (failed downloads don't)
     body2 = {"title": "deadMA", "angles": [
         {"url": "https://youtube.com/watch?v=SHARED01&t=9", "label": "X"},
         {"url": "https://youtu.be/other333", "label": "Y"}]}
     pid2 = client.post("/api/projects/multiangle", json=body2).json()["id"]
+    for _ in range(60):
+        if client.get(f"/api/projects/{pid2}").json()["pipeline_state"] \
+                not in ("queued", "running"):
+            break
+        _t.sleep(0.25)
     assert client.delete(f"/api/projects/{pid2}").status_code == 204
     # angle replace on the live project — re-pointing a0 at the same
     # video must reuse its (match, angle) slot, not count again
