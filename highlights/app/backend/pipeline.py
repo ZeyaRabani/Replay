@@ -357,13 +357,26 @@ def refresh(p: ProjectStore) -> dict | None:
                 except RuntimeError:
                     info = status.get("video") or {"duration_s": 0.0, "width": 0, "height": 0, "fps": 0.0}
                 p.set_video(VideoInfo(path=resolved, registered_at=time.time(), **info))
-        if (p.candidates_version == 0 or not p.candidates) and (p.pipeline_dir / "candidates.json").is_file():
-            try:
-                cf = CandidatesFile(**json.loads((p.pipeline_dir / "candidates.json").read_text()))
-                p.load_candidates(cf)
-                imported_candidates = True
-            except Exception as e:
-                print(f"warning: could not import pipeline candidates for {p.id}: {e}")
+        cands_file = p.pipeline_dir / "candidates.json"
+        if cands_file.is_file():
+            mtime = cands_file.stat().st_mtime
+            first_import = p.candidates_version == 0 or not p.candidates
+            reimport = (
+                not first_import
+                and mtime > float(p.meta.get("candidates_src_mtime", 0))
+                and all(c.status == "pending" for c in p.candidates))
+            if first_import or reimport:
+                try:
+                    cf = CandidatesFile(**json.loads(cands_file.read_text()))
+                    p.load_candidates(cf)
+                    p.meta["candidates_src_mtime"] = mtime
+                    p.save()
+                    imported_candidates = True
+                    if reimport:
+                        print(f"re-imported {len(cf.events)} pipeline candidates "
+                              f"for {p.id} (file newer, no decisions yet)")
+                except Exception as e:
+                    print(f"warning: could not import pipeline candidates for {p.id}: {e}")
         if p.is_multiangle:
             try:
                 sync_candidate_timeline(p, imported=imported_candidates)

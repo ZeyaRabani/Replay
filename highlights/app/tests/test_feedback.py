@@ -66,7 +66,9 @@ def test_feedback_export(client, sample_video):
                for l in lines)
     row = next(l for l in lines if l["candidate_id"] == cid)
     assert row["project_id"] == pid
-    assert row["meta"] == {"pitch_type": "7", "camera": "normal"}
+    user_meta = {k: v for k, v in row["meta"].items()
+                 if k != "candidates_src_mtime"}
+    assert user_meta == {"pitch_type": "7", "camera": "normal"}
     assert row["source_kind"] == "path"
     assert row["video"]["duration_s"] > 0
     assert set(row) == {"project_id", "owner", "title", "meta", "video",

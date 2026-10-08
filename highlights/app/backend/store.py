@@ -38,7 +38,8 @@ def default_clip_window(t: float, event_type: str, duration: float) -> tuple[flo
 def make_candidates(cf: CandidatesFile, duration: float) -> list[Candidate]:
     dur = duration or cf.video_duration_s
     out: list[Candidate] = []
-    for i, ev in enumerate(cf.events):
+    events = [ev for ev in cf.events if ev.t >= 0]
+    for i, ev in enumerate(events):
         status = "rejected" if ev.cross_validation == "rejected" else "pending"
         # honour the pipeline's dynamic window when it looks sane
         if ev.t_start < ev.t < ev.t_end and 4.0 <= ev.t_end - ev.t_start <= 30.0:
