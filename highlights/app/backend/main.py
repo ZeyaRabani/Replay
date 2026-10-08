@@ -1529,10 +1529,18 @@ def delete_project(p: ScopedP) -> Response:
         _job_owner.pop(jid, None)
     _proxy_jobs.pop(p.id, None)
     try:
+        # persist training examples now — archive/delete removes the
+        # pipeline dir that collect_project_examples needs
+        from highlights.pipeline.learn import collect_project_examples, save_examples
+        save_examples(collect_project_examples(p))
+    except Exception as e:
+        print(f"warning: could not save learning examples for {p.id}: {e}")
+    try:
         history.archive_project(p)
     except Exception as e:
         print(f"warning: archive failed for {p.id}: {e}")
     get_registry().delete(p.id)
+    threading.Thread(target=_train_after_render, args=(p,), daemon=True).start()
     return Response(status_code=204)
 
 

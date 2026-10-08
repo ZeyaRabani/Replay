@@ -290,6 +290,25 @@ def test_owner_isolation_and_delete(client, sample_video):
     assert client.get(scoped(pid, "")).status_code == 404
 
 
+def test_delete_saves_learning_examples(client, sample_video, monkeypatch):
+    """DELETE persists training examples before the pipeline dir goes."""
+    import pandas as pd
+
+    from highlights.pipeline import learn
+    pid = new_project(client, sample_video)
+    df = pd.DataFrame({"project_id": [pid], "cand_id": ["c001"],
+                       "label": [1]})
+    seen = {}
+    monkeypatch.setattr(learn, "collect_project_examples",
+                        lambda p: df)
+    monkeypatch.setattr(learn, "save_examples",
+                        lambda d: seen.setdefault("df", d))
+    r = client.delete(scoped(pid, ""))
+    assert r.status_code == 204
+    assert seen.get("df") is df
+    assert client.get(scoped(pid, "")).status_code == 404
+
+
 # ---------- legacy / demo ----------
 
 
