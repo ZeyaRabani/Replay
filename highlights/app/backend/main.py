@@ -20,7 +20,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from fastapi import (
     APIRouter,
@@ -323,6 +323,7 @@ def ensure_demo(reg: Registry) -> None:
 def current_user(x_user: str | None = Header(default=None, alias="X-User")) -> str:
     if not x_user:
         raise HTTPException(401, "missing X-User header")
+    x_user = unquote(x_user)
     if get_registry().get_user(x_user) is None:
         raise HTTPException(401, "unknown user")
     return x_user

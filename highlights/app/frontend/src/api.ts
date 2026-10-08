@@ -68,7 +68,7 @@ export function mediaUrl(path: string, params: Record<string, string | undefined
 
 function userHeaders(): Record<string, string> {
   const u = getUser();
-  return u ? { "X-User": u } : {};
+  return u ? { "X-User": encodeURIComponent(u) } : {};
 }
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
