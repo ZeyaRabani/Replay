@@ -9,6 +9,7 @@ subprocess per project. Run from repo root:
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -895,9 +896,17 @@ def _save_cookies(p, text: str | None) -> str | None:
 
 
 def _project_cookies(p) -> str | None:
-    """Path to an existing source/cookies.txt for reruns, else None."""
-    path = p.source_dir / "cookies.txt"
-    return str(path) if path.is_file() else None
+    """os.pathsep-joined source/cookies*.txt for reruns, else None.
+    Ordered cookies.txt, cookies.1.txt, … (newest source first)."""
+    def _idx(f: Path) -> int:
+        if f.name == "cookies.txt":
+            return 0
+        try:
+            return int(f.name.split(".")[1])
+        except (IndexError, ValueError):
+            return 1_000_000
+    paths = sorted(p.source_dir.glob("cookies*.txt"), key=_idx)
+    return os.pathsep.join(str(f) for f in paths) if paths else None
 
 
 # ---------- per-user saved YouTube cookies ----------
@@ -925,26 +934,41 @@ def _save_user_cookies(user: str, text: str) -> Path:
     return path
 
 
-def _cookies_source(user: str) -> Path | None:
-    """The freshest usable cookies file for `user`: the newer (by mtime)
-    of the user's saved cookies and the admin-shared ones. None if neither
-    exists."""
+def _cookies_sources(user: str) -> list[Path]:
+    """Every distinct saved cookies file usable for `user` — the user's
+    own plus the admin-shared ones — de-duplicated by content, newest
+    first. Empty when none exist."""
     cands = [f for f in (_user_cookies_path(user), _shared_cookies_path())
              if f.is_file()]
-    return max(cands, key=lambda f: f.stat().st_mtime) if cands else None
+    cands.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    seen: set[bytes] = set()
+    out = []
+    for f in cands:
+        h = hashlib.sha256(f.read_bytes()).digest()
+        if h not in seen:
+            seen.add(h)
+            out.append(f)
+    return out
+
+
+def _cookies_source(user: str) -> Path | None:
+    """The newest usable cookies file for `user`, or None."""
+    srcs = _cookies_sources(user)
+    return srcs[0] if srcs else None
 
 
 def _user_default_cookies(p, user: str) -> str | None:
-    """Copy the freshest saved cookies (user's or shared) into the project,
-    returning the path."""
-    src = _cookies_source(user)
-    if src is None:
-        return None
-    dst = p.source_dir / "cookies.txt"
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_bytes(src.read_bytes())
-    os.chmod(dst, 0o600)
-    return str(dst)
+    """Copy every distinct saved cookies file into the project as
+    cookies.txt, cookies.1.txt, … and return them os.pathsep-joined
+    (single file -> plain path)."""
+    dsts = []
+    for k, src in enumerate(_cookies_sources(user)):
+        dst = p.source_dir / ("cookies.txt" if k == 0 else f"cookies.{k}.txt")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+        os.chmod(dst, 0o600)
+        dsts.append(str(dst))
+    return os.pathsep.join(dsts) if dsts else None
 
 
 class CookiesPut(BaseModel):

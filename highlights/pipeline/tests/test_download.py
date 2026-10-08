@@ -227,3 +227,62 @@ def test_download_bot_check_not_transient(tmp_path, monkeypatch):
         dl.download("http://x", tmp_path, status=None, log=lambda m: None)
     assert BotCount.calls == 1
     assert sleeps == []
+
+
+def test_download_tries_next_cookies_file(tmp_path, monkeypatch):
+    """Bot check on cookies file A -> tries file B which succeeds."""
+    import os
+    from pathlib import Path
+
+    a = tmp_path / "a.txt"
+    a.write_text("stale")
+    b = tmp_path / "b.txt"
+    b.write_text("good")
+    seen = []
+
+    def fake_extract(opts, formats, url, log):
+        seen.append(opts.get("cookiefile"))
+        if opts.get("cookiefile") == str(b):
+            out = opts["outtmpl"].replace("%(ext)s", "mp4")
+            Path(out).write_bytes(b"v")
+            return {"requested_downloads": [{"filepath": out}]}
+        raise yt_dlp.utils.DownloadError(
+            "Sign in to confirm you're not a bot")
+
+    monkeypatch.setattr(dl, "_extract", fake_extract)
+    sleeps = _patch_sleep(monkeypatch)
+    logs = []
+    out = dl.download("http://x", tmp_path / "dst",
+                      cookies=os.pathsep.join([str(a), str(b)]),
+                      log=logs.append)
+    assert out.name == "match.mp4"
+    assert seen == [str(a), str(b)]
+    assert any("trying next" in m for m in logs)
+    assert sleeps == []
+
+
+def test_download_all_cookies_files_rejected(tmp_path, monkeypatch):
+    """Every cookies file + the no-cookies retry bot-checked ->
+    COOKIES_REJECTED_MSG."""
+    import os
+
+    a = tmp_path / "a.txt"
+    a.write_text("stale")
+    b = tmp_path / "b.txt"
+    b.write_text("also stale")
+    seen = []
+
+    def fake_extract(opts, formats, url, log):
+        seen.append(opts.get("cookiefile"))
+        raise yt_dlp.utils.DownloadError(
+            "Sign in to confirm you're not a bot")
+
+    monkeypatch.setattr(dl, "_extract", fake_extract)
+    logs = []
+    with pytest.raises(PipelineError) as ei:
+        dl.download("http://x", tmp_path / "dst",
+                    cookies=os.pathsep.join([str(a), str(b)]),
+                    log=logs.append)
+    assert "rejected the saved cookies" in str(ei.value)
+    assert seen == [str(a), str(b), None]  # a, b, then no cookiefile
+    assert any("without them" in m for m in logs)

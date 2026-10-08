@@ -143,11 +143,12 @@ def _check(p, m) -> None:
         pl.write_status(p, status)
 
     if is_cookie_failure(err):
-        # retry only when the saved cookies are newer than what we tried
-        src = m._cookies_source(p.owner)
-        if src is None:
+        # retry only when a saved cookies file is newer than what we
+        # tried — compare the freshest mtime across all distinct sources
+        srcs = m._cookies_sources(p.owner)
+        if not srcs:
             return
-        mtime = src.stat().st_mtime
+        mtime = max(f.stat().st_mtime for f in srcs)
         if mtime <= float(ar.get("cookies_mtime_tried", 0)):
             return
         ar["cookies_mtime_tried"] = mtime

@@ -107,7 +107,9 @@ def download(url: str, dest_dir: str | Path, status=None,
     """
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    cookiefile = cookies or os.environ.get("HL_YT_COOKIES")
+    cookiefiles = [c for c in
+                   (cookies or os.environ.get("HL_YT_COOKIES") or "")
+                   .split(os.pathsep) if c]
 
     opts: dict = {
         "format": "bestvideo*+bestaudio/best",
@@ -140,8 +142,8 @@ def download(url: str, dest_dir: str | Path, status=None,
         log(f"js runtimes: {','.join(js)}")
     else:
         log("warning: no JS runtime on PATH; YouTube JS challenges may fail")
-    if cookiefile:
-        opts["cookiefile"] = cookiefile
+    if cookiefiles:
+        opts["cookiefile"] = cookiefiles[0]
     pot_url = os.environ.get("HL_POT_PROVIDER_URL")
     if pot_url:
         opts["extractor_args"] = {"youtubepot-bgutilhttp": {"base_url": [pot_url]}}
@@ -161,6 +163,7 @@ def download(url: str, dest_dir: str | Path, status=None,
     ]
     info = None
     cookies_dropped = False
+    cookie_idx = 0
     attempt = 0
     while True:
         try:
@@ -169,14 +172,21 @@ def download(url: str, dest_dir: str | Path, status=None,
         except yt_dlp.utils.DownloadError as e:
             msg = str(e)
             if _is_bot_check(msg):
-                if cookiefile and not cookies_dropped:
-                    # saved cookies rejected: retry once via the pot provider
+                if cookie_idx + 1 < len(cookiefiles):
+                    # try the next saved cookies file
+                    cookie_idx += 1
+                    opts["cookiefile"] = cookiefiles[cookie_idx]
+                    log(f"cookies rejected (file {cookie_idx}/"
+                        f"{len(cookiefiles)}); trying next")
+                    continue
+                if cookiefiles and not cookies_dropped:
+                    # all saved cookies rejected: retry once via the pot provider
                     cookies_dropped = True
                     opts.pop("cookiefile", None)
                     log("saved cookies rejected; retrying once without them")
                     continue
                 raise PipelineError(
-                    COOKIES_REJECTED_MSG if cookiefile else BOT_CHECK_MSG) from e
+                    COOKIES_REJECTED_MSG if cookiefiles else BOT_CHECK_MSG) from e
             if not is_transient_failure(msg):
                 raise PipelineError(msg) from e
             attempt += 1

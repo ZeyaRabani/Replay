@@ -226,3 +226,39 @@ def test_admin_cookies_put_writes_shared_too(client, monkeypatch):
     assert r.status_code == 200, r.text
     assert m._user_cookies_path("tester").is_file()
     assert not m._shared_cookies_path().is_file()
+
+
+def test_user_default_cookies_writes_all_distinct(client, sample_video):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    user_f = m._user_cookies_path(p.owner)
+    user_f.parent.mkdir(parents=True, exist_ok=True)
+    user_f.write_text("user-cookies")
+    shared_f = m._shared_cookies_path()
+    shared_f.parent.mkdir(parents=True, exist_ok=True)
+    shared_f.write_text("shared-cookies")
+
+    joined = m._user_default_cookies(p, p.owner)
+    parts = joined.split(os.pathsep)
+    assert len(parts) == 2
+    assert (p.source_dir / "cookies.txt").is_file()
+    assert (p.source_dir / "cookies.1.txt").is_file()
+    assert oct((p.source_dir / "cookies.txt").stat().st_mode)[-3:] == "600"
+    # _project_cookies picks both back up for reruns
+    assert m._project_cookies(p) == joined
+
+
+def test_user_default_cookies_dedupes_identical(client, sample_video):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    user_f = m._user_cookies_path(p.owner)
+    user_f.parent.mkdir(parents=True, exist_ok=True)
+    user_f.write_text("same-cookies")
+    shared_f = m._shared_cookies_path()
+    shared_f.parent.mkdir(parents=True, exist_ok=True)
+    shared_f.write_text("same-cookies")
+
+    joined = m._user_default_cookies(p, p.owner)
+    assert os.pathsep not in joined
+    assert (p.source_dir / "cookies.txt").is_file()
+    assert not (p.source_dir / "cookies.1.txt").exists()
