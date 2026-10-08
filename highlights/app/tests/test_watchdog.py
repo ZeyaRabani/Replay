@@ -262,3 +262,38 @@ def test_user_default_cookies_dedupes_identical(client, sample_video):
     assert os.pathsep not in joined
     assert (p.source_dir / "cookies.txt").is_file()
     assert not (p.source_dir / "cookies.1.txt").exists()
+
+
+def test_cookie_failed_respawns_on_untried_older_file(
+        client, sample_video, monkeypatch):
+    """A different cookies file with an OLDER mtime still triggers a retry
+    (the good shared file may be older than the stale user file)."""
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+
+    owner_f = m._user_cookies_path(p.owner)
+    owner_f.parent.mkdir(parents=True, exist_ok=True)
+    owner_f.write_text("stale")
+    os.utime(owner_f, (3000, 3000))
+    watchdog.pass_once()
+    assert len(calls) == 1
+    tried = watchdog._load_state(p)["cookies_hashes_tried"]
+    assert tried == [m.cookies_file_hash(owner_f)]
+
+    # a DIFFERENT file appears with an older mtime -> retry anyway
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+    shared_f = m._shared_cookies_path()
+    shared_f.parent.mkdir(parents=True, exist_ok=True)
+    shared_f.write_text("good")
+    os.utime(shared_f, (2000, 2000))
+    watchdog.pass_once()
+    assert len(calls) == 2
+    assert set(watchdog._load_state(p)["cookies_hashes_tried"]) == {
+        m.cookies_file_hash(owner_f), m.cookies_file_hash(shared_f)}
+
+    # same two files again -> nothing new to try
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+    watchdog.pass_once()
+    assert len(calls) == 2

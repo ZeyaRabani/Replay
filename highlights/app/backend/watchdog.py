@@ -143,15 +143,21 @@ def _check(p, m) -> None:
         pl.write_status(p, status)
 
     if is_cookie_failure(err):
-        # retry only when a saved cookies file is newer than what we
-        # tried — compare the freshest mtime across all distinct sources
+        # retry when any usable cookies file is newer OR a file with a
+        # content hash we haven't tried yet exists
         srcs = m._cookies_sources(p.owner)
         if not srcs:
             return
         mtime = max(f.stat().st_mtime for f in srcs)
-        if mtime <= float(ar.get("cookies_mtime_tried", 0)):
+        hashes = [m.cookies_file_hash(f) for f in srcs]
+        # retry on a newer file OR a different file we never tried
+        # (an older-mtime file can still be the good one)
+        if (mtime <= float(ar.get("cookies_mtime_tried", 0))
+                and all(h in ar.get("cookies_hashes_tried", [])
+                        for h in hashes)):
             return
         ar["cookies_mtime_tried"] = mtime
+        ar["cookies_hashes_tried"] = hashes
         _respawn(p, m, pl, ar, status)
         return
 
