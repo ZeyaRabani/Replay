@@ -62,7 +62,8 @@ def mezz_key(angle: int, t0: float, t1: float) -> str:
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
-def mezz_cmd(video: str, t0: float, t1: float, out: str) -> list[str]:
+def mezz_cmd(video: str, t0: float, t1: float, out: str,
+             threads: int = 2) -> list[str]:
     """Encode the mezzanine for one angle: same canvas/codec settings as a
     direct segment encode, plus a fixed 1 s GOP (-progress pipe:1 for the
     caller's % logging)."""
@@ -75,7 +76,7 @@ def mezz_cmd(video: str, t0: float, t1: float, out: str) -> list[str]:
             "-g", "30", "-keyint_min", "30", "-sc_threshold", "0",
             "-force_key_frames", "expr:gte(t,n_forced*1)",
             "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000", "-ac", "2",
-            "-threads", "2",
+            "-threads", str(threads),
             out]
 
 
@@ -257,6 +258,11 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
         key = mezz_key(i, m0, m1)
         mezzs[i] = (mezz_dir / f"{i}_{key}.mp4", m0, m1, key)
 
+    # all mezzanines at once, CPU split evenly across them — with >2
+    # angles the old HL_RENDER_WORKERS cap left the box mostly idle
+    n_mezz = len(mezzs)
+    mezz_threads = max(1, -(-(os.cpu_count() or 2) // max(1, n_mezz)))
+
     def _build_mezz(i: int) -> None:
         mp, m0, m1, _ = mezzs[i]
         if _seg_ok(mp):
@@ -264,14 +270,15 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
             return
         tmp = mp.with_name(mp.stem + ".part.mp4")
         tmp.unlink(missing_ok=True)
-        _run_progress(mezz_cmd(videos[i], m0, m1, str(tmp)), m1 - m0,
+        _run_progress(mezz_cmd(videos[i], m0, m1, str(tmp),
+                               threads=mezz_threads), m1 - m0,
                       f"render: mezzanine angle {i}", log)
         os.replace(tmp, mp)
         if not _seg_ok(mp):
             raise RuntimeError(f"render: mezzanine angle {i} invalid")
         log(f"render: mezzanine built (angle {i}, {m1 - m0:.0f} s)")
 
-    with ThreadPoolExecutor(max_workers=workers) as ex:
+    with ThreadPoolExecutor(max_workers=max(1, n_mezz)) as ex:
         list(ex.map(_build_mezz, mezzs))
     # drop stale mezzanines (different key / range)
     live = {mp.name for mp, *_ in mezzs.values()}

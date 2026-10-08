@@ -233,3 +233,55 @@ def test_slow_motion_replay_render(tmp_path):
                  if stream["codec_type"] == "video")
     assert (video["width"], video["height"]) == (1920, 1080)
     assert video["r_frame_rate"] == "30/1"
+
+
+def test_mezz_cmd_threads():
+    cmd = render.mezz_cmd("/v/a.mp4", 0.0, 10.0, "/tmp/m.mp4", threads=1)
+    assert cmd[cmd.index("-threads") + 1] == "1"
+    cmd = render.mezz_cmd("/v/a.mp4", 0.0, 10.0, "/tmp/m.mp4")
+    assert cmd[cmd.index("-threads") + 1] == "2"
+
+
+def test_mezzanines_build_concurrently(tmp_path, monkeypatch):
+    """3 mezzanines run at once, each getting cpu_count/3 ffmpeg threads."""
+    import time
+
+    monkeypatch.setattr(render.os, "cpu_count", lambda: 4)
+    monkeypatch.setattr(render, "_seg_ok", lambda f: Path(f).exists())
+    monkeypatch.setattr(render, "run",
+                        lambda cmd, log=print: Path(cmd[-1]).write_bytes(b"x"))
+    starts = []
+
+    def fake_progress(cmd, dur_s, tag, log=print):
+        starts.append((time.monotonic(), tag))
+        Path(cmd[-1]).write_bytes(b"x")
+        time.sleep(0.15)
+
+    monkeypatch.setattr(render, "_run_progress", fake_progress)
+    videos = [str(_mkvideo(tmp_path / f"a{i}.mp4", 1.0)) for i in range(3)]
+    render.render(videos, [0.0, 0.0, 0.0], [], 0.0, 1.0,
+                  tmp_path / "work", tmp_path / "out.mp4", videos[0],
+                  durations=[1.0, 1.0, 1.0], log=lambda m: None)
+    mezz_starts = [t for t, tag in starts if "mezzanine angle" in tag]
+    assert len(mezz_starts) == 3
+    assert max(mezz_starts) - min(mezz_starts) < 0.15
+
+
+def test_mezz_threads_value(tmp_path, monkeypatch):
+    monkeypatch.setattr(render.os, "cpu_count", lambda: 4)
+    monkeypatch.setattr(render, "_seg_ok", lambda f: Path(f).exists())
+    monkeypatch.setattr(render, "run",
+                        lambda cmd, log=print: Path(cmd[-1]).write_bytes(b"x"))
+    cmds = []
+
+    def fake_progress(cmd, dur_s, tag, log=print):
+        cmds.append(cmd)
+        Path(cmd[-1]).write_bytes(b"x")
+
+    monkeypatch.setattr(render, "_run_progress", fake_progress)
+    videos = [str(_mkvideo(tmp_path / f"a{i}.mp4", 1.0)) for i in range(3)]
+    render.render(videos, [0.0, 0.0, 0.0], [], 0.0, 1.0,
+                  tmp_path / "work", tmp_path / "out.mp4", videos[0],
+                  durations=[1.0, 1.0, 1.0], log=lambda m: None)
+    assert len(cmds) == 3
+    assert all(c[c.index("-threads") + 1] == "2" for c in cmds)

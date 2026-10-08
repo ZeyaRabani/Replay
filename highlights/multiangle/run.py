@@ -144,15 +144,29 @@ def _load_angles(project_dir: Path, angles_json: str | None,
 # ------------------------------ stages ------------------------------------
 
 def stage_download(ctx: Ctx) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
     from highlights.pipeline.download import download
+    todo = []
     for i, a in enumerate(ctx.angles):
         if ctx.angle_video(i) is not None:
             ctx.log(f"download: a{i} already has a file")
             continue
         if not a.get("url"):
             raise PipelineError(f"angle {i}: no file and no url")
+        todo.append(i)
+    if not todo:
+        return
+    workers = int(os.environ.get("HL_DOWNLOAD_WORKERS", "2"))
+
+    def _dl(i: int) -> None:
+        a = ctx.angles[i]
         ctx.log(f"download: angle {i}/{len(ctx.angles)-1} {a['url']}")
-        download(a["url"], a["dir"], status=ctx.status, cookies=ctx.cookies, log=ctx.log)
+        download(a["url"], a["dir"], status=ctx.status,
+                 cookies=ctx.cookies, log=ctx.log)
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+        list(ex.map(_dl, todo))
 
 
 def stage_angles(ctx: Ctx) -> None:
