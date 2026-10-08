@@ -144,10 +144,8 @@ def _check(p, m) -> None:
 
     if is_cookie_failure(err):
         # retry only when the saved cookies are newer than what we tried
-        src = m._user_cookies_path(p.owner)
-        if not src.is_file():
-            src = m._shared_cookies_path()
-        if not src.is_file():
+        src = m._cookies_source(p.owner)
+        if src is None:
             return
         mtime = src.stat().st_mtime
         if mtime <= float(ar.get("cookies_mtime_tried", 0)):

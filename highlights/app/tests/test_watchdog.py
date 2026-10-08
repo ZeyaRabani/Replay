@@ -1,5 +1,6 @@
 """Self-healing watchdog tests — pass_once() with recorded spawns."""
 
+import os
 import time
 
 from conftest import new_project
@@ -157,3 +158,71 @@ def test_watchdog_leaves_running_alive(client, sample_video, monkeypatch):
                 message="downloading")
     watchdog.pass_once()
     assert calls == []
+
+
+def test_cookies_source_picks_newest(tmp_path, monkeypatch):
+    monkeypatch.setenv("HL_WORKDIR", str(tmp_path))
+    user_f = m._user_cookies_path("alice")
+    user_f.parent.mkdir(parents=True, exist_ok=True)
+    user_f.write_text("user-cookies")
+    shared_f = m._shared_cookies_path()
+    shared_f.parent.mkdir(parents=True, exist_ok=True)
+    shared_f.write_text("shared-cookies")
+    os.utime(user_f, (1000, 1000))
+    os.utime(shared_f, (2000, 2000))
+    assert m._cookies_source("alice") == shared_f
+    os.utime(user_f, (3000, 3000))
+    assert m._cookies_source("alice") == user_f
+    user_f.unlink()
+    assert m._cookies_source("alice") == shared_f
+    shared_f.unlink()
+    assert m._cookies_source("alice") is None
+
+
+def test_cookie_failed_respawns_on_newer_shared_cookies(
+        client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+
+    # owner's file older than tried; only the shared (admin) file is newer
+    owner_f = m._user_cookies_path(p.owner)
+    owner_f.parent.mkdir(parents=True, exist_ok=True)
+    owner_f.write_text("old")
+    os.utime(owner_f, (1000, 1000))
+    shared_f = m._shared_cookies_path()
+    shared_f.parent.mkdir(parents=True, exist_ok=True)
+    shared_f.write_text("fresh")
+    os.utime(shared_f, (2000, 2000))
+
+    watchdog.pass_once()
+    assert len(calls) == 1
+    assert watchdog._load_state(p)["cookies_mtime_tried"] == 2000
+
+    # already-tried mtime -> no further respawn
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+    watchdog.pass_once()
+    assert len(calls) == 1
+
+
+def test_admin_cookies_put_writes_shared_too(client, monkeypatch):
+    text = "youtube.com\tTRUE\t/\tFALSE\t0\tk\tv\n"
+
+    # admin put (no share flag) writes user + shared
+    monkeypatch.setenv("REPLAY_ADMINS", "tester")
+    r = client.put("/api/me/youtube-cookies", json={"cookies_text": text})
+    assert r.status_code == 200, r.text
+    assert m._user_cookies_path("tester").is_file()
+    assert m._shared_cookies_path().is_file()
+
+    # non-admin: share is 403; plain put writes only the user file
+    monkeypatch.setenv("REPLAY_ADMINS", "someone-else")
+    m._shared_cookies_path().unlink()
+    r = client.put("/api/me/youtube-cookies",
+                   json={"cookies_text": text, "share": True})
+    assert r.status_code == 403
+    r = client.put("/api/me/youtube-cookies", json={"cookies_text": text})
+    assert r.status_code == 200, r.text
+    assert m._user_cookies_path("tester").is_file()
+    assert not m._shared_cookies_path().is_file()

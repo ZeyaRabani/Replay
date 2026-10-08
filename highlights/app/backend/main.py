@@ -925,13 +925,20 @@ def _save_user_cookies(user: str, text: str) -> Path:
     return path
 
 
+def _cookies_source(user: str) -> Path | None:
+    """The freshest usable cookies file for `user`: the newer (by mtime)
+    of the user's saved cookies and the admin-shared ones. None if neither
+    exists."""
+    cands = [f for f in (_user_cookies_path(user), _shared_cookies_path())
+             if f.is_file()]
+    return max(cands, key=lambda f: f.stat().st_mtime) if cands else None
+
+
 def _user_default_cookies(p, user: str) -> str | None:
-    """Copy the user's saved cookies into the project, returning the path.
-    Falls back to the admin-shared cookies when the user has none."""
-    src = _user_cookies_path(user)
-    if not src.is_file():
-        src = _shared_cookies_path()
-    if not src.is_file():
+    """Copy the freshest saved cookies (user's or shared) into the project,
+    returning the path."""
+    src = _cookies_source(user)
+    if src is None:
         return None
     dst = p.source_dir / "cookies.txt"
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -961,9 +968,10 @@ def put_youtube_cookies(body: CookiesPut, user: UserDep) -> dict:
         raise HTTPException(422, "cookies_text is empty")
     if "youtube.com" not in text:
         raise HTTPException(422, "does not look like Netscape cookies for youtube.com")
-    if body.share:
-        if not _is_admin(user):
-            raise HTTPException(403, "only admins can share cookies server-wide")
+    if body.share and not _is_admin(user):
+        raise HTTPException(403, "only admins can share cookies server-wide")
+    if body.share or _is_admin(user):
+        # admin cookies are server-wide by design
         sp = _shared_cookies_path()
         sp.parent.mkdir(parents=True, exist_ok=True)
         sp.write_text(text)

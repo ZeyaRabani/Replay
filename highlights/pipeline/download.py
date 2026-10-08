@@ -27,7 +27,8 @@ COOKIES_REJECTED_MSG = (
     "YouTube rejected the saved cookies (expired/rotated). Re-export them "
     "from an incognito window (log in to YouTube there, export with the "
     "Get cookies.txt extension, close the window without browsing) and "
-    "paste into the YouTube access panel, then Restart."
+    "paste into the YouTube access panel — the match resumes automatically "
+    "once they are saved."
 )
 
 # transient YouTube/network failures worth an outer (long) retry
