@@ -495,3 +495,34 @@ def test_zone_incumbent_sees_ball_blocks_cut():
     d2 = cut_director(tr, np.ones((2, T), dtype=bool),
                       [np.ones(T)] * 2, zones=zones)
     assert _seg_times(d2)
+
+
+def test_stage_fuse_bounds_window_to_match_duration(tmp_path, monkeypatch):
+    """match.mp4 shorter than the cut range -> events past the real
+    container duration are dropped."""
+    import json as _json
+
+    import highlights.multiangle.run as run_mod
+    from highlights.multiangle.run import Ctx, stage_fuse
+
+    proj = tmp_path / "p"
+    ma = proj / "multiangle"
+    ma.mkdir(parents=True)
+    (ma / "sync.json").write_text(_json.dumps({
+        "offsets": [0.0], "coverage": {"union": [0.0, 100.0]}}))
+    (ma / "cut_range.json").write_text(_json.dumps({"lo": 0.0, "hi": 20.0}))
+    (proj / "match.mp4").write_bytes(b"fake")  # exists; duration stubbed
+    monkeypatch.setattr(run_mod, "ffprobe",
+                        lambda path: {"duration_s": 19.0})
+    d = proj / "angles" / "a0" / "pipeline"
+    d.mkdir(parents=True)
+    (d / "candidates.json").write_text(_json.dumps({"events": [
+        {"t": 10.0, "t_start": 9.0, "t_end": 11.0, "type": "shot",
+         "confidence": 0.8},
+        {"t": 19.5, "t_start": 18.0, "t_end": 21.0, "type": "shot",
+         "confidence": 0.7}]}))
+    ctx = Ctx(project_dir=proj, pipe=ma, status=None,
+              angles=[{"label": "a0", "dir": d.parent}])
+    stage_fuse(ctx)
+    out = _json.loads((proj / "pipeline" / "candidates.json").read_text())
+    assert [e["t"] for e in out["events"]] == [10.0]

@@ -844,6 +844,11 @@ def stage_fuse(ctx: Ctx) -> dict:
                           ctx.pipe / "fused_candidates.json")
     lo, hi = ctx.union(sync)
     dur_live = hi - lo
+    # bound the window to the actual rendered file — the container can be a
+    # few s shorter than the declared union
+    match = ctx.project_dir / "match.mp4"
+    if match.is_file():
+        dur_live = min(dur_live, float(ffprobe(match)["duration_s"]))
     # fused events are on shared T; the UI plays the rendered video whose
     # time axis is output time (0 = union start) -> shift everything by -lo,
     # then drop events the render doesn't cover (before/after a cut_range)
