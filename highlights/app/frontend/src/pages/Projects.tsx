@@ -83,6 +83,7 @@ function ProjectCard({
   onUploadInstead,
   onPurge,
   onRename,
+  onRetryNow,
   downloads,
 }: {
   p: ProjectSummary;
@@ -94,6 +95,7 @@ function ProjectCard({
   onUploadInstead: () => void;
   onPurge: (p: ProjectSummary) => void;
   onRename: (p: ProjectSummary, title: string) => void;
+  onRetryNow: (p: ProjectSummary) => void;
 }) {
   const [thumbErr, setThumbErr] = useState(false);
   return (
@@ -192,11 +194,27 @@ function ProjectCard({
                 >
                   <Upload size={11} /> Upload the file instead
                 </button>
+                <span className="text-zinc-500">
+                  Waiting for new YouTube cookies — paste them in the YouTube access panel; the match will resume on its own.
+                </span>
               </span>
             </div>
           ) : (
-            <div className="text-[11px] text-red-300 truncate" title={p.message ?? ""}>
-              {p.message}
+            <div className="text-[11px]">
+              <div className="text-red-300 truncate" title={p.message ?? ""}>{p.message}</div>
+              {p.auto_retry && Date.now() / 1000 < p.auto_retry.next_at && (
+                <div className="text-zinc-500 mt-0.5">
+                  Will retry automatically{" "}
+                  in {Math.max(1, Math.round((p.auto_retry.next_at - Date.now() / 1000) / 60))} min{" "}
+                  (attempt {Math.min(p.auto_retry.n + 1, 12)}/12)
+                </div>
+              )}
+              <button
+                className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 mt-0.5"
+                onClick={() => onRetryNow(p)}
+              >
+                <RotateCcw size={11} /> Retry now
+              </button>
             </div>
           )
         ) : p.pipeline_state === "needs_input" ? (
@@ -1098,6 +1116,16 @@ export default function Projects() {
     }
   };
 
+  // manual nudge for an auto-retry the watchdog already scheduled
+  const retryNow = async (p: ProjectSummary) => {
+    try {
+      await projectApi(p.id).runPipeline({});
+      void refresh();
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const openCookiesPanel = () => {
     cookiesPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -1193,6 +1221,7 @@ export default function Projects() {
                 onUploadInstead={uploadInstead}
                 onPurge={purge}
                 onRename={rename}
+                onRetryNow={retryNow}
                 downloads={downloads}
               />
             ))

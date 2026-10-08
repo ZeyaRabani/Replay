@@ -45,7 +45,7 @@ from highlights.multiangle.cuts import (
 )
 
 from . import ffmpeg as fx
-from . import history, pipeline, playlist, stats
+from . import history, pipeline, playlist, stats, watchdog
 from .schemas import (
     CandidatePatch,
     CandidatesFile,
@@ -248,6 +248,7 @@ def reset_registry() -> None:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     get_registry()
+    watchdog.start()
     yield
 
 
@@ -823,6 +824,7 @@ def summary(p: ProjectStore) -> dict:
         "source": p.source_info,
         "meta": p.meta,
         "pipeline_state": p.pipeline_state,
+        "auto_retry": status.get("auto_retry") if status else None,
         "progress": status["progress"] if status else 0.0,
         "stage": status["stage"] if status else None,
         "message": (
@@ -967,6 +969,7 @@ def put_youtube_cookies(body: CookiesPut, user: UserDep) -> dict:
         sp.write_text(text)
         os.chmod(sp, 0o600)
     path = _save_user_cookies(user, text)
+    watchdog.kick()  # cookie-failed projects can resume immediately
     return {"saved": True, "updated_at": path.stat().st_mtime}
 
 
@@ -1501,6 +1504,35 @@ def delete_project(p: ScopedP) -> Response:
     return Response(status_code=204)
 
 
+def _respawn_project(p: ProjectStore, owner: str,
+                     *, stages: list[str] | None = None,
+                     force: bool = False) -> dict:
+    """Spawn the pipeline exactly like POST /pipeline/run — shared with the
+    watchdog so auto-resume behaviour can't diverge from a manual re-run."""
+    if p.is_multiangle:
+        ck = _user_default_cookies(p, owner) or _project_cookies(p)
+        return pipeline.spawn_multiangle(p, stages=stages, force=force,
+                                       cookies=ck)
+    kind = p.source_info.get("kind")
+    if kind == "youtube":
+        ck = _user_default_cookies(p, owner) or _project_cookies(p)
+        return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
+                              stages=stages, force=force,
+                              cookies=ck)
+    video = p.video.path if p.video else p.source_info.get("url")
+    if not video:
+        files = [f for f in p.source_dir.iterdir() if f.is_file()]
+        if files:
+            video = str(files[0])
+    if not video:
+        raise HTTPException(422, "no video or upload to run the pipeline on")
+    return pipeline.spawn(
+        p, video=video,
+        stages=stages if stages is not None else NO_DOWNLOAD_STAGES,
+        force=force,
+    )
+
+
 @scoped.post("/pipeline/run")
 def run_pipeline(p: ScopedP, user: UserDep,
                  body: Annotated[dict | None, Body()] = None) -> dict:
@@ -1508,28 +1540,7 @@ def run_pipeline(p: ScopedP, user: UserDep,
     stages = body.get("stages")
     force = bool(body.get("force", False))
     try:
-        if p.is_multiangle:
-            ck = _user_default_cookies(p, user) or _project_cookies(p)
-            return pipeline.spawn_multiangle(p, stages=stages, force=force,
-                                           cookies=ck)
-        kind = p.source_info.get("kind")
-        if kind == "youtube":
-            ck = _user_default_cookies(p, user) or _project_cookies(p)
-            return pipeline.spawn(p, youtube_url=p.source_info.get("url"),
-                                  stages=stages, force=force,
-                                  cookies=ck)
-        video = p.video.path if p.video else p.source_info.get("url")
-        if not video:
-            files = [f for f in p.source_dir.iterdir() if f.is_file()]
-            if files:
-                video = str(files[0])
-        if not video:
-            raise HTTPException(422, "no video or upload to run the pipeline on")
-        return pipeline.spawn(
-            p, video=video,
-            stages=stages if stages is not None else NO_DOWNLOAD_STAGES,
-            force=force,
-        )
+        return _respawn_project(p, user, stages=stages, force=force)
     except pipeline.PipelineBusy as e:
         raise HTTPException(409, str(e)) from e
 

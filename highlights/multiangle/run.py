@@ -932,8 +932,8 @@ def stage_scoreboard(ctx: Ctx) -> None:
     from highlights.multiangle.scoreboard import apply_scoreboard, find_bold_font, scoreboard_filter
     spec_path = ctx.pipe / "scoreboard.json"
     if not spec_path.exists():
-        raise PipelineError(
-            "scoreboard.json missing — request it via the Score card")
+        ctx.log("scoreboard: skip (no spec requested)")
+        return
     spec = json.loads(spec_path.read_text())
     replays = []
     director_path = ctx.pipe / "director.json"
@@ -1137,7 +1137,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="highlights.multiangle.run")
     ap.add_argument("--project-dir", required=True, type=Path)
     ap.add_argument("--angles-json", help="JSON file with {\"angles\": [{url,label}]}")
-    ap.add_argument("--stages", default=",".join(STAGES))
+    ap.add_argument("--stages",
+                    default=",".join(n for n in STAGES if n != "scoreboard"))
     ap.add_argument("--offsets", help="comma list, len==n angles, first must be 0")
     ap.add_argument("--cookies")
     ap.add_argument("--force", action="store_true")
@@ -1187,7 +1188,7 @@ def main(argv: list[str] | None = None) -> int:
                 run_stages(ctx, names)
             if "render" in names or "scoreboard" in names:
                 from highlights.multiangle.cuts import snapshot_cut
-                sb = "scoreboard" in names
+                sb = (pipe / "scoreboard_applied.json").is_file()
                 cr = None
                 try:
                     crd = json.loads((pipe / "cut_range.json").read_text())

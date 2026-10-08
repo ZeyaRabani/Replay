@@ -94,6 +94,7 @@ export interface ProjectSummary {
   source: ProjectSource;
   meta?: ProjectMeta;
   pipeline_state: PipelineState;
+  auto_retry?: { n: number; next_at: number } | null;
   progress: number;
   stage: string | null;
   message: string | null;

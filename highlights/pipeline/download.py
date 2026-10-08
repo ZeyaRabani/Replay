@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -28,6 +30,35 @@ COOKIES_REJECTED_MSG = (
     "paste into the YouTube access panel, then Restart."
 )
 
+# transient YouTube/network failures worth an outer (long) retry
+TRANSIENT_RE = re.compile(
+    r"5\d\d|Service Unavailable|timed out|Connection reset|"
+    r"Temporary failure|Name or service not known|Network is unreachable|"
+    r"Remote end closed|EOF occurred|incomplete read",
+    re.IGNORECASE,
+)
+TRANSIENT_BACKOFF_S = [30, 60, 120, 300, 600, 900, 1200, 1800]
+TRANSIENT_MAX_ATTEMPTS = len(TRANSIENT_BACKOFF_S)
+
+# injectable for tests
+_sleep = time.sleep
+
+
+def _is_bot_check(msg: str) -> bool:
+    return any(m in msg for m in BOT_CHECK_MARKERS)
+
+
+def is_cookie_failure(msg: str) -> bool:
+    """True for saved-cookies-rejected or bot-check failures — retried only
+    when the cookies change, never on a timer."""
+    return (msg.startswith(COOKIES_REJECTED_MSG[:40])
+            or msg.startswith(BOT_CHECK_MSG[:40]))
+
+
+def is_transient_failure(msg: str) -> bool:
+    """True for YouTube 5xx / network errors that clear on their own."""
+    return bool(TRANSIENT_RE.search(msg))
+
 
 def _progress_hook(status, d: dict) -> None:
     if status is None:
@@ -43,6 +74,27 @@ def _progress_hook(status, d: dict) -> None:
         status.update(stage_progress=frac, message=msg)
     elif st == "finished":
         status.update(stage_progress=1.0, message="download finished, merging")
+
+
+def _extract(opts: dict, formats: list[str], url: str, log) -> dict:
+    """One download attempt over the DASH->HLS format fallback list.
+
+    Returns the yt-dlp info dict. Raises DownloadError unchanged; the
+    caller decides whether the failure is bot-check / transient / fatal.
+    """
+    for attempt, fmt in enumerate(formats):
+        opts["format"] = fmt
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                return ydl.extract_info(url, download=True)
+        except yt_dlp.utils.DownloadError as e:
+            msg = str(e)
+            if (attempt == 0 and not _is_bot_check(msg)
+                    and ("403" in msg or "Forbidden" in msg)):
+                log("DASH download got 403; retrying with HLS streams")
+                continue
+            raise
+    return {}
 
 
 def download(url: str, dest_dir: str | Path, status=None,
@@ -66,7 +118,15 @@ def download(url: str, dest_dir: str | Path, status=None,
         "quiet": True,
         "no_warnings": True,
         "retries": 10,
+        "retry_sleep_functions": {
+            "http": lambda n: min(60, 2 ** n),
+            "fragment": lambda n: min(30, 2 ** n),
+            "extractor": lambda n: min(60, 5 * n),
+        },
         "fragment_retries": 20,
+        "extractor_retries": 5,
+        "continuedl": True,
+        "socket_timeout": 30,
         "concurrent_fragment_downloads": 4,
     }
     js = {}
@@ -99,22 +159,37 @@ def download(url: str, dest_dir: str | Path, status=None,
         "bv*[protocol^=m3u8]+ba/bv*+ba/b",
     ]
     info = None
-    for attempt, fmt in enumerate(formats):
-        opts["format"] = fmt
+    cookies_dropped = False
+    attempt = 0
+    while True:
         try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=True)
+            info = _extract(opts, formats, url, log)
             break
         except yt_dlp.utils.DownloadError as e:
             msg = str(e)
-            if any(m in msg for m in BOT_CHECK_MARKERS):
-                if cookiefile:
-                    raise PipelineError(COOKIES_REJECTED_MSG) from e
-                raise PipelineError(BOT_CHECK_MSG) from e
-            if attempt == 0 and ("403" in msg or "Forbidden" in msg):
-                log("DASH download got 403; retrying with HLS streams")
-                continue
-            raise PipelineError(msg) from e
+            if _is_bot_check(msg):
+                if cookiefile and not cookies_dropped:
+                    # saved cookies rejected: retry once via the pot provider
+                    cookies_dropped = True
+                    opts.pop("cookiefile", None)
+                    log("saved cookies rejected; retrying once without them")
+                    continue
+                raise PipelineError(
+                    COOKIES_REJECTED_MSG if cookiefile else BOT_CHECK_MSG) from e
+            if not is_transient_failure(msg):
+                raise PipelineError(msg) from e
+            attempt += 1
+            if attempt >= TRANSIENT_MAX_ATTEMPTS:
+                raise PipelineError(
+                    f"{msg} (after {TRANSIENT_MAX_ATTEMPTS} attempts)") from e
+            wait = TRANSIENT_BACKOFF_S[attempt - 1]
+            short = msg.splitlines()[0][:80]
+            note = (f"YouTube unavailable ({short}); retrying in {wait}s "
+                    f"(attempt {attempt}/{TRANSIENT_MAX_ATTEMPTS})")
+            log(note)
+            if status is not None:
+                status.update(message=note)
+            _sleep(wait)
 
     # resolve the actual output file
     out: Path | None = None

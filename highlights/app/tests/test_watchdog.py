@@ -1,0 +1,159 @@
+"""Self-healing watchdog tests — pass_once() with recorded spawns."""
+
+import time
+
+from conftest import new_project
+
+import highlights.app.backend.main as m
+from highlights.app.backend import pipeline, watchdog
+from highlights.pipeline.download import BOT_CHECK_MSG, COOKIES_REJECTED_MSG
+
+
+def _set_status(p, **kw):
+    status = {
+        "state": "failed", "stage": "download", "progress": 0.0,
+        "stage_progress": 0.0, "message": kw.get("error") or "failed",
+        "error": kw.get("error"), "started_at": time.time() - 100,
+        "updated_at": time.time() - 10, "finished_at": time.time() - 10,
+        "pid": 999999999,
+    }
+    status.update(kw)
+    pipeline.write_status(p, status)
+    p.set_pipeline_state(status["state"])
+    return status
+
+
+def _record_spawns(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        pipeline, "spawn",
+        lambda p, **kw: calls.append(("spawn", p, kw)) or {"state": "queued"})
+    monkeypatch.setattr(
+        pipeline, "spawn_multiangle",
+        lambda p, **kw: calls.append(("spawn_multiangle", p, kw))
+        or {"state": "queued"})
+    return calls
+
+
+def _fail_state(p, **kw):
+    watchdog._save_state(p, kw)
+
+
+def test_watchdog_transient_respects_backoff(client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error="HTTP Error 503: Service Unavailable")
+
+    # first pass: schedules attempt 1 and respawns
+    watchdog.pass_once()
+    assert len(calls) == 1
+    ar = watchdog._load_state(p)
+    assert ar["n"] == 1 and ar["next_at"] > time.time()
+
+    # again before next_at -> nothing (failed status re-written by the
+    # fake spawn in real life; here we re-fail it to simulate)
+    _set_status(p, error="HTTP Error 503: Service Unavailable")
+    watchdog.pass_once()
+    assert len(calls) == 1
+
+    # due now -> attempt 2
+    _fail_state(p, n=1, next_at=0)
+    watchdog.pass_once()
+    assert len(calls) == 2
+    assert watchdog._load_state(p)["n"] == 2
+
+
+def test_watchdog_gives_up_after_12(client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error="HTTP Error 503: Service Unavailable")
+    _fail_state(p, n=watchdog.MAX_ATTEMPTS, next_at=0)
+    watchdog.pass_once()
+    assert calls == []
+    status = pipeline.read_status(p)
+    assert status["error"].startswith("gave up after 12 automatic retries")
+
+
+def test_watchdog_cookie_failure_waits_for_new_cookies(
+        client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+
+    # no cookies saved -> no retry
+    watchdog.pass_once()
+    assert calls == []
+
+    # save cookies -> next pass respawns once
+    r = client.put("/api/me/youtube-cookies",
+                   json={"cookies_text":
+                         "youtube.com\tTRUE\t/\tFALSE\t0\tX\tY"})
+    assert r.status_code == 200, r.text
+    watchdog.pass_once()
+    assert len(calls) == 1
+
+    # same mtime -> no repeat
+    _set_status(p, error=COOKIES_REJECTED_MSG)
+    watchdog.pass_once()
+    assert len(calls) == 1
+
+    # newer cookies -> retries again
+    ck = m._user_cookies_path(p.owner)
+    time.sleep(0.02)
+    ck.write_text("youtube.com\tTRUE\t/\tFALSE\t0\tX\tZ")
+    watchdog.pass_once()
+    assert len(calls) == 2
+
+    # generic bot check (no cookies used) is also cookie-failure
+    _set_status(p, error=BOT_CHECK_MSG)
+    watchdog.pass_once()
+    assert len(calls) == 2  # mtime already tried
+
+
+def test_watchdog_never_retries_cancelled_or_plain(
+        client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    _set_status(p, error="cancelled")
+    watchdog.pass_once()
+    _set_status(p, error="cancelled by user")
+    watchdog.pass_once()
+    _set_status(p, error="angle 0: no file and no url")
+    watchdog.pass_once()
+    assert calls == []
+
+
+def test_watchdog_interrupted_and_stale_error(
+        client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+
+    # interrupted (dead pid after restart) -> scheduled like transient
+    _set_status(p, error=watchdog.INTERRUPTED_MSG)
+    watchdog.pass_once()
+    assert len(calls) == 1
+
+    # stale stage error -> one immediate retry
+    _set_status(p, error="scoreboard.json missing — request it via the Score card")
+    watchdog.pass_once()
+    assert len(calls) == 2
+    # but only once
+    _set_status(p, error="scoreboard.json missing — request it via the Score card")
+    watchdog.pass_once()
+    assert len(calls) == 2
+
+
+def test_watchdog_leaves_running_alive(client, sample_video, monkeypatch):
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    calls = _record_spawns(monkeypatch)
+    import os
+    _set_status(p, state="running", pid=os.getpid(), error=None,
+                message="downloading")
+    watchdog.pass_once()
+    assert calls == []

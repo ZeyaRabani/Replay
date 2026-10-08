@@ -144,3 +144,86 @@ def test_download_bot_check_with_cookies(tmp_path, monkeypatch):
     msg = str(ei.value)
     assert "rejected the saved cookies" in msg
     assert "incognito" in msg
+
+
+class _TransientYDL(_FakeYDL):
+    """Raises a transient 503 for the first `fails` extract_info calls."""
+    calls: ClassVar[int] = 0
+    fails: ClassVar[int] = 0
+
+    def extract_info(self, url, download=True):
+        type(self).calls += 1
+        if type(self).calls <= type(self).fails:
+            raise yt_dlp.utils.DownloadError(
+                "HTTP Error 503: Service Unavailable")
+        return super().extract_info(url, download)
+
+
+def _patch_sleep(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(dl, "_sleep", sleeps.append)
+    return sleeps
+
+
+def test_download_transient_retries_then_succeeds(tmp_path, monkeypatch):
+    _TransientYDL.calls, _TransientYDL.fails = 0, 2
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _TransientYDL)
+    sleeps = _patch_sleep(monkeypatch)
+    out = dl.download("http://x", tmp_path, status=None, log=lambda m: None)
+    assert out.name == "match.mp4"
+    assert sleeps == [30, 60]
+    assert _TransientYDL.calls == 3
+
+
+def test_download_transient_gives_up_after_8(tmp_path, monkeypatch):
+    _TransientYDL.calls, _TransientYDL.fails = 0, 99
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", _TransientYDL)
+    sleeps = _patch_sleep(monkeypatch)
+    with pytest.raises(PipelineError) as ei:
+        dl.download("http://x", tmp_path, status=None, log=lambda m: None)
+    assert "after 8 attempts" in str(ei.value)
+    assert _TransientYDL.calls == 8
+    assert sleeps == [30, 60, 120, 300, 600, 900, 1200]
+
+
+def test_download_cookies_rejected_retries_without(tmp_path, monkeypatch):
+    """Saved cookies rejected -> one retry without cookiefile; a second bot
+    check raises the cookies-expired message."""
+    class Rec(_BotYDL):
+        opts_seen: ClassVar[list] = []
+
+        def __init__(self, opts):
+            super().__init__(opts)
+            self.opts_seen.append(dict(opts))
+
+    Rec.opts_seen = []
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", Rec)
+    sleeps = _patch_sleep(monkeypatch)
+    ck = tmp_path / "cookies.txt"
+    ck.write_text("youtube.com\tTRUE\t/\tFALSE\t0\tX\tY")
+    with pytest.raises(PipelineError) as ei:
+        dl.download("http://x", tmp_path, status=None, cookies=str(ck),
+                    log=lambda m: None)
+    assert "rejected the saved cookies" in str(ei.value)
+    assert len(Rec.opts_seen) == 2
+    assert "cookiefile" in Rec.opts_seen[0]
+    assert "cookiefile" not in Rec.opts_seen[1]
+    assert sleeps == []  # cookie fallback does not burn a transient attempt
+
+
+def test_download_bot_check_not_transient(tmp_path, monkeypatch):
+    """Bot-check errors never enter the transient backoff loop."""
+    class BotCount(_BotYDL):
+        calls: ClassVar[int] = 0
+
+        def extract_info(self, url, download=True):
+            type(self).calls += 1
+            return super().extract_info(url, download)
+
+    BotCount.calls = 0
+    monkeypatch.setattr(dl.yt_dlp, "YoutubeDL", BotCount)
+    sleeps = _patch_sleep(monkeypatch)
+    with pytest.raises(PipelineError):
+        dl.download("http://x", tmp_path, status=None, log=lambda m: None)
+    assert BotCount.calls == 1
+    assert sleeps == []

@@ -59,8 +59,9 @@ def multiangle_runner_cmd() -> list[str]:
     return [sys.executable, "-m", "highlights.multiangle.run"]
 
 
+# scoreboard is opt-in from the Score card, never part of the default run
 MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "director",
-                     "render", "fuse", "stats", "scoreboard"]
+                     "render", "fuse", "stats"]
 # re-run-from-sync never re-applies the scoreboard overlay
 MULTIANGLE_FROM_SYNC = ["sync", "track", "director", "render", "fuse", "stats"]
 
