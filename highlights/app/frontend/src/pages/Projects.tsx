@@ -1085,15 +1085,17 @@ export default function Projects() {
   }, [refresh]);
 
   const anyLive = projects?.some(isLive) ?? false;
+  // failed cards can be resumed by the server watchdog; poll them slowly
+  const anyFailed = projects?.some((p) => p.pipeline_state === "failed") ?? false;
   useEffect(() => {
     if (timer.current) window.clearInterval(timer.current);
     timer.current = null;
-    if (!anyLive) return;
-    timer.current = window.setInterval(() => void refresh(), 2000);
+    if (!anyLive && !anyFailed) return;
+    timer.current = window.setInterval(() => void refresh(), anyLive ? 2000 : 10000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };
-  }, [anyLive, refresh]);
+  }, [anyLive, anyFailed, refresh]);
 
   const refreshCookies = useCallback(async () => {
     try {
@@ -1236,7 +1238,7 @@ export default function Projects() {
         <div>
           <YouTubeAccess
             status={cookieStatus}
-            onChanged={() => void refreshCookies()}
+            onChanged={() => { void refreshCookies(); void refresh(); }}
             onError={showError}
             innerRef={cookiesPanel}
           />
