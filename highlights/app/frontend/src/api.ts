@@ -274,7 +274,7 @@ export function projectApi(id: string) {
 
     multiangle: () => req<MultiangleInfo>(`${base}/multiangle`),
     multiangleDirector: () => req<DirectorFull>(`${base}/multiangle/director`),
-    putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json(offsets, "PUT")),
+    putOffsets: (offsets: number[]) => req<PipelineStatus>(`${base}/multiangle/offsets`, json({ offsets }, "PUT")),
     angleVideoUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/video`),
     angleProxyUrl: (i: number) => mediaUrl(`${base}/multiangle/angle/${i}/proxy`),
     angleProxyStatus: (i: number) =>
