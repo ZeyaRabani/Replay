@@ -287,27 +287,25 @@ def test_mezz_threads_value(tmp_path, monkeypatch):
     assert all(c[c.index("-threads") + 1] == "2" for c in cmds)
 
 
-def test_extract_cmd_preserves_duration_off_grid(tmp_path):
-    """Fractional t_rel: -ss snaps to the prev keyframe; -t must extend so
-    the output keeps the requested duration (re-cut 1 s-short bug)."""
-    import math
-
+def test_extract_cmd_snaps_to_keyframe_grid(tmp_path):
+    """Fractional boundaries snap to the 1 s keyframe grid; output length
+    equals the snapped window (re-cut 1 s-short bug)."""
     mezz = tmp_path / "mezz.mp4"
     subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
-         "-i", "testsrc2=duration=30:size=320x180:rate=30",
-         "-f", "lavfi", "-i", "sine=frequency=440:duration=30",
+         "-i", "testsrc2=duration=45:size=320x180:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=45",
          "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
          "-g", "30", "-keyint_min", "30", "-sc_threshold", "0",
          "-force_key_frames", "expr:gte(t,n_forced*1)",
          "-c:a", "aac", "-ar", "48000", "-ac", "2", str(mezz)], check=True)
-    for t_rel in (10.2, 10.47, 10.9):
+    for t_rel, want_start in ((10.2, 10.0), (10.9, 11.0)):
         out = tmp_path / f"cut_{t_rel}.mp4"
         cmd = render.extract_cmd(str(mezz), t_rel, 20.0, str(out))
-        # start snapped down to the keyframe grid
-        assert float(cmd[cmd.index("-ss") + 1]) == math.floor(t_rel)
+        assert float(cmd[cmd.index("-ss") + 1]) == want_start
         subprocess.run(cmd, check=True)
         r = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(out)], capture_output=True, text=True)
-        assert abs(float(r.stdout.strip()) - 20.0) < 0.15
+        want = round(t_rel + 20.0) - round(t_rel)
+        assert abs(float(r.stdout.strip()) - want) < 0.05
