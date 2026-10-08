@@ -711,6 +711,9 @@ def _run_render(p: ProjectStore, job_id: str, req: RenderRequest, items: list[di
 
 def _start_render(p: ProjectStore, req: RenderRequest) -> dict:
     _video_path(p)
+    if any(j.state in ("queued", "running") and _job_owner.get(jid) == p.id
+           for jid, j in _jobs.items()):
+        raise HTTPException(409, "render already running")
     if req.ids:
         cands = [c for c in (p.get(i) for i in req.ids) if c is not None]
     else:
@@ -935,6 +938,11 @@ def _save_user_cookies(user: str, text: str) -> Path:
     return path
 
 
+def cookies_file_hash(f: Path) -> str:
+    """Content hash for cookie dedup / watchdog tried-set bookkeeping."""
+    return hashlib.sha256(f.read_bytes()).hexdigest()
+
+
 def _cookies_sources(user: str) -> list[Path]:
     """Every distinct saved cookies file usable for `user` — the user's
     own plus the admin-shared ones — de-duplicated by content, newest
@@ -942,10 +950,10 @@ def _cookies_sources(user: str) -> list[Path]:
     cands = [f for f in (_user_cookies_path(user), _shared_cookies_path())
              if f.is_file()]
     cands.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-    seen: set[bytes] = set()
+    seen: set[str] = set()
     out = []
     for f in cands:
-        h = hashlib.sha256(f.read_bytes()).digest()
+        h = cookies_file_hash(f)
         if h not in seen:
             seen.add(h)
             out.append(f)
@@ -2803,6 +2811,29 @@ def s_render_status(job_id: str, p: ScopedP) -> dict:
 @legacy.get("/render/{job_id}")
 def l_render_status(job_id: str, p: LegacyP) -> dict:
     return _render_status(p, job_id)
+
+
+@scoped.get("/renders")
+def s_list_renders(p: ScopedP) -> list[dict]:
+    """Newest-first list of previous render jobs with downloadable files."""
+    base_dir = p.root / "renders"
+    out = []
+    if base_dir.is_dir():
+        for d in base_dir.iterdir():
+            if not d.is_dir():
+                continue
+            files = [
+                {"name": f.relative_to(d).as_posix(),
+                 "size": f.stat().st_size,
+                 "url": f"/api/projects/{p.id}/files/{d.name}/"
+                        f"{f.relative_to(d).as_posix()}"}
+                for f in sorted(d.rglob("*")) if f.is_file()
+            ]
+            out.append({"job_id": d.name,
+                        "created_at": d.stat().st_mtime,
+                        "files": files})
+    out.sort(key=lambda e: -e["created_at"])
+    return out
 
 
 @scoped.get("/files/{job_id}/{name:path}")

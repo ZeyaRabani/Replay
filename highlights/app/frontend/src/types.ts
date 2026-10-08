@@ -36,6 +36,12 @@ export interface VideoInfo {
   registered_at: number;
 }
 
+export interface RenderEntry {
+  job_id: string;
+  created_at: number;
+  files: { name: string; size: number; url: string }[];
+}
+
 export interface RenderJob {
   job_id: string;
   state: "queued" | "running" | "done" | "error";

@@ -2,7 +2,7 @@ import { Download, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import { fmtClock } from "../lib/time";
-import type { Candidate, RenderJob } from "../types";
+import type { Candidate, RenderEntry, RenderJob } from "../types";
 
 interface Props {
   candidates: Candidate[];
@@ -17,7 +17,14 @@ export default function RenderBar(props: Props) {
   const api = useProjectApi();
   const [overlay, setOverlay] = useState(true);
   const [job, setJob] = useState<RenderJob | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [prev, setPrev] = useState<RenderEntry[]>([]);
   const timer = useRef<number | null>(null);
+
+  const refreshPrev = () => {
+    api.renders().then(setPrev).catch(() => {});
+  };
+  useEffect(refreshPrev, []);
 
   const confirmed = props.candidates.filter((c) => c.status === "confirmed");
   const selected = confirmed.length > 0 ? confirmed : props.candidates.filter((c) => c.status !== "rejected");
@@ -28,6 +35,7 @@ export default function RenderBar(props: Props) {
   }, []);
 
   const start = async () => {
+    setStarting(true);
     try {
       const { job_id } = await api.startRender({ overlay, reencode: false });
       if (timer.current) window.clearInterval(timer.current);
@@ -38,6 +46,7 @@ export default function RenderBar(props: Props) {
           if (j.state === "done" || j.state === "error") {
             if (timer.current) window.clearInterval(timer.current);
             timer.current = null;
+            if (j.state === "done") refreshPrev();
             if (j.state === "error") props.onError(j.error ?? "render failed");
           }
         } catch {
@@ -46,6 +55,8 @@ export default function RenderBar(props: Props) {
       }, 1000);
     } catch (e) {
       props.onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -57,7 +68,7 @@ export default function RenderBar(props: Props) {
     }
   }, [props.resetKey]);
 
-  const running = job && (job.state === "queued" || job.state === "running");
+  const running = starting || (job && (job.state === "queued" || job.state === "running"));
 
   return (
     <div className="sticky bottom-0 z-10 bg-zinc-900/95 border-t border-zinc-700 px-4 py-2.5 backdrop-blur">
@@ -112,6 +123,21 @@ export default function RenderBar(props: Props) {
           Export stats
         </a>
       </div>
+      {prev.length > 0 && (
+        <div className="mt-2 border-t border-zinc-800 pt-2">
+          <div className="text-xs text-zinc-500 mb-1">Previous reels</div>
+          {prev.map((e) => (
+            <div key={e.job_id} className="flex items-center gap-3 text-xs">
+              <span className="text-zinc-500">{new Date(e.created_at * 1000).toLocaleString()}</span>
+              {e.files.map((f) => (
+                <a key={f.name} className="text-amber-400 hover:underline" href={api.fileUrl(f.url)}>
+                  {f.name}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

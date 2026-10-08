@@ -39,6 +39,7 @@ import type {
   ProjectDetail,
   ProjectMeta,
   ProjectSummary,
+  RenderEntry,
   RenderJob,
   Stats,
   Team,
@@ -217,6 +218,7 @@ export function projectApi(id: string) {
     startRender: (body: { ids?: string[]; overlay: boolean; reencode: boolean }) =>
       req<{ job_id: string }>(`${base}/render`, json(body)),
     renderJob: (jobId: string) => req<RenderJob>(`${base}/render/${jobId}`),
+    renders: () => req<RenderEntry[]>(`${base}/renders`),
     statsUrl: mediaUrl(`${base}/stats`),
     fileUrl: (url: string) => mediaUrl(url),
 
