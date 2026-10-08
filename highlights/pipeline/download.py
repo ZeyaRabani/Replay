@@ -32,7 +32,7 @@ COOKIES_REJECTED_MSG = (
 
 # transient YouTube/network failures worth an outer (long) retry
 TRANSIENT_RE = re.compile(
-    r"5\d\d|Service Unavailable|timed out|Connection reset|"
+    r"\b5\d\d\b|Service Unavailable|timed out|Connection reset|"
     r"Temporary failure|Name or service not known|Network is unreachable|"
     r"Remote end closed|EOF occurred|incomplete read",
     re.IGNORECASE,
