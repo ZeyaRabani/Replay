@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import math
 import os
 import subprocess
 from pathlib import Path
@@ -48,10 +49,14 @@ def segment_cmd(video: str, t_file: float, dur: float, out: str) -> list[str]:
 
 def extract_cmd(mezz: str, t_rel: float, dur: float, out: str) -> list[str]:
     """Cut [t_rel, t_rel+dur) out of a mezzanine: video stream-copied on the
-    forced 1 s keyframe grid, audio re-encoded so cut points stay clean."""
+    forced 1 s keyframe grid, audio re-encoded so cut points stay clean.
+    -ss snaps to the previous keyframe and -t shortens by the remainder,
+    so snap the window down to the grid and extend -t to keep `dur`."""
+    k = math.floor(t_rel)
+    req = dur + (t_rel - k)
     return ["ffmpeg", "-y", "-v", "error",
-            "-ss", f"{t_rel:.3f}", "-i", mezz, "-t", f"{dur:.3f}",
-            "-frames:v", str(round(dur * 30)),
+            "-ss", f"{k:.3f}", "-i", mezz, "-t", f"{req:.3f}",
+            "-frames:v", str(round(req * 30)),
             "-c:v", "copy",
             "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000", "-ac", "2",
             out]
