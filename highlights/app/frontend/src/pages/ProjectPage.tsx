@@ -105,7 +105,7 @@ export default function ProjectPage() {
           <Link to="/projects" className="text-zinc-400 hover:text-zinc-200 flex items-center" title="All projects">
             <ChevronLeft size={16} />
           </Link>
-          <span className="text-sm truncate">{project?.title ?? "…"}</span>
+          <span className="text-sm truncate max-w-[40vw]" title={project?.title ?? ""}>{project?.title ?? "…"}</span>
           {project && (
             <TitleEdit
               value={project.title}
