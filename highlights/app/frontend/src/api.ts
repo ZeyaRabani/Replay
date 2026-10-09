@@ -143,15 +143,14 @@ export const projectsApi = {
     if (meta?.cut_style) fd.append("cut_style", meta.cut_style);
     return req<ProjectSummary>("/api/projects", { method: "POST", body: fd });
   },
-  createMultiangle: (title: string | undefined, angles: { url: string; label: string }[], cookies_text?: string, meta?: ProjectMeta, match_window?: [number, number], match_window_angle?: number) =>
+  createMultiangle: (title: string | undefined, angles: { url: string; camera?: string }[], cookies_text?: string, meta?: ProjectMeta, match_window?: [number, number], match_window_angle?: number) =>
     req<ProjectSummary>("/api/projects/multiangle", json({ title: title || undefined, angles, cookies_text, ...meta, match_window, match_window_angle })),
-  createMultiangleUpload: (files: File[], labels: string[], title?: string, meta?: ProjectMeta) => {
+  createMultiangleUpload: (files: File[], cameras: string[], title?: string, meta?: ProjectMeta) => {
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
-    for (const l of labels) fd.append("labels", l);
+    for (const c of cameras) fd.append("cameras", c);
     if (title) fd.append("title", title);
     if (meta?.pitch_type) fd.append("pitch_type", meta.pitch_type);
-    if (meta?.camera) fd.append("camera", meta.camera);
     if (meta?.cut_style) fd.append("cut_style", meta.cut_style);
     return req<ProjectSummary>("/api/projects/multiangle/upload", { method: "POST", body: fd });
   },

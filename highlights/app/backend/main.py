@@ -117,6 +117,7 @@ class AngleSpec(BaseModel):
     url: str | None = None
     filename: str | None = None
     label: str = ""
+    camera: str | None = None
 
 
 class MultiangleCreate(BaseModel):
@@ -1324,10 +1325,15 @@ def _norm_angles(angles: list[AngleSpec]) -> list[dict]:
         raise HTTPException(422, "multi-angle projects need 2..4 angles")
     out = []
     for i, a in enumerate(angles):
+        cam = a.camera.strip() if a.camera else ""
+        if cam and cam not in CAMERA_TYPES:
+            raise HTTPException(
+                422, f"angle {i} camera must be one of {CAMERA_TYPES}")
         out.append({
             "url": a.url.strip() if a.url else None,
             "filename": a.filename.strip() if a.filename else None,
             "label": a.label.strip() or f"Angle {i + 1}",
+            "camera": cam or None,
         })
     return out
 
@@ -1349,7 +1355,7 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
         owner=user,
         title=(body.title or "").strip() or angles[0]["url"] or "multi-angle",
         source={"kind": "multiangle", "url": None, "filename": None, "angles": angles},
-        meta=_meta_or_422(body.pitch_type, body.camera, body.cut_style),
+        meta=_meta_or_422(body.pitch_type, None, body.cut_style),
     )
     if body.match_window:
         p.multiangle_dir.mkdir(parents=True, exist_ok=True)
@@ -1376,21 +1382,26 @@ def create_multiangle(body: MultiangleCreate, user: UserDep) -> dict:
 async def create_multiangle_upload(request: Request, user: UserDep) -> dict:
     form = await request.form()
     files = [f for f in form.getlist("files") if hasattr(f, "read")]
-    labels = [x for x in form.getlist("labels") if isinstance(x, str)]
+    cameras = [x for x in form.getlist("cameras") if isinstance(x, str)]
     title = form.get("title") if isinstance(form.get("title"), str) else ""
     cookies_text = form.get("cookies_text") if isinstance(form.get("cookies_text"), str) else None
     if not (2 <= len(files) <= 4):
         raise HTTPException(422, "multi-angle uploads need 2..4 files")
+    for i, c in enumerate(cameras):
+        if c and c not in CAMERA_TYPES:
+            raise HTTPException(
+                422, f"angle {i} camera must be one of {CAMERA_TYPES}")
     meta = _meta_or_422(
         form.get("pitch_type") or None,
-        form.get("camera") or None,
+        None,
         form.get("cut_style") or None)
     names = [_safe_filename(f.filename or f"angle{i}.mp4") for i, f in enumerate(files)]
     angles = [
         {
             "url": None,
             "filename": name,
-            "label": (labels[i].strip() if i < len(labels) else "") or f"Angle {i + 1}",
+            "label": Path(name).stem or f"Angle {i + 1}",
+            "camera": (cameras[i].strip() if i < len(cameras) else "") or None,
         }
         for i, name in enumerate(names)
     ]

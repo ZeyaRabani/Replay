@@ -19,6 +19,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -143,6 +144,36 @@ def _load_angles(project_dir: Path, angles_json: str | None,
 
 # ------------------------------ stages ------------------------------------
 
+_DEFAULT_LABEL = re.compile(r"^\s*angle\s+\d+\s*$", re.IGNORECASE)
+
+
+def _label_from_title(ctx: Ctx, i: int) -> None:
+    """Name angle i after its YouTube title when the label is still the
+    default 'Angle N'. Persists into project.json's source block —
+    best-effort, failures are logged not raised."""
+    a = ctx.angles[i]
+    if not _DEFAULT_LABEL.match(a.get("label") or ""):
+        return
+    if not a.get("url"):
+        return
+    try:
+        from highlights.pipeline.download import video_title
+        title = video_title(a["url"], cookies=ctx.cookies, log=ctx.log)
+        if not title:
+            return
+        pj = ctx.project_dir / "project.json"
+        data = json.loads(pj.read_text())
+        spec = data.get("source") or data.get("source_info") or {}
+        ang = spec.get("angles") or []
+        if i < len(ang) and _DEFAULT_LABEL.match(ang[i].get("label") or ""):
+            ang[i]["label"] = title
+            write_json_atomic(pj, data, indent=2)
+            a["label"] = title
+            ctx.log(f"download: a{i} named '{title[:60]}'")
+    except Exception as e:
+        ctx.log(f"download: a{i} title lookup failed ({e})")
+
+
 def stage_download(ctx: Ctx) -> None:
     from concurrent.futures import ThreadPoolExecutor
 
@@ -164,6 +195,7 @@ def stage_download(ctx: Ctx) -> None:
         ctx.log(f"download: angle {i}/{len(ctx.angles)-1} {a['url']}")
         download(a["url"], a["dir"], status=ctx.status,
                  cookies=ctx.cookies, log=ctx.log)
+        _label_from_title(ctx, i)
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
         list(ex.map(_dl, todo))

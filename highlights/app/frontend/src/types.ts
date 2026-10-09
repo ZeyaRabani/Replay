@@ -76,7 +76,7 @@ export interface ProjectSource {
   kind: "youtube" | "upload" | "path" | "multiangle";
   url?: string | null;
   filename?: string | null;
-  angles?: { url: string | null; filename: string | null; label: string }[];
+  angles?: { url: string | null; filename: string | null; label: string; camera?: string | null }[];
 }
 
 export interface ProjectVideo {

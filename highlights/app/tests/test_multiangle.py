@@ -114,6 +114,69 @@ def test_multiangle_validation(client):
     assert r.status_code == 422
 
 
+def test_multiangle_angle_camera(client):
+    # per-angle camera accepted and stored on the angle dict
+    r = client.post("/api/projects/multiangle", json={
+        "angles": [{"url": "https://youtu.be/a", "camera": "ultrawide"},
+                   {"url": "https://youtu.be/b", "camera": "zoom"}]})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["source"]["angles"][0]["camera"] == "ultrawide"
+    assert d["source"]["angles"][1]["camera"] == "zoom"
+    assert d["meta"].get("camera") is None
+    # invalid camera rejected
+    r = client.post("/api/projects/multiangle", json={
+        "angles": [{"url": "https://youtu.be/a", "camera": "fisheye"},
+                   {"url": "https://youtu.be/b"}]})
+    assert r.status_code == 422
+
+
+def test_multiangle_upload_camera_422(client, short_video):
+    files = [
+        ("files", ("cam0.mp4", short_video.read_bytes(), "video/mp4")),
+        ("files", ("cam1.mp4", short_video.read_bytes(), "video/mp4")),
+    ]
+    r = client.post("/api/projects/multiangle/upload", files=files,
+                    data={"cameras": ["normal", "bogus"]})
+    assert r.status_code == 422
+
+
+def test_label_from_title(tmp_path, monkeypatch):
+    """Default 'Angle N' labels get the YouTube title; custom labels and
+    lookup failures are left alone."""
+    import json as _json
+    import types as _types
+
+    from highlights.multiangle.run import _label_from_title
+    (tmp_path / "project.json").write_text(_json.dumps(
+        {"source": {"kind": "multiangle",
+                    "angles": [{"label": "Angle 2"},
+                               {"label": "Main cam"}]}}))
+    ctx = _types.SimpleNamespace(
+        project_dir=tmp_path,
+        angles=[{"label": "Angle 2", "url": "https://youtu.be/x",
+                 "dir": tmp_path},
+                {"label": "Main cam", "url": "https://youtu.be/y",
+                 "dir": tmp_path}],
+        cookies=None, log=lambda *a: None)
+    monkeypatch.setattr(
+        "highlights.pipeline.download.video_title",
+        lambda url, **kw: "18/9/25 First half")
+    _label_from_title(ctx, 0)
+    spec = _json.loads((tmp_path / "project.json").read_text())["source"]
+    assert spec["angles"][0]["label"] == "18/9/25 First half"
+    # custom label untouched
+    _label_from_title(ctx, 1)
+    spec = _json.loads((tmp_path / "project.json").read_text())["source"]
+    assert spec["angles"][1]["label"] == "Main cam"
+    # lookup failure tolerated
+    monkeypatch.setattr(
+        "highlights.pipeline.download.video_title",
+        lambda url, **kw: None)
+    ctx.angles[0]["label"] = "Angle 2"
+    _label_from_title(ctx, 0)   # must not raise
+
+
 def test_multiangle_needs_input_offsets(client, monkeypatch):
     monkeypatch.setenv("FAKE_MA_MODE", "needs_input")
     r = _create(client, 3)
@@ -232,13 +295,16 @@ def test_multiangle_upload(client, short_video):
         ("files", ("cam0.mp4", short_video.read_bytes(), "video/mp4")),
         ("files", ("cam1.mp4", short_video.read_bytes(), "video/mp4")),
     ]
-    data = {"labels": ["Main", "Far side"], "title": "two cams"}
+    data = {"cameras": ["ultrawide", "zoom"], "title": "two cams"}
     r = client.post("/api/projects/multiangle/upload", files=files, data=data)
     assert r.status_code == 200, r.text
     d = r.json()
     pid = d["id"]
     assert d["n_angles"] == 2
-    assert d["source"]["angles"][1]["label"] == "Far side"
+    assert d["source"]["angles"][0]["camera"] == "ultrawide"
+    assert d["source"]["angles"][1]["camera"] == "zoom"
+    # label defaults to the uploaded filename stem
+    assert d["source"]["angles"][1]["label"] == "cam1"
 
     import highlights.app.backend.main as m
     p = m.get_registry().get(pid)

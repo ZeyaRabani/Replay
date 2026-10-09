@@ -77,6 +77,50 @@ def _progress_hook(status, d: dict) -> None:
         status.update(stage_progress=1.0, message="download finished, merging")
 
 
+def video_title(url: str, cookies: str | None = None,
+                log=print) -> str | None:
+    """Best-effort YouTube title lookup with the same cookie/pot/proxy
+    configuration as download(). Returns None on any failure."""
+    try:
+        import yt_dlp
+        cookiefiles = [c for c in
+                       (cookies or os.environ.get("HL_YT_COOKIES") or "")
+                       .split(os.pathsep) if c]
+        opts: dict = {"quiet": True, "no_warnings": True,
+                      "noplaylist": True, "extract_flat": False,
+                      "socket_timeout": 20}
+        js = {}
+        if shutil.which("deno"):
+            js["deno"] = {}
+        if shutil.which("node"):
+            js["node"] = {}
+        if js:
+            opts["js_runtimes"] = js
+        pot_url = os.environ.get("HL_POT_PROVIDER_URL")
+        if pot_url:
+            opts["extractor_args"] = {
+                "youtubepot-bgutilhttp": {"base_url": [pot_url]}}
+        proxy = os.environ.get("HL_YT_PROXY")
+        if proxy:
+            opts["proxy"] = proxy
+        for cf in [*cookiefiles, None]:
+            if cf:
+                opts["cookiefile"] = cf
+            else:
+                opts.pop("cookiefile", None)
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                title = (info or {}).get("title")
+                if title:
+                    return str(title).strip() or None
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
 def _extract(opts: dict, formats: list[str], url: str, log) -> dict:
     """One download attempt over the DASH->HLS format fallback list.
 

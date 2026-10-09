@@ -240,7 +240,13 @@ function ProjectCard({
               return a.url ? (
                 <div key={i} className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
                   <Link2 size={10} className="shrink-0" />
-                  {a.label || `Angle ${i + 1}`} ·{" "}
+                  {a.label || `Angle ${i + 1}`}
+                  {a.camera && (
+                    <span className="shrink-0 rounded bg-zinc-700/70 px-1 py-px text-[9px] text-zinc-300">
+                      {a.camera}
+                    </span>
+                  )}
+                  {" "}·{" "}
                   <a
                     href={a.url}
                     target="_blank"
@@ -471,13 +477,13 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"single" | "multi">("single");
   const [maTab, setMaTab] = useState<"links" | "upload">("links");
-  const [maRows, setMaRows] = useState<{ url: string; label: string }[]>([
-    { url: "", label: "" },
-    { url: "", label: "" },
+  const [maRows, setMaRows] = useState<{ url: string; camera: string }[]>([
+    { url: "", camera: "" },
+    { url: "", camera: "" },
   ]);
-  const [maFiles, setMaFiles] = useState<{ file: File | null; label: string }[]>([
-    { file: null, label: "" },
-    { file: null, label: "" },
+  const [maFiles, setMaFiles] = useState<{ file: File | null; camera: string }[]>([
+    { file: null, camera: "" },
+    { file: null, camera: "" },
   ]);
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
@@ -504,7 +510,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       let p: ProjectSummary;
       if (mode === "multi") {
         if (maTab === "links") {
-          const angles = maRows.map((r, i) => ({ url: r.url.trim(), label: r.label.trim() || `Angle ${i + 1}` }));
+          const angles = maRows.map((r) => ({ url: r.url.trim(), camera: r.camera || undefined }));
           const ws = parseClock(maWinStart);
           const we = parseClock(maWinEnd);
           if ((maWinStart || maWinEnd) && !(ws !== null && we !== null && ws < we))
@@ -514,7 +520,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
         } else {
           p = await projectsApi.createMultiangleUpload(
             maFiles.map((r) => r.file as File),
-            maFiles.map((r, i) => r.label.trim() || `Angle ${i + 1}`),
+            maFiles.map((r) => r.camera),
             title.trim() || undefined,
             meta,
           );
@@ -532,8 +538,8 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       setPitchType("");
       setCamera("");
       setCutStyle("normal");
-      setMaRows([{ url: "", label: "" }, { url: "", label: "" }]);
-      setMaFiles([{ file: null, label: "" }, { file: null, label: "" }]);
+      setMaRows([{ url: "", camera: "" }, { url: "", camera: "" }]);
+      setMaFiles([{ file: null, camera: "" }, { file: null, camera: "" }]);
     } catch (e) {
       let m = e instanceof Error ? e.message : String(e);
       if (m.startsWith("413")) {
@@ -613,20 +619,25 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
                       </button>
                     )}
                   </div>
-                  <input
+                  <select
                     className={input}
-                    placeholder={`Label (optional, e.g. "Main", "Far side")`}
-                    value={r.label}
+                    value={r.camera}
                     onChange={(e) =>
-                      setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                      setMaRows((rs) => rs.map((x, j) => (j === i ? { ...x, camera: e.target.value } : x)))
                     }
-                  />
+                  >
+                    <option value="">Camera — not set</option>
+                    <option value="normal">Normal 1×</option>
+                    <option value="ultrawide">Ultrawide 0.5×</option>
+                    <option value="zoom">Zoomed</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
               ))}
               {maRows.length < 4 && (
                 <button
                   className="self-start text-xs text-amber-300 hover:text-amber-200"
-                  onClick={() => setMaRows((rs) => [...rs, { url: "", label: "" }])}
+                  onClick={() => setMaRows((rs) => [...rs, { url: "", camera: "" }])}
                 >
                   + Add angle
                 </button>
@@ -673,20 +684,25 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
                       </button>
                     )}
                   </div>
-                  <input
+                  <select
                     className={input}
-                    placeholder="Label (optional)"
-                    value={r.label}
+                    value={r.camera}
                     onChange={(e) =>
-                      setMaFiles((rs) => rs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                      setMaFiles((rs) => rs.map((x, j) => (j === i ? { ...x, camera: e.target.value } : x)))
                     }
-                  />
+                  >
+                    <option value="">Camera — not set</option>
+                    <option value="normal">Normal 1×</option>
+                    <option value="ultrawide">Ultrawide 0.5×</option>
+                    <option value="zoom">Zoomed</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
               ))}
               {maFiles.length < 4 && (
                 <button
                   className="self-start text-xs text-amber-300 hover:text-amber-200"
-                  onClick={() => setMaFiles((rs) => [...rs, { file: null, label: "" }])}
+                  onClick={() => setMaFiles((rs) => [...rs, { file: null, camera: "" }])}
                 >
                   + Add angle
                 </button>
@@ -706,13 +722,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               <option value="9">9-a-side</option>
               <option value="7">7-a-side</option>
               <option value="5">5-a-side</option>
-              <option value="other">Other</option>
-            </select>
-            <select className={input} value={camera} onChange={(e) => setCamera(e.target.value)}>
-              <option value="">Camera — not set</option>
-              <option value="normal">Normal 1×</option>
-              <option value="ultrawide">Ultrawide 0.5×</option>
-              <option value="zoom">Zoomed</option>
               <option value="other">Other</option>
             </select>
             <select
