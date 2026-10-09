@@ -31,6 +31,30 @@ def test_offset_recovery(tmp_path):
     assert r2 <= sync.R2_MAX
 
 
+def test_estimate_timemap_recovers_a_skip():
+    """env_b is env_a with a 3 s forward skip at 40%: two segments with
+    offsets ~3 s apart, boundary within 15 s of the jump."""
+    n = int(18 * 60 * sync.ENV_HZ)      # 18 min of shared timeline
+    shared = _envelope(n, seed=21)
+    off1, off2 = 10.0, 13.0             # b's file clock skips 3 s forward
+    n_b = int(n - off2 * sync.ENV_HZ)
+    b_idx = np.arange(n_b)
+    a_idx = b_idx + np.where(
+        b_idx < 0.4 * n_b, off1 * sync.ENV_HZ, off2 * sync.ENV_HZ)
+    b = shared[a_idx.astype(int)]
+    a = shared[:n]
+    segs = sync.estimate_timemap(a, b, off1 + (off2 - off1) / 2,
+                                 n_b / sync.ENV_HZ)
+    assert len(segs) == 2
+    assert abs(segs[0]["offset"] - off1) < 0.1
+    assert abs(segs[1]["offset"] - off2) < 0.1
+    # boundary T* in a time vs the true skip at file 0.4*n_b -> a time
+    # 0.4*n_b + off1
+    true_t = 0.4 * n_b / sync.ENV_HZ + off1
+    boundary = segs[0]["file_hi"] + off1
+    assert abs(boundary - true_t) < 15.0
+
+
 def test_uncorrelated_not_confident():
     rng = np.random.default_rng(2)
     a = _envelope(6000, seed=3) + 0.05 * rng.normal(size=6000)

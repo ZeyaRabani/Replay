@@ -150,6 +150,126 @@ def _refine(y_a: np.ndarray, y_b: np.ndarray, coarse_off_s: float,
     return float(np.median(offs)), spread
 
 
+TIMEMAP_WIN_S = 120.0    # windowed xcorr window
+TIMEMAP_STEP_S = 60.0    # hop between windows
+TIMEMAP_GUARD_S = 8.0    # extra b context / max |lag - coarse|
+TIMEMAP_JUMP_S = 0.5     # |offset - run median| that starts a new run
+TIMEMAP_EDGE_WIN_S = 20.0  # boundary-refine window
+TIMEMAP_EDGE_STEP_S = 10.0
+TIMEMAP_EDGE_TOL_S = 0.3   # offset within this of B's median -> boundary
+
+
+def _window_offset(env_a: np.ndarray, env_b: np.ndarray, w: float,
+                   win_s: float, coarse_off: float, guard_s: float
+                   ) -> tuple[float, float] | None:
+    """Offset of the env_a window starting at a-time w: xcorr against
+    env_b[w-coarse-guard, w-coarse+win+guard], lags restricted to
+    +-guard_s of coarse. Returns (offset_s, pnr) or None."""
+    i_a0, i_a1 = int(w * ENV_HZ), int((w + win_s) * ENV_HZ)
+    if i_a1 > len(env_a):
+        return None
+    sb = w - coarse_off            # corresponding b start
+    b_start = sb - guard_s
+    i_b0 = max(0, int(b_start * ENV_HZ))
+    i_b1 = min(len(env_b), int((sb + win_s + guard_s) * ENV_HZ))
+    if i_b1 <= i_b0:
+        return None
+    a_seg = env_a[i_a0:i_a1]
+    b_seg = env_b[i_b0:i_b1]
+    corr = _xcorr(a_seg, b_seg)
+    lags = (np.arange(len(corr)) - (len(b_seg) - 1)) / ENV_HZ
+    b_origin = i_b0 / ENV_HZ       # file time of b_seg[0]
+    exp = b_origin - w + coarse_off  # lag at coarse offset
+    mask = np.abs(lags - exp) <= guard_s
+    if not mask.any():
+        return None
+    i = int(np.argmax(np.where(mask, corr, -np.inf)))
+    peak = float(corr[i])
+    med = float(np.median(np.abs(corr[mask]))) or 1e-9
+    # a_seg[k] == b_seg[k - L]  ->  offset = a_time - b_time + L
+    off_w = w - b_origin + float(lags[i])
+    return off_w, peak / med
+
+
+def _boundary_t(env_a, env_b, a_last_w: float, b_first_w: float,
+                coarse_off: float, b_median: float) -> float:
+    """Shared-T boundary between adjacent runs: first 20 s window
+    (step 10 s) whose offset is within TIMEMAP_EDGE_TOL_S of B's
+    median; midpoint when no window qualifies."""
+    w = a_last_w
+    while w < b_first_w + TIMEMAP_EDGE_WIN_S:
+        r = _window_offset(env_a, env_b, w, TIMEMAP_EDGE_WIN_S,
+                           coarse_off, TIMEMAP_GUARD_S)
+        if r is not None and abs(r[0] - b_median) <= TIMEMAP_EDGE_TOL_S:
+            return w
+        w += TIMEMAP_EDGE_STEP_S
+    return (a_last_w + b_first_w) / 2.0
+
+
+def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
+                     coarse_off: float, dur_b: float
+                     ) -> list[dict]:
+    """Windowed xcorr over the a/b overlap -> piecewise offset map in b's
+    FILE time: [{"file_lo","file_hi","offset"}]. Constant stretches are
+    split when the window offset jumps > TIMEMAP_JUMP_S from the running
+    median; single-window runs are absorbed. Fewer than 2 windows ->
+    single segment with the coarse offset."""
+    dur_a = len(env_a) / ENV_HZ
+    lo = max(0.0, coarse_off)
+    hi = min(dur_a, coarse_off + dur_b) - TIMEMAP_WIN_S
+    if hi <= lo:
+        return [{"file_lo": 0.0, "file_hi": float(dur_b),
+                 "offset": float(coarse_off)}]
+
+    windows: list[tuple[float, float]] = []   # (a-time start, offset)
+    w = lo
+    while w <= hi:
+        r = _window_offset(env_a, env_b, w, TIMEMAP_WIN_S,
+                           coarse_off, TIMEMAP_GUARD_S)
+        if r is not None and r[1] >= PNR_WEAK:
+            windows.append((w, r[0]))
+        w += TIMEMAP_STEP_S
+    if len(windows) < 2:
+        return [{"file_lo": 0.0, "file_hi": float(dur_b),
+                 "offset": float(coarse_off)}]
+
+    runs: list[list[tuple[float, float]]] = []
+    for wnd in windows:
+        if runs:
+            med = float(np.median([o for _, o in runs[-1]]))
+            if abs(wnd[1] - med) <= TIMEMAP_JUMP_S:
+                runs[-1].append(wnd)
+                continue
+        runs.append([wnd])
+    # absorb <2-window runs into the previous run (next when first)
+    merged: list[list[tuple[float, float]]] = []
+    for run in runs:
+        if len(run) < 2 and merged:
+            merged[-1].extend(run)
+        elif len(run) < 2 and not merged and runs.index(run) < len(runs) - 1:
+            # first short run: fold into the next run
+            runs[runs.index(run) + 1].extend(reversed(run))
+        else:
+            merged.append(run)
+
+    segs: list[dict] = []
+    boundary = 0.0
+    for k, run in enumerate(merged):
+        off = float(np.median([o for _, o in run]))
+        file_lo = 0.0 if k == 0 else boundary - off
+        if k == len(merged) - 1:
+            file_hi = float(dur_b)
+        else:
+            nxt = float(np.median([o for _, o in merged[k + 1]]))
+            boundary = _boundary_t(env_a, env_b, run[-1][0],
+                                   merged[k + 1][0][0], coarse_off, nxt)
+            file_hi = boundary - off
+        segs.append({"file_lo": round(file_lo, 3),
+                     "file_hi": round(file_hi, 3),
+                     "offset": round(off, 3)})
+    return segs
+
+
 def sync_angles(wavs: list[str | Path], durations: list[float],
                 manual_offsets: list[float] | None = None) -> dict:
     """Sync all angles against a0. Returns the sync.json dict.
@@ -215,6 +335,8 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             pr["accepted_by"] = "triangle"
 
     needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
+    timemap: list[list[dict]] = [
+        [{"file_lo": 0.0, "file_hi": float(durations[0]), "offset": 0.0}]]
     if manual_offsets is not None:
         if len(manual_offsets) != n or manual_offsets[0] != 0:
             raise ValueError("--offsets must have len == n angles, first == 0")
@@ -225,13 +347,34 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             pr["confident"] = True
             pr["manual"] = True
             pr["accepted_by"] = "manual"
+        timemap += [[{"file_lo": 0.0, "file_hi": float(durations[b]),
+                      "offset": float(manual_offsets[b])}]
+                    for b in range(1, n)]
+    else:
+        for b in range(1, n):
+            timemap.append(
+                estimate_timemap(envs[0], envs[b], offsets[b],
+                                 durations[b]))
+        # scalar "offsets" stays = offset of each angle's LONGEST segment
+        offsets = [0.0] + [
+            float(max((s["file_hi"] - s["file_lo"],
+                       s["offset"]) for s in timemap[b])[1])
+            for b in range(1, n)]
 
-    offs = np.array(offsets)
-    durs = np.asarray(durations, dtype=float)
+    # coverage from the timemap: each angle spans
+    # [file_lo+off of first seg, file_hi+off of last seg]
+    lo_bounds, hi_bounds = [], []
+    for segs in timemap:
+        lo_bounds.append(segs[0]["file_lo"] + segs[0]["offset"])
+        hi_bounds.append(segs[-1]["file_hi"] + segs[-1]["offset"])
     coverage = {
-        "intersection": [float(offs.max()), float((offs + durs).min())],
-        "union": [float(offs.min()), float((offs + durs).max())],
+        "intersection": [float(max(lo_bounds)), float(min(hi_bounds))],
+        "union": [float(min(lo_bounds)), float(max(hi_bounds))],
     }
+    n_jumps = [len(segs) - 1 for segs in timemap]
+    segments_note = ", ".join(
+        f"a{i}: {j} jump{'s' if j != 1 else ''}"
+        for i, j in enumerate(n_jumps) if j)
     note = {"manual": "offsets entered manually",
             "xcorr+triangle": ("all pairs accepted by triangle consistency "
                                f"(residual {tri} s, every pnr >= {PNR_WEAK})"),
@@ -239,7 +382,10 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                       if not needs else
                       f"unconfident xcorr for angle(s) {sorted(set(needs))} — "
                       "manual offsets needed")}.get(method, "")
-    return {"reference": 0, "method": method, "offsets": [round(float(o), 3) for o in offsets],
+    return {"reference": 0, "method": method,
+            "offsets": [round(float(o), 3) for o in offsets],
+            "timemap": timemap,
+            "segments_note": segments_note,
             "pairs": pairs, "triangle_residual_s": tri,
             "needs_manual": sorted(set(needs)), "coverage": coverage,
             "confidence_note": note}
