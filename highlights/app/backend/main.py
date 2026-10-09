@@ -1850,6 +1850,15 @@ def put_multiangle_angle(index: int, body: MaAnglePut, p: ScopedP) -> dict:
     (p.pipeline_dir / "stats.json").unlink(missing_ok=True)
     if p.video and Path(p.video.path).exists():
         Path(p.video.path).unlink()
+    # persist the edited source block to disk first — save() prefers the
+    # on-disk source (pipeline writes labels there out-of-band)
+    try:
+        pj = p.root / "project.json"
+        data = json.loads(pj.read_text())
+        data["source"] = p.source_info
+        write_json_atomic(pj, data, indent=2)
+    except Exception:
+        pass
     p.save()
     _hist(p, "source_added", src="angle", index=index, url=url)
     return {"index": index, "url": url, "angles": angles}

@@ -176,6 +176,18 @@ class ProjectStore:
 
     def save(self) -> None:
         with self.lock:
+            # the multiangle pipeline process updates project.json's
+            # source block out-of-band (e.g. angle label <- YouTube
+            # title); prefer the on-disk source so a save can't clobber it
+            source = self.source_info
+            try:
+                disk_src = (json.loads(self.state_path.read_text())
+                            .get("source"))
+                if isinstance(disk_src, dict):
+                    source = disk_src
+                    self.source_info = disk_src
+            except Exception:
+                pass
             tmp = self.state_path.with_suffix(".tmp")
             tmp.write_text(
                 json.dumps(
@@ -184,7 +196,7 @@ class ProjectStore:
                         "owner": self.owner,
                         "title": self.title,
                         "created_at": self.created_at,
-                        "source": self.source_info,
+                        "source": source,
                         "video": self.video.model_dump() if self.video else None,
                         "candidates_version": self.candidates_version,
                         "candidates": [c.model_dump() for c in self.candidates],

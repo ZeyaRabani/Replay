@@ -177,6 +177,24 @@ def test_label_from_title(tmp_path, monkeypatch):
     _label_from_title(ctx, 0)   # must not raise
 
 
+def test_save_preserves_pipeline_written_label(client):
+    """The runner rewrites project.json's angle labels out-of-band; a
+    later backend save() must not clobber them with the stale in-memory
+    source block."""
+    r = _create(client, 2)
+    pid = r.json()["id"]
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    pj = p.root / "project.json"
+    data = json.loads(pj.read_text())
+    data["source"]["angles"][0]["label"] = "18/9/25 First half"
+    pj.write_text(json.dumps(data))
+    p.save()
+    assert (json.loads(pj.read_text())["source"]["angles"][0]["label"]
+            == "18/9/25 First half")
+    assert p.source_info["angles"][0]["label"] == "18/9/25 First half"
+
+
 def test_multiangle_needs_input_offsets(client, monkeypatch):
     monkeypatch.setenv("FAKE_MA_MODE", "needs_input")
     r = _create(client, 3)
