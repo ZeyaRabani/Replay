@@ -377,17 +377,24 @@ def stage_track(ctx: Ctx) -> None:
         else:
             lo_f, hi_f = angle_track_window(
                 win[0], win[1], tm[i] if tm is not None else 0.0, dur)
-        if out.exists() and not ctx.force:
-            # reuse the track when its recorded window already covers
-            # what this sync needs (piecewise sync must not re-pay the
-            # full track on an unchanged window)
+        if out.exists():
+            # reuse the track when its recorded window covers what this
+            # sync needs (piecewise sync must not re-pay the full track
+            # on an unchanged window). Coverage is judged against the
+            # UNPADDED range — the pad is pure slack for new tracks, so
+            # a recording short only inside the pad is still sufficient.
+            need_lo, need_hi = lo_f, hi_f
+            if win is not None:
+                need_lo, need_hi = angle_track_window(
+                    win[0], win[1], tm[i] if tm is not None else 0.0,
+                    dur, pad=0.0)
             try:
                 meta = (json.loads(out.read_text()).get("meta") or {})
                 rec_lo = float(meta.get("start_s") or 0.0)
                 rec_hi = meta.get("end_s")
-                covered = (rec_lo <= lo_f + 1.0
+                covered = (rec_lo <= need_lo + 1.0
                            and (rec_hi is None
-                                or float(rec_hi) >= hi_f - 1.0))
+                                or float(rec_hi) >= need_hi - 1.0))
             except Exception:
                 covered = True    # can't tell; keep the existing file
             if covered:
@@ -395,7 +402,8 @@ def stage_track(ctx: Ctx) -> None:
                 n_done += 1
                 continue
             ctx.log(f"track: a{i} re-tracking — saved window "
-                    f"{rec_lo:.0f}-{rec_hi} < needed {lo_f:.0f}-{hi_f:.0f}")
+                    f"{rec_lo:.0f}-{rec_hi} < needed "
+                    f"{need_lo:.0f}-{need_hi:.0f}")
         out.parent.mkdir(parents=True, exist_ok=True)
         prog = out.with_suffix(".progress")
         prog.unlink(missing_ok=True)

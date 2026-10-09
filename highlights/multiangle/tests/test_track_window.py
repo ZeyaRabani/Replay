@@ -86,6 +86,33 @@ def test_stage_track_skips_covered_window(tmp_path):
     stage_track(ctx)      # returns without spawning when covered
 
 
+def test_stage_track_skips_pad_only_shortfall(tmp_path, monkeypatch):
+    """Recorded window covering the UNPADDED shared range but not the
+    padded one is still 'up to date' — the pad is slack for new tracks."""
+    import json as _json
+    import subprocess as sp
+
+    from highlights.multiangle.run import stage_track
+    ctx, adir = _track_ctx(tmp_path)
+    # shared 10-490 -> a1 needs file 10-490; padded to 0-500. Recording
+    # of exactly 10-490 covers the unpadded range only.
+    (adir / "track").mkdir(parents=True)
+    (adir / "track" / "features_1s.json").write_text(_json.dumps(
+        {"meta": {"start_s": 10.0, "end_s": 490.0}, "rows": []}))
+    (tmp_path / "angles" / "a0" / "track").mkdir(exist_ok=True)
+    (tmp_path / "angles" / "a0" / "track" / "features_1s.json").write_text(
+        _json.dumps({"meta": {"start_s": 10.0, "end_s": 490.0},
+                     "rows": []}))
+    spawned = []
+    monkeypatch.setattr(sp, "Popen",
+                        lambda cmd, **kw: spawned.append(cmd) or _Done())
+
+    class _Done:
+        def poll(self): return 0
+    stage_track(ctx)
+    assert not spawned
+
+
 def test_stage_track_retracks_narrow_window(tmp_path, monkeypatch):
     """A saved track narrower than the needed window is re-tracked."""
     import json as _json
