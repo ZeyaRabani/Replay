@@ -1640,7 +1640,7 @@ def get_multiangle(p: ScopedP) -> dict:
         "angles": _angles_info(p),
         "score": _multiangle_score(p),
         "status": pipeline.read_status(p),
-        "cut_style": p.meta.get("cut_style", "normal"),
+        "cut_style": p.meta.get("cut_style", "fast"),
         "goal_aware": bool(p.meta.get("goal_aware", True)),
         "sources_purged": bool(p.meta.get("sources_purged")),
         "match_window": match_window,
@@ -2517,7 +2517,7 @@ def _ensure_cut_snapshot(p: ProjectStore) -> None:
     if has_cuts:
         return
     with contextlib.suppress(Exception):
-        snapshot_cut(p.root, p.meta.get("cut_style", "normal"))
+        snapshot_cut(p.root, p.meta.get("cut_style", "fast"))
 
 
 @scoped.get("/multiangle/cuts")
@@ -2539,7 +2539,7 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
         raise HTTPException(404, "unknown cut")
     with contextlib.suppress(Exception):
         pipeline.sync_candidate_timeline(p)
-    p.meta["cut_style"] = meta.get("style") or p.meta.get("cut_style", "normal")
+    p.meta["cut_style"] = meta.get("style") or p.meta.get("cut_style", "fast")
     p.save()
     p.invalidate_video()   # drop proxy/thumbs for the previous cut
     # refresh the registered video + status.json so the UI sees this cut

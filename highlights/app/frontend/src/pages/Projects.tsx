@@ -487,7 +487,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   ]);
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
-  const [cutStyle, setCutStyle] = useState<"normal" | "fast">("normal");
+  const [cutStyle, setCutStyle] = useState<"normal" | "fast">("fast");
   const [maWinStart, setMaWinStart] = useState("");
   const [maWinEnd, setMaWinEnd] = useState("");
 
@@ -537,7 +537,7 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       setFile(null);
       setPitchType("");
       setCamera("");
-      setCutStyle("normal");
+      setCutStyle("fast");
       setMaRows([{ url: "", camera: "" }, { url: "", camera: "" }]);
       setMaFiles([{ file: null, camera: "" }, { file: null, camera: "" }]);
     } catch (e) {
@@ -729,8 +729,8 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               value={cutStyle}
               onChange={(e) => setCutStyle(e.target.value as "normal" | "fast")}
             >
-              <option value="normal">Cuts: Normal — broadcast-style holds</option>
               <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
+              <option value="normal">Cuts: Normal — broadcast-style holds</option>
             </select>
           </div>
           <div>

@@ -1131,7 +1131,7 @@ def dry_run_goal_aware(project_dir: Path) -> dict:
         pipe=pipe,
         status=_NoopStatus(),
         angles=_load_angles(project_dir, None, create_dirs=False),
-        style=meta.get("cut_style", "normal"),
+        style=meta.get("cut_style", "fast"),
         goal_aware=True,
         read_only=True,
     )
@@ -1252,7 +1252,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--offsets", help="comma list, len==n angles, first must be 0")
     ap.add_argument("--cookies")
     ap.add_argument("--force", action="store_true")
-    ap.add_argument("--style", default="normal",
+    ap.add_argument("--style", default="fast",
                     choices=("normal", "fast"))
     ap.add_argument("--goal-aware", choices=("on", "off"), default="on")
     ap.add_argument("--dry-run-goal-aware", action="store_true")

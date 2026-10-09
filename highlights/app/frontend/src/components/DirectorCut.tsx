@@ -180,7 +180,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const doRecut = async (style?: "normal" | "fast") => {
     setRecutBusy(true);
     try {
-      const next = style ?? ((info?.cut_style ?? "normal") === "fast" ? "normal" : "fast");
+      const next = style ?? ((info?.cut_style ?? "fast") === "fast" ? "normal" : "fast");
       await api.recut(next, windowed && useWindow ? matchWin : null,
                       false, goalAware);
       await refresh();
@@ -577,7 +577,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     Goal-aware: hold goal camera + slow-mo replay
                   </label>
                   <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300">
-                    {(info.cut_style ?? info.director?.style ?? "normal") === "fast"
+                    {(info.cut_style ?? info.director?.style ?? "fast") === "fast"
                       ? "fast cuts" : "normal cuts"}
                   </span>
                   {!live && (
@@ -588,7 +588,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40 disabled:hover:text-amber-300"
                   >
                     {recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
-                    {(info.cut_style ?? "normal") === "fast"
+                    {(info.cut_style ?? "fast") === "fast"
                       ? "Re-cut as Normal" : "Re-cut as Fast"}
                   </button>
                   )}

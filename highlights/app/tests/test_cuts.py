@@ -28,7 +28,7 @@ def test_cuts_snapshot_activate_delete(client, short_video, monkeypatch):
     assert len(d["cuts"]) == 1
     cut0 = d["cuts"][0]
     assert d["active"] == cut0["id"]
-    assert cut0["label"] == "Normal (AI)"
+    assert cut0["label"] == "Fast (AI)"
     cdir = p.multiangle_dir / "cuts" / cut0["id"]
     assert os.stat(cdir / "match.mp4").st_ino == os.stat(live).st_ino
 
@@ -60,7 +60,7 @@ def test_cuts_snapshot_activate_delete(client, short_video, monkeypatch):
     assert os.stat(live).st_ino == os.stat(cdir / "match.mp4").st_ino
     dj = json.loads((p.multiangle_dir / "director.json").read_text())
     assert dj["n_cuts"] == 133          # fake runner's original director
-    assert p.meta["cut_style"] == "normal"
+    assert p.meta["cut_style"] == "fast"
     assert p.video is not None and p.video.path.endswith("match.mp4")
 
     # unknown cut -> 404; active cannot be deleted; non-active can
