@@ -202,17 +202,20 @@ def test_triangle_inconsistent_needs_manual(monkeypatch):
 
 def _stub_timemaps(monkeypatch, tm12_segs):
     """Scripted estimate_timemap: per-pair piecewise maps, keyed on call
-    order like _stub_sync's estimate_offset."""
+    order like _stub_sync's estimate_offset. a1 drifts +3.7 s, a2 drifts
+    -2.9 s; their segment boundaries do NOT coincide (1800/3600 in a1 file
+    time vs 892/2690 in a2 file time), and tm12 is in a2 file time — a
+    correct residual sample must look tm12 up at a2-file-time."""
     calls = []
     maps = {
         (0, 1): [
             {"file_lo": 0.0, "file_hi": 1800.0, "offset": 215.16},
-            {"file_lo": 1800.0, "file_hi": 3600.0, "offset": 214.0},
-            {"file_lo": 3600.0, "file_hi": 5400.0, "offset": 212.41}],
+            {"file_lo": 1800.0, "file_hi": 3600.0, "offset": 217.0},
+            {"file_lo": 3600.0, "file_hi": 5400.0, "offset": 218.9}],
         (0, 2): [
-            {"file_lo": 0.0, "file_hi": 1800.0, "offset": 1125.01},
-            {"file_lo": 1800.0, "file_hi": 3600.0, "offset": 1123.74},
-            {"file_lo": 3600.0, "file_hi": 5400.0, "offset": 1122.12}],
+            {"file_lo": 0.0, "file_hi": 892.0, "offset": 1125.01},
+            {"file_lo": 892.0, "file_hi": 2690.0, "offset": 1123.74},
+            {"file_lo": 2690.0, "file_hi": 5400.0, "offset": 1122.12}],
         (1, 2): tm12_segs,
     }
     seq = [(0, 1), (0, 2), (1, 2)]
@@ -225,24 +228,38 @@ def _stub_timemaps(monkeypatch, tm12_segs):
     monkeypatch.setattr(sync, "estimate_timemap", est)
 
 
-def _tm12(off0=909.85, off1=909.74, off2=909.71):
+def _tm12(off0=909.85, off1=906.74, off2=903.22):
+    # consistent with a1/a2: offset = a2_seg - a1_seg at each shared-time
+    # region, indexed in a2 file time
     return [
-        {"file_lo": 0.0, "file_hi": 1800.0, "offset": off0},
-        {"file_lo": 1800.0, "file_hi": 3600.0, "offset": off1},
-        {"file_lo": 3600.0, "file_hi": 5400.0, "offset": off2}]
+        {"file_lo": 0.0, "file_hi": 892.0, "offset": off0},
+        {"file_lo": 892.0, "file_hi": 2690.0, "offset": off1},
+        {"file_lo": 2690.0, "file_hi": 5400.0, "offset": off2}]
 
 
 def test_timemap_accepts_drifted_triangle(monkeypatch):
-    """Production 13/6: scalar triangle residual 1.18 s (camera clock
+    """Production 13/6: scalar triangle residual >tol (camera clock
     drift) but piecewise timemaps consistent -> xcorr+timemap accepts."""
     _stub_sync(monkeypatch, {(0, 1): (215.16, 2.35, 0.9),
                              (0, 2): (1125.01, 3.7, 0.9),
-                             (1, 2): (911.0, 2.6, 0.9)})  # scalar residual ~1.2
+                             (1, 2): (907.0, 2.6, 0.9)})
     _stub_timemaps(monkeypatch, _tm12())
+    # tm12 segments are in a2 file time: the lookup must use a2 file
+    # times (t_s - o2 ~ 0..4500), never a1's (t_s - o1 ~ 900..5400)
+    tm12_calls = []
+    orig = sync._offset_at
+
+    def spy(segs, file_t):
+        if 800 < segs[0]["offset"] < 1000:  # tm12 seg offsets ~903-910
+            tm12_calls.append(file_t)
+        return orig(segs, file_t)
+
+    monkeypatch.setattr(sync, "_offset_at", spy)
     out = sync.sync_angles(["a", "b", "c"], [5400, 5400, 5400])
     assert out["method"] == "xcorr+timemap"
     assert out["needs_manual"] == []
     assert out["timemap_residual_s"] <= sync.TRIANGLE_TOL_S
+    assert tm12_calls and min(tm12_calls) < 800  # a2 file time, not a1's
     assert all(p["confident"] and p["accepted_by"] == "timemap"
                for p in out["pairs"])
     assert "drift-aware" in out["confidence_note"]
@@ -252,8 +269,8 @@ def test_timemap_inconsistent_still_needs_manual(monkeypatch):
     """tm12 off by ~2 s from the a1/a2 difference -> still flagged."""
     _stub_sync(monkeypatch, {(0, 1): (215.16, 2.35, 0.9),
                              (0, 2): (1125.01, 3.7, 0.9),
-                             (1, 2): (911.0, 2.6, 0.9)})
-    _stub_timemaps(monkeypatch, _tm12(911.85, 911.74, 911.71))
+                             (1, 2): (907.0, 2.6, 0.9)})
+    _stub_timemaps(monkeypatch, _tm12(911.85, 908.74, 905.22))
     out = sync.sync_angles(["a", "b", "c"], [5400, 5400, 5400])
     assert out["method"] == "xcorr"
     assert out["timemap_residual_s"] > sync.TRIANGLE_TOL_S

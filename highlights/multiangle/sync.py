@@ -398,7 +398,7 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                 for t_s in np.linspace(lo_t, hi_t, 12):
                     o1 = _offset_at(timemap[1], t_s - offsets[1])
                     o2 = _offset_at(timemap[2], t_s - offsets[2])
-                    o12 = _offset_at(tm12, t_s - o1)
+                    o12 = _offset_at(tm12, t_s - o2)  # tm12 is a2-file-time
                     residuals.append(abs(o12 - (o2 - o1)))
                 timemap_residual = float(np.median(residuals))
         # residual-only: three independent xcorr timemaps agreeing within
