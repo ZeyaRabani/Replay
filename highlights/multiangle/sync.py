@@ -401,9 +401,10 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                     o12 = _offset_at(tm12, t_s - o1)
                     residuals.append(abs(o12 - (o2 - o1)))
                 timemap_residual = float(np.median(residuals))
+        # residual-only: three independent xcorr timemaps agreeing within
+        # tolerance at ~12 samples is the evidence; pnr adds nothing here
         if (timemap_residual is not None
-                and timemap_residual <= TRIANGLE_TOL_S
-                and all(pr["pnr"] >= PNR_WEAK for pr in pairs)):
+                and timemap_residual <= TRIANGLE_TOL_S):
             method = "xcorr+timemap"
             for pr in pairs:
                 pr["confident"] = True

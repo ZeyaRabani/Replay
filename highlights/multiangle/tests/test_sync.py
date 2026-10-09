@@ -235,7 +235,7 @@ def _tm12(off0=909.85, off1=909.74, off2=909.71):
 def test_timemap_accepts_drifted_triangle(monkeypatch):
     """Production 13/6: scalar triangle residual 1.18 s (camera clock
     drift) but piecewise timemaps consistent -> xcorr+timemap accepts."""
-    _stub_sync(monkeypatch, {(0, 1): (215.16, 2.55, 0.9),
+    _stub_sync(monkeypatch, {(0, 1): (215.16, 2.35, 0.9),
                              (0, 2): (1125.01, 3.7, 0.9),
                              (1, 2): (911.0, 2.6, 0.9)})  # scalar residual ~1.2
     _stub_timemaps(monkeypatch, _tm12())
@@ -250,7 +250,7 @@ def test_timemap_accepts_drifted_triangle(monkeypatch):
 
 def test_timemap_inconsistent_still_needs_manual(monkeypatch):
     """tm12 off by ~2 s from the a1/a2 difference -> still flagged."""
-    _stub_sync(monkeypatch, {(0, 1): (215.16, 2.55, 0.9),
+    _stub_sync(monkeypatch, {(0, 1): (215.16, 2.35, 0.9),
                              (0, 2): (1125.01, 3.7, 0.9),
                              (1, 2): (911.0, 2.6, 0.9)})
     _stub_timemaps(monkeypatch, _tm12(911.85, 911.74, 911.71))
