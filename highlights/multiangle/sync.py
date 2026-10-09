@@ -278,6 +278,17 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
     return segs
 
 
+def _offset_at(segs: list[dict], file_t: float) -> float:
+    """Offset of the timemap segment containing file time `file_t`; falls
+    back to the nearest segment when file_t sits in a gap."""
+    for s in segs:
+        if s["file_lo"] <= file_t <= s["file_hi"]:
+            return float(s["offset"])
+    s = min(segs, key=lambda x: min(abs(file_t - x["file_lo"]),
+                                    abs(file_t - x["file_hi"])))
+    return float(s["offset"])
+
+
 def sync_angles(wavs: list[str | Path], durations: list[float],
                 manual_offsets: list[float] | None = None) -> dict:
     """Sync all angles against a0. Returns the sync.json dict.
@@ -343,6 +354,7 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             pr["accepted_by"] = "triangle"
 
     needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
+    timemap_residual = None
     timemap: list[list[dict]] = [
         [{"file_lo": 0.0, "file_hi": float(durations[0]), "offset": 0.0}]]
     if manual_offsets is not None:
@@ -369,6 +381,47 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                        s["offset"]) for s in timemap[b])[1])
             for b in range(1, n)]
 
+        # Third acceptance path: drift-aware consistency of the piecewise
+        # timemaps. Cameras' clocks drift over a match, so the scalar
+        # triangle residual can exceed TRIANGLE_TOL_S even when every
+        # windowed offset is right — compare the segment offsets instead.
+        timemap_residual = None
+        if n >= 3:
+            tm12 = estimate_timemap(envs[1], envs[2], off12,
+                                    durations[2])
+            lo_t = max(timemap[1][0]["file_lo"] + timemap[1][0]["offset"],
+                       timemap[2][0]["file_lo"] + timemap[2][0]["offset"])
+            hi_t = min(timemap[1][-1]["file_hi"] + timemap[1][-1]["offset"],
+                       timemap[2][-1]["file_hi"] + timemap[2][-1]["offset"])
+            if hi_t > lo_t:
+                residuals = []
+                for t_s in np.linspace(lo_t, hi_t, 12):
+                    o1 = _offset_at(timemap[1], t_s - offsets[1])
+                    o2 = _offset_at(timemap[2], t_s - offsets[2])
+                    o12 = _offset_at(tm12, t_s - o1)
+                    residuals.append(abs(o12 - (o2 - o1)))
+                timemap_residual = float(np.median(residuals))
+        if (timemap_residual is not None
+                and timemap_residual <= TRIANGLE_TOL_S
+                and all(pr["pnr"] >= PNR_WEAK for pr in pairs)):
+            method = "xcorr+timemap"
+            for pr in pairs:
+                pr["confident"] = True
+                pr["accepted_by"] = "timemap"
+        elif n == 2 and len(timemap[1]) >= 2:
+            offs = [s["offset"] for s in timemap[1]]
+            # neighbour-consistent windows are independent evidence even
+            # without a triangle
+            if (max(offs) - min(offs) <= 3.0
+                    and pairs[0]["pnr"] >= PNR_WEAK):
+                method = "xcorr+timemap"
+                for pr in pairs:
+                    pr["confident"] = True
+                    pr["accepted_by"] = "timemap"
+
+    # recompute: the timemap acceptance path above may have flipped pairs
+    needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
+
     # coverage from the timemap: each angle spans
     # [file_lo+off of first seg, file_hi+off of last seg]
     lo_bounds, hi_bounds = [], []
@@ -386,6 +439,11 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
     note = {"manual": "offsets entered manually",
             "xcorr+triangle": ("all pairs accepted by triangle consistency "
                                f"(residual {tri} s, every pnr >= {PNR_WEAK})"),
+            "xcorr+timemap": (
+                f"all pairs accepted by drift-aware triangle consistency "
+                f"(median residual {round(timemap_residual, 3)} s)"
+                if timemap_residual is not None else
+                "neighbour-consistent timemap windows accepted"),
             "xcorr": ("each pair accepted on pnr>=8/r2<=0.6 alone"
                       if not needs else
                       f"unconfident xcorr for angle(s) {sorted(set(needs))} — "
@@ -395,6 +453,7 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             "timemap": timemap,
             "segments_note": segments_note,
             "pairs": pairs, "triangle_residual_s": tri,
+            "timemap_residual_s": timemap_residual,
             "needs_manual": sorted(set(needs)), "coverage": coverage,
             "confidence_note": note}
 

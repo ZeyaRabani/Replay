@@ -288,7 +288,8 @@ def stage_sync(ctx: Ctx) -> dict:
     ctx.coverage = out["coverage"]
     ctx.log(f"sync: offsets {out['offsets']} method={out['method']} "
             f"needs_manual={out['needs_manual']}")
-    ctx.log(f"sync: {out.get('confidence_note', '')}")
+    if out["method"].startswith("xcorr+"):
+        ctx.log(f"sync: {out.get('confidence_note', '')}")
     apply_match_window_src(ctx, out)
     if out["needs_manual"]:
         ctx.status.update(state="needs_input",
