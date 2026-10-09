@@ -191,10 +191,14 @@ def _seg_ok(path: Path) -> bool:
     return proc.returncode == 0 and bool(proc.stdout.strip())
 
 
-def plan_segments(segments: list[dict], offsets: list[float],
+def plan_segments(segments: list[dict], tm,
                   union_lo: float, union_hi: float,
                   durations: list[float]) -> list[dict]:
-    """Map live-source segments to per-angle file time."""
+    """Map live-source segments to per-angle file time. `tm` is a
+    piecewise timemap or a legacy flat offsets list; segments are split
+    at the angle's map boundaries so each piece uses one offset."""
+    from highlights.multiangle.syncmap import as_tm, boundaries_shared, shared_to_file
+    tm = as_tm(tm)
     dur_live = union_hi - union_lo
     plans = []
     for k, s in enumerate(segments):
@@ -210,43 +214,59 @@ def plan_segments(segments: list[dict], offsets: list[float],
             continue
         if not has_src_bounds:
             t0, t1 = src0, src1
-        t_file = src0 + union_lo - offsets[a]
-        if a < len(durations) and durations[a] and t_file >= durations[a]:
-            plans.append({"seg_index": k, "angle": a, "t_file": t_file,
-                          "speed": speed, "overlay": overlay, "skip": True})
-            continue
-        dur = src1 - src0
-        plans.append({
-            "seg_index": k,
-            "angle": a,
-            "t0": t0,
-            "t1": t1,
-            "t_file": t_file,
-            "dur": dur,
-            "dur_out": dur / speed,
-            "speed": speed,
-            "overlay": overlay,
-        })
+        # split at the angle's shared-T map boundaries inside [src0, src1)
+        bounds = [src0] + [
+            b - union_lo for b in boundaries_shared(tm, a)
+            if src0 + union_lo < b < src1 + union_lo] + [src1]
+        span = src1 - src0
+        from itertools import pairwise
+        for p0, p1 in pairwise(bounds):
+            if p1 <= p0:
+                continue
+            t_file = shared_to_file(tm, a, p0 + union_lo, clamp=True)
+            if a < len(durations) and durations[a] \
+                    and t_file >= durations[a]:
+                plans.append({"seg_index": k, "angle": a,
+                              "t_file": t_file, "speed": speed,
+                              "overlay": overlay, "skip": True})
+                continue
+            dur = p1 - p0
+            scale = (t1 - t0) / span if span > 0 else 0.0
+            plans.append({
+                "seg_index": k,
+                "angle": a,
+                "t0": t0 + (p0 - src0) * scale,
+                "t1": t0 + (p1 - src0) * scale,
+                "t_file": t_file,
+                "dur": dur,
+                "dur_out": dur / speed,
+                "speed": speed,
+                "overlay": overlay,
+            })
     return plans
 
 
-def mezz_range(i: int, offsets: list[float], union_lo: float,
+def mezz_range(i: int, tm, union_lo: float,
                union_hi: float, durations: list[float]
                ) -> tuple[float, float]:
     """File-time range of angle i covered by the render, clipped to
-    [0, duration] when the duration is known."""
-    m0 = max(0.0, union_lo - offsets[i])
-    m1 = max(m0, union_hi - offsets[i])
+    [0, duration] when the duration is known. `tm` is a piecewise
+    timemap or a legacy flat offsets list."""
+    from highlights.multiangle.syncmap import file_range_for_shared
+    m0, m1 = file_range_for_shared(tm, i, union_lo, union_hi)
+    m0 = max(0.0, m0)
+    m1 = max(m0, m1)
     if i < len(durations) and durations[i]:
         m1 = min(m1, float(durations[i]))
     return m0, m1
 
 
-def render(videos: list[str], offsets: list[float], segments: list[dict],
+def render(videos: list[str], tm, segments: list[dict],
            union_lo: float, union_hi: float, workdir: Path, out_path: Path,
            ref_video: str, durations: list[float] | None = None,
            log=print) -> Path:
-    """Render segments to out_path. Videos[i] is angle i's file."""
+    """Render segments to out_path. Videos[i] is angle i's file. `tm` is
+    a piecewise timemap or a legacy flat offsets list."""
     durations = durations or []
     seg_dir = workdir / "segs"
     mezz_dir = workdir / "mezz"
@@ -258,7 +278,7 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     # per-angle mezzanines covering the renderable file range
     mezzs: dict[int, tuple[Path, float, float, str]] = {}
     for i, v in enumerate(videos):
-        m0, m1 = mezz_range(i, offsets, union_lo, union_hi, durations)
+        m0, m1 = mezz_range(i, tm, union_lo, union_hi, durations)
         if m1 <= m0:
             continue
         key = mezz_key(i, m0, m1)
@@ -301,7 +321,7 @@ def render(videos: list[str], offsets: list[float], segments: list[dict],
     to_encode = []        # (plan, out_path) — cache misses
     total = max(1.0, max(
         (float(segment["t_end"]) for segment in segments), default=0.0))
-    plans = plan_segments(segments, offsets, union_lo, union_hi, durations)
+    plans = plan_segments(segments, tm, union_lo, union_hi, durations)
     for p in plans:
         if p.get("skip"):
             log(f"render: seg {p['seg_index']} (angle {p['angle']}) starts at "

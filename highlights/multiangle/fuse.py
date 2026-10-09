@@ -16,14 +16,17 @@ CLUSTER_WIN = 4.0
 PRE, POST = 3.0, 5.0
 
 
-def fuse_events(events_by_angle: list[list[dict]], offsets: list[float],
+def fuse_events(events_by_angle: list[list[dict]], tm,
                 labels: list[str]) -> dict:
     """events_by_angle[i]: candidate events (t in angle file time).
+    `tm` is a piecewise timemap (syncmap) or a legacy flat offsets list.
     Returns a candidates.json-shaped dict on the shared timeline."""
+    from highlights.multiangle.syncmap import file_to_shared
     items = []
     for i, evs in enumerate(events_by_angle):
         for e in evs:
-            items.append({**e, "_angle": i, "_T": float(e["t"]) + offsets[i]})
+            items.append({**e, "_angle": i,
+                          "_T": file_to_shared(tm, i, float(e["t"]))})
     items.sort(key=lambda x: x["_T"])
 
     clusters: list[list[dict]] = []
@@ -95,13 +98,13 @@ def drop_outside_window(events: list[dict], dur_live: float) -> list[dict]:
     return kept
 
 
-def fuse_candidates(candidates_files: list[str | Path], offsets: list[float],
+def fuse_candidates(candidates_files: list[str | Path], tm,
                     labels: list[str], out_path: str | Path) -> dict:
     events_by_angle = []
     for f in candidates_files:
         d = json.loads(Path(f).read_text())
         events_by_angle.append(d.get("events") or d.get("candidates") or [])
-    out = fuse_events(events_by_angle, offsets, labels)
+    out = fuse_events(events_by_angle, tm, labels)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     from highlights.io import write_json_atomic
     write_json_atomic(out_path, out, indent=1)

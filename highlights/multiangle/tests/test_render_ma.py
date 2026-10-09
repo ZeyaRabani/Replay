@@ -101,7 +101,7 @@ def test_segment_cache_reuse_and_prune(tmp_path):
     segs = [{"t_start": 0.0, "t_end": 3.0, "angle": 0},
             {"t_start": 3.0, "t_end": 5.0, "angle": 1}]
     logs: list[str] = []
-    kwargs = dict(videos=[str(v0), str(v1)], offsets=[0.0, 0.0],
+    kwargs = dict(videos=[str(v0), str(v1)], tm=[0.0, 0.0],
                   union_lo=0.0, union_hi=5.0, ref_video=str(v0),
                   log=lambda m, *a: logs.append(str(m)))
     work = tmp_path / "work"
@@ -136,7 +136,7 @@ def test_render_repairs_truncated_segment(tmp_path):
             {"t_start": 3.0, "t_end": 6.0, "angle": 0}]
     work = tmp_path / "work"
     logs: list[str] = []
-    kw = dict(videos=[str(v0)], offsets=[0.0], union_lo=0.0, union_hi=6.0,
+    kw = dict(videos=[str(v0)], tm=[0.0], union_lo=0.0, union_hi=6.0,
               ref_video=str(v0), log=lambda m, *a: logs.append(str(m)))
     render.render(segments=segs, workdir=work,
                   out_path=tmp_path / "out.mp4", **kw)
@@ -168,7 +168,7 @@ def test_render_fails_loud_when_segment_stays_bad(tmp_path, monkeypatch):
                         lambda p: "mezz" in str(p))
     segs = [{"t_start": 0.0, "t_end": 3.0, "angle": 0}]
     with pytest.raises(RuntimeError, match="still invalid"):
-        render.render(videos=["v.mp4"], offsets=[0.0], segments=segs,
+        render.render(videos=["v.mp4"], tm=[0.0], segments=segs,
                       union_lo=0.0, union_hi=3.0, workdir=tmp_path / "w",
                       out_path=tmp_path / "o.mp4", ref_video="v.mp4",
                       log=lambda *a: None)

@@ -296,8 +296,10 @@ def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
                         {**src, "angle": ang}, indent=1)
         ang = int(ang)
         s, e = float(src["start"]), float(src["end"])
-        off = float(sync["offsets"][ang])
-        lo, hi = max(0.0, s + off), e + off
+        from highlights.multiangle.syncmap import file_to_shared, timemap_from_sync
+        tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
+        lo, hi = (max(0.0, file_to_shared(tm, ang, s)),
+                  file_to_shared(tm, ang, e))
         cr_path = ctx.pipe / "cut_range.json"
         cur = json.loads(cr_path.read_text()) if cr_path.exists() else None
         if cur != {"lo": lo, "hi": hi} and not read_only:
@@ -308,13 +310,19 @@ def apply_match_window_src(ctx: Ctx, sync: dict) -> None:
         ctx.log(f"match window: could not apply src ({exc})")
 
 
-def angle_track_window(lo: float, hi: float, offset: float,
+def angle_track_window(lo: float, hi: float, offset,
                        duration: float, pad: float = TRACK_PAD
                        ) -> tuple[float, float]:
     """Shared-T window [lo, hi] -> angle file-time range, padded and
-    clamped to [0, duration]. Returns (lo_f, hi_f) with hi_f >= lo_f."""
-    lo_f = max(0.0, lo - offset - pad)
-    hi_f = min(max(0.0, duration), hi - offset + pad)
+    clamped to [0, duration]. `offset` may be a legacy scalar or a
+    segment list / timemap row (piecewise map via syncmap)."""
+    if isinstance(offset, (int, float)):
+        f0, f1 = lo - offset, hi - offset
+    else:
+        from highlights.multiangle.syncmap import file_range_for_shared
+        f0, f1 = file_range_for_shared(offset, 0, lo, hi)
+    lo_f = max(0.0, f0 - pad)
+    hi_f = min(max(0.0, duration), f1 + pad)
     return lo_f, max(lo_f, hi_f)
 
 
@@ -349,10 +357,11 @@ def stage_track(ctx: Ctx) -> None:
             win = (w_lo, w_hi)
     except Exception:
         win = None
-    offsets = [0.0] * n
+    from highlights.multiangle.syncmap import timemap_from_sync
+    tm = None
     if win is not None and sync is not None:
         try:
-            offsets = [float(o) for o in sync["offsets"]]
+            tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
         except Exception:
             win = None
     elif win is not None:
@@ -362,21 +371,36 @@ def stage_track(ctx: Ctx) -> None:
     for i, a in enumerate(ctx.angles):
         vid = ctx.angle_video(i)
         out = a["dir"] / "track" / "features_1s.json"
-        if out.exists() and not ctx.force:
-            ctx.log(f"track: a{i} skip")
-            n_done += 1
-            continue
-        out.parent.mkdir(parents=True, exist_ok=True)
-        prog = out.with_suffix(".progress")
-        prog.unlink(missing_ok=True)
         dur = ctx.duration(i)
         if win is None:
             lo_f, hi_f = 0.0, dur
         else:
             lo_f, hi_f = angle_track_window(
-                win[0], win[1], offsets[i] if i < len(offsets) else 0.0, dur)
-            ctx.log(f"track: a{i} window {lo_f:.0f}-{hi_f:.0f} s "
-                    f"(of {dur:.0f})")
+                win[0], win[1], tm[i] if tm is not None else 0.0, dur)
+        if out.exists() and not ctx.force:
+            # reuse the track when its recorded window already covers
+            # what this sync needs (piecewise sync must not re-pay the
+            # full track on an unchanged window)
+            try:
+                meta = (json.loads(out.read_text()).get("meta") or {})
+                rec_lo = float(meta.get("start_s") or 0.0)
+                rec_hi = meta.get("end_s")
+                covered = (rec_lo <= lo_f + 1.0
+                           and (rec_hi is None
+                                or float(rec_hi) >= hi_f - 1.0))
+            except Exception:
+                covered = True    # can't tell; keep the existing file
+            if covered:
+                ctx.log(f"track: a{i} up to date")
+                n_done += 1
+                continue
+            ctx.log(f"track: a{i} re-tracking — saved window "
+                    f"{rec_lo:.0f}-{rec_hi} < needed {lo_f:.0f}-{hi_f:.0f}")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        prog = out.with_suffix(".progress")
+        prog.unlink(missing_ok=True)
+        ctx.log(f"track: a{i} window {lo_f:.0f}-{hi_f:.0f} s "
+                f"(of {dur:.0f})")
         pending.append((i, vid, out, prog, lo_f, hi_f))
 
     # 480p analysis proxies for the pending angles (parallel; falls back
@@ -526,6 +550,8 @@ def load_director_inputs(ctx: Ctx) -> dict:
 
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     apply_match_window_src(ctx, sync)
+    from highlights.multiangle.syncmap import file_to_shared, shared_to_file, timemap_from_sync
+    tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
     offsets = sync["offsets"]
     lo, hi = ctx.union(sync)
     T = int(np.ceil(hi - lo))
@@ -535,12 +561,15 @@ def load_director_inputs(ctx: Ctx) -> dict:
         tr = _load_track_rows(a["dir"])
         mo = _load_motion(a["dir"])
         dur = ctx.duration(i)
-        off = offsets[i]
         t_idx = np.arange(T)
-        ft = t_idx + lo - off                      # angle file time at T second
-        ok = (ft >= 0) & (ft <= dur - 1)
+        # angle file time at each shared second; NaN in a map gap
+        ft = np.array(
+            [x if (x := shared_to_file(tm, i, t + lo)) is not None
+             else np.nan for t in t_idx], dtype=float)
+        ok = ~np.isnan(ft) & (ft >= 0) & (ft <= dur - 1)
         avail[i] = ok
-        fsec = np.clip(np.round(ft), 0, 1 << 30).astype(int)
+        fsec = np.clip(np.round(np.nan_to_num(ft, nan=0.0)),
+                       0, 1 << 30).astype(int)
         def _row(col, tr=tr, ok=ok, fsec=fsec):
             src = tr.get(col)
             if src is None or len(src) == 0:
@@ -554,7 +583,7 @@ def load_director_inputs(ctx: Ctx) -> dict:
                 if str(e.get("type")) not in EVENT_TYPES:
                     continue
                 conf = float(e.get("confidence", 0.5))
-                ti = float(e.get("t", 0.0)) + off - lo   # shared-T -> output idx
+                ti = file_to_shared(tm, i, float(e.get("t", 0.0))) - lo
                 for k in range(int(ti - EVENT_PRE), int(ti + EVENT_POST) + 1):
                     if 0 <= k < T and ok[k]:
                         event[k] = max(event[k], conf)
@@ -590,7 +619,7 @@ def load_director_inputs(ctx: Ctx) -> dict:
             zd = None
     if zd is not None:
         zones, zone_ok, zone_kf, suspended = _load_zone_inputs(
-            ctx, zd, avail, T, lo, offsets)
+            ctx, zd, avail, T, lo, tm)
         if zones is None:
             zone_source = None
     else:
@@ -599,21 +628,22 @@ def load_director_inputs(ctx: Ctx) -> dict:
             "zones": zones, "zone_ok": zone_ok, "zone_kf": zone_kf,
             "zone_source": zone_source,
             "lo": lo, "hi": hi, "T": T, "suspended": suspended,
-            "offsets": offsets,
+            "offsets": offsets, "timemap": tm,
             "durations": [ctx.duration(i) for i in range(len(ctx.angles))]}
 
 
 def _load_zone_inputs(ctx: Ctx, zd: dict, avail: np.ndarray, T: int,
-                      lo: float, offsets: list
+                      lo: float, tm
                       ) -> tuple[list | None, np.ndarray | None,
                                  list | None, list[float]]:
     """Normalise + viewcheck a zones doc (drawn or learned) exactly like
-    the inline block used to. Returns (zones, zone_ok, zone_kf,
-    suspended); zones None when the doc has no usable polygons."""
+    the inline block used to. `tm` is a piecewise timemap or a legacy
+    flat offsets list. Returns (zones, zone_ok, zone_kf, suspended);
+    zones None when the doc has no usable polygons."""
     zones, zone_ok, zone_kf = None, None, None
     suspended = [0.0] * len(ctx.angles)
     try:
-        from highlights.multiangle.zones import kf_index, normalize_zones
+        from highlights.multiangle.zones import kf_index_ft, normalize_zones
         zones = normalize_zones(
             zd, [ctx.duration(i) for i in range(len(ctx.angles))])
         has = [i for i, kfs in enumerate(zones)
@@ -625,10 +655,15 @@ def _load_zone_inputs(ctx: Ctx, zd: dict, avail: np.ndarray, T: int,
         zone_kf = [np.zeros(T, dtype=int)
                    for _ in range(len(ctx.angles))]
         zone_ok = np.ones((len(ctx.angles), T), dtype=bool)
+        from highlights.multiangle.syncmap import shared_to_file
         for i, a in enumerate(ctx.angles):
-            off = offsets[i]
             dur = ctx.duration(i)
-            zone_kf[i] = kf_index(zones[i], T, lo, off, dur)
+            # per-second file time via the map; gaps clamp to an edge so
+            # zone keyframes stay attached to the nearest covered second
+            ft = np.array(
+                [shared_to_file(tm, i, t + lo, clamp=True)
+                 for t in range(T)], dtype=float)
+            zone_kf[i] = kf_index_ft(zones[i], ft)
             if i not in has:
                 continue
             vid = ctx.angle_video(i)
@@ -649,8 +684,7 @@ def _load_zone_inputs(ctx: Ctx, zd: dict, avail: np.ndarray, T: int,
                     ctx.log(f"director: viewcheck a{i} k{k} "
                             f"failed ({e})")
                     continue
-                ok_by_k[k] = _map_view_ok(times, okarr, T, lo,
-                                          off, dur)
+                ok_by_k[k] = _map_view_ok(times, okarr, ft, dur)
             if ok_by_k:
                 row = np.ones(T, dtype=bool)
                 for k, okk in ok_by_k.items():
@@ -781,12 +815,11 @@ def stage_director(ctx: Ctx) -> dict:
     return out
 
 
-def _map_view_ok(times: np.ndarray, okarr: np.ndarray, T: int,
-                 lo: float, off: float, dur: float) -> np.ndarray:
-    """Nearest-sample map of viewcheck ok flags (angle file time) onto the
-    shared output timeline of length T."""
-    t_idx = np.arange(T)
-    ft = np.clip(t_idx + lo - off, 0, max(0, dur))
+def _map_view_ok(times: np.ndarray, okarr: np.ndarray,
+                 ft: np.ndarray, dur: float) -> np.ndarray:
+    """Nearest-sample map of viewcheck ok flags (angle file time) onto
+    the shared output timeline via the per-second ft array."""
+    ft = np.clip(ft, 0, max(0, dur))
     idx = np.clip(np.searchsorted(times, ft), 0, len(okarr) - 1)
     return np.asarray(okarr[idx], dtype=bool)
 
@@ -809,14 +842,16 @@ def _zone_view_ok(ctx: Ctx, angle_dir: Path, video: Path,
 
 def stage_render(ctx: Ctx) -> None:
     from highlights.multiangle.render import render
+    from highlights.multiangle.syncmap import timemap_from_sync
     sync = json.loads((ctx.pipe / "sync.json").read_text())
     director = json.loads((ctx.pipe / "director.json").read_text())
     videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
     lo, hi = ctx.union(sync)
-    out = render(videos, sync["offsets"],
+    tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
+    out = render(videos, tm,
                  director.get("segments_out") or director["segments"], lo, hi,
                  ctx.pipe, ctx.project_dir / "match.mp4", videos[0],
-                 durations=list(ctx.durations), log=ctx.log)
+                 durations=list(getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))]), log=ctx.log)
     # register the cut as the project video for the Option-1 UI
     pipe1 = ctx.project_dir / "pipeline"
     pipe1.mkdir(exist_ok=True)
@@ -832,15 +867,17 @@ def stage_fuse(ctx: Ctx) -> dict:
         fuse_candidates,
         to_output_time,
     )
+    from highlights.multiangle.syncmap import timemap_from_sync
     from highlights.multiangle.timemap import events_to_output, to_output_time_with_replays
     sync = json.loads((ctx.pipe / "sync.json").read_text())
+    tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
     director = {}
     with contextlib.suppress(OSError, ValueError):
         director = json.loads((ctx.pipe / "director.json").read_text())
     replays = director.get("replays") or []
     files = [a["dir"] / "pipeline" / "candidates.json" for a in ctx.angles]
     labels = [a["label"] for a in ctx.angles]
-    out = fuse_candidates(files, sync["offsets"], labels,
+    out = fuse_candidates(files, tm, labels,
                           ctx.pipe / "fused_candidates.json")
     lo, hi = ctx.union(sync)
     dur_live = hi - lo

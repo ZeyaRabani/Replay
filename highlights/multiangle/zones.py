@@ -60,14 +60,20 @@ def zones_at(kfs: list[dict], file_t: float) -> list:
     return chosen.get("zones") or []
 
 
+def kf_index_ft(kfs: list[dict], ft: np.ndarray) -> np.ndarray:
+    """int array [len(ft)]: which keyframe is in effect at each mapped
+    file second. Times before the first keyframe map to keyframe 0."""
+    if not kfs:
+        return np.zeros(len(ft), dtype=int)
+    times = np.asarray([k["t"] for k in kfs], dtype=float)
+    idx = np.searchsorted(times, ft, side="right") - 1
+    return np.clip(idx, 0, len(kfs) - 1).astype(int)
+
+
 def kf_index(kfs: list[dict], T: int, lo: float, off: float,
              dur: float) -> np.ndarray:
     """int array [T]: which keyframe of this angle is in effect at each
     output second, using the file-time mapping ft = clip(t + lo - off).
-    Times before the first keyframe map to keyframe 0 (same as zones_at)."""
-    if not kfs:
-        return np.zeros(T, dtype=int)
-    times = np.asarray([k["t"] for k in kfs], dtype=float)
+    Scalar-offset variant kept for callers/tests without a timemap."""
     ft = np.clip(np.arange(T) + lo - off, 0.0, max(0.0, dur))
-    idx = np.searchsorted(times, ft, side="right") - 1
-    return np.clip(idx, 0, len(kfs) - 1).astype(int)
+    return kf_index_ft(kfs, ft)

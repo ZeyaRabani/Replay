@@ -1779,8 +1779,10 @@ def put_multiangle_match_window(body: MaMatchWindowPut, p: ScopedP) -> dict:
     mw = None
     if sync and resolved is not None:
         try:
-            off = float(sync["offsets"][resolved])
-            mw = [max(0.0, float(body.start) + off), float(body.end) + off]
+            from highlights.multiangle.syncmap import file_to_shared, timemap_from_sync
+            tm = timemap_from_sync(sync)
+            mw = [max(0.0, file_to_shared(tm, resolved, float(body.start))),
+                  file_to_shared(tm, resolved, float(body.end))]
             old = _read_json(cr_path)
             if not old or [old.get("lo"), old.get("hi")] != mw:
                 write_json_atomic(cr_path, {"lo": mw[0], "hi": mw[1]},
@@ -2139,6 +2141,8 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     n_angles = len(p.source_info.get("angles") or [])
     if len(offsets) < n_angles:
         offsets += [0.0] * (n_angles - len(offsets))
+    from highlights.multiangle.syncmap import shared_to_file, timemap_from_sync
+    _tm = timemap_from_sync(sync or {"offsets": offsets})
     segs = director.get("segments") or []
     replays = director.get("replays") or []
     meta = _active_cut_meta(p)
@@ -2182,7 +2186,8 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
         "t_start": round(s, 2), "t_end": round(e, 2),
         "t_start_out": round(
             to_output_time_with_replays(s - lo, replays), 2),
-        "offsets": [round(s - o, 2) for o in offsets],
+        "offsets": [round(shared_to_file(_tm, i, s, clamp=True), 2)
+                    for i in range(len(_tm))],
         "match_window": [round(lo, 2), round(hi, 2)],
         "n_angles": n_angles,
         "n_sessions_saved": len(_direct_sessions(p)),
@@ -2381,13 +2386,13 @@ def _run_direct_learn(p: ProjectStore, sessions: list[dict]) -> dict:
     # zone variants: learned (from sessions) / drawn / none — pick the
     # one with the best baseline agreement, ties -> learned>drawn>none
     lz = learn_zones(sessions, inp["tracks"], inp["avail"], inp["lo"],
-                     inp["offsets"], inp["durations"])
+                     inp["timemap"], inp["durations"])
     variants: dict[str, tuple] = {"none": (None, None, None)}
     if inp["zones"]:
         variants["drawn"] = (inp["zones"], inp["zone_ok"], inp["zone_kf"])
     if lz is not None:
         lz_in = _load_zone_inputs(ctx, lz, inp["avail"], inp["T"],
-                                  inp["lo"], inp["offsets"])
+                                  inp["lo"], inp["timemap"])
         if lz_in[0]:
             variants["learned"] = lz_in[:3]
 

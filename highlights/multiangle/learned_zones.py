@@ -10,6 +10,8 @@ import math
 
 import numpy as np
 
+from highlights.multiangle.syncmap import shared_to_file
+
 GRID_W, GRID_H = 8, 5          # cells over the normalised frame [0,1]x[0,1]
 MIN_VOTES = 2                  # seconds of evidence a cell needs
 MIN_SHARE = 0.60               # share of votes for camera i in camera i's cell
@@ -56,12 +58,13 @@ def _rects(cells: set[tuple[int, int]]) -> list[list[list[float]]]:
 
 
 def learn_zones(sessions: list[dict], tracks: list[dict], avail: np.ndarray,
-                range_lo: float, offsets: list[float],
+                range_lo: float, offsets,
                 durations: list[float]) -> dict | None:
     """Returns zones.json v2 {"version": 2, "learned": True,
     "angles": [[{"t": file_t, "zones": [poly..]}, ...] per angle],
     "cells": [[GRID_H x GRID_W share-or-None] per angle], "n_votes": [...]}
-    or None when no camera gets any cell."""
+    or None when no camera gets any cell. `offsets` is a piecewise
+    timemap or a legacy flat offsets list."""
     n_angles, T = avail.shape
     # votes[i][(r,c)] = {user_angle: weight}
     votes: list[dict[tuple[int, int], dict[int, float]]] = [
@@ -127,7 +130,8 @@ def learn_zones(sessions: list[dict], tracks: list[dict], avail: np.ndarray,
     angles = []
     for i in range(n_angles):
         polys = _rects(sel[i])
-        kfs = [{"t": float(min(max(s["t_start"] - offsets[i], 0.0),
+        kfs = [{"t": float(min(max(shared_to_file(
+                        offsets, i, s["t_start"], clamp=True), 0.0),
                                durations[i])),
                 "zones": polys} for s in sessions]
         kfs.sort(key=lambda k: k["t"])

@@ -105,11 +105,13 @@ def test_ctx_duration_probe_fallback(tmp_path):
     times = np.arange(0, 5600, 10.0)
     okarr = np.ones(len(times), dtype=bool)
     okarr[0] = False                        # camera still being set up at t=0
-    row = _map_view_ok(times, okarr, T=5400, lo=0.0, off=0.0, dur=5600.0)
+    row = _map_view_ok(times, okarr, np.arange(5400, dtype=float),
+                       dur=5600.0)
     assert row.sum() > 5000                 # not all-False
     assert not row[0]
     # dur=0 (the old bug) collapses everything onto the t=0 sample
-    row_bug = _map_view_ok(times, okarr, T=5400, lo=0.0, off=0.0, dur=0.0)
+    row_bug = _map_view_ok(times, okarr, np.arange(5400, dtype=float),
+                           dur=0.0)
     assert not row_bug.any()
 
 

@@ -27,6 +27,91 @@ def test_angle_track_window_clamps_to_video():
     assert lo_f == hi_f
 
 
+def test_track_window_via_timemap(tmp_path):
+    """A piecewise map widens the file range across a jump."""
+    segs = [{"file_lo": 0, "file_hi": 50, "offset": 10.0},
+            {"file_lo": 53, "file_hi": 100, "offset": 12.0}]
+    # shared 30..80 -> covered file 20..68 (before pad)
+    lo_f, hi_f = angle_track_window(30.0, 80.0, segs, 100.0, pad=0.0)
+    assert (lo_f, hi_f) == (20.0, 68.0)
+
+
+def _track_ctx(tmp_path):
+    import json as _json
+
+    from highlights.multiangle.run import Ctx
+    for i in (0, 1):
+        adir = tmp_path / "angles" / f"a{i}"
+        (adir / "pipeline").mkdir(parents=True)
+        (adir / "pipeline" / "probe.json").write_text(
+            _json.dumps({"duration_s": 500.0}))
+        (adir / "match.mp4").write_bytes(b"v")
+    adir = tmp_path / "angles" / "a1"
+    (adir / "pipeline" / "candidates.json").write_text("{}")
+    pipe = tmp_path / "multiangle"
+    pipe.mkdir()
+    # shared window 10..490; a1 map is the identity file range 0..500
+    # (offset 0), needing file 0..500 after pad
+    (pipe / "sync.json").write_text(_json.dumps(
+        {"offsets": [0.0, 0.0],
+         "timemap": [[{"file_lo": 0, "file_hi": 500, "offset": 0.0}],
+                     [{"file_lo": 0, "file_hi": 500, "offset": 0.0}]],
+         "coverage": {"union": [0.0, 500.0]}}))
+    (pipe / "cut_range.json").write_text(_json.dumps(
+        {"lo": 10.0, "hi": 490.0}))
+
+    class _Status:
+        def update(self, **kw):
+            pass
+    return Ctx(project_dir=tmp_path, pipe=pipe, status=_Status(),
+               angles=[{"dir": tmp_path / "angles" / "a0",
+                        "label": "a0", "url": None},
+                       {"dir": adir, "label": "a1", "url": None}]), adir
+
+
+def test_stage_track_skips_covered_window(tmp_path):
+    """An existing features_1s.json whose meta window covers the new
+    map's needs is kept, not re-tracked."""
+    import json as _json
+
+    from highlights.multiangle.run import stage_track
+    ctx, adir = _track_ctx(tmp_path)
+    out = adir / "track" / "features_1s.json"
+    out.parent.mkdir(parents=True)
+    out.write_text(_json.dumps(
+        {"meta": {"start_s": 0.0, "end_s": 500.0}, "rows": []}))
+    (tmp_path / "angles" / "a0" / "track").mkdir(exist_ok=True)
+    (tmp_path / "angles" / "a0" / "track" / "features_1s.json").write_text(
+        _json.dumps({"meta": {"start_s": 0.0, "end_s": 500.0}, "rows": []}))
+    stage_track(ctx)      # returns without spawning when covered
+
+
+def test_stage_track_retracks_narrow_window(tmp_path, monkeypatch):
+    """A saved track narrower than the needed window is re-tracked."""
+    import json as _json
+    import subprocess as sp
+
+    from highlights.multiangle.run import stage_track
+    ctx, adir = _track_ctx(tmp_path)
+    out = adir / "track" / "features_1s.json"
+    out.parent.mkdir(parents=True)
+    out.write_text(_json.dumps(
+        {"meta": {"start_s": 200.0, "end_s": 300.0}, "rows": []}))
+    spawned = []
+    monkeypatch.setattr(sp, "Popen",
+                        lambda cmd, **kw: spawned.append(cmd) or _Done())
+    monkeypatch.setattr(
+        "highlights.multiangle.proxy.ensure_analysis_proxy",
+        lambda *a, **k: type("PI", (), {"path": None, "offset": 0.0,
+                                       "src": "original"})())
+
+    class _Done:
+        def poll(self): return 0
+    monkeypatch.setenv("HL_TRACK_PROXY", "0")
+    stage_track(ctx)
+    assert spawned and "--end-s" in " ".join(spawned[0])
+
+
 def test_load_track_rows_densifies_windowed_rows(tmp_path):
     td = tmp_path / "track"
     td.mkdir()

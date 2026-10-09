@@ -11,7 +11,7 @@ def test_two_angles_cross_confirm():
     out = fuse_events(
         [[_ev(100.0, 0.7, "shot")],
          [_ev(102.5, 0.8, "shot")]],
-        offsets=[0.0, 0.0], labels=["a0", "a1"])
+        tm=[0.0, 0.0], labels=["a0", "a1"])
     assert len(out["events"]) == 1
     e = out["events"][0]
     assert e["cross_validation"] == "confirmed"
@@ -23,7 +23,7 @@ def test_two_angles_cross_confirm():
 
 def test_single_angle_pipeline_only():
     out = fuse_events([[_ev(50.0, 0.9)], [_ev(300.0, 0.6)]],
-                      offsets=[0.0, 0.0], labels=["a0", "a1"])
+                      tm=[0.0, 0.0], labels=["a0", "a1"])
     assert len(out["events"]) == 2
     assert all(e["cross_validation"] == "pipeline_only" for e in out["events"])
     # single-angle confidence damped by 0.85
@@ -34,7 +34,7 @@ def test_single_angle_pipeline_only():
 def test_type_disagreement_disputed():
     out = fuse_events(
         [[_ev(200.0, 0.9, "goal")], [_ev(201.0, 0.6, "chance")]],
-        offsets=[0.0, 0.0], labels=["a0", "a1"])
+        tm=[0.0, 0.0], labels=["a0", "a1"])
     e = out["events"][0]
     assert e["type"] == "goal"  # highest priority wins
     assert e["signals"]["disputed"] is True
@@ -43,7 +43,7 @@ def test_type_disagreement_disputed():
 
 def test_offset_mapping():
     """offset shifts angle's file time onto T."""
-    out = fuse_events([[], [_ev(100.0)]], offsets=[0.0, 5.0], labels=["a0", "a1"])
+    out = fuse_events([[], [_ev(100.0)]], tm=[0.0, 5.0], labels=["a0", "a1"])
     assert abs(out["events"][0]["t"] - 105.0) < 0.01
 
 
@@ -53,6 +53,18 @@ def test_ids_and_ranking():
     confs = [e["confidence"] for e in out["events"]]
     assert confs == sorted(confs, reverse=True)
     assert [e["id"] for e in out["events"]] == [f"event_{i:03d}" for i in range(1, 6)]
+
+
+def test_fuse_events_piecewise_map():
+    """Events on either side of an angle's offset jump land on the right
+    shared times."""
+    tm = [[{"file_lo": 0, "file_hi": 1000, "offset": 0.0}],
+          [{"file_lo": 0, "file_hi": 50, "offset": 10.0},
+           {"file_lo": 53, "file_hi": 100, "offset": 12.0}]]
+    out = fuse_events(
+        [[], [_ev(10.0, 0.9), _ev(80.0, 0.9)]], tm, ["a0", "a1"])
+    ts = sorted(e["t"] for e in out["events"])
+    assert ts == [20.0, 92.0]
 
 
 def test_to_output_time():
