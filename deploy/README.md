@@ -44,6 +44,9 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 Your projects live in the `replay_data` docker volume and survive rebuilds.
 
+Each rebuild leaves a few GB of Docker build cache behind; the installer adds a
+nightly cron (`docker builder prune -af --filter until=24h`) so it never piles up.
+
 ## (d) YouTube cookies
 
 YouTube sometimes blocks datacenter IPs with a "Sign in to confirm you're not a

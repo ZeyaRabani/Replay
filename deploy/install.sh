@@ -87,6 +87,10 @@ fi
 echo "== Building and starting the container (first build takes several minutes)"
 $DOCKER compose -f deploy/docker-compose.yml up -d --build
 
+# nightly build-cache prune so repeated rebuilds don't fill the disk
+CRON='30 4 * * * docker builder prune -af --filter until=24h >/dev/null 2>&1'
+(crontab -l 2>/dev/null | grep -vF 'docker builder prune'; echo "$CRON") | crontab -
+
 PUBLIC_IP="$(curl -fsSL --max-time 5 http://169.254.169.254/opc/v1/instance/metadata 2>/dev/null \
     | grep -o '"publicIp":"[^"]*"' | cut -d'"' -f4 || true)"
 [ -z "${PUBLIC_IP:-}" ] && PUBLIC_IP="$(curl -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
