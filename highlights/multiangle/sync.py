@@ -221,14 +221,22 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
         return [{"file_lo": 0.0, "file_hi": float(dur_b),
                  "offset": float(coarse_off)}]
 
-    windows: list[tuple[float, float]] = []   # (a-time start, offset)
+    windows: list[tuple[float, float, float]] = []  # (a-start, off, pnr)
     w = lo
     while w <= hi:
         r = _window_offset(env_a, env_b, w, TIMEMAP_WIN_S,
                            coarse_off, TIMEMAP_GUARD_S)
-        if r is not None and r[1] >= PNR_WEAK:
-            windows.append((w, r[0]))
+        if r is not None:
+            windows.append((w, r[0], r[1]))     # pnr kept for diagnostics
         w += TIMEMAP_STEP_S
+    # keep a window iff a measured neighbour agrees within 0.3 s —
+    # isolated garbage offsets are dropped; pnr is NOT gated on (its
+    # peak/median metric sits ~1.4-2.4 on real audio even when the
+    # offset is dead-on)
+    windows = [
+        (w0, o, p) for k, (w0, o, p) in enumerate(windows)
+        if (k > 0 and abs(windows[k - 1][1] - o) <= 0.3)
+        or (k < len(windows) - 1 and abs(windows[k + 1][1] - o) <= 0.3)]
     if len(windows) < 2:
         return [{"file_lo": 0.0, "file_hi": float(dur_b),
                  "offset": float(coarse_off)}]
@@ -236,7 +244,7 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
     runs: list[list[tuple[float, float]]] = []
     for wnd in windows:
         if runs:
-            med = float(np.median([o for _, o in runs[-1]]))
+            med = float(np.median([x[1] for x in runs[-1]]))
             if abs(wnd[1] - med) <= TIMEMAP_JUMP_S:
                 runs[-1].append(wnd)
                 continue
@@ -255,12 +263,12 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
     segs: list[dict] = []
     boundary = 0.0
     for k, run in enumerate(merged):
-        off = float(np.median([o for _, o in run]))
+        off = float(np.median([x[1] for x in run]))
         file_lo = 0.0 if k == 0 else boundary - off
         if k == len(merged) - 1:
             file_hi = float(dur_b)
         else:
-            nxt = float(np.median([o for _, o in merged[k + 1]]))
+            nxt = float(np.median([x[1] for x in merged[k + 1]]))
             boundary = _boundary_t(env_a, env_b, run[-1][0],
                                    merged[k + 1][0][0], coarse_off, nxt)
             file_hi = boundary - off

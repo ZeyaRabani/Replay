@@ -55,6 +55,34 @@ def test_estimate_timemap_recovers_a_skip():
     assert abs(boundary - true_t) < 15.0
 
 
+def test_estimate_timemap_drops_a_garbage_window(monkeypatch):
+    """One bogus window offset must not create a spurious segment: the
+    neighbour-consistency filter drops isolated outliers."""
+    n = int(18 * 60 * sync.ENV_HZ)
+    shared = _envelope(n, seed=21)
+    off1, off2 = 10.0, 13.0
+    n_b = int(n - off2 * sync.ENV_HZ)
+    b_idx = np.arange(n_b)
+    a_idx = b_idx + np.where(
+        b_idx < 0.4 * n_b, off1 * sync.ENV_HZ, off2 * sync.ENV_HZ)
+    b = shared[a_idx.astype(int)]
+    a = shared[:n]
+    real = sync._window_offset
+    calls = {"n": 0}
+
+    def flaky(env_a, env_b, w, win_s, coarse_off, guard_s):
+        calls["n"] += 1
+        if calls["n"] == 5:          # one garbage measurement
+            return (coarse_off + 7.0, 9.9)
+        return real(env_a, env_b, w, win_s, coarse_off, guard_s)
+    monkeypatch.setattr(sync, "_window_offset", flaky)
+    segs = sync.estimate_timemap(a, b, off1 + (off2 - off1) / 2,
+                                 n_b / sync.ENV_HZ)
+    assert len(segs) == 2
+    assert abs(segs[0]["offset"] - off1) < 0.1
+    assert abs(segs[1]["offset"] - off2) < 0.1
+
+
 def test_uncorrelated_not_confident():
     rng = np.random.default_rng(2)
     a = _envelope(6000, seed=3) + 0.05 * rng.normal(size=6000)
