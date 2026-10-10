@@ -1,65 +1,57 @@
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, Goal, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Candidate } from "../types";
-import { TYPE_COLORS } from "./Timeline";
-
-const XV_STYLE: Record<string, string> = {
-  confirmed: "bg-emerald-800 text-emerald-200",
-  pipeline_only: "bg-zinc-700 text-zinc-300",
-  visual_only: "bg-purple-800 text-purple-200",
-  rejected: "bg-red-900 text-red-200",
-};
+import { useProjectApi } from "../api";
+import { fmtClock, parseClock } from "../lib/time";
+import type { Candidate, Team } from "../types";
+import ScorerSelect from "./ScorerSelect";
+import { TYPE_COLORS, TYPE_LABEL } from "./Timeline";
 
 const STATUS_STYLE: Record<string, string> = {
   pending: "bg-zinc-700 text-zinc-300",
-  confirmed: "bg-emerald-700 text-emerald-100",
+  confirmed: "bg-emerald-300 text-zinc-950",
   rejected: "bg-red-800 text-red-100",
 };
 
-const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const fmt = fmtClock;
 
 interface Props {
   c: Candidate;
   selected: boolean;
   thumbV: string | undefined;
   onSelect: (c: Candidate) => void;
-  onPatch: (id: string, patch: Partial<Candidate>) => Promise<boolean>;
+  onPatch: (id: string, patch: Partial<Candidate> & { team?: Team }) => Promise<boolean>;
   onReset: (id: string) => void;
 }
 
 export default function CandidateCard(props: Props) {
+  const api = useProjectApi();
   const { c } = props;
-  const [inStr, setInStr] = useState(String(c.clip_start));
-  const [outStr, setOutStr] = useState(String(c.clip_end));
+  const [inStr, setInStr] = useState(fmtClock(c.clip_start));
+  const [outStr, setOutStr] = useState(fmtClock(c.clip_end));
   const [thumbErr, setThumbErr] = useState(false);
 
   // a new thumb key (new video / candidates reload) gets a fresh try
   useEffect(() => setThumbErr(false), [props.thumbV]);
 
   // keep local drafts in sync when the server value changes
-  useEffect(() => setInStr(String(c.clip_start)), [c.clip_start]);
-  useEffect(() => setOutStr(String(c.clip_end)), [c.clip_end]);
+  useEffect(() => setInStr(fmtClock(c.clip_start)), [c.clip_start]);
+  useEffect(() => setOutStr(fmtClock(c.clip_end)), [c.clip_end]);
 
   const num = "w-16 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-xs font-mono";
 
   const commit = async (field: "clip_start" | "clip_end", raw: string, serverVal: number) => {
-    const v = parseFloat(raw);
-    if (raw.trim() === "" || v === serverVal) {
-      // unchanged or empty -> revert display
-      if (field === "clip_start") setInStr(String(serverVal));
-      else setOutStr(String(serverVal));
-      return;
-    }
-    if (Number.isNaN(v)) {
-      if (field === "clip_start") setInStr(String(serverVal));
-      else setOutStr(String(serverVal));
+    const v = parseClock(raw);
+    // unchanged, empty or unparseable -> revert to the server value
+    if (v === null || v === serverVal) {
+      if (field === "clip_start") setInStr(fmtClock(serverVal));
+      else setOutStr(fmtClock(serverVal));
       return;
     }
     const ok = await props.onPatch(c.id, { [field]: v });
     if (!ok) {
       // rejected by server (e.g. 422): revert to the server value
-      if (field === "clip_start") setInStr(String(serverVal));
-      else setOutStr(String(serverVal));
+      if (field === "clip_start") setInStr(fmtClock(serverVal));
+      else setOutStr(fmtClock(serverVal));
     }
   };
 
@@ -70,8 +62,8 @@ export default function CandidateCard(props: Props) {
   return (
     <div
       onClick={() => props.onSelect(c)}
-      className={`rounded-lg border p-2.5 cursor-pointer transition-colors ${
-        props.selected ? "border-amber-400 bg-zinc-800" : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+      className={`card p-4 cursor-pointer transition-colors ${
+        props.selected ? "border-amber-400 bg-zinc-800" : "hover:bg-zinc-800"
       }`}
     >
       <div className="flex gap-2.5">
@@ -81,7 +73,7 @@ export default function CandidateCard(props: Props) {
           </div>
         ) : (
           <img
-            src={`/api/candidates/${c.id}/thumb.jpg?v=${props.thumbV}`}
+            src={api.thumbUrl(c.id, props.thumbV)}
             alt=""
             className="w-24 aspect-video rounded bg-zinc-800 object-cover"
             loading="lazy"
@@ -90,15 +82,43 @@ export default function CandidateCard(props: Props) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-            <span className="bg-zinc-700 rounded px-1.5 py-0.5 font-mono">#{c.rank}</span>
+            <span className="chip bg-zinc-700 font-mono">#{c.rank}</span>
             <span
-              className="rounded px-1.5 py-0.5 font-semibold uppercase"
+              className="chip"
               style={{ backgroundColor: `${TYPE_COLORS[c.type]}33`, color: TYPE_COLORS[c.type] }}
             >
-              {c.type}
+              {TYPE_LABEL[c.type] ?? c.type}
             </span>
-            <span className={`rounded px-1.5 py-0.5 ${XV_STYLE[c.cross_validation]}`}>{c.cross_validation}</span>
-            <span className={`rounded px-1.5 py-0.5 ${STATUS_STYLE[c.status]}`}>{c.status}</span>
+            {Array.isArray(c.signals.angles) && (
+              <span
+                className="chip bg-zinc-700 text-zinc-300 inline-flex items-center gap-1"
+                title={[
+                  `${(c.signals.angles as unknown[]).length >= 2 ? "seen by angles" : "seen by angle"} ${(c.signals.angles as number[]).join(", ")}`,
+                  `cross-validation: ${c.cross_validation}`,
+                  c.signals.disputed === true
+                    ? `disputed type: ${(c.signals.types as string[] | undefined)?.join(" / ") ?? ""}`
+                    : null,
+                ].filter(Boolean).join("\n")}
+              >
+                {(c.signals.angles as unknown[]).length >= 2
+                  ? `${(c.signals.angles as unknown[]).length} cams`
+                  : "1 cam"}
+                {c.signals.disputed === true && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
+                )}
+              </span>
+            )}
+            <span
+              className={`chip ${
+                c.status === "confirmed"
+                  ? c.type === "goal"
+                    ? "bg-amber-400 text-zinc-950"
+                    : STATUS_STYLE.confirmed
+                  : STATUS_STYLE[c.status]
+              }`}
+            >
+              {c.status === "confirmed" ? (c.type === "goal" ? "goal" : "highlight") : c.status}
+            </span>
             <span className="ml-auto font-mono text-xs text-zinc-300">{fmt(c.t)}</span>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -120,8 +140,7 @@ export default function CandidateCard(props: Props) {
         <span>IN</span>
         <input
           className={num}
-          type="number"
-          step={0.1}
+          type="text"
           value={inStr}
           onChange={(e) => setInStr(e.target.value)}
           onBlur={(e) => void commit("clip_start", e.target.value, c.clip_start)}
@@ -130,13 +149,13 @@ export default function CandidateCard(props: Props) {
         <span>OUT</span>
         <input
           className={num}
-          type="number"
-          step={0.1}
+          type="text"
           value={outStr}
           onChange={(e) => setOutStr(e.target.value)}
           onBlur={(e) => void commit("clip_end", e.target.value, c.clip_end)}
           onKeyDown={onKey}
         />
+        <span className="text-zinc-500">({Math.round(c.clip_end - c.clip_start)} s)</span>
         <button
           className="p-1 rounded hover:bg-zinc-700"
           title="Reset window"
@@ -145,17 +164,58 @@ export default function CandidateCard(props: Props) {
           <RotateCcw size={12} />
         </button>
         <span className="flex-1" />
+        {(c.type === "goal" || c.status === "confirmed") && <ScorerSelect candidateId={c.id} />}
+        {c.type === "goal" && Array.isArray(c.signals.angles) && (
+          <select
+            className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-[10px]"
+            title="Team (multi-angle score)"
+            value={(c.signals.team as Team | undefined) ?? ""}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "home" || v === "away") void props.onPatch(c.id, { team: v });
+            }}
+          >
+            <option value="">—</option>
+            <option value="home">Home</option>
+            <option value="away">Away</option>
+          </select>
+        )}
         <button
-          className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
-            c.status === "confirmed" ? "bg-emerald-700" : "bg-zinc-700 hover:bg-emerald-800"
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "confirmed" && c.type === "goal" ? "bg-amber-400 text-zinc-950" : "btn-ghost"
           }`}
-          onClick={() => props.onPatch(c.id, { status: c.status === "confirmed" ? "pending" : "confirmed" })}
+          title="Goal — it went in"
+          onClick={() =>
+            props.onPatch(
+              c.id,
+              c.status === "confirmed" && c.type === "goal"
+                ? { status: "pending" }
+                : { status: "confirmed", type: "goal" },
+            )
+          }
+        >
+          <Goal size={12} /> Goal
+        </button>
+        <button
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "confirmed" && c.type !== "goal" ? "bg-emerald-700" : "btn-ghost"
+          }`}
+          title="Highlight / close chance"
+          onClick={() =>
+            props.onPatch(
+              c.id,
+              c.status === "confirmed" && c.type !== "goal"
+                ? { status: "pending" }
+                : { status: "confirmed", type: c.type === "goal" ? "shot" : c.type },
+            )
+          }
         >
           <Check size={12} /> Confirm
         </button>
         <button
-          className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs ${
-            c.status === "rejected" ? "bg-red-800" : "bg-zinc-700 hover:bg-red-900"
+          className={`btn !px-2 !py-0.5 text-xs ${
+            c.status === "rejected" ? "bg-red-800" : "btn-ghost"
           }`}
           onClick={() => props.onPatch(c.id, { status: c.status === "rejected" ? "pending" : "rejected" })}
         >

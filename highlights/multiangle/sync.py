@@ -1,0 +1,467 @@
+"""Audio-based sync between camera angles.
+
+Each angle's audio (mono wav extracted by the Option-1 audio stage) is turned
+into a 50 Hz onset-strength envelope, whitened to remove mic-gain and speech
+differences, then cross-correlated against the reference angle (a0). A
+confidence test (peak-to-noise ratio + second-peak ratio) decides whether the
+offset is trustworthy; a triangle-consistency check flags inconsistent pairs.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+
+SR = 8000          # resample rate
+ENV_HZ = 50        # envelope rate (hop 160 @ 8 kHz)
+HOP = 160
+WHITE_S = 5.0      # whitening window (s)
+REFINE_WIN_S = 0.5
+BAND = (300.0, 3000.0)
+PNR_MIN = 8.0
+PNR_WEAK = 2.5
+R2_MAX = 0.6
+TRIANGLE_TOL_S = 0.5
+
+
+def _load_env(wav_path: str | Path) -> tuple[np.ndarray, np.ndarray]:
+    """(whitened onset envelope at ENV_HZ, raw 8 kHz mono waveform)."""
+    import librosa
+
+    y, _ = librosa.load(str(wav_path), sr=SR, mono=True)
+    env = librosa.onset.onset_strength(y=y, sr=SR, hop_length=HOP).astype(float)
+    env = _whiten(env)
+    return env, y
+
+
+def _whiten(env: np.ndarray) -> np.ndarray:
+    """Subtract rolling mean, clip at 0, divide by rolling std."""
+    k = max(1, int(WHITE_S * ENV_HZ))
+    kernel = np.ones(k) / k
+    mean = np.convolve(env, kernel, mode="same")
+    x = np.clip(env - mean, 0, None)
+    var = np.convolve(x * x, kernel, mode="same")
+    sd = np.sqrt(np.maximum(var, 1e-12))
+    return x / sd
+
+
+def _bandpass(y: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    Y = np.fft.rfft(y)
+    f = np.fft.rfftfreq(len(y), 1 / SR)
+    Y[(f < lo) | (f > hi)] = 0
+    return np.fft.irfft(Y, len(y))
+
+
+def _xcorr(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Full normalised cross-correlation; index k means a[t+k] vs b[t].
+
+    Peak at lag L means a[t+L] == b[t]: the same event sits at file time
+    t-L in a when it's at t in b, i.e. T(b's file time t) = t + L.
+    Therefore offset(b) = L / rate (seconds to ADD to b's file time).
+    """
+    n = len(a) + len(b) - 1
+    nfft = 1 << (n - 1).bit_length()
+    A = np.fft.rfft(a, nfft)
+    B = np.fft.rfft(b, nfft)
+    c = np.fft.irfft(A * np.conj(B), nfft)
+    # irfft(A*conj(B))[k] = sum_t a[t+k]b[t]. Positive lags 0..len(a)-1 sit at
+    # the front; negative lags -(len(b)-1)..-1 wrap to the END of the nfft
+    # buffer (zero-padding), not to positions n-1... .
+    pos = c[: len(a)]
+    neg = c[nfft - len(b) + 1:]
+    full = np.concatenate([neg, pos])
+    # full[i] corresponds to lag i - (len(b) - 1)
+    norm = np.linalg.norm(a) * np.linalg.norm(b)
+    return full / max(norm, 1e-9)
+
+
+def _peak_metrics(corr: np.ndarray, lags_s: np.ndarray) -> tuple[float, float, float, float]:
+    """(best_lag_s, peak, pnr, r2) from a normalised correlation."""
+    i = int(np.argmax(corr))
+    peak = float(corr[i])
+    far = np.abs(lags_s - lags_s[i]) > 5.0
+    noise = float(np.mean(np.abs(corr[far]))) if far.any() else 1e-9
+    pnr = peak / max(noise, 1e-9)
+    # second peak at least 5 s away
+    c2 = corr.copy()
+    c2[~far] = -np.inf
+    peak2 = float(c2.max()) if np.isfinite(c2).any() else 0.0
+    r2 = peak2 / peak if peak > 0 else 1.0
+    return float(lags_s[i]), peak, pnr, r2
+
+
+def _env_lags(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return np.arange(len(a) + len(b) - 1) / ENV_HZ - (len(b) - 1) / ENV_HZ
+
+
+def estimate_offset(env_a: np.ndarray, env_b: np.ndarray) -> tuple[float, float, float]:
+    """Envelope xcorr -> (offset_s for b, pnr, r2)."""
+    corr = _xcorr(env_a, env_b)
+    lags = _env_lags(env_a, env_b)
+    lag_s, _peak, pnr, r2 = _peak_metrics(corr, lags)
+    return lag_s, pnr, r2
+
+
+REFINE_K = 5           # windows across the overlap
+REFINE_WIN_LEN = 30.0  # s per window
+REFINE_GUARD = 0.75    # s of extra context on b (> REFINE_WIN_S)
+
+
+def _refine(y_a: np.ndarray, y_b: np.ndarray, coarse_off_s: float,
+            dur_a: float | None = None, dur_b: float | None = None
+            ) -> tuple[float, float]:
+    """Sub-frame refinement on K windowed FFT xcorrs (fast — not a full
+    waveform scan). Returns (offset_s, spread_s). spread > 0.2 s means the
+    windows disagreed; caller falls back to the coarse offset."""
+    dur_a = dur_a if dur_a is not None else len(y_a) / SR
+    dur_b = dur_b if dur_b is not None else len(y_b) / SR
+    # overlap in a-time: b index = a index - off  ->  t in [off, off+dur_b]
+    lo = max(0.0, coarse_off_s) + REFINE_GUARD + 1.0
+    hi = min(dur_a, coarse_off_s + dur_b) - REFINE_WIN_LEN - 1.0
+    if hi <= lo:
+        return coarse_off_s, 0.0
+    starts = np.linspace(lo, hi, REFINE_K)
+    offs = []
+    for w in starts:
+        s_b = w - coarse_off_s  # corresponding start in b's file time
+        i_a0, i_a1 = int(w * SR), int((w + REFINE_WIN_LEN) * SR)
+        i_b0 = int((s_b - REFINE_GUARD) * SR)
+        i_b1 = int((s_b + REFINE_WIN_LEN + REFINE_GUARD) * SR)
+        if i_b0 < 0 or i_b1 > len(y_b) or i_a1 > len(y_a):
+            continue
+        a = _bandpass(y_a[i_a0:i_a1], *BAND)
+        b = _bandpass(y_b[i_b0:i_b1], *BAND)
+        corr = _xcorr(a, b)
+        lags = (np.arange(len(corr)) - (len(b) - 1)) / SR
+        # b is delayed by -off: peak sits near lag = -coarse - GUARD...
+        # lag where a_seg[t+L] = b_seg[t]; b_seg starts GUARD s early,
+        # so L_s + GUARD = off_true - off_coarse
+        mask = np.abs(lags - (-REFINE_GUARD)) <= REFINE_WIN_S
+        if not mask.any():
+            continue
+        i = int(np.argmax(np.where(mask, corr, -np.inf)))
+        offs.append(coarse_off_s + REFINE_GUARD + float(lags[i]))
+    if not offs:
+        return coarse_off_s, 0.0
+    spread = float(max(offs) - min(offs))
+    if spread > 0.2:
+        return coarse_off_s, spread
+    return float(np.median(offs)), spread
+
+
+TIMEMAP_WIN_S = 120.0    # windowed xcorr window
+TIMEMAP_STEP_S = 60.0    # hop between windows
+TIMEMAP_GUARD_S = 8.0    # extra b context / max |lag - coarse|
+TIMEMAP_JUMP_S = 0.5     # |offset - run median| that starts a new run
+TIMEMAP_EDGE_WIN_S = 20.0  # boundary-refine window
+TIMEMAP_EDGE_STEP_S = 10.0
+TIMEMAP_EDGE_TOL_S = 0.3   # offset within this of B's median -> boundary
+
+
+def _window_offset(env_a: np.ndarray, env_b: np.ndarray, w: float,
+                   win_s: float, coarse_off: float, guard_s: float
+                   ) -> tuple[float, float] | None:
+    """Offset of the env_a window starting at a-time w: xcorr against
+    env_b[w-coarse-guard, w-coarse+win+guard], lags restricted to
+    +-guard_s of coarse. Returns (offset_s, pnr) or None."""
+    i_a0, i_a1 = int(w * ENV_HZ), int((w + win_s) * ENV_HZ)
+    if i_a1 > len(env_a):
+        return None
+    sb = w - coarse_off            # corresponding b start
+    b_start = sb - guard_s
+    i_b0 = max(0, int(b_start * ENV_HZ))
+    i_b1 = min(len(env_b), int((sb + win_s + guard_s) * ENV_HZ))
+    if i_b1 <= i_b0:
+        return None
+    a_seg = env_a[i_a0:i_a1]
+    b_seg = env_b[i_b0:i_b1]
+    corr = _xcorr(a_seg, b_seg)
+    lags = (np.arange(len(corr)) - (len(b_seg) - 1)) / ENV_HZ
+    b_origin = i_b0 / ENV_HZ       # file time of b_seg[0]
+    exp = b_origin - w + coarse_off  # lag at coarse offset
+    mask = np.abs(lags - exp) <= guard_s
+    if not mask.any():
+        return None
+    i = int(np.argmax(np.where(mask, corr, -np.inf)))
+    peak = float(corr[i])
+    med = float(np.median(np.abs(corr[mask]))) or 1e-9
+    # a_seg[k] == b_seg[k - L]  ->  offset = a_time - b_time + L
+    off_w = w - b_origin + float(lags[i])
+    return off_w, peak / med
+
+
+def _boundary_t(env_a, env_b, a_last_w: float, b_first_w: float,
+                coarse_off: float, b_median: float) -> float:
+    """Shared-T boundary between adjacent runs: first 20 s window
+    (step 10 s) whose offset is within TIMEMAP_EDGE_TOL_S of B's
+    median; midpoint when no window qualifies."""
+    w = a_last_w
+    while w < b_first_w + TIMEMAP_EDGE_WIN_S:
+        r = _window_offset(env_a, env_b, w, TIMEMAP_EDGE_WIN_S,
+                           coarse_off, TIMEMAP_GUARD_S)
+        if r is not None and abs(r[0] - b_median) <= TIMEMAP_EDGE_TOL_S:
+            return w
+        w += TIMEMAP_EDGE_STEP_S
+    return (a_last_w + b_first_w) / 2.0
+
+
+def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
+                     coarse_off: float, dur_b: float
+                     ) -> list[dict]:
+    """Windowed xcorr over the a/b overlap -> piecewise offset map in b's
+    FILE time: [{"file_lo","file_hi","offset"}]. Constant stretches are
+    split when the window offset jumps > TIMEMAP_JUMP_S from the running
+    median; single-window runs are absorbed. Fewer than 2 windows ->
+    single segment with the coarse offset."""
+    dur_a = len(env_a) / ENV_HZ
+    lo = max(0.0, coarse_off)
+    hi = min(dur_a, coarse_off + dur_b) - TIMEMAP_WIN_S
+    if hi <= lo:
+        return [{"file_lo": 0.0, "file_hi": float(dur_b),
+                 "offset": float(coarse_off)}]
+
+    windows: list[tuple[float, float, float]] = []  # (a-start, off, pnr)
+    w = lo
+    while w <= hi:
+        r = _window_offset(env_a, env_b, w, TIMEMAP_WIN_S,
+                           coarse_off, TIMEMAP_GUARD_S)
+        if r is not None:
+            windows.append((w, r[0], r[1]))     # pnr kept for diagnostics
+        w += TIMEMAP_STEP_S
+    # keep a window iff a measured neighbour agrees within 0.3 s —
+    # isolated garbage offsets are dropped; pnr is NOT gated on (its
+    # peak/median metric sits ~1.4-2.4 on real audio even when the
+    # offset is dead-on)
+    windows = [
+        (w0, o, p) for k, (w0, o, p) in enumerate(windows)
+        if (k > 0 and abs(windows[k - 1][1] - o) <= 0.3)
+        or (k < len(windows) - 1 and abs(windows[k + 1][1] - o) <= 0.3)]
+    if len(windows) < 2:
+        return [{"file_lo": 0.0, "file_hi": float(dur_b),
+                 "offset": float(coarse_off)}]
+
+    runs: list[list[tuple[float, float]]] = []
+    for wnd in windows:
+        if runs:
+            med = float(np.median([x[1] for x in runs[-1]]))
+            if abs(wnd[1] - med) <= TIMEMAP_JUMP_S:
+                runs[-1].append(wnd)
+                continue
+        runs.append([wnd])
+    # absorb <2-window runs into the previous run (next when first)
+    merged: list[list[tuple[float, float]]] = []
+    for run in runs:
+        if len(run) < 2 and merged:
+            merged[-1].extend(run)
+        elif len(run) < 2 and not merged and runs.index(run) < len(runs) - 1:
+            # first short run: fold into the next run
+            runs[runs.index(run) + 1].extend(reversed(run))
+        else:
+            merged.append(run)
+
+    segs: list[dict] = []
+    boundary = 0.0
+    for k, run in enumerate(merged):
+        off = float(np.median([x[1] for x in run]))
+        file_lo = 0.0 if k == 0 else boundary - off
+        if k == len(merged) - 1:
+            file_hi = float(dur_b)
+        else:
+            nxt = float(np.median([x[1] for x in merged[k + 1]]))
+            boundary = _boundary_t(env_a, env_b, run[-1][0],
+                                   merged[k + 1][0][0], coarse_off, nxt)
+            file_hi = boundary - off
+        segs.append({"file_lo": round(file_lo, 3),
+                     "file_hi": round(file_hi, 3),
+                     "offset": round(off, 3)})
+    return segs
+
+
+def _offset_at(segs: list[dict], file_t: float) -> float:
+    """Offset of the timemap segment containing file time `file_t`; falls
+    back to the nearest segment when file_t sits in a gap."""
+    for s in segs:
+        if s["file_lo"] <= file_t <= s["file_hi"]:
+            return float(s["offset"])
+    s = min(segs, key=lambda x: min(abs(file_t - x["file_lo"]),
+                                    abs(file_t - x["file_hi"])))
+    return float(s["offset"])
+
+
+def sync_angles(wavs: list[str | Path], durations: list[float],
+                manual_offsets: list[float] | None = None) -> dict:
+    """Sync all angles against a0. Returns the sync.json dict.
+
+    manual_offsets: len == n angles with offsets[0] == 0 (add to each angle's
+    file time to get T). XCorr numbers are still recorded for the record.
+    """
+    n = len(wavs)
+    envs, raws = [], []
+    for w in wavs:
+        env, y = _load_env(w)
+        envs.append(env)
+        raws.append(y)
+
+    pairs = []
+    offsets = [0.0] * n
+    for b in range(1, n):
+        off, pnr, r2 = estimate_offset(envs[0], envs[b])
+        off, spread = _refine(raws[0], raws[b], off,
+                              durations[0], durations[b])
+        confident = pnr >= PNR_MIN and r2 <= R2_MAX
+        pairs.append({"a": 0, "b": b, "offset": round(off, 3),
+                      "pnr": round(pnr, 2), "r2": round(r2, 3),
+                      "refine_spread_s": round(spread, 3),
+                      "confident": bool(confident),
+                      "accepted_by": "pnr" if confident else None})
+        offsets[b] = off
+
+    # triangle check a1 vs a2 when >=3 angles
+    tri = None
+    if n >= 3:
+        off12, pnr12, r212 = estimate_offset(envs[1], envs[2])
+        off12, spread12 = _refine(raws[1], raws[2], off12,
+                                  durations[1], durations[2])
+        residual = abs(off12 - (offsets[2] - offsets[1]))
+        tri = round(float(residual), 3)
+        confident12 = pnr12 >= PNR_MIN and r212 <= R2_MAX
+        pairs.append({"a": 1, "b": 2, "offset": round(off12, 3),
+                      "pnr": round(pnr12, 2), "r2": round(r212, 3),
+                      "refine_spread_s": round(spread12, 3),
+                      "confident": bool(confident12),
+                      "accepted_by": "pnr" if confident12 else None})
+        if residual > TRIANGLE_TOL_S:
+            for pr in pairs:
+                pr["consistent"] = False
+        else:
+            for pr in pairs:
+                pr["consistent"] = True
+
+    # Second acceptance path: a closed, self-consistent triangle is strong
+    # evidence even when every pair's pnr is individually weak.
+    method = "xcorr"
+    triangle_ok = (
+        n >= 3
+        and tri is not None
+        and tri <= TRIANGLE_TOL_S
+        and all(pr["pnr"] >= PNR_WEAK for pr in pairs)
+    )
+    if triangle_ok:
+        method = "xcorr+triangle"
+        for pr in pairs:
+            pr["confident"] = True
+            pr["accepted_by"] = "triangle"
+
+    needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
+    timemap_residual = None
+    timemap: list[list[dict]] = [
+        [{"file_lo": 0.0, "file_hi": float(durations[0]), "offset": 0.0}]]
+    if manual_offsets is not None:
+        if len(manual_offsets) != n or manual_offsets[0] != 0:
+            raise ValueError("--offsets must have len == n angles, first == 0")
+        method = "manual"
+        offsets = [float(o) for o in manual_offsets]
+        needs = []
+        for pr in pairs:
+            pr["confident"] = True
+            pr["manual"] = True
+            pr["accepted_by"] = "manual"
+        timemap += [[{"file_lo": 0.0, "file_hi": float(durations[b]),
+                      "offset": float(manual_offsets[b])}]
+                    for b in range(1, n)]
+    else:
+        for b in range(1, n):
+            timemap.append(
+                estimate_timemap(envs[0], envs[b], offsets[b],
+                                 durations[b]))
+        # scalar "offsets" stays = offset of each angle's LONGEST segment
+        offsets = [0.0] + [
+            float(max((s["file_hi"] - s["file_lo"],
+                       s["offset"]) for s in timemap[b])[1])
+            for b in range(1, n)]
+
+        # Third acceptance path: drift-aware consistency of the piecewise
+        # timemaps. Cameras' clocks drift over a match, so the scalar
+        # triangle residual can exceed TRIANGLE_TOL_S even when every
+        # windowed offset is right — compare the segment offsets instead.
+        timemap_residual = None
+        if n >= 3:
+            tm12 = estimate_timemap(envs[1], envs[2], off12,
+                                    durations[2])
+            lo_t = max(timemap[1][0]["file_lo"] + timemap[1][0]["offset"],
+                       timemap[2][0]["file_lo"] + timemap[2][0]["offset"])
+            hi_t = min(timemap[1][-1]["file_hi"] + timemap[1][-1]["offset"],
+                       timemap[2][-1]["file_hi"] + timemap[2][-1]["offset"])
+            if hi_t > lo_t:
+                residuals = []
+                for t_s in np.linspace(lo_t, hi_t, 12):
+                    o1 = _offset_at(timemap[1], t_s - offsets[1])
+                    o2 = _offset_at(timemap[2], t_s - offsets[2])
+                    o12 = _offset_at(tm12, t_s - o2)  # tm12 is a2-file-time
+                    residuals.append(abs(o12 - (o2 - o1)))
+                timemap_residual = float(np.median(residuals))
+        # residual-only: three independent xcorr timemaps agreeing within
+        # tolerance at ~12 samples is the evidence; pnr adds nothing here
+        if (timemap_residual is not None
+                and timemap_residual <= TRIANGLE_TOL_S):
+            method = "xcorr+timemap"
+            for pr in pairs:
+                pr["confident"] = True
+                pr["accepted_by"] = "timemap"
+        elif n == 2 and len(timemap[1]) >= 2:
+            offs = [s["offset"] for s in timemap[1]]
+            # neighbour-consistent windows are independent evidence even
+            # without a triangle
+            if (max(offs) - min(offs) <= 3.0
+                    and pairs[0]["pnr"] >= PNR_WEAK):
+                method = "xcorr+timemap"
+                for pr in pairs:
+                    pr["confident"] = True
+                    pr["accepted_by"] = "timemap"
+
+    # recompute: the timemap acceptance path above may have flipped pairs
+    needs = [pr["b"] for pr in pairs if pr["a"] == 0 and not pr["confident"]]
+
+    # coverage from the timemap: each angle spans
+    # [file_lo+off of first seg, file_hi+off of last seg]
+    lo_bounds, hi_bounds = [], []
+    for segs in timemap:
+        lo_bounds.append(segs[0]["file_lo"] + segs[0]["offset"])
+        hi_bounds.append(segs[-1]["file_hi"] + segs[-1]["offset"])
+    coverage = {
+        "intersection": [float(max(lo_bounds)), float(min(hi_bounds))],
+        "union": [float(min(lo_bounds)), float(max(hi_bounds))],
+    }
+    n_jumps = [len(segs) - 1 for segs in timemap]
+    segments_note = ", ".join(
+        f"a{i}: {j} jump{'s' if j != 1 else ''}"
+        for i, j in enumerate(n_jumps) if j)
+    note = {"manual": "offsets entered manually",
+            "xcorr+triangle": ("all pairs accepted by triangle consistency "
+                               f"(residual {tri} s, every pnr >= {PNR_WEAK})"),
+            "xcorr+timemap": (
+                f"all pairs accepted by drift-aware triangle consistency "
+                f"(median residual {round(timemap_residual, 3)} s)"
+                if timemap_residual is not None else
+                "neighbour-consistent timemap windows accepted"),
+            "xcorr": ("each pair accepted on pnr>=8/r2<=0.6 alone"
+                      if not needs else
+                      f"unconfident xcorr for angle(s) {sorted(set(needs))} — "
+                      "manual offsets needed")}.get(method, "")
+    return {"reference": 0, "method": method,
+            "offsets": [round(float(o), 3) for o in offsets],
+            "timemap": timemap,
+            "segments_note": segments_note,
+            "pairs": pairs, "triangle_residual_s": tri,
+            "timemap_residual_s": timemap_residual,
+            "needs_manual": sorted(set(needs)), "coverage": coverage,
+            "confidence_note": note}
+
+
+def write_sync(wavs, durations, out_path, manual_offsets=None) -> dict:
+    d = sync_angles(wavs, durations, manual_offsets)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    from highlights.io import write_json_atomic
+    write_json_atomic(out_path, d, indent=1)
+    return d

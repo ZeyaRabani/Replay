@@ -1,0 +1,25 @@
+# Multi-angle stage: ultralytics YOLO on CPU (no CUDA).
+# torch/torchvision come from the PyTorch CPU index, which publishes
+# manylinux_2_28 aarch64 + x86_64 wheels for cp311.
+#
+# ultralytics is installed separately with --no-deps (see deploy/Dockerfile)
+# because it hard-requires the GUI `opencv-python` build; we ship
+# opencv-python-headless instead and list its remaining deps here.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0
+torchvision==0.29.0
+opencv-python-headless==5.0.0.93
+numpy>=1.23.0
+pillow>=7.1.2
+pyyaml>=5.3.1
+requests>=2.23.0
+matplotlib>=3.3.0
+psutil>=5.8.0
+polars>=0.20.0
+cloudpickle>=3.1.1
+filelock>=3.16.1
+nvidia-ml-py>=12.0.0
+ultralytics-thop>=2.1.6
+ultralytics-platform>=0.1.45
+# installed with --no-deps
+ultralytics==8.4.155

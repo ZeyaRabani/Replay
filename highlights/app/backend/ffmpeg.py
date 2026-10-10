@@ -76,13 +76,15 @@ def mmss(t: float) -> str:
     return f"{int(t // 60):02d}:{int(t % 60):02d}"
 
 
-def thumbnail(src: str | Path, t: float, out: str | Path) -> Path:
+def thumbnail(src: str | Path, t: float, out: str | Path,
+              height: int = 180) -> Path:
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     r = _run(
         [
             "ffmpeg", "-y", "-ss", f"{t:.3f}", "-i", str(src),
-            "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "4", str(out),
+            "-frames:v", "1", "-vf", f"scale=-2:{height}", "-q:v", "4",
+            str(out),
         ]
     )
     if r.returncode != 0:
@@ -161,6 +163,9 @@ def concat_reel(clips: list[str | Path], out: str | Path) -> Path:
     return out
 
 
+PROXY_HEIGHT = 720
+
+
 class ProxyJob:
     """Background low-res proxy build with progress parsing."""
 
@@ -184,17 +189,21 @@ class ProxyJob:
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
-    def _run(self) -> None:
-        self.part.unlink(missing_ok=True)
-        cmd = [
+    def _cmd(self) -> list[str]:
+        return [
             "ffmpeg", "-y", "-i", str(self.src),
-            "-vf", "scale=-2:360", "-r", "15",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
-            "-c:a", "aac", "-b:a", "64k",
+            "-vf", f"scale=-2:{PROXY_HEIGHT}",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+            "-threads", "0",
+            "-c:a", "aac", "-b:a", "96k",
             "-movflags", "+faststart",
             "-progress", "pipe:1", "-nostats", str(self.part),
         ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+
+    def _run(self) -> None:
+        self.part.unlink(missing_ok=True)
+        proc = subprocess.Popen(self._cmd(), stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True)
         assert proc.stdout is not None
         for line in proc.stdout:
             line = line.strip()
@@ -214,6 +223,31 @@ class ProxyJob:
         else:
             self.part.unlink(missing_ok=True)
             self.error = f"proxy ffmpeg exited {proc.returncode}"
+
+
+class TrimJob(ProxyJob):
+    """Stream-copy a [start_s, end_s) window to renders/trimmed_<s>_<e>.mp4."""
+
+    def __init__(
+        self,
+        src: str | Path,
+        dst: str | Path,
+        start_s: float,
+        end_s: float,
+        on_success: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(src, dst, max(0.0, end_s - start_s), on_success)
+        self.start_s = start_s
+        self.end_s = end_s
+
+    def _cmd(self) -> list[str]:
+        return [
+            "ffmpeg", "-y",
+            "-ss", f"{self.start_s:.3f}", "-to", f"{self.end_s:.3f}",
+            "-i", str(self.src),
+            "-c", "copy", "-movflags", "+faststart",
+            "-progress", "pipe:1", "-nostats", str(self.part),
+        ]
 
 
 def render_reel(

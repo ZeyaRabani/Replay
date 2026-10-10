@@ -1,0 +1,43 @@
+services:
+  replay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "80:8000"
+    volumes:
+      - replay_data:/data
+    environment:
+      HL_WORKDIR: /data
+      REPLAY_ADMINS: ${REPLAY_ADMINS:-john}
+      # Public URL the browser can reach this server at — used so the hosted
+      # frontend (e.g. Vercel) can redirect large uploads to the server.
+      HL_PUBLIC_URL: ${HL_PUBLIC_URL:-}
+      # Max concurrent per-angle pipelines — each peaks ~8 GB RAM on long
+      # matches, so >2 OOMs a 24 GB host.
+      HL_ANGLE_WORKERS: ${HL_ANGLE_WORKERS:-2}
+      # If YouTube blocks the server with a bot check, export cookies from your
+      # browser ("Get cookies.txt" extension) and either paste them into the
+      # "YouTube access" panel in the UI (saved per profile), or provide the file:
+      # HL_YT_COOKIES: /data/cookies.txt
+      # bgutil POT provider helps YouTube downloads survive bot checks without
+      # cookies; points at the bgutil-provider service below.
+      HL_POT_PROVIDER_URL: ${HL_POT_PROVIDER_URL:-http://bgutil-provider:4416}
+      # Replay assistant (in-app chat). Keys live in deploy/.env (gitignored);
+      # provider defaults to openai when OPENAI_API_KEY is set, else anthropic.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HL_ASSISTANT_PROVIDER: ${HL_ASSISTANT_PROVIDER:-}
+      HL_ASSISTANT_MODEL: ${HL_ASSISTANT_MODEL:-}
+      HL_ASSISTANT_BASE_URL: ${HL_ASSISTANT_BASE_URL:-}
+    depends_on:
+      - bgutil-provider
+    restart: unless-stopped
+
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider
+    init: true
+    restart: unless-stopped
+
+volumes:
+  replay_data:
