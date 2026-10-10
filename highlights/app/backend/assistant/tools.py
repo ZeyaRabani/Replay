@@ -293,7 +293,7 @@ def _t_restart_from_archive(user: str, a: dict):
 
 
 def _t_cookie_steps(user: str, _a: dict):
-    return COOKIE_STEPS
+    return {"steps": COOKIE_STEPS}
 
 
 _EXECUTORS = {
