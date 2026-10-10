@@ -23,6 +23,12 @@ services:
       # bgutil POT provider helps YouTube downloads survive bot checks without
       # cookies; points at the bgutil-provider service below.
       HL_POT_PROVIDER_URL: ${HL_POT_PROVIDER_URL:-http://bgutil-provider:4416}
+      # Replay assistant (in-app chat). Keys live in deploy/.env (gitignored);
+      # provider defaults to openai when OPENAI_API_KEY is set, else anthropic.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HL_ASSISTANT_PROVIDER: ${HL_ASSISTANT_PROVIDER:-}
+      HL_ASSISTANT_MODEL: ${HL_ASSISTANT_MODEL:-}
     depends_on:
       - bgutil-provider
     restart: unless-stopped

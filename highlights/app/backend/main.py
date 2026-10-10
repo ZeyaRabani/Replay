@@ -3002,10 +3002,12 @@ app.include_router(scoped)
 app.include_router(legacy)
 
 from .analysis_api import make_router as _analysis_router  # noqa: E402
+from .assistant.router import make_router as _assistant_router  # noqa: E402
 from .players_api import make_router as _players_router  # noqa: E402
 
 app.include_router(_analysis_router(ScopedP))
 app.include_router(_players_router(ScopedP, PublicP))
+app.include_router(_assistant_router(current_user))
 
 
 # ---------- frontend ----------
