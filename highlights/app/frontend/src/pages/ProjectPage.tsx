@@ -48,6 +48,13 @@ export default function ProjectPage() {
     void refresh();
   }, [refresh]);
 
+  // the assistant can act on this project — refetch when it does
+  useEffect(() => {
+    const h = () => void refresh();
+    window.addEventListener("replay:refresh", h);
+    return () => window.removeEventListener("replay:refresh", h);
+  }, [refresh]);
+
   // multi-angle projects waiting for sync offsets default to the director tab
   useEffect(() => {
     if (project?.pipeline_state === "needs_input") setTab("director");

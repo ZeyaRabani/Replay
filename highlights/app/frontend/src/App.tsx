@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { getUser } from "./api";
+import Assistant from "./components/Assistant";
 import { LayoutProvider } from "./lib/layout";
 import Login from "./pages/Login";
 import ProjectPage from "./pages/ProjectPage";
@@ -7,7 +8,13 @@ import Projects from "./pages/Projects";
 import SwipeReview from "./pages/SwipeReview";
 
 function RequireUser() {
-  return getUser() ? <Outlet /> : <Navigate to="/login" replace />;
+  if (!getUser()) return <Navigate to="/login" replace />;
+  return (
+    <>
+      <Outlet />
+      <Assistant />
+    </>
+  );
 }
 
 export default function App() {

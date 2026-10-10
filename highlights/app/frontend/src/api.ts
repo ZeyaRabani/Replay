@@ -391,6 +391,23 @@ export interface PlaylistState {
   refreshing: boolean;
 }
 
+export interface AssistantAction {
+  tool: string;
+  ok: boolean;
+  summary: string;
+}
+
+export const assistantApi = {
+  status: () =>
+    req<{ configured: boolean; model: string | null }>("/api/assistant/status"),
+  chat: (
+    messages: { role: "user" | "assistant"; content: string }[],
+    page: { path: string; project_id?: string },
+  ) =>
+    req<{ reply: string; actions: AssistantAction[]; model: string }>(
+      "/api/assistant/chat", json({ messages, page })),
+};
+
 export const playlistApi = {
   get: () => req<PlaylistState>("/api/playlist"),
   setUrl: (url: string) => req<PlaylistState>("/api/playlist", json({ url }, "PUT")),

@@ -1093,6 +1093,13 @@ export default function Projects() {
     void refresh();
   }, [refresh]);
 
+  // the assistant can act on projects — refetch when it does
+  useEffect(() => {
+    const h = () => void refresh();
+    window.addEventListener("replay:refresh", h);
+    return () => window.removeEventListener("replay:refresh", h);
+  }, [refresh]);
+
   const anyLive = projects?.some(isLive) ?? false;
   // failed cards can be resumed by the server watchdog; poll them slowly
   const anyFailed = projects?.some((p) => p.pipeline_state === "failed") ?? false;
