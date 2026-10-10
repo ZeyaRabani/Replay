@@ -29,6 +29,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       HL_ASSISTANT_PROVIDER: ${HL_ASSISTANT_PROVIDER:-}
       HL_ASSISTANT_MODEL: ${HL_ASSISTANT_MODEL:-}
+      HL_ASSISTANT_BASE_URL: ${HL_ASSISTANT_BASE_URL:-}
     depends_on:
       - bgutil-provider
     restart: unless-stopped
