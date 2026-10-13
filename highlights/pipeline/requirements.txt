@@ -6,6 +6,9 @@ scikit-learn
 pandas
 pyarrow
 librosa
+# numba 0.68.0 / llvmlite 0.50.0 segfault in librosa onset_detect on aarch64
+numba<0.68
+llvmlite<0.50
 soundfile
 scipy
 opencv-python-headless
