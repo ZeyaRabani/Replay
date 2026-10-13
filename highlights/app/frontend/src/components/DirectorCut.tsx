@@ -170,6 +170,9 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   }, [info?.sync?.offsets, offsets.length]);
 
   const needsInput = info?.status?.state === "needs_input";
+  // best-guess sync accepted with low confidence — flag "check sync"
+  const lowConfSync = !!info?.sync && info.sync.needs_manual.length > 0 &&
+    info.sync.method !== "manual" && !needsInput;
   const windowed = !!matchWin && videoDur > 0 &&
     matchWin[1] - matchWin[0] < videoDur - 5;
   const nAngles = info?.angles.length ?? 0;
@@ -397,6 +400,17 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                   <div className="flex-1">{info.status?.message}</div>
                 </div>
               )}
+              {lowConfSync && (
+                <div className="mb-3 rounded border border-amber-800 bg-amber-950/60 text-amber-200 text-xs p-2 flex items-start gap-2">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    Lined up automatically with low confidence for{" "}
+                    {info.sync?.needs_manual.map((i) => `a${i}`).join(", ")}.
+                    If the cameras look out of step in the cut, enter offsets
+                    below and re-run.
+                  </div>
+                </div>
+              )}
               {!info.sync ? (
                 <div className="text-xs text-zinc-500">Sync not available yet.</div>
               ) : (
@@ -448,7 +462,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     </div>
                   )}
                   <div className="mt-3">
-                    {needsInput ? (
+                    {needsInput || lowConfSync ? (
                       offsetsForm
                     ) : offsetsOpen ? (
                       offsetsForm

@@ -227,6 +227,14 @@ function ProjectCard({
             <b className="text-emerald-300">{p.n_confirmed}</b> confirmed
           </div>
         )}
+        {p.pipeline_state === "done" && p.sync_check && (
+          <Link
+            to={`/projects/${p.id}`}
+            className="text-[11px] text-amber-300 hover:text-amber-200 truncate"
+          >
+            Check sync — cameras lined up automatically (low confidence)
+          </Link>
+        )}
         {p.source.url && (
           <div className="text-[11px] text-zinc-500 truncate flex items-center gap-1">
             <Link2 size={10} /> {p.source.url}

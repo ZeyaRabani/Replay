@@ -854,6 +854,7 @@ def summary(p: ProjectStore) -> dict:
         "mode": "multiangle" if p.is_multiangle else "single",
         "n_angles": len(p.source_info.get("angles") or []) if p.is_multiangle else 1,
         "cut_info": cut_info(p.root) if p.is_multiangle else None,
+        "sync_check": _sync_check(p),
     }
 
 
@@ -1441,6 +1442,18 @@ def _read_json(path: Path) -> dict | None:
         return json.loads(path.read_text())
     except Exception:
         return None
+
+
+def _sync_check(p: ProjectStore) -> bool:
+    """Multi-angle match finished on low-confidence best-guess sync
+    offsets — flag "check sync" on cards. Manually-entered offsets
+    (method == "manual") clear it."""
+    if not p.is_multiangle:
+        return False
+    sync = _read_json(p.multiangle_dir / "sync.json")
+    if not sync:
+        return False
+    return bool(sync.get("needs_manual")) and sync.get("method") != "manual"
 
 
 def _multiangle_score(p: ProjectStore) -> dict:

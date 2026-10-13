@@ -111,6 +111,7 @@ export interface ProjectSummary {
   mode: "single" | "multiangle";
   n_angles: number;
   cut_info?: CutInfo | null;
+  sync_check?: boolean;
 }
 
 export interface SyncPair {

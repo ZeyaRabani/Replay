@@ -14,7 +14,7 @@ const QUICK = [
   "Why is my match stuck?",
   "How do I refresh YouTube cookies?",
   "How long will processing take?",
-  "What does 'needs sync offsets' mean?",
+  "What does 'check sync' mean?",
 ];
 
 const COOKIE_STEPS = [
