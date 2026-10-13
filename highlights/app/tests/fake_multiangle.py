@@ -6,7 +6,8 @@ multiangle/{sync,director}.json plus pipeline/{candidates,stats}.json.
 
 Env:
   FAKE_MA_SLEEP    seconds between state transitions (default 0.05)
-  FAKE_MA_MODE     "done" (default) or "needs_input" (low sync confidence)
+  FAKE_MA_MODE     "done" (default), "needs_input" (stops at sync) or
+                   "low_conf" (low-confidence sync, still finishes done)
   FAKE_MA_VIDEO    path to a video copied to <project>/match.mp4
 """
 
@@ -202,8 +203,10 @@ def main() -> None:
     time.sleep(sleep)
 
     n = n_angles(root)
-    needs_input = os.environ.get("FAKE_MA_MODE") == "needs_input"
-    sync = sync_json(offsets, n, needs_input)
+    mode = os.environ.get("FAKE_MA_MODE")
+    needs_input = mode == "needs_input"
+    low_conf = mode == "low_conf"
+    sync = sync_json(offsets, n, needs_input or low_conf)
     (pdir / "sync.json").write_text(json.dumps(sync, indent=2))
     write_angle_statuses(root)
 

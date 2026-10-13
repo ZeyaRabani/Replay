@@ -292,11 +292,11 @@ def stage_sync(ctx: Ctx) -> dict:
         ctx.log(f"sync: {out.get('confidence_note', '')}")
     apply_match_window_src(ctx, out)
     if out["needs_manual"]:
-        ctx.status.update(state="needs_input",
-                          message=f"Sync confidence low for angle(s) "
-                                  f"{out['needs_manual']} — enter offsets",
-                          finished_at=time.time(), force=True)
-        raise SystemExit(0)  # clean stop, not failed
+        # never stop for sync: run with the best-guess offsets and flag
+        # the result "check sync" (needs_manual stays in sync.json; the
+        # director's cut offers a re-run with manual offsets)
+        ctx.log(f"sync: low confidence for angle(s) {out['needs_manual']}"
+                f" — continuing with best-guess offsets {out['offsets']}")
     return out
 
 
@@ -1273,7 +1273,10 @@ def main(argv: list[str] | None = None) -> int:
             print("--offsets must have len == n angles, first == 0", file=sys.stderr)
             return 2
     ctx = Ctx(project_dir=project_dir, pipe=pipe, status=status, angles=angles,
-              offsets=offsets, cookies=args.cookies, force=args.force,
+              offsets=offsets, cookies=args.cookies,
+              # --offsets re-runs from sync: outputs already exist, so
+              # force or every requested stage would be skipped silently
+              force=args.force or offsets is not None,
               style=args.style, goal_aware=args.goal_aware == "on")
 
     names = [s.strip() for s in args.stages.split(",") if s.strip()]

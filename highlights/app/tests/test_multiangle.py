@@ -58,6 +58,7 @@ def test_create_multiangle(client, sample_video, monkeypatch):
     d = _wait(client, pid)
     assert d["pipeline_state"] == "done"
     assert d["n_candidates"] == 3
+    assert d["sync_check"] is False
     assert d["video"] is not None and d["video"]["duration_s"] > 0
     assert (p.root / "match.mp4").is_file()
 
@@ -193,6 +194,37 @@ def test_save_preserves_pipeline_written_label(client):
     assert (json.loads(pj.read_text())["source"]["angles"][0]["label"]
             == "18/9/25 First half")
     assert p.source_info["angles"][0]["label"] == "18/9/25 First half"
+
+
+def test_multiangle_low_confidence_sync_check(client, monkeypatch):
+    """Low-confidence sync no longer stops the match: it finishes done
+    on best-guess offsets and the summary flags sync_check."""
+    monkeypatch.setenv("FAKE_MA_MODE", "low_conf")
+    r = _create(client, 3)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    d = _wait(client, pid, states=("done", "failed"))
+    assert d["pipeline_state"] == "done"
+    assert d["sync_check"] is True
+
+    lst = client.get("/api/projects").json()
+    row = next(x for x in lst if x["id"] == pid)
+    assert row["sync_check"] is True
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    sync = json.loads((p.multiangle_dir / "sync.json").read_text())
+    assert sync["needs_manual"] == [1]
+    assert sync["method"] != "manual"
+
+    # manual offsets clear the flag
+    monkeypatch.delenv("FAKE_MA_MODE")
+    r = client.put(scoped(pid, "/multiangle/offsets"),
+                   json={"offsets": [0, 12.5, -3.2]})
+    assert r.status_code == 200, r.text
+    d = _wait(client, pid, states=("done", "failed"))
+    assert d["pipeline_state"] == "done"
+    assert d["sync_check"] is False
 
 
 def test_multiangle_needs_input_offsets(client, monkeypatch):

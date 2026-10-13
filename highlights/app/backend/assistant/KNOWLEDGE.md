@@ -27,10 +27,15 @@ Admin profiles can save YouTube cookies that are shared with everyone.
   angle → sync (audio cross-correlation) → tracking (YOLO per angle, ~60–70 min)
   → director/render (~70–145 min) → fuse (candidate events) → stats → done.
   Typical totals: 2.5–4.5 h per match depending on footage length.
-- needs_input: usually "Sync confidence low — enter offsets". Since the
-  drift-aware sync fix this is rare; if it happens, inspect the sync result and
-  prefer re-running sync before telling the user to type offsets. Manual offsets
-  are seconds by which each angle leads/lags angle 1.
+- check sync: multi-angle sync never stops a match now. When sync
+  confidence is low the match still finishes on best-guess offsets and the
+  card shows "Check sync — cameras lined up automatically (low
+  confidence)". If the cameras look out of step, the user enters corrected
+  offsets in the director's cut sync card and hits "Re-run from sync"
+  (re-runs sync and everything downstream, no re-download or re-tracking).
+  Manual offsets are seconds by which each angle leads/lags angle 1.
+- needs_input (legacy): matches processed before the change above may
+  still sit in this state — same fix: enter offsets, "Re-run from sync".
 - failed: card shows the reason and what will happen next. A watchdog on the
   server auto-retries transient failures (up to 12 times with back-off) and
   respawns runs killed by a server restart. "Retry now" = run pipeline again.
