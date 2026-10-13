@@ -220,7 +220,10 @@ def _stub_timemaps(monkeypatch, tm12_segs):
     }
     seq = [(0, 1), (0, 2), (1, 2)]
 
-    def est(env_a, env_b, coarse_off, dur_b):
+    def est(env_a, env_b, coarse_off, dur_b, stats=None):
+        if stats is not None:
+            stats["n_windows"] = 10
+            stats["n_kept"] = 10
         idx = len(calls)
         calls.append(idx)
         return [dict(s) for s in maps[seq[idx]]]
@@ -284,3 +287,93 @@ def test_offsets_validation(monkeypatch):
     monkeypatch.setattr(sync, "_load_env", lambda w: (e, y))
     with pytest.raises(ValueError):
         sync.sync_angles(["a", "b"], [dur, dur], manual_offsets=[1.0, 2.0])
+
+
+def _steady_pair_envs(off_s: float = 60.0, dur_s: float = 720.0):
+    """Two envelopes where b is a's signal starting `off_s` earlier:
+    b[t] = shared[t + off_s*ENV_HZ] -> true offset for b is +off_s."""
+    n_a = int(dur_s * sync.ENV_HZ)
+    shared = _envelope(n_a, seed=31)
+    shift = int(off_s * sync.ENV_HZ)
+    a = sync._whiten(shared[:n_a] + 0.0)
+    n_b = n_a - shift
+    b = sync._whiten(shared[shift:shift + n_b] * 0.8)
+    return a, b, n_b / sync.ENV_HZ
+
+
+def _stub_envs(monkeypatch, envs):
+    calls = iter([(e, np.zeros(10)) for e in envs])
+    monkeypatch.setattr(sync, "_load_env", lambda w: next(calls))
+    monkeypatch.setattr(sync, "_refine", lambda a, b, c, *args: (c, 0.0))
+
+
+def test_two_angle_steady_single_segment_accepted(monkeypatch):
+    """Repro of prod a834a35cc7b2: a rock-steady 2-angle match collapses
+    the timemap to ONE segment, which the old len>=2 gate always
+    rejected. Weak pnr (3.0) keeps the pnr path out; the steady-single-
+    segment path must accept."""
+    off_s, dur_a = 60.0, 720.0
+    ea, eb, dur_b = _steady_pair_envs(off_s, dur_a)
+    _stub_envs(monkeypatch, [ea, eb])
+    monkeypatch.setattr(sync, "estimate_offset",
+                        lambda a, b: (off_s, 3.0, 0.7))
+
+    out = sync.sync_angles(["a", "b"], [dur_a, dur_b])
+    assert out["needs_manual"] == []
+    assert out["method"] == "xcorr+timemap"
+    assert len(out["timemap"][1]) == 1
+    assert abs(out["timemap"][1][0]["offset"] - off_s) < 0.3
+    assert out["pairs"][0]["timemap_windows"][0] >= sync.TIMEMAP_MIN_KEPT
+    assert out["pairs"][0]["accepted_by"] == "timemap"
+
+
+def test_two_angle_unrelated_noise_needs_manual(monkeypatch):
+    """Same weak-pnr setup but b is unrelated audio: window offsets are
+    garbage, so neither the segment-count nor the steadiness gate can
+    accept -> still flagged for manual offsets."""
+    dur_a = 720.0
+    ea, _eb, _ = _steady_pair_envs(60.0, dur_a)
+    rng = np.random.default_rng(41)
+    eb = sync._whiten(_envelope(len(ea), seed=41)
+                      + 0.02 * np.abs(rng.normal(size=len(ea))))
+    _stub_envs(monkeypatch, [ea, eb])
+    monkeypatch.setattr(sync, "estimate_offset",
+                        lambda a, b: (60.0, 3.0, 0.7))
+
+    out = sync.sync_angles(["a", "b"], [dur_a, dur_a])
+    assert out["needs_manual"] == [1]
+
+
+def test_estimate_timemap_stats(monkeypatch):
+    """stats dict is filled on every return path: measured windows vs
+    windows surviving the neighbour filter, and 0/0 on the early
+    hi <= lo return."""
+    off_s, dur_a = 60.0, 720.0
+    ea, eb, dur_b = _steady_pair_envs(off_s, dur_a)
+    stats = {}
+    segs = sync.estimate_timemap(ea, eb, off_s, dur_b, stats=stats)
+    assert stats["n_windows"] >= 5
+    assert stats["n_kept"] >= sync.TIMEMAP_MIN_KEPT
+    assert stats["n_kept"] <= stats["n_windows"]
+    assert len(segs) == 1
+
+    # early return: overlap shorter than one window
+    stats2 = {}
+    short = np.zeros(int(5 * sync.ENV_HZ))
+    segs2 = sync.estimate_timemap(short, short, 0.0, 10.0, stats=stats2)
+    assert stats2 == {"n_windows": 0, "n_kept": 0}
+    assert segs2 == [{"file_lo": 0.0, "file_hi": 10.0, "offset": 0.0}]
+
+    # garbage windows: kept < measured
+    real = sync._window_offset
+    calls = {"n": 0}
+
+    def flaky(env_a, env_b, w, win_s, coarse_off, guard_s):
+        calls["n"] += 1
+        if calls["n"] % 3 == 0:
+            return (coarse_off + 7.0, 9.9)
+        return real(env_a, env_b, w, win_s, coarse_off, guard_s)
+    monkeypatch.setattr(sync, "_window_offset", flaky)
+    stats3 = {}
+    sync.estimate_timemap(ea, eb, off_s, dur_b, stats=stats3)
+    assert stats3["n_kept"] < stats3["n_windows"]

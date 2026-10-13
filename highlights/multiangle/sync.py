@@ -157,6 +157,8 @@ TIMEMAP_JUMP_S = 0.5     # |offset - run median| that starts a new run
 TIMEMAP_EDGE_WIN_S = 20.0  # boundary-refine window
 TIMEMAP_EDGE_STEP_S = 10.0
 TIMEMAP_EDGE_TOL_S = 0.3   # offset within this of B's median -> boundary
+TIMEMAP_MIN_KEPT = 5       # windows agreeing -> single-seg map is steady
+TIMEMAP_MIN_KEPT_FRAC = 0.5  # ...and kept >= this fraction of measured
 
 
 def _window_offset(env_a: np.ndarray, env_b: np.ndarray, w: float,
@@ -207,13 +209,22 @@ def _boundary_t(env_a, env_b, a_last_w: float, b_first_w: float,
 
 
 def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
-                     coarse_off: float, dur_b: float
+                     coarse_off: float, dur_b: float,
+                     stats: dict | None = None
                      ) -> list[dict]:
     """Windowed xcorr over the a/b overlap -> piecewise offset map in b's
     FILE time: [{"file_lo","file_hi","offset"}]. Constant stretches are
     split when the window offset jumps > TIMEMAP_JUMP_S from the running
     median; single-window runs are absorbed. Fewer than 2 windows ->
-    single segment with the coarse offset."""
+    single segment with the coarse offset.
+
+    stats, when given, is filled with {"n_windows": measured windows,
+    "n_kept": windows surviving the neighbour filter} on every path — it
+    lets callers tell a rock-steady single segment (many agreeing
+    windows) from the few-windows fallback."""
+    if stats is not None:
+        stats["n_windows"] = 0
+        stats["n_kept"] = 0
     dur_a = len(env_a) / ENV_HZ
     lo = max(0.0, coarse_off)
     hi = min(dur_a, coarse_off + dur_b) - TIMEMAP_WIN_S
@@ -229,6 +240,7 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
         if r is not None:
             windows.append((w, r[0], r[1]))     # pnr kept for diagnostics
         w += TIMEMAP_STEP_S
+    n_measured = len(windows)
     # keep a window iff a measured neighbour agrees within 0.3 s —
     # isolated garbage offsets are dropped; pnr is NOT gated on (its
     # peak/median metric sits ~1.4-2.4 on real audio even when the
@@ -237,6 +249,9 @@ def estimate_timemap(env_a: np.ndarray, env_b: np.ndarray,
         (w0, o, p) for k, (w0, o, p) in enumerate(windows)
         if (k > 0 and abs(windows[k - 1][1] - o) <= 0.3)
         or (k < len(windows) - 1 and abs(windows[k + 1][1] - o) <= 0.3)]
+    if stats is not None:
+        stats["n_windows"] = n_measured
+        stats["n_kept"] = len(windows)
     if len(windows) < 2:
         return [{"file_lo": 0.0, "file_hi": float(dur_b),
                  "offset": float(coarse_off)}]
@@ -371,10 +386,15 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
                       "offset": float(manual_offsets[b])}]
                     for b in range(1, n)]
     else:
+        tm_stats: dict[int, dict] = {}
         for b in range(1, n):
+            st: dict = {}
             timemap.append(
                 estimate_timemap(envs[0], envs[b], offsets[b],
-                                 durations[b]))
+                                 durations[b], stats=st))
+            tm_stats[b] = st
+            pr = next(p for p in pairs if p["a"] == 0 and p["b"] == b)
+            pr["timemap_windows"] = [st["n_kept"], st["n_windows"]]
         # scalar "offsets" stays = offset of each angle's LONGEST segment
         offsets = [0.0] + [
             float(max((s["file_hi"] - s["file_lo"],
@@ -409,11 +429,18 @@ def sync_angles(wavs: list[str | Path], durations: list[float],
             for pr in pairs:
                 pr["confident"] = True
                 pr["accepted_by"] = "timemap"
-        elif n == 2 and len(timemap[1]) >= 2:
+        elif n == 2:
             offs = [s["offset"] for s in timemap[1]]
+            st = tm_stats[1]
+            # a rock-steady match collapses into ONE segment — accept it
+            # too when enough measured windows agreed (distinguishes it
+            # from the few-windows single-segment fallback)
+            steady = (st["n_kept"] >= TIMEMAP_MIN_KEPT
+                      and st["n_kept"] >= TIMEMAP_MIN_KEPT_FRAC * st["n_windows"])
             # neighbour-consistent windows are independent evidence even
             # without a triangle
-            if (max(offs) - min(offs) <= 3.0
+            if ((len(timemap[1]) >= 2 or steady)
+                    and max(offs) - min(offs) <= 3.0
                     and pairs[0]["pnr"] >= PNR_WEAK):
                 method = "xcorr+timemap"
                 for pr in pairs:
