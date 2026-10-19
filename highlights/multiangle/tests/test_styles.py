@@ -1,8 +1,16 @@
 """Director style presets: 'fast' cuts more eagerly than 'normal'."""
 
 import numpy as np
+import pytest
 
+from highlights.multiangle import director
 from highlights.multiangle.director import STYLES, cut_director
+
+
+@pytest.fixture(autouse=True)
+def _players_cluster(monkeypatch):
+    """These tests encode the players-crowd cluster behaviour."""
+    monkeypatch.setattr(director, "CLUSTER_SOURCE", "players")
 
 
 def _alternating_tracks(T=240, n=2, period=5):

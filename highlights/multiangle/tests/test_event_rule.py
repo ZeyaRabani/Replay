@@ -3,8 +3,16 @@ the cut lands at the event second, raw confidence score, no margin/confirm/
 hold, and normal rules resume afterwards."""
 
 import numpy as np
+import pytest
 
+from highlights.multiangle import director
 from highlights.multiangle.director import cut_director, per_second
+
+
+@pytest.fixture(autouse=True)
+def _players_cluster(monkeypatch):
+    """These tests encode the players-crowd cluster behaviour."""
+    monkeypatch.setattr(director, "CLUSTER_SOURCE", "players")
 
 
 def _track(T, cluster, event=None):
