@@ -9,9 +9,10 @@ Per-second candidate rules (on the shared timeline):
   BALL    — any available angle whose ball_conf >= BALL_OK in >= 2 of the
             5 s window [t-2, t+2] is eligible; score = max ball_size over
             that window. Eligible angles only.
-  CLUSTER — else score = cluster_score / per-angle 90th-percentile over the
-            common span ("how close to this camera's best view is it now"),
-            so wider cameras don't dominate by baseline alone.
+  CLUSTER — else score = per-angle motion (or the players crowd score
+            when CLUSTER_SOURCE="players") / per-angle 90th-percentile
+            over the common span ("how close to this camera's best view
+            is it now"), so wider cameras don't dominate by baseline alone.
   HOLD    — no available angle has any data -> keep current.
 
 Smoothing: per-angle 5 s median then 9 s centred rolling mean.
@@ -54,6 +55,7 @@ EVENT_TYPES = ("goal", "shot", "goalmouth")
 SMOOTH_MEDIAN = 5
 SMOOTH_MEAN = 9
 BASELINE_Q = 90
+CLUSTER_SOURCE = "motion"  # "players" = old YOLO crowd score
 ZONE_BALL_OK = 0.2     # ball_conf needed for a zone hit (lower than BALL_OK)
 ZONE_LINGER = 8        # seconds an angle stays zone-eligible after last hit
 ZONE_MIN_HOLD_BALL = 2  # min hold before cutting TO a ball-driven zone angle
@@ -415,6 +417,16 @@ def cut_director(track: list[dict], available: np.ndarray,
     sty = resolve_style(style, style_overrides)
     T = available.shape[1]
     n_angles = len(track)
+    if CLUSTER_SOURCE == "motion":
+        eff = []
+        for i, t in enumerate(track):
+            c = np.nan_to_num(np.asarray(motion[i], float),
+                              nan=0.0, posinf=0.0, neginf=0.0)
+            if len(c) != len(t["cluster"]):
+                c = np.interp(np.linspace(0, len(c) - 1, len(t["cluster"])),
+                              np.arange(len(c)), c)
+            eff.append({**t, "cluster": c})
+        track = eff
     cand_a, _cand_s, cand_r, S, baselines, zone_shares, zone_ball = per_second(
         track, available, zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
         linger=sty.zone_linger, strong=sty.zone_ball_strong, prefs=prefs)

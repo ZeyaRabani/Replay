@@ -1,8 +1,15 @@
 """Director rules over synthetic per-second tracks (v2 semantics)."""
 
 import numpy as np
+import pytest
 
 from highlights.multiangle import director as D
+
+
+@pytest.fixture(autouse=True)
+def _players_cluster(monkeypatch):
+    """These tests encode the players-crowd cluster behaviour."""
+    monkeypatch.setattr(D, "CLUSTER_SOURCE", "players")
 
 
 def _track(T: int, ball_conf=0.0, ball_size=0.0, cluster=0.0):
@@ -133,6 +140,42 @@ def test_hard_cut_on_unavailable():
     assert out["n_cuts"] == 1
     assert out["segments"][1]["angle"] == 1
     assert out["segments"][1]["rule"] == "coverage"
+
+
+def test_cluster_source_motion_wins_over_players(monkeypatch):
+    """a0: high crowd score but near-zero motion; a1: the reverse.
+    Motion source must pick a1 for the bulk; players source picks a0."""
+    T = 120
+    tr = [_track(T, cluster=10.0), _track(T, cluster=1.0)]
+    mot = [np.full(T, 1.0), np.full(T, 3.0)]
+    mot[0][:20] = 10.0  # >10% early burst drags a0's motion p90 up to 10
+
+    def bulk_angle():
+        secs = {}
+        for s in out["segments"]:
+            secs[s["angle"]] = secs.get(s["angle"], 0) + (
+                s["t_end"] - s["t_start"])
+        return secs
+
+    monkeypatch.setattr(D, "CLUSTER_SOURCE", "motion")
+    out = D.cut_director(tr, _avail(2, T), mot)
+    assert max(bulk_angle(), key=bulk_angle().get) == 1
+
+    monkeypatch.setattr(D, "CLUSTER_SOURCE", "players")
+    out = D.cut_director(tr, _avail(2, T), mot)
+    assert max(bulk_angle(), key=bulk_angle().get) == 0
+
+
+def test_cluster_source_motion_does_not_mutate_track(monkeypatch):
+    monkeypatch.setattr(D, "CLUSTER_SOURCE", "motion")
+    T = 60
+    tr = [_track(T, cluster=5.0), _track(T, cluster=2.0)]
+    snapshot = [{k: v.copy() for k, v in t.items()} for t in tr]
+    D.cut_director(tr, _avail(2, T), [np.full(T, 1.0), np.full(T, 2.0)])
+    for t, snap in zip(tr, snapshot):
+        assert t.keys() == snap.keys()
+        for k in t:
+            np.testing.assert_array_equal(t[k], snap[k])
 
 
 def test_ratios_sum_to_one():
