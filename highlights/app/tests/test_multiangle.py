@@ -536,3 +536,65 @@ def test_sync_candidate_timeline_is_idempotent(client):
     assert p.meta["replays_applied"] == director["replays"]
     sync_candidate_timeline(p)
     assert candidate.model_dump() == shifted
+
+
+def test_manual_mode_endpoints(client):
+    r = _create(client, 2)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    mc_path = p.multiangle_dir / "manual_cut.json"
+
+    d = client.get(scoped(pid, "/multiangle/manual")).json()
+    assert d["choices"] == [] and d["enabled"] is False
+    assert d["n_angles"] == 2 and d["n_chosen"] == 0
+    lo, hi = d["match_window"]
+    assert lo == 0.0 and hi == 20.0
+
+    r = client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 5, "angle": 1}, {"t": 6, "angle": 1}]})
+    assert r.status_code == 200, r.text
+    assert r.json()["n_chosen"] == 2
+    doc = json.loads(mc_path.read_text())
+    assert doc["choices"] == [[5, 1], [6, 1]] and "updated_at" in doc
+
+    # same t overwrites; merge keeps the rest
+    r = client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 5, "angle": 0}]})
+    assert r.json()["n_chosen"] == 2
+    assert r.json()["choices"] == [{"t": 5, "angle": 0},
+                                   {"t": 6, "angle": 1}]
+
+    assert client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 7, "angle": 2}]}).status_code == 422
+    assert client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 99, "angle": 0}]}).status_code == 422
+
+    r = client.post(scoped(pid, "/multiangle/manual/cut"))
+    assert r.status_code == 200, r.text
+    doc = json.loads(mc_path.read_text())
+    assert doc["enabled"] is True and doc["choices"] == [[5, 0], [6, 1]]
+    argv_path = p.multiangle_dir / "argv.json"
+    for _ in range(50):
+        argv = json.loads(argv_path.read_text())
+        if "--stages" in argv:
+            break
+        time.sleep(0.1)
+    assert "--force" in argv
+    assert argv[argv.index("--stages") + 1] == "director,render,fuse"
+    _wait(client, pid)
+
+    # an AI re-cut disables manual again but keeps the choices
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "fast"})
+    assert r.status_code == 200, r.text
+    doc = json.loads(mc_path.read_text())
+    assert doc["enabled"] is False and doc["choices"] == [[5, 0], [6, 1]]
+    _wait(client, pid)
+
+    r = client.delete(scoped(pid, "/multiangle/manual"))
+    assert r.json()["choices"] == [] and not mc_path.exists()
+    r = client.post(scoped(pid, "/multiangle/manual/cut"))
+    assert r.status_code == 422

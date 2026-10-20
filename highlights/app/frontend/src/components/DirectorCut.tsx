@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectApi } from "../api";
 import type { CutsList, DirectorFull, DirectorSegment, MultiangleInfo, ZoneKeyframe } from "../types";
 import CutBadges from "./CutBadges";
+import ManualMode from "./ManualMode";
 import YouDirect from "./YouDirect";
 import ZoneEditor from "./ZoneEditor";
 import { fmtClock, parseClock } from "../lib/time";
@@ -33,11 +34,12 @@ const RULE_LABELS: Record<string, string> = {
   start: "Start",
   replay: "Replay (0.5x)",
   resume: "Resume",
+  manual: "you",
 };
 
 const RULE_ORDER = [
   "goal_hold", "event", "zone", "ball", "cluster", "hold", "coverage",
-  "start", "replay", "resume",
+  "start", "replay", "resume", "manual",
 ];
 
 function ratioKeys(ratios: Record<string, number>): string[] {
@@ -1013,7 +1015,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
             </div>
 
             {/* you direct */}
-            {director && <YouDirect />}
+            {director && (<><YouDirect /><ManualMode /></>)}
           </>
         )}
       </div>

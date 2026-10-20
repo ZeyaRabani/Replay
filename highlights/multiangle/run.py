@@ -836,6 +836,22 @@ def stage_director(ctx: Ctx) -> dict:
                        style_overrides=director_style_overrides(ctx),
                        prefs=director_prefs(ctx),
                        goal_windows=plan["windows"] or None)
+    mc_doc = None
+    with contextlib.suppress(OSError, ValueError):
+        mc_doc = json.loads((ctx.pipe / "manual_cut.json").read_text())
+    if mc_doc and mc_doc.get("enabled") and mc_doc.get("choices"):
+        from highlights.multiangle.manual_direct import apply_manual, manual_summary
+        choices = {int(t): int(a) for t, a in mc_doc["choices"]}
+        out["segments"] = apply_manual(out["segments"], choices,
+                                       inp["lo"], inp["T"], inp["avail"])
+        n_manual = sum(
+            1 for s in out["segments"] if s["rule"] == "manual"
+            for _ in range(int(s["t_start"]), int(s["t_end"])))
+        out.update(manual_summary(out["segments"], inp["T"]))
+        out["manual"] = {"enabled": True, "n_chosen": len(choices),
+                         "share": round(n_manual / max(1, inp["T"]), 4)}
+        ctx.log(f"manual: {len(choices)} chosen seconds, "
+                f"{out['manual']['share']:.1%} of the cut by hand")
     if ctx.goal_aware:
         out["goal_aware"] = {"enabled": True, "events": plan["events"]}
         for event in plan["events"]:

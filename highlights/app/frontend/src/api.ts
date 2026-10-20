@@ -19,6 +19,7 @@ import type {
   DownloadInfo,
   HistoryEvent,
   HistoryMatch,
+  ManualState,
   MultiangleInfo,
   MultiangleScore,
   PipelineStatus,
@@ -335,6 +336,13 @@ export function projectApi(id: string) {
         `${base}/multiangle/direct/learn`, json({ recut })),
     getDirectLearn: () =>
       req<DirectLearnResult>(`${base}/multiangle/direct/learn`),
+    manualGet: () => req<ManualState>(`${base}/multiangle/manual`),
+    manualPut: (choices: { t: number; angle: number }[]) =>
+      req<ManualState>(`${base}/multiangle/manual`, json({ choices }, "PUT")),
+    manualDelete: () =>
+      req<ManualState>(`${base}/multiangle/manual`, { method: "DELETE" }),
+    manualCut: () =>
+      req<PipelineStatus>(`${base}/multiangle/manual/cut`, json({})),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

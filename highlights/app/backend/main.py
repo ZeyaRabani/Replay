@@ -1943,15 +1943,8 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     # stored as absolute shared-T seconds for the runner's ctx.union()
     cr_path = p.multiangle_dir / "cut_range.json"
     cr_base = p.multiangle_dir / "cut_range_base.json"
-    if not body.preview and cr_base.exists():
-        # a preview range was active: restore the pre-preview cut_range
-        # (or delete it when there was none) before the full re-cut
-        base = _read_json(cr_base)
-        if base and base.get("lo") is not None:
-            write_json_atomic(cr_path, base, indent=1)
-        else:
-            cr_path.unlink(missing_ok=True)
-        cr_base.unlink()
+    if not body.preview:
+        _restore_base_cut_range(p)
     # dur = the CURRENT rendered video's length: an active cut_range's
     # span, else the coverage union span, else the source video
     cur = _read_json(cr_path)
@@ -1994,6 +1987,11 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
                 cur_lo = 0.0
         write_json_atomic(cr_path, {"lo": cur_lo + s, "hi": cur_lo + e},
                           indent=1)
+    mc_path = p.multiangle_dir / "manual_cut.json"
+    mc_doc = _read_json(mc_path)
+    if mc_doc is not None:
+        mc_doc["enabled"] = False   # an AI re-cut is AI again; choices kept
+        write_json_atomic(mc_path, mc_doc, indent=1)
     p.save()
     p.invalidate_video()   # drops proxy.mp4 + thumb cache for the old cut
     try:
@@ -2003,6 +2001,87 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
             style=body.style, cookies=ck)
         _hist(p, "recut_queued", style=body.style, preview=body.preview,
               window=body.window)
+        return out
+    except pipeline.PipelineBusy as e:
+        raise HTTPException(409, str(e)) from e
+
+
+class _ManualChoice(BaseModel):
+    t: float
+    angle: int
+
+
+class _ManualPut(BaseModel):
+    choices: list[_ManualChoice]
+
+
+@scoped.get("/multiangle/manual")
+def get_manual(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    doc = _read_json(p.multiangle_dir / "manual_cut.json") or {}
+    lo, hi = _match_window(p)
+    n_angles = len(p.source_info.get("angles") or [])
+    choices = [{"t": t, "angle": int(a)}
+               for t, a in doc.get("choices") or []]
+    return {"choices": choices,
+            "enabled": bool(doc.get("enabled")),
+            "match_window": [round(lo, 2), round(hi, 2)],
+            "n_angles": n_angles,
+            "n_chosen": len(choices)}
+
+
+@scoped.put("/multiangle/manual")
+def put_manual(body: _ManualPut, p: ScopedP) -> dict:
+    """Merge per-second manual choices (same t overwrites)."""
+    _require_multiangle(p)
+    lo, hi = _match_window(p)
+    n_angles = len(p.source_info.get("angles") or [])
+    doc = _read_json(p.multiangle_dir / "manual_cut.json") or {}
+    merged = {int(t): int(a) for t, a in doc.get("choices") or []}
+    for c in body.choices:
+        t, a = int(c.t), int(c.angle)
+        if not (0 <= a < n_angles):
+            raise HTTPException(422, f"angle must be 0..{n_angles - 1}")
+        if not (lo <= t <= hi):
+            raise HTTPException(
+                422, f"t must lie inside [{round(lo, 1)}, {round(hi, 1)}]")
+        merged[t] = a
+    doc = {"choices": sorted([list(x) for x in merged.items()]),
+           "enabled": bool(doc.get("enabled")),
+           "updated_at": time.time()}
+    write_json_atomic(p.multiangle_dir / "manual_cut.json", doc, indent=1)
+    return get_manual(p)
+
+
+@scoped.delete("/multiangle/manual")
+def delete_manual(p: ScopedP) -> dict:
+    _require_multiangle(p)
+    (p.multiangle_dir / "manual_cut.json").unlink(missing_ok=True)
+    return get_manual(p)
+
+
+@scoped.post("/multiangle/manual/cut")
+def manual_cut(p: ScopedP, user: UserDep) -> dict:
+    """Render a director's cut from the user's manual choices only."""
+    _require_multiangle(p)
+    mc_path = p.multiangle_dir / "manual_cut.json"
+    doc = _read_json(mc_path) or {}
+    if not doc.get("choices"):
+        raise HTTPException(422, "no manual choices yet")
+    if p.meta.get("sources_purged"):
+        raise HTTPException(409, "angle sources were purged — cannot re-cut")
+    _ensure_cut_snapshot(p)   # keep the AI cut selectable afterwards
+    _restore_base_cut_range(p)
+    doc["enabled"] = True
+    doc["updated_at"] = time.time()
+    write_json_atomic(mc_path, doc, indent=1)
+    p.invalidate_video()
+    try:
+        ck = _user_default_cookies(p, user) or _project_cookies(p)
+        out = pipeline.spawn_multiangle(
+            p, stages=["director", "render", "fuse"], force=True,
+            style=p.meta.get("cut_style"), cookies=ck)
+        _hist(p, "manual_cut_queued", n_chosen=len(doc["choices"]))
         return out
     except pipeline.PipelineBusy as e:
         raise HTTPException(409, str(e)) from e
@@ -2159,6 +2238,42 @@ def _direct_sessions(p: ProjectStore) -> list[dict]:
     return sessions
 
 
+def _match_window(p: ProjectStore) -> tuple[float, float]:
+    """[lo, hi] of the current cut on the shared timeline."""
+    ma = p.multiangle_dir
+    director = _read_json(ma / "director.json") or {}
+    segs = director.get("segments") or []
+    sync = _read_json(ma / "sync.json") or {}
+    meta = _active_cut_meta(p)
+    rng = meta.get("range")
+    if rng:
+        lo, hi = float(rng[0]), float(rng[1])
+    else:
+        cr = _read_json(ma / "cut_range.json")
+        un = ((sync.get("coverage") or {}).get("union")
+              or [0.0, 0.0])
+        lo = float(cr["lo"]) if cr else float(un[0])
+        hi = float(cr["hi"]) if cr else float(un[1])
+        if hi <= lo and segs:
+            # nothing recorded: the cut covers the director's own span
+            hi = lo + max(s["t_end"] for s in segs)
+    return lo, hi
+
+
+def _restore_base_cut_range(p: ProjectStore) -> None:
+    """A preview range was active: restore the pre-preview cut_range
+    (or delete it when there was none) before a full re-cut."""
+    cr_path = p.multiangle_dir / "cut_range.json"
+    cr_base = p.multiangle_dir / "cut_range_base.json"
+    if cr_base.exists():
+        base = _read_json(cr_base)
+        if base and base.get("lo") is not None:
+            write_json_atomic(cr_path, base, indent=1)
+        else:
+            cr_path.unlink(missing_ok=True)
+        cr_base.unlink()
+
+
 def _direct_stretch(p: ProjectStore, t_start: float | None,
                     t_end: float | None) -> dict:
     """Build the /direct/suggest payload for a stretch (or the busiest
@@ -2178,19 +2293,7 @@ def _direct_stretch(p: ProjectStore, t_start: float | None,
     _tm = timemap_from_sync(sync or {"offsets": offsets})
     segs = director.get("segments") or []
     replays = director.get("replays") or []
-    meta = _active_cut_meta(p)
-    rng = meta.get("range")
-    if rng:
-        lo, hi = float(rng[0]), float(rng[1])
-    else:
-        cr = _read_json(ma / "cut_range.json")
-        un = ((sync.get("coverage") or {}).get("union")
-              or [0.0, 0.0])
-        lo = float(cr["lo"]) if cr else float(un[0])
-        hi = float(cr["hi"]) if cr else float(un[1])
-        if hi <= lo and segs:
-            # nothing recorded: the cut covers the director's own span
-            hi = lo + max(s["t_end"] for s in segs)
+    lo, hi = _match_window(p)
     if t_start is not None and t_end is not None:
         s, e = float(t_start), float(t_end)
         if not (lo <= s < e <= hi):
