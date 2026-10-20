@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import itertools
 
+import numpy as np
+
 PRE_S = 45.0     # seconds before the candidate peak
 POST_S = 30.0    # seconds after
 
@@ -303,4 +305,90 @@ def learn_prefs(sessions: list[dict], replay_fn, cand_fn,
         "n_sessions": len(sessions),
         "n_seconds": base_total,
         "votes": votes_out,
+    }
+
+
+def apply_manual(segments: list[dict], choices: dict[float, int],
+                 range_lo: float, T: int,
+                 available: np.ndarray | None = None) -> list[dict]:
+    """Overlay the user's per-second choices onto the AI director's
+    segments. choices keys are whole shared-timeline seconds; shared
+    second t maps to index i = floor(t - range_lo + 1e-6). A choice wins
+    when its index is in range and (if given) the angle is available;
+    otherwise the AI choice stands. Returns contiguous rebuilt segments
+    covering [0, T); user runs get rule "manual"."""
+    ang = np.full(T, -1, dtype=int)
+    src = np.full(T, -1, dtype=int)
+    for si, s in enumerate(segments):
+        a0 = max(0, round(s["t_start"]))
+        a1 = min(T, round(s["t_end"]))
+        if a1 > a0:
+            ang[a0:a1] = int(s["angle"])
+            src[a0:a1] = si
+    # forward-fill any uncovered seconds (defensive: director covers all)
+    for i in range(T):
+        if ang[i] < 0:
+            ang[i] = ang[i - 1] if i else 0
+            src[i] = src[i - 1] if i else -1
+    for t, a in choices.items():
+        i = int(np.floor(t - range_lo + 1e-6))
+        if 0 <= i < T and (available is None or bool(available[int(a), i])):
+            ang[i] = int(a)
+            src[i] = -1
+    out = []
+    i = 0
+    while i < T:
+        j = i
+        while j + 1 < T and ang[j + 1] == ang[i] and src[j + 1] == src[i]:
+            j += 1
+        seg = {"t_start": float(i), "t_end": float(j + 1),
+               "angle": int(ang[i])}
+        if src[i] >= 0:
+            o = segments[src[i]]
+            seg.update({"rule": o["rule"], "score": o.get("score"),
+                        "runner_up": o.get("runner_up")})
+        else:
+            seg.update({"rule": "manual", "score": None,
+                        "runner_up": None})
+        out.append(seg)
+        i = j + 1
+    return out
+
+
+def manual_summary(segments: list[dict], T: int) -> dict:
+    """Recompute the director.json summary stats over rebuilt (manual
+    + AI) segments; same key names/rounding as director.py's output."""
+    rules = np.empty(T, dtype=object)
+    rules[:] = "hold"
+    for s in segments:
+        a0 = max(0, round(s["t_start"]))
+        a1 = min(T, round(s["t_end"]))
+        if a1 > a0:
+            rules[a0:a1] = s["rule"]
+    counts: dict[str, int] = {}
+    for r in rules:
+        counts[r] = counts.get(r, 0) + 1
+    durs = [s["t_end"] - s["t_start"] for s in segments]
+    total_dur = sum(durs)
+    n_cuts = max(0, len(segments) - 1)
+    angle_share = {str(i): 0.0
+                   for i in range(1 + max((s["angle"] for s in segments),
+                                          default=-1))}
+    for s in segments:
+        angle_share[str(s["angle"])] += s["t_end"] - s["t_start"]
+    if total_dur > 0:
+        angle_share = {k: round(v / total_dur, 4)
+                       for k, v in angle_share.items()}
+    tot = sum(counts.values()) or 1
+    span_min = max(total_dur / 60.0, 1e-9)
+    return {
+        "segments": segments,
+        "per_second_rule": counts,
+        "ratios": {k: round(v / tot, 4) for k, v in counts.items()},
+        "n_cuts": n_cuts,
+        "mean_hold_s": round(total_dur / max(1, len(durs)), 2),
+        "median_hold_s": round(float(np.median(durs)), 2) if durs else 0.0,
+        "min_hold_s": round(float(min(durs)), 2) if durs else 0.0,
+        "cuts_per_10min": round(n_cuts / span_min * 10, 1),
+        "angle_share": angle_share,
     }

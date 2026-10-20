@@ -19,6 +19,7 @@ import type {
   DownloadInfo,
   HistoryEvent,
   HistoryMatch,
+  ManualState,
   MultiangleInfo,
   MultiangleScore,
   PipelineStatus,
@@ -83,7 +84,9 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
       /* keep status */
     }
     if (r.status === 413) msg = "413: file too large";
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    (err as Error & { status?: number }).status = r.status;
+    throw err;
   }
   if (r.status === 204) return undefined as T;
   return r.json();
@@ -335,6 +338,13 @@ export function projectApi(id: string) {
         `${base}/multiangle/direct/learn`, json({ recut })),
     getDirectLearn: () =>
       req<DirectLearnResult>(`${base}/multiangle/direct/learn`),
+    manualGet: () => req<ManualState>(`${base}/multiangle/manual`),
+    manualPut: (choices: { t: number; angle: number }[]) =>
+      req<ManualState>(`${base}/multiangle/manual`, json({ choices }, "PUT")),
+    manualDelete: () =>
+      req<ManualState>(`${base}/multiangle/manual`, { method: "DELETE" }),
+    manualCut: () =>
+      req<PipelineStatus>(`${base}/multiangle/manual/cut`, json({})),
 
     project: () =>
       req<{ video: VideoInfo | null; candidates_version: number; proxy_ready: boolean; mode?: "single" | "multiangle" }>(`${base}/project`),

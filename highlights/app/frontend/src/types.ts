@@ -903,3 +903,11 @@ export interface DownloadInfo {
   count: number;
   projects: { id: string; title: string; deleted: boolean }[];
 }
+
+export interface ManualState {
+  choices: { t: number; angle: number }[];
+  enabled: boolean;
+  match_window: [number, number];
+  n_angles: number;
+  n_chosen: number;
+}
