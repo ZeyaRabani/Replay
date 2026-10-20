@@ -95,6 +95,27 @@ export default function ManualMode() {
     mark(keyOf(sec), i);   // the camera switch counts for this second
   }, [keyOf, sec, mark]);
 
+  // once the suggest payload lands, seek every camera to the resume point
+  useEffect(() => {
+    if (!sug) return;
+    const listeners: [HTMLVideoElement, () => void][] = [];
+    vids.current.forEach((v, i) => {
+      if (!v) return;
+      const t = (sug.offsets[i] ?? 0) + (sec - lo);
+      if (v.readyState >= 1) {
+        v.currentTime = t;
+      } else {
+        const on = () => { v.currentTime = t; };
+        v.addEventListener("loadedmetadata", on, { once: true });
+        listeners.push([v, on]);
+      }
+    });
+    return () => listeners.forEach(
+      ([v, on]) => v.removeEventListener("loadedmetadata", on));
+    // resume `sec` is captured once per sug load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sug]);
+
   // master clock: every 250 ms while playing, re-sync followers to angle 0
   // and record each whole shared second with the selected camera
   useEffect(() => {
@@ -113,13 +134,17 @@ export default function ManualMode() {
           if (v.paused) void v.play();
         }
       }
-      mark(keyOf(shared), cur);
+      if (lo <= shared && shared < hi) mark(keyOf(shared), cur);
       if (shared >= hi) setPlaying(false);
     }, 250);
     return () => clearInterval(iv);
   }, [playing, sug, lo, hi, cur, mark]);
 
   const play = () => {
+    const m = vids.current[0];
+    if (m && sug
+        && Math.abs(m.currentTime - ((sug.offsets[0] ?? 0) + sec - lo)) > 1)
+      seekAll(sec);
     vids.current.forEach((v) => void v?.play());
     setPlaying(true);
   };
@@ -302,11 +327,12 @@ export default function ManualMode() {
                   </button>
                 )}
                 <span className="font-mono text-xs text-zinc-400">
-                  {fmtClock(sec)} / {fmtClock(hi)}
+                  {fmtClock(Math.max(0, sec - lo))} / {fmtClock(dur)}
                 </span>
                 {savedAt && (
                   <span className="text-[10px] text-zinc-500">saved {savedAt}</span>
                 )}
+                {error && <span className="text-[10px] text-red-300">{error}</span>}
                 <span className="flex-1" />
                 <button disabled={busy || !choices.current.size}
                   onClick={makeCut}
