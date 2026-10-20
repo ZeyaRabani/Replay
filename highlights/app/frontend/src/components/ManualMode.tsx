@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, Pause, Play, Scissors, Trash2 } from "lucide-react";
 import { useProjectApi } from "../api";
 import { fmtClock } from "../lib/time";
@@ -20,6 +20,7 @@ export default function ManualMode() {
   const [cur, setCur] = useState(0);
   const [sec, setSec] = useState(0);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
   const vids = useRef<(HTMLVideoElement | null)[]>([]);
   const choices = useRef(new Map<number, number>());
   const dirty = useRef(new Set<number>());
@@ -27,6 +28,10 @@ export default function ManualMode() {
   const lo = info?.match_window[0] ?? 0;
   const hi = info?.match_window[1] ?? 0;
   const dur = Math.max(0, hi - lo);
+  const round2 = (x: number) => Math.round(x * 100) / 100;
+  // a choice key is lo + k for integer k (seconds since window start)
+  const keyOf = useCallback(
+    (shared: number) => round2(lo + Math.floor(shared - lo + 1e-6)), [lo]);
 
   // load state + per-angle file offsets (via directSuggest's offsets)
   const load = useCallback(() => {
@@ -36,6 +41,7 @@ export default function ManualMode() {
         setInfo(d);
         choices.current = new Map(d.choices.map((c) => [c.t, c.angle]));
         dirty.current = new Set();
+        setVersion((v) => v + 1);
         const resume = d.choices.length ? d.choices[d.choices.length - 1].t + 1 : d.match_window[0];
         const prev = d.choices.filter((c) => c.t < resume).pop();
         setCur(prev ? prev.angle : 0);
@@ -58,7 +64,15 @@ export default function ManualMode() {
         setInfo(d);
         setSavedAt(new Date().toLocaleTimeString("en-GB"));
       })
-      .catch(() => ch.forEach((c) => dirty.current.add(c.t)));
+      .catch((e) => {
+        const st = (e as { status?: number }).status;
+        if (st && st >= 400 && st < 500) {
+          // rejected seconds: drop them, don't retry forever
+          setError(e instanceof Error ? e.message : String(e));
+        } else {
+          ch.forEach((c) => dirty.current.add(c.t));
+        }
+      });
   }, [api]);
 
   const seekAll = useCallback((shared: number) => {
@@ -73,7 +87,13 @@ export default function ManualMode() {
   const mark = useCallback((t: number, a: number) => {
     choices.current.set(t, a);
     dirty.current.add(t);
+    setVersion((v) => v + 1);
   }, []);
+
+  const pick = useCallback((i: number) => {
+    setCur(i);
+    mark(keyOf(sec), i);   // the camera switch counts for this second
+  }, [keyOf, sec, mark]);
 
   // master clock: every 250 ms while playing, re-sync followers to angle 0
   // and record each whole shared second with the selected camera
@@ -93,7 +113,7 @@ export default function ManualMode() {
           if (v.paused) void v.play();
         }
       }
-      mark(Math.floor(shared), cur);
+      mark(keyOf(shared), cur);
       if (shared >= hi) setPlaying(false);
     }, 250);
     return () => clearInterval(iv);
@@ -114,17 +134,18 @@ export default function ManualMode() {
     if (!open || !sug) return;
     const h = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)
+          || el.isContentEditable) return;
       const k = Number(e.key);
-      if (k >= 1 && k <= sug.n_angles) { setCur(k - 1); return; }
+      if (k >= 1 && k <= sug.n_angles) { pick(k - 1); return; }
       if (e.key === " ") {
         e.preventDefault();
         if (playing) pause(); else play();
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        const s0 = Math.floor(sec);
+        const k0 = keyOf(sec);
         for (let s = 1; s <= 5; s++) {
-          if (s0 + s < hi) mark(s0 + s, cur);
+          if (k0 + s < hi) mark(round2(k0 + s), cur);
         }
         seekAll(Math.min(hi, sec + 5));
       } else if (e.key === "ArrowLeft") {
@@ -134,7 +155,7 @@ export default function ManualMode() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [open, sug, playing, pause, sec, lo, hi, cur, mark, seekAll]);
+  }, [open, sug, playing, pause, sec, lo, hi, cur, mark, seekAll, keyOf, pick]);
 
   // autosave every 10 s while dirty; on close
   useEffect(() => {
@@ -162,6 +183,7 @@ export default function ManualMode() {
         setInfo(d);
         choices.current = new Map();
         dirty.current = new Set();
+        setVersion((v) => v + 1);
         setCur(0); setSec(d.match_window[0]);
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
@@ -171,6 +193,24 @@ export default function ManualMode() {
   const pct = info && dur > 0
     ? ((choices.current.size / dur) * 100).toFixed(1) : "0";
   const W = 100 / Math.max(1, Math.ceil(dur));
+
+  // collapse consecutive same-angle keys into runs (one div per run)
+  const runs = useMemo(() => {
+    const out: { start: number; len: number; angle: number }[] = [];
+    const keys = [...choices.current.keys()].sort((a, b) => a - b);
+    for (const t of keys) {
+      const a = choices.current.get(t)!;
+      const last = out[out.length - 1];
+      if (last && last.angle === a
+          && Math.abs(last.start + last.len - t) < 1e-6) {
+        last.len += 1;
+      } else {
+        out.push({ start: t, len: 1, angle: a });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   return (
     <div className={`${card} relative left-1/2 -translate-x-1/2 w-screen max-w-none`}>
@@ -209,7 +249,8 @@ export default function ManualMode() {
                   const big = cur === i;
                   return (
                     <button key={i}
-                      onClick={() => setCur(i)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pick(i)}
                       className={`relative rounded overflow-hidden border-2 text-left bg-black
                         ${big ? "w-full order-first h-[70vh] border-amber-400"
                           : "w-[calc(33.333%-0.4rem)] h-[16vh] border-zinc-800 opacity-60"}`}>
@@ -234,11 +275,13 @@ export default function ManualMode() {
                   const s = lo + ((e.clientX - r.left) / r.width) * dur;
                   seekAll(Math.min(hi - 0.01, Math.max(lo, s)));
                 }}>
-                {[...choices.current.entries()].map(([t, a]) => (
-                  <div key={t} className="absolute top-0 h-full"
+                {runs.map((r, i) => (
+                  <div key={i} className="absolute top-0 h-full"
                     style={{
-                      left: `${((t - lo) / dur) * 100}%`, width: `${W}%`,
-                      backgroundColor: ANGLE_COLORS[a % ANGLE_COLORS.length],
+                      left: `${((r.start - lo) / dur) * 100}%`,
+                      width: `${r.len * W}%`,
+                      backgroundColor:
+                        ANGLE_COLORS[r.angle % ANGLE_COLORS.length],
                     }} />
                 ))}
                 <div className="absolute top-0 h-full w-0.5 bg-white"
@@ -246,12 +289,14 @@ export default function ManualMode() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {playing ? (
-                  <button onClick={pause}
+                  <button onMouseDown={(e) => e.preventDefault()}
+                    onClick={pause}
                     className="flex items-center gap-1.5 text-sm font-semibold text-amber-300 border border-amber-700/60 rounded px-3 py-1.5">
                     <Pause size={14} /> Pause
                   </button>
                 ) : (
-                  <button onClick={play}
+                  <button onMouseDown={(e) => e.preventDefault()}
+                    onClick={play}
                     className="flex items-center gap-1.5 text-sm font-semibold text-emerald-300 border border-emerald-700/60 rounded px-3 py-1.5">
                     <Play size={14} /> Play — 1/{sug.n_angles} switch, ←/→ 5 s
                   </button>

@@ -598,3 +598,51 @@ def test_manual_mode_endpoints(client):
     assert r.json()["choices"] == [] and not mc_path.exists()
     r = client.post(scoped(pid, "/multiangle/manual/cut"))
     assert r.status_code == 422
+
+
+def test_manual_mode_fractional_window(client):
+    r = _create(client, 2)
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    write = json.dumps({"lo": 0.5, "hi": 20.5})
+    (p.multiangle_dir / "cut_range.json").write_text(write)
+
+    d = client.get(scoped(pid, "/multiangle/manual")).json()
+    assert d["match_window"] == [0.5, 20.5]
+
+    r = client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 0.5, "angle": 1}, {"t": 1.5, "angle": 0}]})
+    assert r.status_code == 200, r.text
+    doc = json.loads((p.multiangle_dir / "manual_cut.json").read_text())
+    assert doc["choices"] == [[0.5, 1], [1.5, 0]]
+    assert r.json()["choices"] == [{"t": 0.5, "angle": 1},
+                                   {"t": 1.5, "angle": 0}]
+
+    assert client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 0.4, "angle": 0}]}).status_code == 422
+
+
+def test_manual_cut_busy_restores_enabled(client, monkeypatch):
+    r = _create(client, 2)
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+    import highlights.app.backend.pipeline as pl
+    p = m.get_registry().get(pid)
+
+    r = client.put(scoped(pid, "/multiangle/manual"), json={
+        "choices": [{"t": 5, "angle": 1}]})
+    assert r.status_code == 200, r.text
+
+    def _busy(*a, **k):
+        raise pl.PipelineBusy("busy")
+    monkeypatch.setattr(pl, "spawn_multiangle", _busy)
+
+    r = client.post(scoped(pid, "/multiangle/manual/cut"))
+    assert r.status_code == 409
+    doc = json.loads((p.multiangle_dir / "manual_cut.json").read_text())
+    assert doc["enabled"] is False

@@ -78,3 +78,11 @@ def test_manual_summary_stats():
     assert abs(sum(s["angle_share"].values()) - 1.0) < 1e-3
     assert s["mean_hold_s"] > 0 and s["median_hold_s"] > 0
     assert s["cuts_per_10min"] > 0
+
+
+def test_fractional_range_lo_keys():
+    # choices keyed by shared float seconds: 1151.8 -> i=0, 1152.8 -> i=1
+    out = apply_manual(SEGS, {1151.8: 2, 1152.8: 2}, 1151.8, T)
+    assert out[0]["rule"] == "manual" and out[0]["angle"] == 2
+    assert (out[0]["t_start"], out[0]["t_end"]) == (0.0, 2.0)
+    assert out[1]["rule"] == "start"

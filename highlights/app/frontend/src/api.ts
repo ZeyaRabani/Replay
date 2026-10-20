@@ -84,7 +84,9 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
       /* keep status */
     }
     if (r.status === 413) msg = "413: file too large";
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    (err as Error & { status?: number }).status = r.status;
+    throw err;
   }
   if (r.status === 204) return undefined as T;
   return r.json();

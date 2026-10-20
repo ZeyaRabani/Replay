@@ -308,7 +308,7 @@ def learn_prefs(sessions: list[dict], replay_fn, cand_fn,
     }
 
 
-def apply_manual(segments: list[dict], choices: dict[int, int],
+def apply_manual(segments: list[dict], choices: dict[float, int],
                  range_lo: float, T: int,
                  available: np.ndarray | None = None) -> list[dict]:
     """Overlay the user's per-second choices onto the AI director's

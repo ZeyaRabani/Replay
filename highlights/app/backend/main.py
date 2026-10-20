@@ -2037,12 +2037,13 @@ def put_manual(body: _ManualPut, p: ScopedP) -> dict:
     lo, hi = _match_window(p)
     n_angles = len(p.source_info.get("angles") or [])
     doc = _read_json(p.multiangle_dir / "manual_cut.json") or {}
-    merged = {int(t): int(a) for t, a in doc.get("choices") or []}
+    merged = {round(float(t), 2): int(a)
+              for t, a in doc.get("choices") or []}
     for c in body.choices:
-        t, a = int(c.t), int(c.angle)
+        t, a = round(float(c.t), 2), int(c.angle)
         if not (0 <= a < n_angles):
             raise HTTPException(422, f"angle must be 0..{n_angles - 1}")
-        if not (lo <= t <= hi):
+        if not (lo - 1e-6 <= t < hi + 1e-6):
             raise HTTPException(
                 422, f"t must lie inside [{round(lo, 1)}, {round(hi, 1)}]")
         merged[t] = a
@@ -2072,6 +2073,7 @@ def manual_cut(p: ScopedP, user: UserDep) -> dict:
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
     _ensure_cut_snapshot(p)   # keep the AI cut selectable afterwards
     _restore_base_cut_range(p)
+    prev_enabled = bool(doc.get("enabled"))
     doc["enabled"] = True
     doc["updated_at"] = time.time()
     write_json_atomic(mc_path, doc, indent=1)
@@ -2084,6 +2086,9 @@ def manual_cut(p: ScopedP, user: UserDep) -> dict:
         _hist(p, "manual_cut_queued", n_chosen=len(doc["choices"]))
         return out
     except pipeline.PipelineBusy as e:
+        doc["enabled"] = prev_enabled
+        with contextlib.suppress(OSError):
+            write_json_atomic(mc_path, doc, indent=1)
         raise HTTPException(409, str(e)) from e
 
 

@@ -841,7 +841,7 @@ def stage_director(ctx: Ctx) -> dict:
         mc_doc = json.loads((ctx.pipe / "manual_cut.json").read_text())
     if mc_doc and mc_doc.get("enabled") and mc_doc.get("choices"):
         from highlights.multiangle.manual_direct import apply_manual, manual_summary
-        choices = {int(t): int(a) for t, a in mc_doc["choices"]}
+        choices = {float(t): int(a) for t, a in mc_doc["choices"]}
         out["segments"] = apply_manual(out["segments"], choices,
                                        inp["lo"], inp["T"], inp["avail"])
         n_manual = sum(
