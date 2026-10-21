@@ -148,11 +148,6 @@ function ProjectCard({
               {p.meta.camera}
             </span>
           )}
-          {p.meta?.cut_style && (
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
-              {p.meta.cut_style === "fast" ? "fast cuts" : "normal cuts"}
-            </span>
-          )}
         </div>
         {isLive(p) ? (
           <div className="mt-1">
@@ -495,7 +490,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   ]);
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
-  const [cutStyle, setCutStyle] = useState<"normal" | "fast">("fast");
   const [maWinStart, setMaWinStart] = useState("");
   const [maWinEnd, setMaWinEnd] = useState("");
 
@@ -514,7 +508,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       const meta: ProjectMeta = {};
       if (pitchType) meta.pitch_type = pitchType as ProjectMeta["pitch_type"];
       if (camera) meta.camera = camera as ProjectMeta["camera"];
-      if (mode === "multi") meta.cut_style = cutStyle;
       let p: ProjectSummary;
       if (mode === "multi") {
         if (maTab === "links") {
@@ -545,7 +538,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       setFile(null);
       setPitchType("");
       setCamera("");
-      setCutStyle("fast");
       setMaRows([{ url: "", camera: "" }, { url: "", camera: "" }]);
       setMaFiles([{ file: null, camera: "" }, { file: null, camera: "" }]);
     } catch (e) {
@@ -731,14 +723,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               <option value="7">7-a-side</option>
               <option value="5">5-a-side</option>
               <option value="other">Other</option>
-            </select>
-            <select
-              className={input}
-              value={cutStyle}
-              onChange={(e) => setCutStyle(e.target.value as "normal" | "fast")}
-            >
-              <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
-              <option value="normal">Cuts: Normal — broadcast-style holds</option>
             </select>
           </div>
           <div>

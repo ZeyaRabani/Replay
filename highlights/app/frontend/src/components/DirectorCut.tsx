@@ -182,11 +182,10 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
   const total = segs.length ? segs[segs.length - 1].t_end : 0;
   const angleLabel = (i: number) => info?.angles[i]?.label ?? `Angle ${i + 1}`;
 
-  const doRecut = async (style?: "normal" | "fast") => {
+  const doRecut = async () => {
     setRecutBusy(true);
     try {
-      const next = style ?? ((info?.cut_style ?? "fast") === "fast" ? "normal" : "fast");
-      await api.recut(next, windowed && useWindow ? matchWin : null,
+      await api.recut("fast", windowed && useWindow ? matchWin : null,
                       false, goalAware);
       await refresh();
     } catch (e) {
@@ -207,8 +206,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
     try {
       const ok = await saveZones();
       if (!ok) return;
-      await api.recut(info?.cut_style === "normal" ? "normal" : "fast",
-                      [s, e], true, goalAware);
+      await api.recut("fast", [s, e], true, goalAware);
       await refresh();
     } catch (er) {
       setError(er instanceof Error ? er.message : String(er));
@@ -592,20 +590,15 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                     />
                     Goal-aware: hold goal camera + slow-mo replay
                   </label>
-                  <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300">
-                    {(info.cut_style ?? info.director?.style ?? "fast") === "fast"
-                      ? "fast cuts" : "normal cuts"}
-                  </span>
                   {!live && (
                   <button
                     disabled={info.sources_purged || recutBusy}
-                    title={info.sources_purged ? "angle sources deleted — cannot re-cut" : undefined}
+                    title={info.sources_purged ? "angle sources deleted — cannot re-cut" : "Re-make the director's cut"}
                     onClick={() => void doRecut()}
                     className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40 disabled:hover:text-amber-300"
                   >
                     {recutBusy ? <Loader2 size={11} className="animate-spin" /> : null}
-                    {(info.cut_style ?? "fast") === "fast"
-                      ? "Re-cut as Normal" : "Re-cut as Fast"}
+                    Re-cut
                   </button>
                   )}
                 </div>
@@ -793,7 +786,7 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                         disabled={zoneBusy || recutBusy}
                         onClick={() => {
                           void saveZones().then((ok) => {
-                            if (ok) void doRecut("fast");
+                            if (ok) void doRecut();
                           });
                         }}
                         className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 border border-amber-700/60 rounded px-2 py-0.5 disabled:opacity-40"

@@ -78,6 +78,7 @@ _registry: Registry | None = None
 PITCH_TYPES = ("11", "9", "7", "5", "other")
 CAMERA_TYPES = ("normal", "ultrawide", "zoom", "other")
 CUT_STYLES = ("normal", "fast")
+CUT_STYLE = "fast"
 
 
 def _meta_or_422(pitch_type: str | None, camera: str | None,
@@ -91,10 +92,10 @@ def _meta_or_422(pitch_type: str | None, camera: str | None,
         if camera not in CAMERA_TYPES:
             raise HTTPException(422, f"camera must be one of {CAMERA_TYPES}")
         meta["camera"] = camera
+    if cut_style is not None and cut_style not in CUT_STYLES:
+        raise HTTPException(422, f"cut_style must be one of {CUT_STYLES}")
     if cut_style is not None:
-        if cut_style not in CUT_STYLES:
-            raise HTTPException(422, f"cut_style must be one of {CUT_STYLES}")
-        meta["cut_style"] = cut_style
+        meta["cut_style"] = CUT_STYLE
     return meta
 
 
@@ -138,7 +139,7 @@ class OffsetsPut(BaseModel):
 
 
 class RecutPut(BaseModel):
-    style: str
+    style: str = CUT_STYLE
     # output-time seconds of the CURRENT video [start, end]; None = full
     window: list[float] | None = None
     # preview=True + window: re-cut only that stretch, remembering the
@@ -1744,7 +1745,7 @@ def post_multiangle_scoreboard(p: ScopedP) -> dict:
     try:
         job = pipeline.spawn_multiangle(
             p, stages=["scoreboard"], force=True,
-            style=p.meta.get("cut_style"))
+            style=CUT_STYLE)
     except pipeline.PipelineBusy as e:
         raise HTTPException(409, str(e)) from e
     _hist(p, "scoreboard_requested", n_goals=len(goals))
@@ -1926,7 +1927,7 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     if p.meta.get("sources_purged"):
         raise HTTPException(409, "angle sources were purged — cannot re-cut")
     _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
-    p.meta["cut_style"] = body.style
+    p.meta["cut_style"] = CUT_STYLE
     if body.goal_aware is not None:
         p.meta["goal_aware"] = body.goal_aware
     window = body.window
@@ -1998,7 +1999,7 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
         ck = _user_default_cookies(p, user) or _project_cookies(p)
         out = pipeline.spawn_multiangle(
             p, stages=["director", "render", "fuse"], force=True,
-            style=body.style, cookies=ck)
+            style=CUT_STYLE, cookies=ck)
         _hist(p, "recut_queued", style=body.style, preview=body.preview,
               window=body.window)
         return out
@@ -2082,7 +2083,7 @@ def manual_cut(p: ScopedP, user: UserDep) -> dict:
         ck = _user_default_cookies(p, user) or _project_cookies(p)
         out = pipeline.spawn_multiangle(
             p, stages=["director", "render", "fuse"], force=True,
-            style=p.meta.get("cut_style"), cookies=ck)
+            style=CUT_STYLE, cookies=ck)
         _hist(p, "manual_cut_queued", n_chosen=len(doc["choices"]))
         return out
     except pipeline.PipelineBusy as e:
@@ -2493,7 +2494,7 @@ def _direct_ctx(p: ProjectStore):
     return Ctx(project_dir=p.root, pipe=p.multiangle_dir,
                status=_StatusStub(),
                angles=[{"dir": d} for d in dirs],
-               style=str(p.meta.get("cut_style") or "fast"))
+               style=CUT_STYLE)
 
 
 def _learn_agree(sessions: list[dict], segments: list[dict],
@@ -2614,7 +2615,7 @@ def post_direct_learn(p: ScopedP, body: DirectLearnPut | None = None,
         try:
             job = pipeline.spawn_multiangle(
                 p, stages=["director", "render", "fuse"], force=True,
-                style=str(p.meta.get("cut_style") or "fast"), cookies=ck)
+                style=CUT_STYLE, cookies=ck)
         except pipeline.PipelineBusy as e:
             raise HTTPException(409, str(e)) from e
     return {"learn": res, "job": job}
@@ -3041,8 +3042,7 @@ def restart_match(match_id: str, user: UserDep) -> dict:
     rec = m.get("record") or {}
     src = rec.get("sources") or {}
     meta = dict(rec.get("meta") or {})
-    if rec.get("style"):
-        meta["cut_style"] = rec["style"]
+    meta["cut_style"] = CUT_STYLE
     title = f"{m['title']} (restart)"[:120]
     reg = get_registry()
     if rec.get("mode") == "multiangle":
@@ -3067,9 +3067,46 @@ def restart_match(match_id: str, user: UserDep) -> dict:
             write_json_atomic(
                 p.multiangle_dir / "cut_range.json",
                 win["cut_range"], indent=1)
-        if rec.get("zones") and isinstance(rec["zones"], dict):
+        else:
+            # older records lost the range with the project dir; recover
+            # it from the newest cut meta (record or archived artefact)
+            rng = None
+            best = max((c for c in (rec.get("cuts") or [])
+                        if c.get("range")),
+                       key=lambda c: c.get("created_at") or 0,
+                       default=None)
+            if best:
+                rng = best["range"]
+            else:
+                adir = history.archive_root() / match_id / "cuts"
+                metas = []
+                if adir.is_dir():
+                    for c in adir.iterdir():
+                        if c.is_dir():
+                            mdoc = _read_json(c / "meta.json")
+                            if mdoc and mdoc.get("range"):
+                                metas.append(mdoc)
+                if metas:
+                    rng = max(metas,
+                              key=lambda m: m.get("created_at") or 0)["range"]
+            if rng:
+                write_json_atomic(
+                    p.multiangle_dir / "cut_range.json",
+                    {"lo": rng[0], "hi": rng[1]}, indent=1)
+        zones = rec.get("zones") if isinstance(rec.get("zones"), dict) else None
+        if zones is None:
+            zf = history.artefact_path(match_id, "zones.json")
+            zones = _read_json(zf) if zf else None
+        if isinstance(zones, dict):
             write_json_atomic(
-                p.multiangle_dir / "zones.json", rec["zones"], indent=1)
+                p.multiangle_dir / "zones.json", zones, indent=1)
+        dp = rec.get("director_params")
+        if not isinstance(dp, dict):
+            dpf = history.artefact_path(match_id, "director_params.json")
+            dp = _read_json(dpf) if dpf else None
+        if isinstance(dp, dict):
+            write_json_atomic(
+                p.multiangle_dir / "director_params.json", dp, indent=1)
         try:
             out = pipeline.spawn_multiangle(
                 p, cookies=_user_default_cookies(p, user))

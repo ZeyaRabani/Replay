@@ -269,3 +269,63 @@ def test_download_counts_live_deleted_replace(client, short_video):
     # endpoint owner-scoped
     r = client.get("/api/history/downloads")
     assert r.status_code == 200 and "SHARED01" in r.json()
+
+
+def test_restart_multiangle_restores_archived_window(client, short_video):
+    """4/9 bug: record window.cut_range null + cuts [] but the archive
+    keeps cuts/<id>/meta.json range, zones.json and director_params."""
+    body = {
+        "title": "MA", "angles": [
+            {"url": "https://youtu.be/aaa", "label": "A"},
+            {"url": "https://youtu.be/bbb", "label": "B"},
+        ],
+    }
+    r = client.post("/api/projects/multiangle", json=body)
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    import highlights.io
+    from highlights.app.backend import history
+    from highlights.app.backend.main import get_registry
+    p = get_registry().get(pid)
+    p.multiangle_dir.mkdir(parents=True, exist_ok=True)
+    highlights.io.write_json_atomic(
+        p.multiangle_dir / "director_params.json",
+        {"style_overrides": {"min_hold": 4}}, indent=1)
+    assert client.delete(f"/api/projects/{pid}").status_code == 204
+
+    # simulate the pre-fix archive: no cut_range in record, no cuts list,
+    # zones missing — but artefacts on disk carry everything
+    arch = history.archive_root() / pid
+    from highlights.app.backend.history import _conn
+    with _conn() as db:
+        record = json.loads(db.execute(
+            "SELECT record FROM matches WHERE id=?", (pid,)).fetchone()["record"])
+        # _train_after_render's post-delete upsert rebuilds the record
+        # from the removed dir, so set what the archived record carries
+        # explicitly instead of relying on build_record's read
+        record["window"]["cut_range"] = None
+        record["cuts"] = []
+        record["zones"] = None
+        record["director_params"] = {"style_overrides": {"min_hold": 4}}
+        db.execute("UPDATE matches SET record=? WHERE id=?",
+                   (json.dumps(record), pid))
+    (arch / "zones.json").write_text(json.dumps(
+        {"version": 2,
+         "angles": [[{"t": 0.0, "zones": [[[0.1, 0.1], [0.2, 0.1]]]}], []]}))
+    cdir = arch / "cuts" / "cutX"
+    cdir.mkdir(parents=True, exist_ok=True)
+    (cdir / "meta.json").write_text(
+        json.dumps({"range": [100.5, 8200.5], "created_at": 1.0}))
+
+    r = client.post(f"/api/history/{pid}/restart")
+    assert r.status_code == 200, r.text
+    p2 = get_registry().get(r.json()["id"])
+    cr = json.loads((p2.multiangle_dir / "cut_range.json").read_text())
+    assert cr == {"lo": 100.5, "hi": 8200.5}
+    z = json.loads((p2.multiangle_dir / "zones.json").read_text())
+    assert z["version"] == 2
+    dp = json.loads((p2.multiangle_dir / "director_params.json").read_text())
+    assert dp["style_overrides"]["min_hold"] == 4
+    # and the file itself is kept in the archive for future restores
+    assert (arch / "director_params.json").is_file()
+    assert p2.meta["cut_style"] == "fast"

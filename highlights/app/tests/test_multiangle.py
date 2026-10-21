@@ -646,3 +646,29 @@ def test_manual_cut_busy_restores_enabled(client, monkeypatch):
     assert r.status_code == 409
     doc = json.loads((p.multiangle_dir / "manual_cut.json").read_text())
     assert doc["enabled"] is False
+
+
+def test_single_cut_style_everywhere(client, monkeypatch):
+    # create with an explicit style always stores fast
+    r = _create(client, 2, cut_style="normal")
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    _wait(client, pid)
+
+    import highlights.app.backend.main as m
+    p = m.get_registry().get(pid)
+    assert p.meta["cut_style"] == "fast"
+
+    # recut with "normal" is accepted for old clients but runs fast
+    spawns = []
+    real = m.pipeline.spawn_multiangle
+
+    def spy(*a, **k):
+        spawns.append(k)
+        return real(*a, **k)
+    monkeypatch.setattr(m.pipeline, "spawn_multiangle", spy)
+    r = client.post(scoped(pid, "/multiangle/recut"), json={"style": "normal"})
+    assert r.status_code == 200, r.text
+    assert p.meta["cut_style"] == "fast"
+    assert spawns and spawns[0]["style"] == "fast"
+    _wait(client, pid)

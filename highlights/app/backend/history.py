@@ -216,6 +216,8 @@ def build_record(p: ProjectStore, artefacts: list[str] | None = None) -> dict:
         "durations": durs,
         "sync": _read_json(ma / "sync.json") if ma else None,
         "zones": _read_json(ma / "zones.json") if ma else None,
+        "director_params": _read_json(
+            ma / "director_params.json") if ma else None,
         "style": p.meta.get("cut_style"),
         "candidates": {
             "confirmed": _candidate_windows(p, "confirmed"),
@@ -310,6 +312,7 @@ def track_status(p: ProjectStore, status: dict) -> None:
 _ARCHIVE_FILES = [
     ("project.json", "project.json"),
     ("multiangle/zones.json", "zones.json"),
+    ("multiangle/director_params.json", "director_params.json"),
     ("multiangle/sync.json", "sync.json"),
     ("multiangle/director.json", "director.json"),
     ("multiangle/fused_candidates.json", "fused_candidates.json"),

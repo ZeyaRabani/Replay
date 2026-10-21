@@ -144,7 +144,7 @@ def spawn_multiangle(
     argv = multiangle_runner_cmd() + ["--project-dir", str(p.root)]
     argv += ["--goal-aware",
              "on" if (p.meta or {}).get("goal_aware", True) else "off"]
-    style = style or (p.meta or {}).get("cut_style")
+    style = "fast"
     if style:
         argv += ["--style", style]
     if stages:

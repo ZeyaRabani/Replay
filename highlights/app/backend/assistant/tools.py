@@ -54,11 +54,10 @@ def _schemas() -> list[dict]:
              "offsets": {"type": "array", "items": {"type": "number"}}},
              "required": ["project_id", "offsets"]}},
         {"name": "recut_project",
-         "description": "Re-run the cut for a done multi-angle match with a different cut style (fast or normal).",
+         "description": "Re-run the cut for a done multi-angle match (always fast style).",
          "parameters": {"type": "object", "properties": {
-             "project_id": {"type": "string"},
-             "cut_style": {"type": "string", "enum": ["fast", "normal"]}},
-             "required": ["project_id", "cut_style"]}},
+             "project_id": {"type": "string"}},
+             "required": ["project_id"]}},
         {"name": "delete_project",
          "description": "Delete a match (videos+caches removed, record kept in Archive, decisions kept for learning); requires confirmed=true after the user agreed.",
          "parameters": {"type": "object", "properties": {
@@ -243,7 +242,7 @@ def _t_recut_project(user: str, a: dict):
         return err
     try:
         out = m.recut_multiangle(
-            m.RecutPut(style=a.get("cut_style") or "fast"), p, user)
+            m.RecutPut(), p, user)
     except m.HTTPException as e:
         return f"error {e.status_code}: {e.detail}"
     except pipeline.PipelineBusy as e:
