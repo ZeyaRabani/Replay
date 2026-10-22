@@ -320,18 +320,54 @@ def test_restart_multiangle_restores_archived_window(client, short_video):
     (cdir / "meta.json").write_text(
         json.dumps({"range": [100.5, 8200.5], "created_at": 1.0}))
 
+    # restorable flags on the history row
+    ms = [m for m in client.get("/api/history?include_deleted=1").json()
+          if m["id"] == pid]
+    assert ms and ms[0]["restorable"] == {
+        "trim": True, "zones": True, "learned": True}
+
+    # default restore: trim + fast cuts only; zones/learned stay inactive
     r = client.post(f"/api/history/{pid}/restart")
     assert r.status_code == 200, r.text
     p2 = get_registry().get(r.json()["id"])
     cr = json.loads((p2.multiangle_dir / "cut_range.json").read_text())
     assert cr == {"lo": 100.5, "hi": 8200.5}
-    # zones stay inactive: archived copy lands in zones_archived.json
     assert not (p2.multiangle_dir / "zones.json").exists()
     z = json.loads(
         (p2.multiangle_dir / "zones_archived.json").read_text())
     assert z["version"] == 2
-    dp = json.loads((p2.multiangle_dir / "director_params.json").read_text())
-    assert dp["style_overrides"]["min_hold"] == 4
+    assert not (p2.multiangle_dir / "director_params.json").exists()
     # and the file itself is kept in the archive for future restores
     assert (arch / "director_params.json").is_file()
     assert p2.meta["cut_style"] == "fast"
+
+    # Edit restore opting in to zones + learned settings
+    r = client.post(f"/api/history/{pid}/restart",
+                    json={"zones": True, "learned": True})
+    assert r.status_code == 200, r.text
+    p3 = get_registry().get(r.json()["id"])
+    assert json.loads(
+        (p3.multiangle_dir / "cut_range.json").read_text()) == cr
+    z3 = json.loads((p3.multiangle_dir / "zones.json").read_text())
+    assert z3 == z
+    dp = json.loads((p3.multiangle_dir / "director_params.json").read_text())
+    assert dp["style_overrides"]["min_hold"] == 4
+
+    # trim unchecked: no window files at all
+    r = client.post(f"/api/history/{pid}/restart", json={"trim": False})
+    assert r.status_code == 200, r.text
+    p4 = get_registry().get(r.json()["id"])
+    assert not (p4.multiangle_dir / "cut_range.json").exists()
+    assert not (p4.multiangle_dir / "match_window_src.json").exists()
+
+
+def test_restorable_all_false(client, short_video):
+    body = {"title": "MA", "angles": [
+        {"url": "https://youtu.be/aaa", "label": "A"},
+        {"url": "https://youtu.be/bbb", "label": "B"}]}
+    pid = client.post("/api/projects/multiangle", json=body).json()["id"]
+    assert client.delete(f"/api/projects/{pid}").status_code == 204
+    ms = [m for m in client.get("/api/history?include_deleted=1").json()
+          if m["id"] == pid]
+    assert ms and ms[0]["restorable"] == {
+        "trim": False, "zones": False, "learned": False}

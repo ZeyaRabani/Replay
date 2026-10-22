@@ -367,8 +367,9 @@ export const historyApi = {
   events: (id: string) => req<HistoryEvent[]>(`/api/history/${id}/events`),
   artefactUrl: (id: string, name: string) =>
     mediaUrl(`/api/history/${id}/artefacts/${encodeURIComponent(name)}`),
-  restart: (id: string) =>
-    req<ProjectSummary>(`/api/history/${id}/restart`, json({})),
+  restart: (id: string,
+            opts?: { trim?: boolean; zones?: boolean; learned?: boolean }) =>
+    req<ProjectSummary>(`/api/history/${id}/restart`, json(opts ?? {})),
   remove: (id: string) =>
     req<void>(`/api/history/${id}`, { method: "DELETE" }),
 };

@@ -877,6 +877,7 @@ export interface HistoryMatch {
   artefacts: string[];
   cuts: HistoryCut[];
   deleted: boolean;
+  restorable?: { trim: boolean; zones: boolean; learned: boolean };
 }
 
 export interface HistoryEvent {
