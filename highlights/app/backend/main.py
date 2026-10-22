@@ -3043,10 +3043,11 @@ class RestartPost(BaseModel):
 @app.post("/api/history/{match_id}/restart")
 def restart_match(match_id: str, user: UserDep,
                   body: RestartPost | None = None) -> dict:
-    body = body or RestartPost()
     """Create a NEW project for the same owner from the archived record:
-    same sources, title + \" (restart)\", trim/learned params as hints;
-    zones are kept inactive in zones_archived.json."""
+    same sources, title + \" (restart)\". Default restores only the trim
+    (always fast cuts); body opts re-activate archived zones / learned
+    director_params. Zones are always kept in zones_archived.json."""
+    body = body or RestartPost()
     m = _match_or_404(match_id, user)
     rec = m.get("record") or {}
     src = rec.get("sources") or {}
