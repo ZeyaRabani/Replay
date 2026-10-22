@@ -3037,7 +3037,8 @@ def get_history_artefact(match_id: str, name: str) -> FileResponse:
 @app.post("/api/history/{match_id}/restart")
 def restart_match(match_id: str, user: UserDep) -> dict:
     """Create a NEW project for the same owner from the archived record:
-    same sources, title + \" (restart)\", window/zones/style as hints."""
+    same sources, title + \" (restart)\", trim/learned params as hints;
+    zones are kept inactive in zones_archived.json."""
     m = _match_or_404(match_id, user)
     rec = m.get("record") or {}
     src = rec.get("sources") or {}
@@ -3098,8 +3099,11 @@ def restart_match(match_id: str, user: UserDep) -> dict:
             zf = history.artefact_path(match_id, "zones.json")
             zones = _read_json(zf) if zf else None
         if isinstance(zones, dict):
+            # kept for reference only — a restart must not re-activate
+            # old drawn zones (they took over camera switching on 4/9)
             write_json_atomic(
-                p.multiangle_dir / "zones.json", zones, indent=1)
+                p.multiangle_dir / "zones_archived.json",
+                zones, indent=1)
         dp = rec.get("director_params")
         if not isinstance(dp, dict):
             dpf = history.artefact_path(match_id, "director_params.json")

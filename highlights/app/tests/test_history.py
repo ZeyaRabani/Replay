@@ -102,7 +102,10 @@ def test_restart_multiangle(client, short_video):
                                      "https://youtu.be/bbb"]
     mw = json.loads((p2.multiangle_dir / "match_window_src.json").read_text())
     assert mw["start"] == 10.0
-    z = json.loads((p2.multiangle_dir / "zones.json").read_text())
+    # zones stay inactive on restart: kept in zones_archived.json only
+    assert not (p2.multiangle_dir / "zones.json").exists()
+    z = json.loads(
+        (p2.multiangle_dir / "zones_archived.json").read_text())
     assert z["version"] == 2 and z["angles"][0][0]["zones"]
     evs = {e["kind"] for e in _evts(client, new_id)}
     assert "created" in evs
@@ -322,7 +325,10 @@ def test_restart_multiangle_restores_archived_window(client, short_video):
     p2 = get_registry().get(r.json()["id"])
     cr = json.loads((p2.multiangle_dir / "cut_range.json").read_text())
     assert cr == {"lo": 100.5, "hi": 8200.5}
-    z = json.loads((p2.multiangle_dir / "zones.json").read_text())
+    # zones stay inactive: archived copy lands in zones_archived.json
+    assert not (p2.multiangle_dir / "zones.json").exists()
+    z = json.loads(
+        (p2.multiangle_dir / "zones_archived.json").read_text())
     assert z["version"] == 2
     dp = json.loads((p2.multiangle_dir / "director_params.json").read_text())
     assert dp["style_overrides"]["min_hold"] == 4
