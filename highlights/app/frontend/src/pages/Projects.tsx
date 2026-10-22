@@ -1,4 +1,4 @@
-import { Film, Layers, Link2, Loader2, Plus, RotateCcw, Trash2, Upload, X, Youtube } from "lucide-react";
+import { Film, Layers, Link2, Loader2, Plus, RotateCcw, SlidersHorizontal, Trash2, Upload, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, playlistApi, projectApi, projectsApi, ytId } from "../api";
@@ -146,11 +146,6 @@ function ProjectCard({
           {p.meta?.camera && (
             <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
               {p.meta.camera}
-            </span>
-          )}
-          {p.meta?.cut_style && (
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
-              {p.meta.cut_style === "fast" ? "fast cuts" : "normal cuts"}
             </span>
           )}
         </div>
@@ -495,7 +490,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
   ]);
   const [pitchType, setPitchType] = useState("");
   const [camera, setCamera] = useState("");
-  const [cutStyle, setCutStyle] = useState<"normal" | "fast">("fast");
   const [maWinStart, setMaWinStart] = useState("");
   const [maWinEnd, setMaWinEnd] = useState("");
 
@@ -514,7 +508,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       const meta: ProjectMeta = {};
       if (pitchType) meta.pitch_type = pitchType as ProjectMeta["pitch_type"];
       if (camera) meta.camera = camera as ProjectMeta["camera"];
-      if (mode === "multi") meta.cut_style = cutStyle;
       let p: ProjectSummary;
       if (mode === "multi") {
         if (maTab === "links") {
@@ -545,7 +538,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
       setFile(null);
       setPitchType("");
       setCamera("");
-      setCutStyle("fast");
       setMaRows([{ url: "", camera: "" }, { url: "", camera: "" }]);
       setMaFiles([{ file: null, camera: "" }, { file: null, camera: "" }]);
     } catch (e) {
@@ -732,14 +724,6 @@ function NewProject({ onCreated, onError, tab, setTab, downloads }: {
               <option value="5">5-a-side</option>
               <option value="other">Other</option>
             </select>
-            <select
-              className={input}
-              value={cutStyle}
-              onChange={(e) => setCutStyle(e.target.value as "normal" | "fast")}
-            >
-              <option value="fast">Cuts: Fast — follow the ball, quick cuts</option>
-              <option value="normal">Cuts: Normal — broadcast-style holds</option>
-            </select>
           </div>
           <div>
             <div className="text-[11px] text-zinc-500 mb-1">
@@ -871,6 +855,8 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
 }) {
   const [items, setItems] = useState<HistoryMatch[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [opts, setOpts] = useState({ trim: true, zones: false, learned: false });
 
   const load = useCallback(() => {
     historyApi.list(true)
@@ -881,10 +867,11 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
   useEffect(() => { load(); }, [load, onDelete]);
 
   if (!items?.length) return null;
-  const restart = async (m: HistoryMatch) => {
+  const restart = async (m: HistoryMatch,
+                         o?: { trim: boolean; zones: boolean; learned: boolean }) => {
     setBusy(m.id);
     try {
-      onRestart(await historyApi.restart(m.id));
+      onRestart(await historyApi.restart(m.id, o));
       load();
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -952,7 +939,17 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
                 onClick={() => void restart(m)}
                 className="flex items-center gap-1 text-[11px] bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded px-2 py-1 disabled:opacity-40"
               >
-                <RotateCcw size={11} /> Restore match (re-download &amp; rebuild)
+                <RotateCcw size={11} /> Restore match (previous trim + latest cuts)
+              </button>
+              <button
+                disabled={busy === m.id}
+                onClick={() => {
+                  setEditing(editing === m.id ? null : m.id);
+                  setOpts({ trim: true, zones: false, learned: false });
+                }}
+                className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded px-2 py-1 disabled:opacity-40"
+              >
+                <SlidersHorizontal size={11} /> Edit restore…
               </button>
               <button
                 disabled={busy === m.id}
@@ -962,6 +959,40 @@ function ArchiveSection({ onRestart, onDelete, onError }: {
                 <Trash2 size={11} /> Delete forever
               </button>
             </div>
+            {editing === m.id && (
+              <div className="mt-2 rounded border border-zinc-800 p-2 flex flex-col gap-1 text-[11px] text-zinc-300">
+                {(m.restorable == null || m.restorable.trim) && (
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={opts.trim}
+                           onChange={(e) => setOpts({ ...opts, trim: e.target.checked })} />
+                    Previous trim
+                    <span className="text-zinc-500">(unchecked = process the whole recording)</span>
+                  </label>
+                )}
+                {(m.restorable == null || (m.mode === "multiangle" && m.restorable.zones)) && (
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={opts.zones}
+                           onChange={(e) => setOpts({ ...opts, zones: e.target.checked })} />
+                    Drawn pitch zones
+                  </label>
+                )}
+                {(m.restorable == null || (m.mode === "multiangle" && m.restorable.learned)) && (
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={opts.learned}
+                           onChange={(e) => setOpts({ ...opts, learned: e.target.checked })} />
+                    Learned camera settings (from You Direct)
+                  </label>
+                )}
+                <div className="text-zinc-500">Always uses the latest fast cuts.</div>
+                <button
+                  disabled={busy === m.id}
+                  onClick={() => void restart(m, opts)}
+                  className="mt-1 self-start text-[11px] bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded px-2 py-1 disabled:opacity-40"
+                >
+                  Restore with these
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

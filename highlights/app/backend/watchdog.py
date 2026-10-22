@@ -128,7 +128,7 @@ def _check(p, m) -> None:
     ar = _load_state(p)
 
     if st in ("queued", "running"):
-        if pl._status_alive(status):
+        if pl._status_alive(status, p):
             return
         _respawn(p, m, pl, ar, status)
         return

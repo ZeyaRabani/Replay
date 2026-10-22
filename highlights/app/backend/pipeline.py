@@ -95,7 +95,30 @@ def pid_alive(pid: int | None) -> bool:
         return True
 
 
-def _status_alive(status: dict) -> bool:
+def pid_owned_by(pid: int | None, p: ProjectStore) -> bool:
+    """True only if pid still belongs to THIS project's pipeline.
+
+    A stored pid in status.json can go stale: after a restart the same
+    small pid number may belong to an unrelated process, and killing it
+    (or trusting it as "our" run) misfires. Owned = tracked in _procs
+    and alive, or /proc/<pid>/cmdline mentions the project id (spawn
+    argv always carries --project-dir <root>, which contains it).
+    """
+    if pid is None or pid <= 0:
+        return False
+    proc = _procs.get(pid)
+    if proc is not None:
+        return proc.poll() is None
+    if Path("/proc").is_dir():
+        try:
+            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            return False
+        return p.id.encode() in cmdline
+    return pid_alive(pid)
+
+
+def _status_alive(status: dict, p: ProjectStore | None = None) -> bool:
     """True if a queued/running status should block a new spawn or survive reconcile.
 
     A None pid is the tiny pre-Popen window in spawn() — treat as alive for a
@@ -105,6 +128,8 @@ def _status_alive(status: dict) -> bool:
     if pid is None:
         last = status.get("updated_at") or status.get("started_at") or 0
         return time.time() - last < 15
+    if p is not None:
+        return pid_owned_by(pid, p)
     return pid_alive(pid)
 
 
@@ -144,7 +169,7 @@ def spawn_multiangle(
     argv = multiangle_runner_cmd() + ["--project-dir", str(p.root)]
     argv += ["--goal-aware",
              "on" if (p.meta or {}).get("goal_aware", True) else "off"]
-    style = style or (p.meta or {}).get("cut_style")
+    style = "fast"
     if style:
         argv += ["--style", style]
     if stages:
@@ -162,7 +187,7 @@ def spawn_multiangle(
 def _launch(p: ProjectStore, argv: list[str], *, initial_stage: str) -> dict:
     prev_state = (read_status(p) or {}).get("state")
     if prev_state in ("queued", "running") and _status_alive(
-            read_status(p) or {}):
+            read_status(p) or {}, p):
         raise PipelineBusy("pipeline already running for this project")
 
     p.status_path.parent.mkdir(parents=True, exist_ok=True)
@@ -242,7 +267,7 @@ def cancel(p: ProjectStore) -> dict:
             "download": None,
         }
     pid = status.get("pid")
-    if pid_alive(pid):
+    if pid_owned_by(pid, p):
         with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
             os.killpg(os.getpgid(pid), signal.SIGTERM)
         deadline = time.time() + 3.0
@@ -268,7 +293,7 @@ def cancel(p: ProjectStore) -> dict:
 def reconcile(p: ProjectStore) -> dict | None:
     """Fail queued/running statuses whose pid is gone."""
     status = read_status(p)
-    if status and status.get("state") in ("queued", "running") and not _status_alive(status):
+    if status and status.get("state") in ("queued", "running") and not _status_alive(status, p):
         status["state"] = "failed"
         status["message"] = "interrupted; click Re-run to resume"
         status["error"] = status["message"]

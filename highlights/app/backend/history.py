@@ -120,10 +120,34 @@ def _row_summary(row: sqlite3.Row, full: bool = False) -> dict:
         "artefacts": record.get("artefacts") or [],
         "cuts": record.get("cuts") or [],
         "deleted": row["deleted_at"] is not None,
+        "restorable": restorable(row["id"], record),
     }
     if full:
         out["record"] = record
     return out
+
+
+def restorable(match_id: str, record: dict) -> dict:
+    """What a restart could bring back, for the Edit-restore picker.
+    Cheap: record fields plus small archived JSON reads."""
+    win = record.get("window") or {}
+    trim = bool(win.get("cut_range") or win.get("match_window_src")
+                or win.get("match_window")
+                or any(c.get("range") for c in record.get("cuts") or []))
+    if not trim:
+        adir = archive_root() / match_id / "cuts"
+        if adir.is_dir():
+            for c in adir.iterdir():
+                if c.is_dir() and (
+                        _read_json(c / "meta.json") or {}).get("range"):
+                    trim = True
+                    break
+    zones = (isinstance(record.get("zones"), dict)
+             or artefact_path(match_id, "zones.json") is not None)
+    learned = (isinstance(record.get("director_params"), dict)
+               or artefact_path(match_id, "director_params.json")
+               is not None)
+    return {"trim": trim, "zones": zones, "learned": learned}
 
 
 def list_matches(owner: str | None = None,
@@ -216,6 +240,8 @@ def build_record(p: ProjectStore, artefacts: list[str] | None = None) -> dict:
         "durations": durs,
         "sync": _read_json(ma / "sync.json") if ma else None,
         "zones": _read_json(ma / "zones.json") if ma else None,
+        "director_params": _read_json(
+            ma / "director_params.json") if ma else None,
         "style": p.meta.get("cut_style"),
         "candidates": {
             "confirmed": _candidate_windows(p, "confirmed"),
@@ -310,6 +336,7 @@ def track_status(p: ProjectStore, status: dict) -> None:
 _ARCHIVE_FILES = [
     ("project.json", "project.json"),
     ("multiangle/zones.json", "zones.json"),
+    ("multiangle/director_params.json", "director_params.json"),
     ("multiangle/sync.json", "sync.json"),
     ("multiangle/director.json", "director.json"),
     ("multiangle/fused_candidates.json", "fused_candidates.json"),
