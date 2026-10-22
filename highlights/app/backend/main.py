@@ -1556,7 +1556,8 @@ def get_project(p: ScopedP) -> dict:
 @scoped.delete("")
 def delete_project(p: ScopedP) -> Response:
     status = pipeline.read_status(p)
-    if status and pipeline.pid_alive(status.get("pid")):
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_owned_by(status.get("pid"), p):
         pipeline.cancel(p)
     for jid in [j for j, pid in _job_owner.items() if pid == p.id]:
         _jobs.pop(jid, None)
@@ -1707,7 +1708,7 @@ def post_multiangle_scoreboard(p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     if not (p.root / "match.mp4").is_file():
         raise HTTPException(409, "no rendered cut yet — run the pipeline first")
@@ -2654,7 +2655,7 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     meta = activate_cut(p.root, cut_id)
     if meta is None:
@@ -2686,7 +2687,7 @@ def delete_cut_route(cut_id: str, p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     cur = list_cuts(p.root)
     if cur["active"] == cut_id:
