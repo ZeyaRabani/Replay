@@ -1,5 +1,6 @@
 """Render command, cache and output timing smoke tests."""
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -34,6 +35,8 @@ def test_extract_and_mezz_command_shapes():
     assert cmd[cmd.index("-ss") + 1] == "12.000"
     assert cmd[cmd.index("-frames:v") + 1] == "240"
     assert "-an" in cmd and "-c:v" in cmd
+    assert "-video_track_timescale" in cmd
+    assert cmd[cmd.index("-video_track_timescale") + 1] == "15360"
     pieces = [{"n0": 0, "n1": 240, "frames": 240,
                "a0": 0, "a1": 384000, "a_start": 1.25,
                "file_start": 1.25, "real": True}]
@@ -51,6 +54,8 @@ def test_extract_and_mezz_command_shapes():
     assert "end_sample=384000" in graph
     assert cmd[cmd.index("-an") + 1] == "m.mp4"
     assert cmd[-1] == "m.wav"
+    # every mp4 the concat demuxer later joins uses one timescale
+    assert cmd[cmd.index("-video_track_timescale") + 1] == "15360"
 
 
 def test_output_time_plan_snaps_shared_boundaries():
@@ -71,6 +76,8 @@ def test_seg_key_includes_otime_mezz_and_exact_range():
     assert k != render.seg_key(1, 5, 2, "def")
     assert k != render.seg_key(1, 6, 2, "abc")
     assert k != render.seg_key(1, 5, 2, "abc", 0.5, "REPLAY")
+    # salt bump invalidates segments built by the pre-timescale renderer
+    assert k == hashlib.sha1(b"otime2|1|5|2|abc").hexdigest()[:16]
 
 
 def test_replay_cmd_is_video_only():
@@ -78,6 +85,7 @@ def test_replay_cmd_is_video_only():
     assert "-an" in cmd
     assert "setpts=PTS/0.5" in cmd[cmd.index("-vf") + 1]
     assert cmd[cmd.index("-frames:v") + 1] == "120"
+    assert cmd[cmd.index("-video_track_timescale") + 1] == "15360"
 
 
 def test_concat_file_and_command(tmp_path):
@@ -167,8 +175,19 @@ def test_slow_motion_replay_keeps_audio_and_video_length(tmp_path):
 
 
 def test_mezz_key_changes_for_output_mapping():
-    a = render.mezz_key(0, [{"n0": 0, "n1": 30, "frames": 30,
-                             "file_start": 1.3, "real": True}])
+    a = render.mezz_key(0, [{"n0": 0, "n1": 30, "frames": 30,                             "file_start": 1.3, "real": True}])
     b = render.mezz_key(0, [{"n0": 0, "n1": 30, "frames": 30,
                              "file_start": 1.4, "real": True}])
     assert a != b
+
+
+def test_mezz_key_otime3_salt():
+    # different salt than the pre-timescale generation -> full rebuild
+    assert render.mezz_key(0, []) != hashlib.sha1(
+        json.dumps(["otime2", 0, render.CANVAS, render.CRF, render.PRESET,
+                    []], sort_keys=True,
+                   separators=(",", ":")).encode()).hexdigest()[:16]
+    assert render.mezz_key(0, []) == hashlib.sha1(
+        json.dumps(["otime3", 0, render.CANVAS, render.CRF, render.PRESET,
+                    []], sort_keys=True,
+                   separators=(",", ":")).encode()).hexdigest()[:16]

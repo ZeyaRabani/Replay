@@ -18,6 +18,7 @@ the rest (z > Z_MIN), so quiet stretches never cause false alarms.
 
 from __future__ import annotations
 
+import itertools
 import json
 import subprocess
 import sys
@@ -32,6 +33,7 @@ Z_MIN = 6.0                # peak z-score for a window to count
 AUDIO_TOL_S = 0.10         # rendered audio vs on-screen source
 MAP_TOL_S = 0.30           # angle vs reference (line-up)
 VIDEO_TOL_S = 0.10         # rendered frame vs source frame
+VIDEO_MAD_OK = 4.0         # seq MAD at the expected offset counts as a match
 MAX_BAD_FRAC = 0.10        # reliable windows allowed outside tolerance
 MIN_RELIABLE = 5           # fewer reliable windows -> "unverified"
 CANVAS = ("scale=1920:1080:force_original_aspect_ratio=decrease,"
@@ -121,10 +123,36 @@ def _gray_frames(path: str, ss: float, dur: float,
     return np.frombuffer(raw, np.uint8).reshape(-1, H, W).astype(np.float32)
 
 
+def check_timeline(out_path: str, n_frames_expected: int) -> dict:
+    """Container sanity: exact frame count, pts starts ~0 and every
+    delta is 1/30 s — catches mixed-timescale segment concat garbage."""
+    pts = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "packet=pts_time", "-of", "csv=p=0", out_path],
+        capture_output=True, text=True, check=True).stdout
+    vals = sorted(float(x) for x in pts.split() if x and x != "N/A")
+    ad = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0",
+         "-show_entries", "stream=duration", "-of", "csv=p=0", out_path],
+        capture_output=True, text=True, check=True).stdout.strip()
+    audio_dur = float(ad) if ad and ad != "N/A" else None
+    gaps = [b - a for a, b in itertools.pairwise(vals)]
+    bad = sum(1 for g in gaps if abs(g - 1 / 30) > 0.001)
+    ok = (len(vals) == n_frames_expected and bool(vals)
+          and abs(vals[0]) <= 0.001 and bad == 0
+          and audio_dur is not None
+          and abs(audio_dur - n_frames_expected / 30) <= 0.05)
+    return {"ok": bool(ok), "frames": len(vals),
+            "last_pts": round(vals[-1], 3) if vals else None,
+            "max_gap": round(max(gaps), 4) if gaps else None,
+            "bad_gaps": bad, "audio_dur": audio_dur}
+
+
 def check_render(out_path: str, videos: list[str], tm,
                  segments: list[dict], union_lo: float,
-                 n_frames: int = 12,
-                 envs: list[np.ndarray] | None = None) -> dict:
+                 n_frames: int = 20,
+                 envs: list[np.ndarray] | None = None,
+                 expected_frames: int | None = None) -> dict:
     """Rendered-cut check. segments: director segments in output time
     (t_start/t_end/angle), plain-speed only (replays are skipped)."""
     from highlights.multiangle.syncmap import as_tm, shared_to_file
@@ -149,8 +177,8 @@ def check_render(out_path: str, videos: list[str], tm,
             if abs(r[0]) > AUDIO_TOL_S:
                 bad_at.append([round(t0, 1), a, round(r[0], 2)])
     audio = {**_verdict(lags, AUDIO_TOL_S), "off_at": bad_at[:20]}
-    # picture: sampled segments, output frame vs source frames around the
-    # expected file time; ambiguous (static) frames don't count against
+    # picture: 1 s output sequences vs source frames around the expected
+    # file time; a sample counts only when the expected offset matches
     long_ = [s for s in plain if float(s["t_end"]) - float(s["t_start"]) >= 3]
     vrows, vbad = [], []
     for j in (np.linspace(0, len(long_) - 1, min(n_frames, len(long_)))
@@ -162,28 +190,32 @@ def check_render(out_path: str, videos: list[str], tm,
         if fe is None:
             continue
         try:
-            o = _gray_frames(out_path, t, 1 / 30, False)[0]
-            span = 3.0
-            src = _gray_frames(videos[a], fe - span, 2 * span, True)
+            o = _gray_frames(out_path, t, 1.0, False)
+            src = _gray_frames(videos[a], fe - 3.0, 8.0, True)
         except (subprocess.CalledProcessError, IndexError, ValueError):
             continue
-        mad = np.abs(src - o).mean((1, 2))
+        # sequence MAD per source offset k: mean |src[k:k+n] - o| over
+        # the n output frames
+        n = len(o)
+        mad = np.array([np.abs(src[k:k + n] - o).mean()
+                        for k in range(len(src) - n + 1)])
         k = int(np.argmin(mad))
-        base = max(0.0, fe - span)
+        base = max(0.0, fe - 3.0)
         lag = base + k / 30 - fe
-        ke = round((fe - base) * 30)
-        near = mad[max(0, ke - 3):ke + 4]
-        ok = abs(lag) <= VIDEO_TOL_S or (
-            len(near) and near.min() <= mad[k] + 0.5)
+        ok = mad[round((fe - base) * 30)] <= VIDEO_MAD_OK
         vrows.append(round(lag, 3))
         if not ok:
             vbad.append([round(t, 1), a, round(lag, 2)])
     video = {"checked": len(vrows), "bad": vbad,
              "ok": None if len(vrows) < 3 else len(vbad) == 0}
+    result = {"audio": audio, "video": video}
     ok = audio["ok"] is not False and video["ok"] is not False
-    return {"ok": bool(ok),
-            "verified": audio["ok"] is True and video["ok"] is True,
-            "audio": audio, "video": video}
+    verified = audio["ok"] is True and video["ok"] is True
+    if expected_frames is not None:
+        result["timeline"] = check_timeline(out_path, expected_frames)
+        if result["timeline"]["ok"] is not True:
+            ok = verified = False
+    return {"ok": bool(ok), "verified": bool(verified), **result}
 
 
 def check_project(project_dir: str, cut: str | None = None) -> dict:

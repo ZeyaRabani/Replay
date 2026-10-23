@@ -106,7 +106,7 @@ def mezz_key(angle: int, pieces: list[dict]) -> str:
     serial = [{k: p.get(k) for k in
                ("n0", "n1", "a0", "a1", "a_start", "file_start", "real")}
               for p in pieces]
-    raw = json.dumps(["otime2", angle, CANVAS, CRF, PRESET, serial],
+    raw = json.dumps(["otime3", angle, CANVAS, CRF, PRESET, serial],
                      sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
@@ -189,7 +189,8 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
              "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
              "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
              "-sc_threshold", "0", "-force_key_frames",
-             "expr:gte(t,n_forced*1)", "-threads", str(threads), "-an", out,
+             "expr:gte(t,n_forced*1)", "-threads", str(threads),
+             "-video_track_timescale", "15360", "-an", out,
              "-map", "[aout]", "-c:a", "pcm_s16le", "-ar", "48000",
              "-ac", "2", wav_out]
     return args
@@ -219,12 +220,12 @@ def extract_cmd(mezz: str, k0: int, req: int, out: str) -> list[str]:
     """Extract exactly req seconds of video-only 30 fps mezz frames."""
     return ["ffmpeg", "-y", "-v", "error", "-ss", f"{k0:.3f}", "-i", mezz,
             "-t", f"{req:.3f}", "-frames:v", str(req * FPS),
-            "-c:v", "copy", "-an", out]
+            "-c:v", "copy", "-video_track_timescale", "15360", "-an", out]
 
 
 def seg_key(angle: int, k0: int, req: int, mezz: str = "",
             speed: float = 1.0, overlay: str | None = None) -> str:
-    raw = f"otime1|{angle}|{k0}|{req}|{mezz}"
+    raw = f"otime2|{angle}|{k0}|{req}|{mezz}"
     if speed != 1.0 or overlay:
         raw += f"|{speed:.6f}|{overlay or ''}"
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
@@ -264,7 +265,8 @@ def replay_cmd(src: str, t_rel: float, dur_src: float, speed: float,
             "-frames:v", str(round(dur_src / speed * FPS)), "-an",
             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
-            "-sc_threshold", "0", "-threads", "2", out]
+            "-sc_threshold", "0", "-threads", "2",
+            "-video_track_timescale", "15360", out]
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
@@ -482,7 +484,8 @@ def render(videos: list[str], tm, segments: list[dict],
             fix = ["ffmpeg", "-y", "-v", "error", "-i", str(tmp),
                    "-vf", f"fps=30,trim=end_frame={plan['frames']},setpts=PTS-STARTPTS",
                    "-frames:v", str(plan["frames"]), "-an", "-c:v", "libx264",
-                   "-preset", PRESET, "-crf", CRF, "-pix_fmt", "yuv420p", str(out)]
+                   "-preset", PRESET, "-crf", CRF, "-pix_fmt", "yuv420p",
+                   "-video_track_timescale", "15360", str(out)]
             run(fix, log)
             tmp.unlink(missing_ok=True)
         else:

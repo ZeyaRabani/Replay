@@ -127,3 +127,49 @@ def test_check_map_flags_wrong_offset(sources):
     res = sync_qa.check_map(sources, wrong, 0.0, 60.0,
                             step_s=6.0, win_s=4.0)
     assert res["bad_angles"] == [1]
+
+
+@pytest.mark.skipif(not (FFMPEG and FFPROBE), reason="ffmpeg/ffprobe missing")
+def test_check_timeline(tmp_path):
+    good = tmp_path / "good.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc=duration=2:size=160x90:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", str(good)], check=True)
+    res = sync_qa.check_timeline(str(good), 60)
+    assert res["ok"] is True
+    assert res["frames"] == 60
+    # frame count mismatch -> False
+    assert sync_qa.check_timeline(str(good), 61)["ok"] is False
+    # deliberate pts corruption: re-timestamped at 15 fps spacing
+    gap = tmp_path / "gap.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", str(good),
+         "-vf", "fps=15", "-c:v", "libx264", "-preset", "ultrafast",
+         "-pix_fmt", "yuv420p", "-c:a", "copy", str(gap)], check=True)
+    res = sync_qa.check_timeline(str(gap), 60)
+    assert res["ok"] is False
+    assert res["bad_gaps"] >= 1
+
+
+@pytest.mark.skipif(not (FFMPEG and FFPROBE), reason="ffmpeg/ffprobe missing")
+def test_check_render_catches_wrong_segment_content(cut, sources, tmp_path):
+    """Video seq check: a cut whose one segment shows the wrong file time
+    (shifted >=1 s) must fail even though timestamps are perfect."""
+    out, segments = cut
+    bad = tmp_path / "bad_content.mp4"
+    # shift the whole cut's picture by +1 s: every sampled segment then
+    # shows content 1 s earlier than the map expects
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", out, "-ss", "1.0",
+         "-i", out, "-filter_complex",
+         "[0:v][1:v]overlay=0:0:eof_action=pass[v]",
+         "-map", "[v]", "-map", "0:a", "-c:v", "libx264", "-preset",
+         "ultrafast", "-crf", "28", "-pix_fmt", "yuv420p", "-c:a", "copy",
+         str(bad)], check=True)
+    envs = [sync_qa.envelope(v) for v in sources]
+    res = sync_qa.check_render(str(bad), sources, TM, segments, 0.0,
+                               envs=envs)
+    assert res["ok"] is False

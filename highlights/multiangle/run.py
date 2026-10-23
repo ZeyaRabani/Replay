@@ -938,20 +938,24 @@ def _sync_check_render(ctx: Ctx, out: Path, videos: list[str], tm,
     """Verify the rendered cut against the camera files; on failure clear
     the render caches, re-render once and re-check. Still bad -> fail the
     stage rather than publish an unwatchable cut."""
-    from highlights.multiangle.render import render
+    from highlights.multiangle.render import plan_segments, render
     from highlights.multiangle.sync_qa import check_render, envelope
     envs = [envelope(v) for v in videos]
-    qa = check_render(str(out), videos, tm, segs, lo, envs=envs)
+    expected = sum(p["frames"] for p in plan_segments(segs))
+    qa = check_render(str(out), videos, tm, segs, lo, envs=envs,
+                      expected_frames=expected)
     if qa["ok"] is False:
         ctx.log(f"render: sync check failed (audio "
                 f"{qa['audio'].get('median_abs_s')}s median / video bad "
-                f"{qa['video'].get('bad')}) — clearing caches, re-rendering")
+                f"{qa['video'].get('bad')} / timeline "
+                f"{qa.get('timeline')}) — clearing caches, re-rendering")
         for d in ("segs", "mezz"):
             shutil.rmtree(ctx.pipe / d, ignore_errors=True)
         out = render(videos, tm, segs, lo, hi, ctx.pipe,
                      ctx.project_dir / "match.mp4", videos[0],
                      durations=durations, log=ctx.log)
-        qa = check_render(str(out), videos, tm, segs, lo, envs=envs)
+        qa = check_render(str(out), videos, tm, segs, lo, envs=envs,
+                          expected_frames=expected)
     qa["checked_at"] = time.time()
     write_json_atomic(ctx.pipe / "sync_qa.json", qa, indent=1)
     if qa["ok"] is False:
