@@ -44,6 +44,8 @@ def test_extract_and_mezz_command_shapes():
     assert cmd[cmd.index("-threads") + 1] == "1"
     graph = cmd[cmd.index("-filter_complex") + 1]
     assert "fps=30" in graph and "trim=end_frame=240" in graph
+    # every concat input must carry SAR 1:1 (anamorphic sources don't)
+    assert graph.count("setsar=1") == len(pieces)
     # video/audio concat chains stay independent so segment padding on
     # ffmpeg >=5 can't shift the sample-exact audio bounds
     assert "v=1:a=1" not in graph
@@ -86,6 +88,7 @@ def test_replay_cmd_is_video_only():
     assert "setpts=PTS/0.5" in cmd[cmd.index("-vf") + 1]
     assert cmd[cmd.index("-frames:v") + 1] == "120"
     assert cmd[cmd.index("-video_track_timescale") + 1] == "15360"
+    assert "setsar=1" in cmd[cmd.index("-vf") + 1]
 
 
 def test_concat_file_and_command(tmp_path):
@@ -181,13 +184,13 @@ def test_mezz_key_changes_for_output_mapping():
     assert a != b
 
 
-def test_mezz_key_otime3_salt():
-    # different salt than the pre-timescale generation -> full rebuild
+def test_mezz_key_otime4_salt():
+    # different salt than the pre-SAR-fix generation -> full rebuild
     assert render.mezz_key(0, []) != hashlib.sha1(
-        json.dumps(["otime2", 0, render.CANVAS, render.CRF, render.PRESET,
+        json.dumps(["otime3", 0, render.CANVAS, render.CRF, render.PRESET,
                     []], sort_keys=True,
                    separators=(",", ":")).encode()).hexdigest()[:16]
     assert render.mezz_key(0, []) == hashlib.sha1(
-        json.dumps(["otime3", 0, render.CANVAS, render.CRF, render.PRESET,
+        json.dumps(["otime4", 0, render.CANVAS, render.CRF, render.PRESET,
                     []], sort_keys=True,
                    separators=(",", ":")).encode()).hexdigest()[:16]

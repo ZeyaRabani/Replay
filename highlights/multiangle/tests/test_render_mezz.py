@@ -1,8 +1,14 @@
 """Output-time mezzanine piece mapping and cache-key tests."""
 
+import json
+import subprocess
+import wave
+
 import pytest
 
 from highlights.multiangle.render import mezz_key, mezz_pieces
+
+FFMPEG = subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0
 
 
 def test_mezz_pieces_fill_gaps_and_later_timemap_wins():
@@ -30,3 +36,43 @@ def test_mezz_key_changes_for_mapping_and_has_new_salt():
     changed = [{**base[0], "file_start": 1.4}]
     assert mezz_key(0, base) != mezz_key(0, changed)
     assert mezz_key(0, base) != mezz_key(1, base)
+
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg missing")
+def test_mezz_odd_sar_source_with_filler(tmp_path):
+    """2320x1080 anamorphic source (SAR != 1) + trailing black filler piece:
+    concat needs identical SAR on all inputs."""
+    src = tmp_path / "wide.mkv"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc=duration=8:size=2320x1080:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=8",
+         "-vf", "setsar=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", str(src)], check=True)
+    sar = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=sample_aspect_ratio", "-of", "json",
+         str(src)], capture_output=True, text=True, check=True).stdout)
+    assert sar["streams"][0]["sample_aspect_ratio"] == "2:1"
+
+    from highlights.multiangle.render import mezz_cmd
+    tm = [[{"file_lo": 0.0, "file_hi": 8.0, "offset": 0.0}]]
+    pieces = mezz_pieces(0, tm, 0.0, 10.0, [8.0])
+    # real piece then a black filler for the uncovered tail
+    assert [p["real"] for p in pieces] == [True, False]
+    mp4, wav = tmp_path / "m.mp4", tmp_path / "m.wav"
+    cmd = mezz_cmd(str(src), pieces, str(mp4), str(wav), threads=1)
+    cmd = [c for c in cmd if c not in ("-progress", "pipe:1", "-nostats")]
+    subprocess.run(cmd, check=True)
+    info = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=nb_frames,sample_aspect_ratio",
+         "-of", "json", str(mp4)], capture_output=True, text=True,
+         check=True).stdout)
+    assert int(info["streams"][0]["nb_frames"]) == 300
+    assert info["streams"][0]["sample_aspect_ratio"] == "1:1"
+    with wave.open(str(wav)) as wf:
+        assert wf.getnframes() == sum(
+            p["a1"] - p["a0"] for p in pieces)

@@ -102,11 +102,11 @@ def mezz_pieces(i: int, tm, union_lo: float, union_hi: float,
 
 
 def mezz_key(angle: int, pieces: list[dict]) -> str:
-    """Content key including output-time mapping and otime2 cache salt."""
+    """Content key including output-time mapping and otime4 cache salt."""
     serial = [{k: p.get(k) for k in
                ("n0", "n1", "a0", "a1", "a_start", "file_start", "real")}
               for p in pieces]
-    raw = json.dumps(["otime3", angle, CANVAS, CRF, PRESET, serial],
+    raw = json.dumps(["otime4", angle, CANVAS, CRF, PRESET, serial],
                      sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
@@ -156,7 +156,8 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
                          "anullsrc=r=48000:cl=stereo"]
                 input_idx += 1
             filters.append(
-                f"[{vi}:v:0]{CANVAS},fps=30,tpad=stop_mode=clone:stop_duration=2,"
+                f"[{vi}:v:0]{CANVAS},setsar=1,fps=30,"
+                f"tpad=stop_mode=clone:stop_duration=2,"
                 f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
             if has_audio:
                 filters.append(
@@ -172,8 +173,8 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
                     f"asetpts=PTS-STARTPTS[a{j}]")
         else:
             filters.append(
-                f"color=black:s={MEZZ_SIZE}:r=30,trim=end_frame={frames},"
-                f"setpts=PTS-STARTPTS[v{j}]")
+                f"color=black:s={MEZZ_SIZE}:r=30,setsar=1,"
+                f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
             filters.append(
                 f"anullsrc=r=48000:cl=stereo,atrim=end_sample={samples},"
                 f"asetpts=PTS-STARTPTS[a{j}]")
@@ -252,7 +253,7 @@ def replay_cmd(src: str, t_rel: float, dur_src: float, speed: float,
                out: str, overlay: str | None = None,
                from_mezz: bool = True) -> list[str]:
     filters = ([] if from_mezz else [CANVAS])
-    filters.extend([f"setpts=PTS/{speed}", "fps=30"])
+    filters.extend([f"setpts=PTS/{speed}", "fps=30", "setsar=1"])
     if overlay and _drawtext_available():
         font = _drawtext_font()
         filters.append(
