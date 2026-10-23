@@ -1,7 +1,6 @@
 """syncmap: piecewise file<->shared mapping, gaps, clamps, fallback."""
 
 
-from highlights.multiangle import render
 from highlights.multiangle.syncmap import (
     boundaries_shared,
     file_range_for_shared,
@@ -56,26 +55,6 @@ def test_legacy_fallback():
     assert shared_to_file(tm, 1, 0.0) == 748.2
     assert file_to_shared(tm, 1, 0.0) == -748.2
     assert scalar_offsets(tm) == [0.0, -748.2]
-
-
-def test_plan_segments_splits_at_boundary():
-    tm = [[{"file_lo": 0, "file_hi": 1000, "offset": 0}],
-          [{"file_lo": 0, "file_hi": 50, "offset": 10},
-           {"file_lo": 53, "file_hi": 100, "offset": 12}]]
-    seg = {"angle": 1, "t_start": 20.0, "t_end": 90.0}
-    plans = render.plan_segments([seg], tm, 0.0, 1000.0, [1000.0, 100.0])
-    # shared bounds of seg A: 10..60; seg B: 65..112 -> boundary edges
-    # 60 and 65 inside [20, 90) -> pieces 20-60, 60-65, 65-90
-    assert len(plans) == 3
-    assert [p["dur"] for p in plans] == [40.0, 5.0, 25.0]
-    assert [p["t_file"] for p in plans] == [10.0, 50.0, 53.0]
-    assert all(p["seg_index"] == 0 for p in plans)
-
-
-def test_mezz_range_via_map():
-    m0, m1 = render.mezz_range(1, TM, 0.0, 90.0, [100.0])
-    assert m0 <= m1
-    assert m0 >= 0.0 and m1 <= 100.0
 
 
 def test_scalar_offsets_picks_longest_segment():

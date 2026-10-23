@@ -16,6 +16,7 @@ from highlights.io import write_json_atomic
 SNAP_FILES = [
     "multiangle/director.json",
     "multiangle/fused_candidates.json",
+    "multiangle/sync_qa.json",
     "pipeline/candidates.json",
     "pipeline/probe.json",
     "pipeline/stats.json",
@@ -126,6 +127,9 @@ def snapshot_cut(project_dir: Path, style: str | None = None,
     if cut_range:
         meta["range"] = list(cut_range)
         meta["range_out"] = [0.0, float(cut_range[1]) - float(cut_range[0])]
+    qa = _read(ma / "sync_qa.json")
+    if qa:
+        meta["sync_qa"] = {"ok": qa.get("ok"), "verified": qa.get("verified")}
     meta["cut_info"] = cut_info(project_dir, cdir, meta)
     write_json_atomic(cdir / "meta.json", meta, indent=1)
     write_json_atomic(cuts_dir / "active.json", {"id": cid}, indent=1)

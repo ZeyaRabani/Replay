@@ -167,12 +167,10 @@ def test_put_angle_url_swaps_and_clears_outputs(client, sample_video, monkeypatc
     from highlights.multiangle.render import plan_segments, seg_key
     (ma / "segs").mkdir(exist_ok=True)
     for pl in plan_segments(
-            json.loads((ma / "director.json").read_text())["segments"],
-            [0.0, 5.0, -748.0], 0.0, 6000.0, []):
-        if not pl.get("skip"):
-            (ma / "segs" /
-             f"{seg_key(pl['angle'], pl['t_file'], pl['dur'])}.mp4"
-             ).write_bytes(b"s")
+            json.loads((ma / "director.json").read_text())["segments"]):
+        (ma / "segs" /
+         f"{seg_key(pl['angle'], pl['k0'], pl['k1'] - pl['k0'])}.mp4"
+         ).write_bytes(b"s")
     (ma / "mezz").mkdir(exist_ok=True)
     (ma / "mezz" / "2_abc123.mp4").write_bytes(b"m")
     (ma / "mezz" / "0_def456.mp4").write_bytes(b"m")
