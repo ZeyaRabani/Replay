@@ -64,7 +64,7 @@ def extract_cmd(mezz: str, t_rel: float, dur: float, out: str) -> list[str]:
 
 
 def mezz_key(angle: int, t0: float, t1: float) -> str:
-    raw = (f"{angle}|{t0:.3f}|{t1:.3f}|{CANVAS}|{CRF}|{PRESET}|gop30")
+    raw = (f"{angle}|{t0:.3f}|{t1:.3f}|{CANVAS}|{CRF}|{PRESET}|gop30|s0")
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
@@ -76,7 +76,7 @@ def mezz_cmd(video: str, t0: float, t1: float, out: str,
     return ["ffmpeg", "-y", "-v", "error",
             "-nostats", "-progress", "pipe:1",
             "-ss", f"{t0:.3f}", "-i", video, "-t", f"{t1 - t0:.3f}",
-            "-vf", CANVAS + ",fps=30",
+            "-vf", CANVAS + ",fps=30:start_time=0",
             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-pix_fmt", "yuv420p",
             "-g", "30", "-keyint_min", "30", "-sc_threshold", "0",
