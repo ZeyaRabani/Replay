@@ -177,9 +177,15 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
             filters.append(
                 f"anullsrc=r=48000:cl=stereo,atrim=end_sample={samples},"
                 f"asetpts=PTS-STARTPTS[a{j}]")
-    pads = "".join(f"[v{j}][a{j}]" for j in range(n))
-    filters.append(f"{pads}concat=n={n}:v=1:a=1[vout][aout]")
+    # concat pads each segment's shorter stream to the longer one on
+    # ffmpeg >=5, which would offset the sample-exact audio bounds — keep
+    # the video and audio chains independent.
+    vpads = "".join(f"[v{j}]" for j in range(n))
+    apads = "".join(f"[a{j}]" for j in range(n))
+    filters.append(f"{vpads}concat=n={n}:v=1:a=0[vout]")
+    filters.append(f"{apads}concat=n={n}:v=0:a=1[aout]")
     args += ["-filter_complex", ";".join(filters), "-map", "[vout]",
+             "-r", "30",
              "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
              "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
              "-sc_threshold", "0", "-force_key_frames",

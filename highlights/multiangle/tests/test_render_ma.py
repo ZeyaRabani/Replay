@@ -41,6 +41,11 @@ def test_extract_and_mezz_command_shapes():
     assert cmd[cmd.index("-threads") + 1] == "1"
     graph = cmd[cmd.index("-filter_complex") + 1]
     assert "fps=30" in graph and "trim=end_frame=240" in graph
+    # video/audio concat chains stay independent so segment padding on
+    # ffmpeg >=5 can't shift the sample-exact audio bounds
+    assert "v=1:a=1" not in graph
+    assert "concat=n=1:v=1:a=0[vout]" in graph
+    assert "concat=n=1:v=0:a=1[aout]" in graph
     # /v/a.mp4 has no audio stream -> anullsrc piece audio input
     assert any("anullsrc" in a for a in cmd)
     assert "end_sample=384000" in graph

@@ -18,7 +18,7 @@ UNION_LO, UNION_HI = 0.0, 20.0
 TM = [
     [{"file_lo": 0.0, "file_hi": DURATION, "offset": 0.0}],
     [{"file_lo": 0.0, "file_hi": 10.0, "offset": 3.37},
-     {"file_lo": 10.0, "file_hi": DURATION, "offset": 2.77}],
+     {"file_lo": 10.0, "file_hi": DURATION, "offset": 2.78}],
 ]
 
 
@@ -110,6 +110,24 @@ def test_render_sync_piecewise_fractional_timemap(tmp_path, monkeypatch):
     video_stream = next(s for s in info["streams"] if s["codec_type"] == "video")
     assert int(video_stream["nb_frames"]) == 30 * 20
     assert abs(float(info["format"]["duration"]) - 20) <= 1024 / 48000
+
+    # Each mezz WAV must hold exactly sum(a1 - a0) samples — not the
+    # concat's segment padding (ffmpeg >=5 pads the shorter stream of a
+    # combined v=1:a=1 concat).
+    mismatched = 0
+    for wav_path in (tmp_path / "work" / "mezz").glob("*.wav"):
+        angle = int(wav_path.name.split("_", 1)[0])
+        pieces = render.mezz_pieces(angle, TM, UNION_LO, UNION_HI,
+                                    [DURATION, DURATION])
+        with wave.open(str(wav_path)) as wf:
+            assert wf.getnframes() == sum(
+                p["a1"] - p["a0"] for p in pieces), wav_path
+        mismatched += sum(
+            1 for p in pieces
+            if p["real"] and p["a1"] - p["a0"] != p["frames"] * 1600)
+    # angle 1's fractional/piecewise bounds must yield real pieces whose
+    # frame and sample edges don't coincide, so the padding bug is caught
+    assert mismatched >= 2
 
     frames = _decode_video(out)
     elapsed = 0
