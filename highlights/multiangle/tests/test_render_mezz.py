@@ -1,74 +1,78 @@
-"""Mezzanine start-time regression: the mezz video must start at pts 0 so
-its forced 1 s keyframe grid sits on integer seconds — extract_cmd
-stream-copies from -ss k0 and snaps to the previous keyframe otherwise.
-Reproduces with a VP9 source whose video track starts at ~0.04 (like the
-4/9 match sources): after -ss t0 the first decoded frame then lands a
-frame after t0, giving pts 0.033. (25 fps libvpx-vp9 + itsoffset 0.037,
-t0=1.41 reproduced the bug; plain h264 sources did not.)"""
+"""Output-time mezzanine piece mapping and cache-key tests."""
 
 import json
 import subprocess
+import wave
 
 import pytest
 
-from highlights.multiangle.render import concat_cmd, concat_file, extract_cmd, mezz_cmd, run
+from highlights.multiangle.render import mezz_key, mezz_pieces
 
-FFMPEG = subprocess.run(
-    ["which", "ffmpeg"], capture_output=True).returncode == 0
-FFPROBE = subprocess.run(
-    ["which", "ffprobe"], capture_output=True).returncode == 0
+FFMPEG = subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0
 
 
-def _probe(path):
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-print_format", "json",
-         "-show_streams", "-show_format", str(path)],
-        capture_output=True, text=True, check=True).stdout
-    d = json.loads(out)
-    vs = next(s for s in d["streams"] if s["codec_type"] == "video")
-    n = int(subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v",
-         "-count_packets", "-show_entries", "stream=nb_read_packets",
-         "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True, check=True).stdout.strip())
-    return vs, float(d["format"]["duration"]), n
+def test_mezz_pieces_fill_gaps_and_later_timemap_wins():
+    tm = [[
+        {"file_lo": 0.0, "file_hi": 10.0, "offset": 3.37},
+        {"file_lo": 10.0, "file_hi": 24.0, "offset": 2.77},
+    ]]
+    pieces = mezz_pieces(0, tm, 0.0, 20.0, [24.0])
+    # initial coverage gap, first mapping, then second mapping wins overlap
+    assert not pieces[0]["real"]
+    real = [p for p in pieces if p["real"]]
+    assert real[0]["file_start"] == 0
+    assert real[1]["file_start"] == 10
+    # last piece resumes mid-file at shared 13.37 -> file 10.5967
+    assert real[-1]["file_start"] == pytest.approx(10.596666666666668)
+    assert sum(p["frames"] for p in pieces) == 20 * 30
+    assert next(p["n0"] for p in pieces) == 0
+    assert pieces[-1]["n1"] == 600
 
 
-@pytest.mark.skipif(not (FFMPEG and FFPROBE), reason="ffmpeg missing")
-def test_mezzanine_starts_at_zero(tmp_path):
-    vsrc = tmp_path / "vsrc.webm"
-    src = tmp_path / "src.webm"
-    # VP9 video whose track pts starts at ~0.04 (4/9-style source)
-    run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
-         "-i", "testsrc=rate=25:size=640x360", "-t", "12",
-         "-c:v", "libvpx-vp9", "-pix_fmt", "yuv420p", "-b:v", "1M",
-         "-cpu-used", "8", "-deadline", "realtime", str(vsrc)])
-    # no audio track — with a stream starting at 0 alongside, the muxer's
-    # baseline normalises the mezz start anyway and the bug doesn't show
-    run(["ffmpeg", "-y", "-v", "error", "-itsoffset", "0.037", "-i",
-         str(vsrc), "-map", "0:v", "-c:v", "copy", str(src)])
-    assert float(_probe(src)[0]["start_time"]) > 0.02
+def test_mezz_key_changes_for_mapping_and_has_new_salt():
+    base = [{"n0": 0, "n1": 30, "frames": 30,
+             "a0": 0, "a1": 48000, "a_start": 1.3,
+             "file_start": 1.3, "real": True}]
+    changed = [{**base[0], "file_start": 1.4}]
+    assert mezz_key(0, base) != mezz_key(0, changed)
+    assert mezz_key(0, base) != mezz_key(1, base)
 
-    mezz = tmp_path / "mezz.mp4"
-    cmd = [a for a in mezz_cmd(str(src), 1.41, 9.41, str(mezz))
-           if a not in ("-nostats", "-progress", "pipe:1")]
-    run(cmd)
-    vs, _, _ = _probe(mezz)
-    assert float(vs["start_time"]) == pytest.approx(0.0, abs=1e-3)
 
-    segs, want = [], [(2.0, 3.0), (5.0, 2.0)]
-    for i, (rel, dur) in enumerate(want):
-        seg = tmp_path / f"seg{i}.mp4"
-        run(extract_cmd(str(mezz), rel, dur, str(seg)))
-        _, sdur, nframes = _probe(seg)
-        req = round(rel + dur) - round(rel)
-        assert sdur == pytest.approx(req, abs=0.05)
-        assert nframes == req * 30
-        segs.append(str(seg))
 
-    lst = concat_file(segs, tmp_path / "list.txt")
-    final = tmp_path / "final.mp4"
-    run(concat_cmd(lst, str(final)))
-    _, fdur, fframes = _probe(final)
-    assert fdur == pytest.approx(sum(w[1] for w in want), abs=0.1)
-    assert fframes == sum(w[1] for w in want) * 30
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg missing")
+def test_mezz_odd_sar_source_with_filler(tmp_path):
+    """2320x1080 anamorphic source (SAR != 1) + trailing black filler piece:
+    concat needs identical SAR on all inputs."""
+    src = tmp_path / "wide.mkv"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc=duration=8:size=2320x1080:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=8",
+         "-vf", "setsar=2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", str(src)], check=True)
+    sar = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=sample_aspect_ratio", "-of", "json",
+         str(src)], capture_output=True, text=True, check=True).stdout)
+    assert sar["streams"][0]["sample_aspect_ratio"] == "2:1"
+
+    from highlights.multiangle.render import mezz_cmd
+    tm = [[{"file_lo": 0.0, "file_hi": 8.0, "offset": 0.0}]]
+    pieces = mezz_pieces(0, tm, 0.0, 10.0, [8.0])
+    # real piece then a black filler for the uncovered tail
+    assert [p["real"] for p in pieces] == [True, False]
+    mp4, wav = tmp_path / "m.mp4", tmp_path / "m.wav"
+    cmd = mezz_cmd(str(src), pieces, str(mp4), str(wav), threads=1)
+    cmd = [c for c in cmd if c not in ("-progress", "pipe:1", "-nostats")]
+    subprocess.run(cmd, check=True)
+    info = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=nb_frames,sample_aspect_ratio",
+         "-of", "json", str(mp4)], capture_output=True, text=True,
+         check=True).stdout)
+    assert int(info["streams"][0]["nb_frames"]) == 300
+    assert info["streams"][0]["sample_aspect_ratio"] == "1:1"
+    with wave.open(str(wav)) as wf:
+        assert wf.getnframes() == sum(
+            p["a1"] - p["a0"] for p in pieces)

@@ -12,6 +12,24 @@ def _players_cluster(monkeypatch):
     monkeypatch.setattr(D, "CLUSTER_SOURCE", "players")
 
 
+@pytest.fixture(autouse=True)
+def _contiguous_output():
+    """Every director output must be a contiguous timeline."""
+    real = D.cut_director
+
+    def wrapped(*a, **kw):
+        out = real(*a, **kw)
+        segs = out["segments"]
+        assert all(s["t_end"] > s["t_start"] for s in segs)
+        assert all(s["t_start"] == p["t_end"]
+                   for s, p in zip(segs[1:], segs))
+        return out
+
+    D.cut_director = wrapped
+    yield
+    D.cut_director = real
+
+
 def _track(T: int, ball_conf=0.0, ball_size=0.0, cluster=0.0):
     return {"ball_conf": np.full(T, ball_conf),
             "ball_size": np.full(T, ball_size),
@@ -185,3 +203,51 @@ def test_ratios_sum_to_one():
     out = D.cut_director(tr, _avail(2, T), [np.ones(T), np.ones(T)])
     assert abs(sum(out["ratios"].values()) - 1.0) < 1e-6
     assert "cuts_per_10min" in out and "median_hold_s" in out
+
+
+def _seg(t0, t1, angle, rule="cluster"):
+    return {"t_start": float(t0), "t_end": float(t1), "angle": angle,
+            "rule": rule, "score": 0.5, "runner_up": None}
+
+
+def test_normalize_247_case():
+    segs = [_seg(2664, 2679, 0), _seg(2679, 2678, 2),
+            _seg(2678, 2690, 1, "event"), _seg(2690, 2699, 0)]
+    out = D.normalize_segments(segs)
+    assert [(s["t_start"], s["t_end"], s["angle"]) for s in out] == [
+        (2664.0, 2679.0, 0), (2679.0, 2690.0, 1), (2690.0, 2699.0, 0)]
+    assert out[1]["rule"] == "event"
+
+
+def test_normalize_pure_overlap_and_same_angle_merge():
+    # overlap clamp plus an inverted middle segment whose drop merges the
+    # two same-angle neighbours
+    segs = [_seg(0, 10, 0), _seg(5, 15, 1), _seg(14, 20, 0),
+            _seg(20, 19, 2), _seg(19, 25, 0)]
+    out = D.normalize_segments(segs)
+    assert [(s["t_start"], s["t_end"], s["angle"]) for s in out] == [
+        (0.0, 10.0, 0), (10.0, 15.0, 1), (15.0, 25.0, 0)]
+    assert out[2]["rule"] == "cluster"
+    assert out[2]["score"] == 0.5
+
+
+def test_normalize_organic_same_angle_boundary_kept():
+    # goal_hold -> resume style boundary: contiguous, no repair needed
+    segs = [_seg(0, 20, 0), _seg(20, 40, 1, "goal_hold"),
+            _seg(40, 79, 1, "resume")]
+    out = D.normalize_segments(segs)
+    assert [(s["t_start"], s["t_end"], s["rule"]) for s in out] == [
+        (0.0, 20.0, "cluster"), (20.0, 40.0, "goal_hold"),
+        (40.0, 79.0, "resume")]
+
+
+def test_normalize_valid_input_unchanged():
+    segs = [_seg(0, 5, 0), _seg(5, 12, 1), _seg(12, 20, 2)]
+    assert D.normalize_segments([dict(s) for s in segs]) == segs
+
+
+def test_normalize_first_start_kept_and_gaps_closed():
+    segs = [_seg(2, 6, 1), _seg(9, 14, 2)]
+    out = D.normalize_segments(segs)
+    assert [(s["t_start"], s["t_end"], s["angle"]) for s in out] == [
+        (2.0, 6.0, 1), (6.0, 14.0, 2)]

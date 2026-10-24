@@ -297,7 +297,39 @@ def stage_sync(ctx: Ctx) -> dict:
         # director's cut offers a re-run with manual offsets)
         ctx.log(f"sync: low confidence for angle(s) {out['needs_manual']}"
                 f" — continuing with best-guess offsets {out['offsets']}")
+    _map_check(ctx, out)
     return out
+
+
+def _map_check(ctx: Ctx, sync: dict) -> None:
+    """Cross-check the timemap against the camera audio. Bad angles are
+    added to needs_manual (best guess still runs; the UI shows
+    "check sync"). Never raises."""
+    if sync.get("method") == "manual":
+        return
+    try:
+        from highlights.multiangle.sync_qa import check_map
+        from highlights.multiangle.syncmap import timemap_from_sync
+        videos = [ctx.angle_video(i) for i in range(len(ctx.angles))]
+        if any(v is None for v in videos):
+            return
+        tm = timemap_from_sync(
+            sync, getattr(ctx, "durations", None)
+            or [ctx.duration(i) for i in range(len(ctx.angles))]
+            if ctx.angles else None)
+        lo, hi = ctx.union(sync)
+        res = check_map([str(v) for v in videos], tm, lo, hi)
+    except Exception as e:
+        ctx.log(f"sync: map check skipped ({e})")
+        return
+    sync["map_check"] = res
+    bad = [a for a in res.get("bad_angles", [])
+           if a not in sync["needs_manual"]]
+    if bad:
+        sync["needs_manual"] += bad
+        ctx.log(f"sync: map check flags angle(s) {bad}"
+                " — continuing, marked 'check sync'")
+    write_json_atomic(ctx.pipe / "sync.json", sync, indent=1)
 
 
 TRACK_PAD = 30.0
@@ -900,6 +932,42 @@ def _zone_view_ok(ctx: Ctx, angle_dir: Path, video: Path,
     return times, ok
 
 
+def _sync_check_render(ctx: Ctx, out: Path, videos: list[str], tm,
+                       segs: list[dict], lo: float, hi: float,
+                       durations: list[float]) -> Path:
+    """Verify the rendered cut against the camera files; on failure clear
+    the render caches, re-render once and re-check. Still bad -> fail the
+    stage rather than publish an unwatchable cut."""
+    from highlights.multiangle.render import plan_segments, render
+    from highlights.multiangle.sync_qa import check_render, envelope
+    envs = [envelope(v) for v in videos]
+    expected = sum(p["frames"] for p in plan_segments(segs))
+    qa = check_render(str(out), videos, tm, segs, lo, envs=envs,
+                      expected_frames=expected)
+    if qa["ok"] is False:
+        ctx.log(f"render: sync check failed (audio "
+                f"{qa['audio'].get('median_abs_s')}s median / video bad "
+                f"{qa['video'].get('bad')} / timeline "
+                f"{qa.get('timeline')}) — clearing caches, re-rendering")
+        for d in ("segs", "mezz"):
+            shutil.rmtree(ctx.pipe / d, ignore_errors=True)
+        out = render(videos, tm, segs, lo, hi, ctx.pipe,
+                     ctx.project_dir / "match.mp4", videos[0],
+                     durations=durations, log=ctx.log)
+        qa = check_render(str(out), videos, tm, segs, lo, envs=envs,
+                          expected_frames=expected)
+    qa["checked_at"] = time.time()
+    write_json_atomic(ctx.pipe / "sync_qa.json", qa, indent=1)
+    if qa["ok"] is False:
+        raise PipelineError(
+            "sync check failed: "
+            f"audio median {qa['audio'].get('median_abs_s')}s "
+            f"p90 {qa['audio'].get('p90_abs_s')}s "
+            f"off_at {qa['audio'].get('off_at')}; "
+            f"video bad {qa['video'].get('bad')}")
+    return out
+
+
 def stage_render(ctx: Ctx) -> None:
     from highlights.multiangle.render import render
     from highlights.multiangle.syncmap import timemap_from_sync
@@ -908,10 +976,13 @@ def stage_render(ctx: Ctx) -> None:
     videos = [str(ctx.angle_video(i)) for i in range(len(ctx.angles))]
     lo, hi = ctx.union(sync)
     tm = timemap_from_sync(sync, getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))] if ctx.angles else None)
-    out = render(videos, tm,
-                 director.get("segments_out") or director["segments"], lo, hi,
+    segs = director.get("segments_out") or director["segments"]
+    durations = list(getattr(ctx, "durations", None)
+                     or [ctx.duration(i) for i in range(len(ctx.angles))])
+    out = render(videos, tm, segs, lo, hi,
                  ctx.pipe, ctx.project_dir / "match.mp4", videos[0],
-                 durations=list(getattr(ctx, "durations", None) or [ctx.duration(i) for i in range(len(ctx.angles))]), log=ctx.log)
+                 durations=durations, log=ctx.log)
+    out = _sync_check_render(ctx, out, videos, tm, segs, lo, hi, durations)
     # register the cut as the project video for the Option-1 UI
     pipe1 = ctx.project_dir / "pipeline"
     pipe1.mkdir(exist_ok=True)

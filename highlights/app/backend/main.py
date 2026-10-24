@@ -1855,8 +1855,9 @@ def put_multiangle_angle(index: int, body: MaAnglePut, p: ScopedP) -> dict:
     # names is impractical — clear the whole seg cache instead (other
     # angles' segs re-extract in seconds) plus this angle's mezz file.
     shutil.rmtree(ma / "segs", ignore_errors=True)
-    for f in (ma / "mezz").glob(f"{index}_*.mp4"):
-        f.unlink(missing_ok=True)
+    for pattern in (f"{index}_*.mp4", f"{index}_*.wav"):
+        for f in (ma / "mezz").glob(pattern):
+            f.unlink(missing_ok=True)
     for name in ("sync.json", "director.json", "concat.txt",
                  "fused_candidates.json"):
         (ma / name).unlink(missing_ok=True)
