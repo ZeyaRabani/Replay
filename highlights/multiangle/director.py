@@ -400,6 +400,31 @@ def per_second(track: list[dict], available: np.ndarray,
     return best_a, best_s, best_r, S, baselines, zone_shares, zone_ball
 
 
+def normalize_segments(segs: list[dict]) -> list[dict]:
+    """Repair overlapping/inverted segments into a contiguous timeline.
+
+    Each segment's start is forced to the previous kept segment's end, so
+    nothing is duplicated or left out; non-positive segments are dropped and
+    adjacent same-angle segments are merged (first rule/score/runner kept).
+    """
+    out: list[dict] = []
+    repair = False
+    for seg in segs:
+        start = out[-1]["t_end"] if out else seg["t_start"]
+        clamped = bool(out) and start != seg["t_start"]
+        if seg["t_end"] <= start:
+            repair = True
+            continue
+        seg = {**seg, "t_start": start}
+        if (out and out[-1]["angle"] == seg["angle"]
+                and (repair or clamped)):
+            out[-1]["t_end"] = seg["t_end"]
+        else:
+            out.append(seg)
+        repair = False
+    return out
+
+
 def cut_director(track: list[dict], available: np.ndarray,
                  motion: list[np.ndarray], style: str = "normal",
                  zones: list | None = None,
@@ -601,6 +626,7 @@ def cut_director(track: list[dict], available: np.ndarray,
             cur, hold, streak, zero_run, propose = j, max(0, t - cut_t), 0, 0, -1
             zone_streak, zone_prop = 0, -1
 
+    segs = normalize_segments(segs)
     durs = [s["t_end"] - s["t_start"] for s in segs]
     total_dur = sum(durs)
     if goal_windows:

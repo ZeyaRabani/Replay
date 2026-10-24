@@ -205,6 +205,13 @@ def plan_segments(segments: list[dict], tm=None, union_lo: float = 0.0,
     for idx, seg in enumerate(segments):
         k0 = round(float(seg["t_start"]))
         k1 = round(float(seg["t_end"]))
+        if plans:
+            prev = plans[-1]
+            if k0 > prev["k1"]:
+                prev["k1"] = k0
+                prev["frames"] = (prev["k1"] - prev["k0"]) * FPS
+                prev["samples"] = (prev["k1"] - prev["k0"]) * SAMPLE_RATE
+            k0 = max(k0, prev["k1"])
         if k1 <= k0:
             continue
         plans.append({"seg_index": idx, "angle": int(seg["angle"]),
@@ -214,6 +221,13 @@ def plan_segments(segments: list[dict], tm=None, union_lo: float = 0.0,
                       "overlay": seg.get("overlay"),
                       "source_t0": float(seg.get("t_src_start", seg["t_start"])),
                       "source_t1": float(seg.get("t_src_end", seg["t_end"]))})
+    if plans:
+        if any(plans[i]["k0"] != plans[i - 1]["k1"]
+               for i in range(1, len(plans))):
+            raise ValueError("plan_segments: non-contiguous plans")
+        total = sum(p["frames"] for p in plans)
+        if total != (plans[-1]["k1"] - plans[0]["k0"]) * FPS:
+            raise ValueError("plan_segments: frames do not cover timeline")
     return plans
 
 
