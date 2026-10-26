@@ -214,7 +214,7 @@ def test_recut_spawns_with_style(client, monkeypatch):
         time.sleep(0.1)
     argv = json.loads(argv_p.read_text())
     assert argv[argv.index("--style") + 1] == "fast"
-    assert argv[argv.index("--stages") + 1] == "director,render,fuse"
+    assert argv[argv.index("--stages") + 1] == "ballfind,director,render,fuse"
     assert "--force" in argv
     assert p.meta["cut_style"] == "fast"
     _wait(client, pid)

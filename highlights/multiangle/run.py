@@ -614,6 +614,11 @@ def _np_json(o):
     raise TypeError(f"not JSON serializable: {type(o).__name__}")
 
 
+# "ball_v2" = ball_v2.json caches from the ballfind stage when EVERY
+# angle covers its needed seconds; "track" = old per-second track cols.
+BALL_SOURCE = "ball_v2"
+
+
 def load_director_inputs(ctx: Ctx) -> dict:
     """Build every array stage_director feeds cut_director, so a recut
     and the you-direct learner replay identical inputs.
@@ -633,7 +638,40 @@ def load_director_inputs(ctx: Ctx) -> dict:
     T = int(np.ceil(hi - lo))
 
     tracks, motion, avail = [], [], np.zeros((len(ctx.angles), T), dtype=bool)
+
+    # ball_v2 coverage: only when EVERY angle's ball_v2.json covers all
+    # of its needed file seconds — never mix sources across angles.
+    ball_docs: list[dict[int, tuple] | None] = [None] * len(ctx.angles)
+    if BALL_SOURCE == "ball_v2":
+        from highlights.multiangle.ballfind import needed_seconds
+        need = needed_seconds(ctx)
+        covered = True
+        for i, a in enumerate(ctx.angles):
+            bp = a["dir"] / "track" / "ball_v2.json"
+            have = set()
+            if bp.exists():
+                try:
+                    ball_docs[i] = json.loads(bp.read_text())
+                    have = {int(t) for t in ball_docs[i].get("dets") or {}}
+                except (OSError, ValueError):
+                    have = set()
+            if not need.get(i, set()) <= have:
+                ctx.log(f"director: ball_v2 missing/incomplete on a{i} "
+                        f"({len(need.get(i, set()) & have)}/"
+                        f"{len(need.get(i, set()))} s)")
+                covered = False
+        if not covered:
+            ball_docs = [None] * len(ctx.angles)
+            ctx.log("director: ball source track (ball_v2 not complete)")
+        else:
+            from highlights.multiangle.ballfind import ball_rows
+            ball_docs = [ball_rows(d) for d in ball_docs]
+            ctx.log("director: ball source ball_v2")
+    ball_source = "ball_v2" if any(b is not None for b in ball_docs) \
+        else "track"
+
     for i, a in enumerate(ctx.angles):
+        ball_rows_i = ball_docs[i]
         tr = _load_track_rows(a["dir"])
         mo = _load_motion(a["dir"])
         dur = ctx.duration(i)
@@ -664,11 +702,26 @@ def load_director_inputs(ctx: Ctx) -> dict:
                     if 0 <= k < T and ok[k]:
                         event[k] = max(event[k], conf)
         n_ev = int((event > 0).sum())
-        tracks.append({"ball_conf": _row("ball_conf"), "ball_size": _row("ball_size"),
-                       "ball_x": _row("ball_x"), "ball_y": _row("ball_y"),
-                       "players_cx": _row("players_cx"),
-                       "players_cy": _row("players_cy"),
-                       "cluster": _row("cluster_score"), "event": event})
+        if ball_rows_i is not None:
+            # ball_v2 rows: (score, h/H, cx/W, cy/H) per file second
+            vals = np.array(
+                [ball_rows_i.get(int(s), (0.0, 0.0, 0.0, 0.0))
+                 for s in fsec])
+            tracks.append({
+                "ball_conf": np.where(ok, vals[:, 0], 0.0),
+                "ball_size": np.where(ok, vals[:, 1], 0.0),
+                "ball_x": np.where(ok, vals[:, 2], 0.0),
+                "ball_y": np.where(ok, vals[:, 3], 0.0),
+                "players_cx": _row("players_cx"),
+                "players_cy": _row("players_cy"),
+                "cluster": _row("cluster_score"), "event": event})
+        else:
+            tracks.append({"ball_conf": _row("ball_conf"),
+                           "ball_size": _row("ball_size"),
+                           "ball_x": _row("ball_x"), "ball_y": _row("ball_y"),
+                           "players_cx": _row("players_cx"),
+                           "players_cy": _row("players_cy"),
+                           "cluster": _row("cluster_score"), "event": event})
         pxy_src = tr.get("players_xy")
         if pxy_src is not None and len(pxy_src):
             tracks[-1]["players_xy"] = [
@@ -701,6 +754,7 @@ def load_director_inputs(ctx: Ctx) -> dict:
     else:
         suspended = [0.0] * len(ctx.angles)
     return {"tracks": tracks, "avail": avail, "motion": motion,
+            "ball_source": ball_source,
             "zones": zones, "zone_ok": zone_ok, "zone_kf": zone_kf,
             "zone_source": zone_source,
             "lo": lo, "hi": hi, "T": T, "suspended": suspended,
@@ -848,6 +902,16 @@ def confirmed_events(ctx: Ctx, old_director: dict | None = None) -> list[dict]:
     return sorted(events, key=lambda event: event["t"])
 
 
+def stage_ballfind(ctx: Ctx) -> None:
+    """Ball detections for the director window via ball_v2.json caches.
+    Incremental: computes only missing file seconds; no model = skip.
+    Ball_v2.json is not a 'done' marker on its own (it may be partial),
+    so the stage's outputs check the file only as a cache hint — an
+    interrupted run just recomputes the still-missing seconds."""
+    from highlights.multiangle.ballfind import run_ballfind
+    run_ballfind(ctx)
+
+
 def stage_director(ctx: Ctx) -> dict:
     from highlights.multiangle.director import cut_director
     from highlights.multiangle.goal_aware import load_calib, plan_goal_aware
@@ -865,7 +929,11 @@ def stage_director(ctx: Ctx) -> dict:
     out = cut_director(inp["tracks"], inp["avail"], inp["motion"],
                        ctx.style,
                        zones=zones, zone_ok=zone_ok, zone_kf=zone_kf,
-                       style_overrides=director_style_overrides(ctx),
+                       style_overrides=(
+                           {**(director_style_overrides(ctx) or {}),
+                            "min_hold": 6}
+                           if inp.get("ball_source") == "ball_v2"
+                           else director_style_overrides(ctx)),
                        prefs=director_prefs(ctx),
                        goal_windows=plan["windows"] or None)
     mc_doc = None
@@ -897,6 +965,7 @@ def stage_director(ctx: Ctx) -> dict:
             out["duration_live"] = float(out["segments"][-1]["t_end"])
             out["duration_out"] = float(out["segments_out"][-1]["t_end"])
     out["zone_source"] = inp.get("zone_source")
+    out["ball_source"] = inp.get("ball_source")
     if zones:
         out["zone_suspended_share"] = [round(s, 4)
                                        for s in inp["suspended"]]
@@ -1274,6 +1343,9 @@ STAGES: dict[str, Stage] = {
     "sync": Stage(0.05, stage_sync, lambda c: [c.pipe / "sync.json"]),
     "track": Stage(0.20, stage_track,
                    lambda c: [a["dir"] / "track" / "features_1s.json" for a in c.angles]),
+    "ballfind": Stage(0.10, stage_ballfind,
+                      lambda c: [a["dir"] / "track" / "ball_v2.json"
+                                 for a in c.angles]),
     "director": Stage(0.02, stage_director, lambda c: [c.pipe / "director.json"]),
     "render": Stage(0.20, stage_render, lambda c: [c.project_dir / "match.mp4"]),
     "fuse": Stage(0.03, stage_fuse,

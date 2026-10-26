@@ -584,7 +584,7 @@ def test_manual_mode_endpoints(client):
             break
         time.sleep(0.1)
     assert "--force" in argv
-    assert argv[argv.index("--stages") + 1] == "director,render,fuse"
+    assert argv[argv.index("--stages") + 1] == "ballfind,director,render,fuse"
     _wait(client, pid)
 
     # an AI re-cut disables manual again but keeps the choices
