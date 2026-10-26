@@ -2083,7 +2083,7 @@ def manual_cut(p: ScopedP, user: UserDep) -> dict:
     try:
         ck = _user_default_cookies(p, user) or _project_cookies(p)
         out = pipeline.spawn_multiangle(
-            p, stages=["ballfind", "director", "render", "fuse"], force=True,
+            p, stages=["director", "render", "fuse"], force=True,
             style=CUT_STYLE, cookies=ck)
         _hist(p, "manual_cut_queued", n_chosen=len(doc["choices"]))
         return out

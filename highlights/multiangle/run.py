@@ -643,29 +643,19 @@ def load_director_inputs(ctx: Ctx) -> dict:
     # of its needed file seconds — never mix sources across angles.
     ball_docs: list[dict[int, tuple] | None] = [None] * len(ctx.angles)
     if BALL_SOURCE == "ball_v2":
-        from highlights.multiangle.ballfind import needed_seconds
-        need = needed_seconds(ctx)
-        covered = True
-        for i, a in enumerate(ctx.angles):
-            bp = a["dir"] / "track" / "ball_v2.json"
-            have = set()
-            if bp.exists():
-                try:
-                    ball_docs[i] = json.loads(bp.read_text())
-                    have = {int(t) for t in ball_docs[i].get("dets") or {}}
-                except (OSError, ValueError):
-                    have = set()
-            if not need.get(i, set()) <= have:
+        from highlights.multiangle.ballfind import _coverage, ball_rows
+        ball_docs, missing, need = _coverage(ctx)
+        for i, m in missing.items():
+            if m:
                 ctx.log(f"director: ball_v2 missing/incomplete on a{i} "
-                        f"({len(need.get(i, set()) & have)}/"
+                        f"({len(need.get(i, set())) - m}/"
                         f"{len(need.get(i, set()))} s)")
-                covered = False
-        if not covered:
+        if any(missing.values()):
             ball_docs = [None] * len(ctx.angles)
             ctx.log("director: ball source track (ball_v2 not complete)")
         else:
-            from highlights.multiangle.ballfind import ball_rows
-            ball_docs = [ball_rows(d) for d in ball_docs]
+            ball_docs = [ball_rows(d) if d is not None else None
+                         for d in ball_docs]
             ctx.log("director: ball source ball_v2")
     ball_source = "ball_v2" if any(b is not None for b in ball_docs) \
         else "track"
@@ -1359,6 +1349,12 @@ STAGES: dict[str, Stage] = {
 
 
 def _stage_done(ctx: Ctx, name: str) -> bool:
+    if name == "ballfind":
+        # a partial ball_v2.json must not count as done — the stage
+        # resumes from it and a bare existence check would silently
+        # downgrade the director to the track ball source
+        from highlights.multiangle.ballfind import coverage_complete
+        return coverage_complete(ctx)
     outs = STAGES[name].outputs(ctx)
     return all(Path(o).exists() if not isinstance(o, Path) else o.exists() for o in outs)
 

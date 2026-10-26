@@ -69,6 +69,37 @@ def needed_seconds(ctx) -> dict[int, set[int]]:
     return out
 
 
+def _coverage(ctx) -> tuple[list, dict, dict]:
+    """(docs, missing, need): docs[i] = parsed ball_v2.json or None;
+    missing[i] = count of needed file seconds with no cached dets.
+    Angles with no video are skipped, same as run_ballfind."""
+    need = needed_seconds(ctx)
+    docs, missing = [], {}
+    for i, a in enumerate(ctx.angles):
+        bp = a["dir"] / "track" / "ball_v2.json"
+        doc, have = None, set()
+        if bp.exists():
+            try:
+                doc = json.loads(bp.read_text())
+                have = {int(t) for t in doc.get("dets") or {}}
+            except (OSError, ValueError):
+                doc = None
+        docs.append(doc)
+        if ctx.angle_video(i) is not None:
+            missing[i] = len(need.get(i, set()) - have)
+    return docs, missing, need
+
+
+def coverage_complete(ctx) -> bool:
+    """True when ballfind has nothing left to compute: no model (the
+    stage is a no-op) or every angle's cache covers its needed seconds.
+    Used by _stage_done so a partial cache doesn't skip the stage."""
+    if _model_path() is None:
+        return True
+    _, missing, _ = _coverage(ctx)
+    return not any(missing.values())
+
+
 def ball_rows(dets_doc: dict, thr: float = 0.25) -> dict[int, tuple]:
     """exp3.load exactly: keep dets >= thr, drop static boxes (>=REP
     other frames within WIN s have a >=thr box within RAD px), per

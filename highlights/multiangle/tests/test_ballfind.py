@@ -162,6 +162,7 @@ def test_director_falls_back_to_track(tmp_path, monkeypatch):
                 "rows": [[t, 0.5, 0.01, 0.5, 0.5, 0.0]
                          for t in range(100)]}
         (d / "track" / "features_1s.json").write_text(json.dumps(rows))
+        (d / "match.mp4").write_text("x")
         angles.append({"label": f"a{i}", "url": None, "dir": d})
     (angles[0]["dir"] / "track" / "ball_v2.json").write_text(
         json.dumps(_doc({t: [_det(100, 100, 0.99)] for t in range(5)})))
@@ -190,6 +191,7 @@ def test_director_uses_ball_v2_when_complete(tmp_path, monkeypatch):
         rows = {"columns": ["t", "ball_conf", "cluster_score"],
                 "rows": [[t, 0.5, 0.0] for t in range(100)]}
         (d / "track" / "features_1s.json").write_text(json.dumps(rows))
+        (d / "match.mp4").write_text("x")
         (d / "track" / "ball_v2.json").write_text(
             json.dumps(_doc({t: [_det(960, 540, 0.99)]
                              for t in range(3)})))
@@ -212,6 +214,53 @@ def test_min_hold_override_only_for_ball_v2():
     assert 'inp.get("ball_source") == "ball_v2"' in text
 
 
+def _cov_ctx(tmp_path, monkeypatch, dets_per_angle):
+    pipe = tmp_path / "multiangle"
+    pipe.mkdir(parents=True, exist_ok=True)
+    (pipe / "sync.json").write_text(json.dumps(
+        {"offsets": [0.0] * len(dets_per_angle),
+         "coverage": {"union": [0.0, 100.0]}}))
+    (pipe / "cut_range.json").write_text(json.dumps({"lo": 0.0,
+                                                    "hi": 3.0}))
+    angles = []
+    for i, dets in enumerate(dets_per_angle):
+        d = tmp_path / "angles" / f"a{i}"
+        (d / "track").mkdir(parents=True, exist_ok=True)
+        (d / "match.mp4").write_text("x")
+        if dets is not None:
+            (d / "track" / "ball_v2.json").write_text(
+                json.dumps(_doc(dets)))
+        angles.append({"label": f"a{i}", "url": None, "dir": d})
+    ctx = run_mod.Ctx(project_dir=tmp_path, pipe=pipe,
+                      status=run_mod._NoopStatus(), angles=angles,
+                      read_only=True,
+                      durations=[100.0] * len(dets_per_angle))
+    monkeypatch.setattr(run_mod, "apply_match_window_src",
+                        lambda ctx, sync: None)
+    monkeypatch.setattr(ballfind, "_model_path",
+                        lambda: tmp_path / "m.pt")
+    (tmp_path / "m.pt").write_text("x")
+    return ctx
+
+
+def test_coverage_complete(tmp_path, monkeypatch):
+    full = {t: [_det(1, 1, 0.9)] for t in range(3)}
+    ctx = _cov_ctx(tmp_path, monkeypatch, [full, full])
+    assert ballfind.coverage_complete(ctx)
+    assert run_mod._stage_done(ctx, "ballfind")
+
+    # partial cache -> not done
+    ctx = _cov_ctx(tmp_path, monkeypatch,
+                   [full, {t: [] for t in (0, 1)}])
+    assert not ballfind.coverage_complete(ctx)
+    assert not run_mod._stage_done(ctx, "ballfind")
+
+    # no model -> done (stage is a no-op)
+    monkeypatch.setattr(ballfind, "_model_path", lambda: None)
+    assert ballfind.coverage_complete(ctx)
+    assert run_mod._stage_done(ctx, "ballfind")
+
+
 def test_ballfind_before_director_in_stage_lists():
     from highlights.app.backend import main as app_main
     from highlights.app.backend import pipeline
@@ -222,10 +271,11 @@ def test_ballfind_before_director_in_stage_lists():
     for name, stages in lists.items():
         assert "ballfind" in stages and "director" in stages, name
         assert stages.index("ballfind") < stages.index("director"), name
-    # literal lists in main.py spawn calls
+    # literal lists in main.py spawn calls: AI recut + you-direct learn
+    # include ballfind; the manual-cut spawn stays cheap (no detection)
     src = Path(app_main.__file__).read_text()
-    assert '["director", "render", "fuse"]' not in src
-    assert '["ballfind", "director", "render", "fuse"]' in src
+    assert src.count('["ballfind", "director", "render", "fuse"]') == 2
+    assert src.count('["director", "render", "fuse"]') == 1
     # run.py STAGES dict order
     names = list(run_mod.STAGES)
     assert names.index("ballfind") < names.index("director")
