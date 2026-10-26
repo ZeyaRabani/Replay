@@ -60,10 +60,11 @@ def multiangle_runner_cmd() -> list[str]:
 
 
 # scoreboard is opt-in from the Score card, never part of the default run
-MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "director",
-                     "render", "fuse", "stats"]
+MULTIANGLE_STAGES = ["download", "angles", "sync", "track", "ballfind",
+                     "director", "render", "fuse", "stats"]
 # re-run-from-sync never re-applies the scoreboard overlay
-MULTIANGLE_FROM_SYNC = ["sync", "track", "director", "render", "fuse", "stats"]
+MULTIANGLE_FROM_SYNC = ["sync", "track", "ballfind", "director", "render",
+                        "fuse", "stats"]
 
 
 def read_status(p: ProjectStore) -> dict | None:

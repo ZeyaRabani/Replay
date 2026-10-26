@@ -1999,7 +1999,7 @@ def recut_multiangle(body: RecutPut, p: ScopedP, user: UserDep) -> dict:
     try:
         ck = _user_default_cookies(p, user) or _project_cookies(p)
         out = pipeline.spawn_multiangle(
-            p, stages=["director", "render", "fuse"], force=True,
+            p, stages=["ballfind", "director", "render", "fuse"], force=True,
             style=CUT_STYLE, cookies=ck)
         _hist(p, "recut_queued", style=body.style, preview=body.preview,
               window=body.window)
@@ -2615,7 +2615,7 @@ def post_direct_learn(p: ScopedP, body: DirectLearnPut | None = None,
         ck = _user_default_cookies(p, user) or _project_cookies(p)
         try:
             job = pipeline.spawn_multiangle(
-                p, stages=["director", "render", "fuse"], force=True,
+                p, stages=["ballfind", "director", "render", "fuse"], force=True,
                 style=CUT_STYLE, cookies=ck)
         except pipeline.PipelineBusy as e:
             raise HTTPException(409, str(e)) from e
