@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -113,7 +114,8 @@ def test_incremental_skips_cached(tmp_path, monkeypatch):
     (d / "ball_v2.json").write_text(json.dumps(_doc({10: [], 12: []})))
     extracted = []
     monkeypatch.setattr(ballfind, "_extract",
-                        lambda v, S, E, tmp: extracted.append((S, E)))
+                        lambda v, S, E, tmp, step=1:
+                        extracted.append((S, E)))
     monkeypatch.setattr(ballfind, "ffprobe",
                         lambda p: {"width": 1920, "height": 1080})
 
@@ -123,7 +125,7 @@ def test_incremental_skips_cached(tmp_path, monkeypatch):
 
     monkeypatch.setattr(ballfind, "_load_model", lambda p: M2())
 
-    def fake_extract(v, S, E, tmp):
+    def fake_extract(v, S, E, tmp, step=1):
         extracted.append((S, E))
         (tmp / "00001.jpg").write_text("x")
 
@@ -398,3 +400,91 @@ def test_ballfind_before_director_in_stage_lists():
     # run.py STAGES dict order
     names = list(run_mod.STAGES)
     assert names.index("ballfind") < names.index("director")
+
+
+def test_runs_step1_unchanged():
+    assert ballfind._runs({0, 1, 2, 4, 5, 9}) == [[0, 2], [4, 5], [9, 9]]
+    assert ballfind._runs(set(range(10)) | set(range(50, 55))) == \
+        [[0, 9], [50, 54]]
+    # chunk splits at chunk file seconds, not run count
+    assert ballfind._runs(set(range(0, 700)), chunk=300) == \
+        [[0, 299], [300, 599], [600, 699]]
+
+
+def test_runs_step2():
+    secs = set(range(0, 20, 2)) | {40, 42}
+    assert ballfind._runs(secs, step=2) == [[0, 18], [40, 42]]
+    # span is file seconds: 0..598 even = 300 covered seconds -> split
+    assert ballfind._runs(set(range(0, 800, 2)), chunk=300, step=2) == \
+        [[0, 298], [300, 598], [600, 798]]
+
+
+def test_extract_step_identity(tmp_path):
+    src = tmp_path / "v.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc=duration=14:size=320x180:rate=30",
+         "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+         str(src)], check=True)
+    d1, d2 = tmp_path / "s1", tmp_path / "s2"
+    d1.mkdir(), d2.mkdir()
+    ballfind._extract(src, 0, 11, d1, step=1)
+    ballfind._extract(src, 0, 11, d2, step=2)
+    f1 = sorted(d1.glob("*.jpg"))
+    f2 = sorted(d2.glob("*.jpg"))
+    assert len(f2) == 6                      # seconds 0,2,4,6,8,10
+    for j, f in enumerate(f2):
+        assert f.read_bytes() == f1[j * 2].read_bytes()
+
+
+def test_prefetch_runs_and_cleanup(tmp_path, monkeypatch):
+    angles = [{"label": "a0", "url": None,
+               "dir": tmp_path / "angles" / "a0"}]
+    ctx = run_mod.Ctx(project_dir=tmp_path, pipe=tmp_path / "multiangle",
+                      status=run_mod._NoopStatus(), angles=angles,
+                      read_only=True)
+    monkeypatch.setattr(run_mod.Ctx, "angle_video",
+                        lambda self, i: tmp_path / "v.mp4")
+    monkeypatch.setattr(ballfind, "needed_seconds",
+                        lambda c: {0: {0, 1, 2, 3, 400, 401}})
+    monkeypatch.setattr(ballfind, "_model_path",
+                        lambda: tmp_path / "m.pt")
+    (tmp_path / "m.pt").write_text("x")
+    monkeypatch.setattr(ballfind, "ffprobe",
+                        lambda v: {"width": 1280, "height": 720})
+    monkeypatch.setattr(ballfind, "STEP", 1)
+
+    class M:
+        def predict(self, f, **k):
+            return [type("R", (), {"boxes": []})()]
+
+    monkeypatch.setattr(ballfind, "_load_model", lambda p: M())
+    made = []
+
+    def fake_extract(video, S, E, tmp, step=1):
+        made.append((S, E, tmp))
+        for n, t in enumerate(range(S, E + 1, step), start=1):
+            (tmp / f"{n:05d}.jpg").write_bytes(b"j")
+        # trailing extra frame that the wanted-guard must drop
+        (tmp / f"{E - S + 2:05d}.jpg").write_bytes(b"j")
+
+    monkeypatch.setattr(ballfind, "_extract", fake_extract)
+    ballfind.run_ballfind(ctx)
+    # chunk default 300: runs [0,3],[400,401] -> 2 prefetch runs
+    assert [list(x[:2]) for x in made] == [[0, 3], [400, 401]]
+    doc = json.loads(
+        (angles[0]["dir"] / "track" / "ball_v2.json").read_text())
+    assert sorted(int(t) for t in doc["dets"]) == [0, 1, 2, 3, 400, 401]
+    assert not list((angles[0]["dir"] / "track").glob("ballfind_*"))
+
+    # an extraction failure propagates and leaves no tempdirs behind
+    def boom(video, S, E, tmp, step=1):
+        if S == 400:
+            raise RuntimeError("extract fail")
+        fake_extract(video, S, E, tmp, step)
+
+    monkeypatch.setattr(ballfind, "_extract", boom)
+    (angles[0]["dir"] / "track" / "ball_v2.json").unlink()
+    with pytest.raises(RuntimeError, match="extract fail"):
+        ballfind.run_ballfind(ctx)
+    assert not list((angles[0]["dir"] / "track").glob("ballfind_*"))
