@@ -152,3 +152,24 @@ def test_mezz_hdr_clip_produces_bt709_output(tmp_path):
          "csv=p=0", str(tmp_path / "mezz.mp4")],
         capture_output=True, text=True, check=True).stdout.strip()
     assert nf == "60"
+
+
+def test_is_hdr_csv_trailing_comma(monkeypatch):
+    """prod probe output is 'smpte2084,\\n' — must still parse as HDR."""
+    import subprocess as sp
+
+    from highlights.multiangle.color import is_hdr
+
+    def fake(out):
+        def run(cmd, **kw):
+            return type("P", (), {"returncode": 0, "stdout": out})()
+        return run
+
+    for out, want in (("smpte2084,\n", True), ("smpte2084\n", True),
+                      ("arib-std-b67\n", True), ("bt709,\n", False),
+                      ("bt709\n", False), ("", False),
+                      ("unknown\n", False)):
+        is_hdr.cache_clear()
+        monkeypatch.setattr(sp, "run", fake(out))
+        assert is_hdr("v.mp4") == want, out
+    is_hdr.cache_clear()
