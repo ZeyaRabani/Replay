@@ -76,3 +76,79 @@ def test_mezz_odd_sar_source_with_filler(tmp_path):
     with wave.open(str(wav)) as wf:
         assert wf.getnframes() == sum(
             p["a1"] - p["a0"] for p in pieces)
+
+
+def _mezz_test_pieces():
+    return [{"n0": 0, "n1": 60, "frames": 60,
+             "a0": 0, "a1": 96000, "a_start": 0.0,
+             "file_start": 0.0, "real": True}]
+
+
+def test_mezz_cmd_tonemap_only_for_hdr(monkeypatch, tmp_path):
+    from highlights.multiangle import render as rd
+    from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF
+    monkeypatch.setattr(rd, "_has_audio", lambda v: False)
+    pieces = _mezz_test_pieces()
+    monkeypatch.setattr(rd, "is_hdr", lambda v: True)
+    cmd_hdr = rd.mezz_cmd("v.mp4", pieces, str(tmp_path / "o.mp4"),
+                          str(tmp_path / "o.wav"))
+    monkeypatch.setattr(rd, "is_hdr", lambda v: False)
+    cmd_sdr = rd.mezz_cmd("v.mp4", pieces, str(tmp_path / "o2.mp4"),
+                          str(tmp_path / "o2.wav"))
+    f_hdr, f_sdr = cmd_hdr[cmd_hdr.index("-filter_complex") + 1], \
+        cmd_sdr[cmd_sdr.index("-filter_complex") + 1]
+    assert "zscale=t=linear:npl=203" in f_hdr
+    assert "tonemap=tonemap=mobius" in f_hdr
+    assert "zscale" not in f_sdr and "tonemap" not in f_sdr
+    for cmd in (cmd_hdr, cmd_sdr):
+        fc = cmd[cmd.index("-filter_complex") + 1]
+        assert SDR_TAG_VF in fc
+        for a in ("-colorspace", "-color_primaries", "-color_trc",
+                  "-color_range"):
+            assert a in cmd
+        assert all(a in cmd for a in SDR_OUT_ARGS)
+
+
+def test_mezz_key_changes_only_for_hdr():
+    pieces = _mezz_test_pieces()
+    assert mezz_key(0, pieces) != mezz_key(0, pieces, hdr=True)
+    assert mezz_key(0, pieces) == mezz_key(0, pieces, hdr=False)
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg missing")
+def test_mezz_hdr_clip_produces_bt709_output(tmp_path):
+    """2 s PQ/bt2020 10-bit source through the real mezz path -> tagged
+    bt709, yuv420p, exact frames."""
+    src = tmp_path / "hdr.mkv"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc2=duration=2:size=320x180:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+         "-pix_fmt", "yuv420p10le", "-color_trc", "smpte2084",
+         "-color_primaries", "bt2020", "-colorspace", "bt2020nc",
+         "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "aac", str(src)], check=True)
+    from highlights.multiangle.color import is_hdr
+    is_hdr.cache_clear()
+    assert is_hdr(str(src))
+    from highlights.multiangle.render import mezz_cmd
+    cmd = mezz_cmd(str(src), _mezz_test_pieces()[:1],
+                   str(tmp_path / "mezz.mp4"), str(tmp_path / "mezz.wav"))
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-800:]
+    st = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries",
+         "stream=color_transfer,color_primaries,color_space,pix_fmt",
+         "-of", "json", str(tmp_path / "mezz.mp4")],
+        capture_output=True, text=True, check=True).stdout)["streams"][0]
+    assert st["color_transfer"] == "bt709"
+    assert st["color_primaries"] == "bt709"
+    assert st["color_space"] == "bt709"
+    assert st["pix_fmt"] == "yuv420p"
+    nf = subprocess.run(
+        ["ffprobe", "-v", "error", "-count_frames", "-select_streams",
+         "v:0", "-show_entries", "stream=nb_read_frames", "-of",
+         "csv=p=0", str(tmp_path / "mezz.mp4")],
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert nf == "60"
