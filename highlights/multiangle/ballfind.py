@@ -27,8 +27,9 @@ IMGSZ = 1280
 CONF = 0.10
 CHUNK = 300          # max file seconds per ffmpeg extraction run
 # detect on every STEP'th file second (fill-in covers the rest);
-# measured: STEP=2 scores identically to 1 s sampling
-STEP = int(os.environ.get("REPLAY_BALL_STEP", "2"))
+# opt-in: STEP=2 measured to score identically on 28/8 but shifts the
+# cut on 21/8, so 1 s stays the default
+STEP = int(os.environ.get("REPLAY_BALL_STEP", "1"))
 # static-ball filter, identical to yardstick exp3.load
 RAD = 18             # native px centre distance
 WIN = 60             # +- file seconds
@@ -158,21 +159,33 @@ def ball_rows(dets_doc: dict, thr: float = 0.25,
     return out
 
 
-def _extract(video: Path, S: int, E: int, tmp: Path) -> None:
-    """1 fps jpegs of file seconds [S,E] at 1280 wide; frame n (1-based)
-    is file second S+n-1. Identical to SPEC_full extraction."""
+def _extract(video: Path, S: int, E: int, tmp: Path,
+             step: int = 1) -> None:
+    """Jpegs of file seconds [S,E] at 1280 wide, keeping one every
+    `step` seconds; frame n (1-based) is file second S + n - 1.
+    step==1 keeps the literal `fps=1` string: byte-identical command
+    to the original SPEC_full extraction."""
+    # extract the full fps=1 set (same command line for any step ->
+    # byte-identical jpgs to the step-1 run), then prune the seconds
+    # this step doesn't sample; fps=1/{step} or select filters pick
+    # different source frames and would not be identical
     subprocess.run(
         ["ffmpeg", "-v", "error", "-ss", str(S), "-i", str(video),
          "-t", str(E - S + 1), "-vf", f"fps=1,scale={IMGSZ}:-2",
          "-q:v", "2", str(tmp / "%05d.jpg")],
         check=True)
+    if step > 1:
+        for f in tmp.glob("*.jpg"):
+            if (S + int(f.stem) - 1) % step != 0:
+                f.unlink()
 
 
-def _runs(seconds: set[int], chunk: int = CHUNK):
-    """Contiguous [S,E] runs covering `seconds`, split to <= chunk."""
+def _runs(seconds: set[int], chunk: int = CHUNK, step: int = 1):
+    """Contiguous [S,E] runs covering `seconds` at spacing `step`,
+    split to <= chunk file seconds."""
     runs = []
     for t in sorted(seconds):
-        if runs and t == runs[-1][1] + 1 and runs[-1][1] - runs[-1][0] + 1 < chunk:
+        if runs and t == runs[-1][1] + step and t - runs[-1][0] + 1 <= chunk:
             runs[-1][1] = t
         else:
             runs.append([t, t])
@@ -223,31 +236,58 @@ def run_ballfind(ctx) -> None:
         ctx.log(f"ballfind: a{i} {len(missing)} s to detect "
                 f"({len(dets)} cached)")
         done = 0
-        for S, E in _runs(missing):
+        runs = _runs(missing, step=STEP)
+        tmp_dirs: list[Path] = []
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _start_extract(S: int, E: int, a=a, video=video,
+                           tmp_dirs=tmp_dirs):
             tmp = Path(tempfile.mkdtemp(prefix="ballfind_",
                                         dir=a["dir"] / "track"))
-            try:
-                _extract(video, S, E, tmp)
-                for f in sorted(tmp.glob("*.jpg")):
-                    t = S + int(f.stem) - 1
-                    r = model.predict(str(f), imgsz=IMGSZ, conf=CONF,
-                                      classes=[1], verbose=False)[0]
-                    boxes = []
-                    for b in r.boxes:
-                        x0, y0, x1, y1 = (round(float(v) * scale, 1)
-                                          for v in b.xyxy[0])
-                        boxes.append([x0, y0, x1, y1,
-                                      round(float(b.conf[0]), 3)])
-                    boxes.sort(key=lambda x: -x[4])
-                    doc["dets"][str(t)] = boxes
-                    done += 1
-            finally:
-                shutil.rmtree(tmp, ignore_errors=True)
-            write_json_atomic(out_p, doc)   # checkpoint each run
-            ctx.status.update(
-                stage_progress=(i + done / max(1, len(missing)))
-                / len(ctx.angles),
-                message=f"ballfind a{i} {done}/{len(missing)} s")
+            tmp_dirs.append(tmp)
+            return tmp, pool.submit(_extract, video, S, E, tmp, STEP)
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                tmp, fut = _start_extract(*runs[0])
+                for k, (S, E) in enumerate(runs):
+                    nxt = (_start_extract(*runs[k + 1])
+                           if k + 1 < len(runs) else None)
+                    try:
+                        fut.result()
+                        want = {t for t in missing if S <= t <= E}
+                        for f in sorted(tmp.glob("*.jpg")):
+                            # non-sampled and trailing extra frames
+                            # are dropped by the wanted-second guard
+                            t = S + int(f.stem) - 1
+                            if t not in want:
+                                continue
+                            r = model.predict(str(f), imgsz=IMGSZ,
+                                              conf=CONF, classes=[1],
+                                              verbose=False)[0]
+                            boxes = []
+                            for b in r.boxes:
+                                x0, y0, x1, y1 = (
+                                    round(float(v) * scale, 1)
+                                    for v in b.xyxy[0])
+                                boxes.append([x0, y0, x1, y1,
+                                              round(float(b.conf[0]), 3)])
+                            boxes.sort(key=lambda x: -x[4])
+                            doc["dets"][str(t)] = boxes
+                            done += 1
+                    finally:
+                        shutil.rmtree(tmp, ignore_errors=True)
+                        tmp_dirs.remove(tmp)
+                    write_json_atomic(out_p, doc)  # checkpoint each run
+                    ctx.status.update(
+                        stage_progress=(i + done / max(1, len(missing)))
+                        / len(ctx.angles),
+                        message=f"ballfind a{i} {done}/{len(missing)} s")
+                    if nxt is not None:
+                        tmp, fut = nxt
+        finally:
+            for d in tmp_dirs:
+                shutil.rmtree(d, ignore_errors=True)
         ctx.log(f"ballfind: a{i} done, {len(doc['dets'])} s total")
 
 
