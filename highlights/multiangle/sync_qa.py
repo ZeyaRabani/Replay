@@ -115,7 +115,12 @@ def check_map(videos: list[str], tm, lo: float, hi: float,
 
 def _gray_frames(path: str, ss: float, dur: float,
                  canvas: bool) -> np.ndarray:
-    vf = (CANVAS + "," if canvas else "") + f"fps=30,scale={W}:{H},format=gray"
+    from highlights.multiangle.color import TONEMAP_VF, is_hdr
+    # PQ/HLG sources must be tone-mapped the same way the render was,
+    # or source luma can't match the tone-mapped cut (a2 on 21/8)
+    tm = TONEMAP_VF + "," if canvas and is_hdr(path) else ""
+    vf = (tm + CANVAS + "," if canvas else "") + \
+        f"fps=30,scale={W}:{H},format=gray"
     raw = subprocess.run(
         ["ffmpeg", "-v", "error", "-ss", f"{max(0.0, ss):.3f}", "-i",
          str(path), "-t", f"{dur:.3f}", "-vf", vf, "-f", "rawvideo", "-"],

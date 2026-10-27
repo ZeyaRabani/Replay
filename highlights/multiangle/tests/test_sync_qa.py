@@ -173,3 +173,60 @@ def test_check_render_catches_wrong_segment_content(cut, sources, tmp_path):
     res = sync_qa.check_render(str(bad), sources, TM, segments, 0.0,
                                envs=envs)
     assert res["ok"] is False
+
+
+def test_gray_frames_tonemaps_hdr_canvas_only(monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        # enough gray pixels for reshape (frames may be empty)
+        return type("P", (),
+                    {"stdout": np.zeros(3 * sync_qa.W * sync_qa.H,
+                                        np.uint8).tobytes(),
+                     "returncode": 0})()
+
+    from highlights.multiangle import color
+    monkeypatch.setattr(color, "is_hdr", lambda p: True)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    sync_qa._gray_frames("v.mp4", 0.0, 0.1, canvas=True)
+    vf = calls[-1][calls[-1].index("-vf") + 1]
+    assert "zscale=t=linear:npl=203" in vf and "tonemap=mobius" in vf
+    sync_qa._gray_frames("v.mp4", 0.0, 0.1, canvas=False)
+    vf = calls[-1][calls[-1].index("-vf") + 1]
+    assert "zscale" not in vf
+    monkeypatch.setattr(color, "is_hdr", lambda p: False)
+    sync_qa._gray_frames("v.mp4", 0.0, 0.1, canvas=True)
+    vf = calls[-1][calls[-1].index("-vf") + 1]
+    assert "zscale" not in vf
+
+
+@pytest.mark.skipif(not (FFMPEG and FFPROBE), reason="ffmpeg/ffprobe missing")
+def test_gray_frames_matches_tonemapped_mezz(tmp_path):
+    """PQ source through mezz_cmd, then _gray_frames(canvas=True) on the
+    raw PQ source must return ~the same luma as the tone-mapped mezz —
+    the comparison picture checks do."""
+    src = tmp_path / "hdr.mkv"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+         "-i", "testsrc2=duration=2:size=320x180:rate=30",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+         "-pix_fmt", "yuv420p10le", "-color_trc", "smpte2084",
+         "-color_primaries", "bt2020", "-colorspace", "bt2020nc",
+         "-c:v", "libx264", "-preset", "ultrafast",
+         "-c:a", "aac", str(src)], check=True)
+    from highlights.multiangle.color import is_hdr
+    is_hdr.cache_clear()
+    pieces = [{"n0": 0, "n1": 60, "frames": 60,
+               "a0": 0, "a1": 96000, "a_start": 0.0,
+               "file_start": 0.0, "real": True}]
+    mezz = tmp_path / "mezz.mp4"
+    r = subprocess.run(render.mezz_cmd(str(src), pieces, str(mezz),
+                                       str(tmp_path / "mezz.wav")),
+                     capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-800:]
+    src_g = sync_qa._gray_frames(str(src), 0.0, 0.5, canvas=True)
+    mezz_g = sync_qa._gray_frames(str(mezz), 0.0, 0.5, canvas=False)
+    n = min(len(src_g), len(mezz_g))
+    assert n > 0
+    assert np.abs(src_g[:n] - mezz_g[:n]).mean() < 8.0
