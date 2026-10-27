@@ -114,7 +114,7 @@ def compute_rows(video: str, model_path: Path, imgsz: int, fps: float,
 
     torch.set_num_threads(int(os.environ.get("TORCH_NUM_THREADS", "0")) or
                           (os.cpu_count() or 1))
-    model = YOLO(str(model_path))
+    model = YOLO(str(model_path), task="detect")
     rows: list[list] = []
     frames = 0
     fh = None

@@ -21,6 +21,8 @@ from pathlib import Path
 
 import numpy as np
 
+from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+
 MEZZ_SIZE = "1920x1080"
 CANVAS = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2"
 CRF = "18"
@@ -101,13 +103,19 @@ def mezz_pieces(i: int, tm, union_lo: float, union_hi: float,
     return pieces
 
 
-def mezz_key(angle: int, pieces: list[dict]) -> str:
-    """Content key including output-time mapping and otime4 cache salt."""
+def mezz_key(angle: int, pieces: list[dict],
+             hdr: bool = False) -> str:
+    """Content key including output-time mapping and otime4 cache salt.
+    The tm1 token is present only for HDR sources so cached SDR
+    mezzanines keep their keys."""
     serial = [{k: p.get(k) for k in
                ("n0", "n1", "a0", "a1", "a_start", "file_start", "real")}
               for p in pieces]
-    raw = json.dumps(["otime4", angle, CANVAS, CRF, PRESET, serial],
-                     sort_keys=True, separators=(",", ":"))
+    parts = ["otime4", angle, CANVAS, CRF, PRESET]
+    if hdr:
+        parts.append("tm1")
+    parts.append(serial)
+    raw = json.dumps(parts, sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
@@ -128,6 +136,7 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
     if not n:
         raise ValueError("mezzanine needs at least one output piece")
     has_audio = _has_audio(video)
+    tm = f"{TONEMAP_VF}," if is_hdr(video) else ""
     input_idx = 0
     for j, piece in enumerate(pieces):
         frames = piece["frames"]
@@ -156,9 +165,10 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
                          "anullsrc=r=48000:cl=stereo"]
                 input_idx += 1
             filters.append(
-                f"[{vi}:v:0]{CANVAS},setsar=1,fps=30,"
+                f"[{vi}:v:0]{tm}{CANVAS},setsar=1,fps=30,"
                 f"tpad=stop_mode=clone:stop_duration=2,"
-                f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
+                f"trim=end_frame={frames},setpts=PTS-STARTPTS,"
+                f"{SDR_TAG_VF}[v{j}]")
             if has_audio:
                 filters.append(
                     f"[{ai}:a:0]aresample=48000,aformat=sample_fmts=s16:"
@@ -174,7 +184,8 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
         else:
             filters.append(
                 f"color=black:s={MEZZ_SIZE}:r=30,setsar=1,"
-                f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
+                f"trim=end_frame={frames},setpts=PTS-STARTPTS,"
+                f"{SDR_TAG_VF}[v{j}]")
             filters.append(
                 f"anullsrc=r=48000:cl=stereo,atrim=end_sample={samples},"
                 f"asetpts=PTS-STARTPTS[a{j}]")
@@ -191,7 +202,8 @@ def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
              "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
              "-sc_threshold", "0", "-force_key_frames",
              "expr:gte(t,n_forced*1)", "-threads", str(threads),
-             "-video_track_timescale", "15360", "-an", out,
+             "-video_track_timescale", "15360"] + SDR_OUT_ARGS + [
+             "-an", out,
              "-map", "[aout]", "-c:a", "pcm_s16le", "-ar", "48000",
              "-ac", "2", wav_out]
     return args
@@ -266,7 +278,8 @@ def _drawtext_font() -> Path | None:
 def replay_cmd(src: str, t_rel: float, dur_src: float, speed: float,
                out: str, overlay: str | None = None,
                from_mezz: bool = True) -> list[str]:
-    filters = ([] if from_mezz else [CANVAS])
+    filters = ([] if from_mezz else
+               ([TONEMAP_VF] if is_hdr(src) else []) + [CANVAS])
     filters.extend([f"setpts=PTS/{speed}", "fps=30", "setsar=1"])
     if overlay and _drawtext_available():
         font = _drawtext_font()
@@ -281,7 +294,7 @@ def replay_cmd(src: str, t_rel: float, dur_src: float, speed: float,
             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
             "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
             "-sc_threshold", "0", "-threads", "2",
-            "-video_track_timescale", "15360", out]
+            "-video_track_timescale", "15360"] + SDR_OUT_ARGS + [out]
 
 
 def concat_file(segs: list[str], path: str | Path) -> Path:
@@ -432,7 +445,7 @@ def render(videos: list[str], tm, segments: list[dict],
         pieces = mezz_pieces(i, tm, union_lo, union_hi, durations)
         if not pieces:
             continue
-        key = mezz_key(i, pieces)
+        key = mezz_key(i, pieces, hdr=is_hdr(videos[i]))
         mezzs[i] = (mezz_dir / f"{i}_{key}.mp4",
                     mezz_dir / f"{i}_{key}.wav", key, pieces)
     n_mezz = len(mezzs)

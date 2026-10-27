@@ -121,13 +121,16 @@ def cut_clip(
     if overlay_label and vf is None:
         print("warning: drawtext/font unavailable, skipping overlay")
     if vf or reencode:
+        from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
         # high quality: preserve source resolution/fps, only drawtext overlay
         cmd = ["ffmpeg", "-y", "-ss", f"{start:.3f}", "-i", str(src), "-t", f"{dur:.3f}"]
-        if vf:
-            cmd += ["-vf", vf]
+        chain = ([TONEMAP_VF] if is_hdr(src) else []) \
+            + ([vf] if vf else []) + [SDR_TAG_VF]
+        cmd += ["-vf", ",".join(chain)]
         cmd += [
             "-c:v", "libx264", "-preset", "slow", "-crf", "14",
             "-pix_fmt", "yuv420p",
+        ] + SDR_OUT_ARGS + [
             "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out),
         ]
     else:
@@ -150,11 +153,16 @@ def concat_reel(clips: list[str | Path], out: str | Path) -> Path:
     listfile.write_text("".join(f"file '{Path(c).resolve()}'\n" for c in clips))
     r = _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listfile), "-c", "copy", str(out)])
     if r.returncode != 0:
+        from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+        vf = (([TONEMAP_VF] if any(is_hdr(c) for c in clips) else [])
+              + [SDR_TAG_VF])
         r = _run(
             [
                 "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listfile),
+                "-vf", ",".join(vf),
                 "-c:v", "libx264", "-preset", "slow", "-crf", "14",
                 "-pix_fmt", "yuv420p",
+            ] + SDR_OUT_ARGS + [
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out),
             ]
         )

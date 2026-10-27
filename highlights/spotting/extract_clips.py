@@ -27,9 +27,14 @@ def main():
     for rank, e in enumerate(events[: args.top], 1):
         start = max(0.0, e["t"] - args.clip_s / 2)
         tag = f"{rank:02d}_{e['signals']['class'].replace(' ', '_')}_{e['t']:.0f}s_p{e['confidence']:.2f}"
+        from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+        vf = (([TONEMAP_VF] if is_hdr(args.video) else [])
+              + [SDR_TAG_VF])
         subprocess.check_call([
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{start:.2f}", "-i", args.video,
-            "-t", f"{args.clip_s:.2f}", "-c:v", "libx264", "-preset", "veryfast", "-an", str(out / f"{tag}.mp4"),
+            "-t", f"{args.clip_s:.2f}", "-vf", ",".join(vf),
+            "-c:v", "libx264", "-preset", "veryfast",
+        ] + SDR_OUT_ARGS + ["-an", str(out / f"{tag}.mp4"),
         ])
         # 6-frame contact sheet, one frame per second, full source resolution
         subprocess.check_call([

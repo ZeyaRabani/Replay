@@ -21,5 +21,6 @@ filelock>=3.16.1
 nvidia-ml-py>=12.0.0
 ultralytics-thop>=2.1.6
 ultralytics-platform>=0.1.45
+ncnn==1.0.20261020
 # installed with --no-deps
 ultralytics==8.4.155

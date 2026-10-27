@@ -26,13 +26,25 @@ from highlights.pipeline.probe import probe as ffprobe
 IMGSZ = 1280
 CONF = 0.10
 CHUNK = 300          # max file seconds per ffmpeg extraction run
+# detect on every STEP'th file second (fill-in covers the rest);
+# opt-in: STEP=2 measured to score identically on 28/8 but shifts the
+# cut on 21/8, so 1 s stays the default
+STEP = int(os.environ.get("REPLAY_BALL_STEP", "1"))
 # static-ball filter, identical to yardstick exp3.load
 RAD = 18             # native px centre distance
 WIN = 60             # +- file seconds
 REP = 5              # repeats elsewhere -> static
 
 
+def _ncnn_ok() -> bool:
+    from highlights.multiangle.engine import ncnn_ok
+    return ncnn_ok()
+
+
 def _model_path() -> Path | None:
+    """First existing candidate wins; a .pt candidate prefers its
+    sibling <stem>_ncnn_model dir when ncnn is usable."""
+    from highlights.multiangle.engine import prefer_ncnn
     env = os.environ.get("REPLAY_BALL_MODEL")
     cands = ([Path(env)] if env else []) + [
         Path("/data/shared/models/ball_v2.pt"),
@@ -40,7 +52,7 @@ def _model_path() -> Path | None:
     ]
     for p in cands:
         if p.exists():
-            return p
+            return prefer_ncnn(p)
     return None
 
 
@@ -65,7 +77,7 @@ def needed_seconds(ctx) -> dict[int, set[int]]:
             ft = shared_to_file(tm, i, k + lo)
             if ft is not None and 0 <= ft <= dur - 1:
                 need.add(round(ft))
-        out[i] = need
+        out[i] = {s for s in need if s % STEP == 0}
     return out
 
 
@@ -100,13 +112,21 @@ def coverage_complete(ctx) -> bool:
     return not any(missing.values())
 
 
-def ball_rows(dets_doc: dict, thr: float = 0.25) -> dict[int, tuple]:
+def ball_rows(dets_doc: dict, thr: float = 0.25,
+              step: int | None = None) -> dict[int, tuple]:
     """exp3.load exactly: keep dets >= thr, drop static boxes (>=REP
     other frames within WIN s have a >=thr box within RAD px), per
-    second keep the max-score box -> (score, h/H, cx/W, cy/H)."""
+    second keep the max-score box -> (score, h/H, cx/W, cy/H).
+    With step>1 only `t % step == 0` dets are considered (older 1-s
+    caches' odd seconds are ignored), then unsampled seconds are filled
+    from the max-score row of the two neighbouring sampled seconds."""
+    if step is None:
+        step = STEP
     W, H = dets_doc["native_wh"]
+    sub = {t: v for t, v in dets_doc["dets"].items()
+           if int(t) % step == 0}
     dets = {int(t): [b for b in v if b[4] >= thr]
-            for t, v in dets_doc["dets"].items()}
+            for t, v in sub.items()}
     out = {}
     for t, bs in dets.items():
         keep = []
@@ -125,24 +145,47 @@ def ball_rows(dets_doc: dict, thr: float = 0.25) -> dict[int, tuple]:
             b = max(keep, key=lambda x: x[4])
             out[t] = (b[4], (b[3] - b[1]) / H,
                       (b[0] + b[2]) / 2 / W, (b[1] + b[3]) / 2 / H)
+    if step > 1:
+        sampled = {int(t) for t in sub}
+        for t in sampled:
+            for k in range(1, step):
+                u = t + k
+                if u in out or u in sampled:
+                    continue
+                cands = [c for c in (out.get(t), out.get(t + step))
+                         if c is not None]
+                if cands:
+                    out[u] = max(cands, key=lambda x: x[0])
     return out
 
 
-def _extract(video: Path, S: int, E: int, tmp: Path) -> None:
-    """1 fps jpegs of file seconds [S,E] at 1280 wide; frame n (1-based)
-    is file second S+n-1. Identical to SPEC_full extraction."""
+def _extract(video: Path, S: int, E: int, tmp: Path,
+             step: int = 1) -> None:
+    """Jpegs of file seconds [S,E] at 1280 wide, keeping one every
+    `step` seconds; frame n (1-based) is file second S + n - 1.
+    step==1 keeps the literal `fps=1` string: byte-identical command
+    to the original SPEC_full extraction."""
+    # extract the full fps=1 set (same command line for any step ->
+    # byte-identical jpgs to the step-1 run), then prune the seconds
+    # this step doesn't sample; fps=1/{step} or select filters pick
+    # different source frames and would not be identical
     subprocess.run(
         ["ffmpeg", "-v", "error", "-ss", str(S), "-i", str(video),
          "-t", str(E - S + 1), "-vf", f"fps=1,scale={IMGSZ}:-2",
          "-q:v", "2", str(tmp / "%05d.jpg")],
         check=True)
+    if step > 1:
+        for f in tmp.glob("*.jpg"):
+            if (S + int(f.stem) - 1) % step != 0:
+                f.unlink()
 
 
-def _runs(seconds: set[int], chunk: int = CHUNK):
-    """Contiguous [S,E] runs covering `seconds`, split to <= chunk."""
+def _runs(seconds: set[int], chunk: int = CHUNK, step: int = 1):
+    """Contiguous [S,E] runs covering `seconds` at spacing `step`,
+    split to <= chunk file seconds."""
     runs = []
     for t in sorted(seconds):
-        if runs and t == runs[-1][1] + 1 and runs[-1][1] - runs[-1][0] + 1 < chunk:
+        if runs and t == runs[-1][1] + step and t - runs[-1][0] + 1 <= chunk:
             runs[-1][1] = t
         else:
             runs.append([t, t])
@@ -153,7 +196,7 @@ def _load_model(path: Path):
     import torch
     torch.set_num_threads(4)
     from ultralytics import YOLO
-    return YOLO(str(path))
+    return YOLO(str(path), task="detect")
 
 
 def run_ballfind(ctx) -> None:
@@ -184,6 +227,8 @@ def run_ballfind(ctx) -> None:
         W, H = int(pr["width"]), int(pr["height"])
         scale = W / float(IMGSZ)
         doc = {"model": "ball_v2", "imgsz": IMGSZ, "native_wh": [W, H],
+               "engine": "ncnn" if mp.name.endswith("_ncnn_model")
+               else "torch",
                "dets": {str(t): v for t, v in sorted(dets.items())}}
         out_p.parent.mkdir(parents=True, exist_ok=True)
         if model is None:
@@ -191,31 +236,58 @@ def run_ballfind(ctx) -> None:
         ctx.log(f"ballfind: a{i} {len(missing)} s to detect "
                 f"({len(dets)} cached)")
         done = 0
-        for S, E in _runs(missing):
+        runs = _runs(missing, step=STEP)
+        tmp_dirs: list[Path] = []
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _start_extract(S: int, E: int, a=a, video=video,
+                           tmp_dirs=tmp_dirs):
             tmp = Path(tempfile.mkdtemp(prefix="ballfind_",
                                         dir=a["dir"] / "track"))
-            try:
-                _extract(video, S, E, tmp)
-                for f in sorted(tmp.glob("*.jpg")):
-                    t = S + int(f.stem) - 1
-                    r = model.predict(str(f), imgsz=IMGSZ, conf=CONF,
-                                      classes=[1], verbose=False)[0]
-                    boxes = []
-                    for b in r.boxes:
-                        x0, y0, x1, y1 = (round(float(v) * scale, 1)
-                                          for v in b.xyxy[0])
-                        boxes.append([x0, y0, x1, y1,
-                                      round(float(b.conf[0]), 3)])
-                    boxes.sort(key=lambda x: -x[4])
-                    doc["dets"][str(t)] = boxes
-                    done += 1
-            finally:
-                shutil.rmtree(tmp, ignore_errors=True)
-            write_json_atomic(out_p, doc)   # checkpoint each run
-            ctx.status.update(
-                stage_progress=(i + done / max(1, len(missing)))
-                / len(ctx.angles),
-                message=f"ballfind a{i} {done}/{len(missing)} s")
+            tmp_dirs.append(tmp)
+            return tmp, pool.submit(_extract, video, S, E, tmp, STEP)
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                tmp, fut = _start_extract(*runs[0])
+                for k, (S, E) in enumerate(runs):
+                    nxt = (_start_extract(*runs[k + 1])
+                           if k + 1 < len(runs) else None)
+                    try:
+                        fut.result()
+                        want = {t for t in missing if S <= t <= E}
+                        for f in sorted(tmp.glob("*.jpg")):
+                            # non-sampled and trailing extra frames
+                            # are dropped by the wanted-second guard
+                            t = S + int(f.stem) - 1
+                            if t not in want:
+                                continue
+                            r = model.predict(str(f), imgsz=IMGSZ,
+                                              conf=CONF, classes=[1],
+                                              verbose=False)[0]
+                            boxes = []
+                            for b in r.boxes:
+                                x0, y0, x1, y1 = (
+                                    round(float(v) * scale, 1)
+                                    for v in b.xyxy[0])
+                                boxes.append([x0, y0, x1, y1,
+                                              round(float(b.conf[0]), 3)])
+                            boxes.sort(key=lambda x: -x[4])
+                            doc["dets"][str(t)] = boxes
+                            done += 1
+                    finally:
+                        shutil.rmtree(tmp, ignore_errors=True)
+                        tmp_dirs.remove(tmp)
+                    write_json_atomic(out_p, doc)  # checkpoint each run
+                    ctx.status.update(
+                        stage_progress=(i + done / max(1, len(missing)))
+                        / len(ctx.angles),
+                        message=f"ballfind a{i} {done}/{len(missing)} s")
+                    if nxt is not None:
+                        tmp, fut = nxt
+        finally:
+            for d in tmp_dirs:
+                shutil.rmtree(d, ignore_errors=True)
         ctx.log(f"ballfind: a{i} done, {len(doc['dets'])} s total")
 
 
