@@ -12,8 +12,12 @@ def main(video: Path, events: Path, out_dir: Path, n: int = 8, clip_s: float = 6
     for k, e in enumerate(ev[:n], 1):
         t0 = max(0.0, e["t"] - clip_s / 2)
         tag = f"{k:02d}_{int(e['t'])}s"
+        from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+        vf = (([TONEMAP_VF] if is_hdr(video) else [])
+              + ["scale=640:-2", SDR_TAG_VF])
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t0:.2f}", "-i", str(video), "-t", f"{clip_s}",
-                        "-vf", "scale=640:-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-c:a", "aac",
+                        "-vf", ",".join(vf), "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+                        ] + SDR_OUT_ARGS + ["-c:a", "aac",
                         str(out_dir / f"clip_{tag}.mp4")], check=True)
         # 6 frames, 1 s apart, tiled 3x2 at full resolution for inspection
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t0:.2f}", "-i", str(video), "-t", f"{clip_s}",

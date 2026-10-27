@@ -208,9 +208,12 @@ def apply_scoreboard(src: Path, out: Path, vf: str, *,
         dur = 0.0
     tmp = out.with_name(out.stem + ".scoreboard.tmp.mp4")
     tmp.unlink(missing_ok=True)
-    cmd = ["ffmpeg", "-y", "-i", str(src), "-vf", vf,
+    from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+    vf = (([TONEMAP_VF] if is_hdr(src) else []) + [vf] + [SDR_TAG_VF])
+    cmd = ["ffmpeg", "-y", "-i", str(src), "-vf", ",".join(vf),
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-           "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart",
+           "-pix_fmt", "yuv420p"] + SDR_OUT_ARGS + [
+           "-c:a", "copy", "-movflags", "+faststart",
            "-progress", "pipe:1", "-nostats", str(tmp)]
     log(f"scoreboard: encoding {src.name}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
