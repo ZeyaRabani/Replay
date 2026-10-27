@@ -101,12 +101,46 @@ def mezz_pieces(i: int, tm, union_lo: float, union_hi: float,
     return pieces
 
 
+def _serial(pieces: list[dict]) -> list[dict]:
+    return [{k: p.get(k) for k in
+             ("n0", "n1", "a0", "a1", "a_start", "file_start", "real")}
+            for p in pieces]
+
+
 def mezz_key(angle: int, pieces: list[dict]) -> str:
     """Content key including output-time mapping and otime4 cache salt."""
-    serial = [{k: p.get(k) for k in
-               ("n0", "n1", "a0", "a1", "a_start", "file_start", "real")}
-              for p in pieces]
-    raw = json.dumps(["otime4", angle, CANVAS, CRF, PRESET, serial],
+    raw = json.dumps(["otime4", angle, CANVAS, CRF, PRESET, _serial(pieces)],
+                     sort_keys=True, separators=(",", ":"))
+    return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+
+def chunk_pieces(pieces: list[dict], c: int, ch: int) -> list[dict]:
+    """Slice full-union pieces to output frames [c*ch*FPS, (c+1)*ch*FPS)."""
+    total = max((p["n1"] for p in pieces), default=0)
+    c0, c1 = c * ch * FPS, min((c + 1) * ch * FPS, total)
+    out = []
+    for p in pieces:
+        n0, n1 = max(p["n0"], c0), min(p["n1"], c1)
+        if n1 <= n0:
+            continue
+        q = {"n0": n0 - c0, "n1": n1 - c0, "frames": n1 - n0,
+             "a0": (n0 - c0) * SAMPLES_PER_FRAME,
+             "a1": (n1 - c0) * SAMPLES_PER_FRAME,
+             "real": p["real"], "offset": p.get("offset")}
+        if p["real"]:
+            shift = (n0 - p["n0"]) / FPS
+            q["file_start"] = p["file_start"] + shift
+            q["a_start"] = (p.get("a_start") or 0.0) + shift
+        else:
+            q["file_start"] = None
+            q["a_start"] = None
+        out.append(q)
+    return out
+
+
+def chunk_key(angle: int, sliced: list[dict]) -> str:
+    """Content key for one chunk's piece mapping (position-independent)."""
+    raw = json.dumps(["chunk1", angle, CANVAS, CRF, PRESET, _serial(sliced)],
                      sort_keys=True, separators=(",", ":"))
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
@@ -119,81 +153,93 @@ def _has_audio(video: str) -> bool:
     return proc.returncode == 0 and bool(proc.stdout.strip())
 
 
-def mezz_cmd(video: str, pieces: list[dict], out: str, wav_out: str,
-             threads: int = 2) -> list[str]:
-    """Build the output-time video mezz and PCM audio WAV in one ffmpeg run."""
+def mezz_cmd(video: str, pieces: list[dict], out: str | None,
+             wav_out: str | None, threads: int = 2, video_out: bool = True,
+             audio_out: bool = True) -> list[str]:
+    """Build the output-time mezz video and/or PCM audio WAV in one run."""
+    if not video_out and not audio_out:
+        raise ValueError("mezz_cmd: nothing to produce")
+    if (video_out and out is None) or (audio_out and wav_out is None):
+        raise ValueError("mezz_cmd: missing output path")
     args = ["ffmpeg", "-y", "-v", "error", "-nostats", "-progress", "pipe:1"]
     filters = []
     n = len(pieces)
     if not n:
         raise ValueError("mezzanine needs at least one output piece")
-    has_audio = _has_audio(video)
+    has_audio = _has_audio(video) if audio_out else False
     input_idx = 0
     for j, piece in enumerate(pieces):
         frames = piece["frames"]
         samples = piece["a1"] - piece["a0"]
         if piece["real"]:
             span = frames / FPS + 1
-            vi = input_idx
-            args += ["-ss", f"{piece['file_start']:.6f}", "-t",
-                     f"{span:.6f}", "-i", video]
-            input_idx += 1
-            if has_audio:
-                # Input seeking lands on a packet boundary; -copyts keeps
-                # original pts so atrim can slice by absolute file time
-                # sample-exactly.
-                ai = input_idx
-                a_start = float(piece["a_start"])
-                a_len = samples / SAMPLE_RATE
-                a_seek = max(0.0, a_start - 2.0)
-                args += ["-copyts", "-ss", f"{a_seek:.6f}", "-t",
-                         f"{a_start + a_len - a_seek + 2:.6f}",
-                         "-i", video]
+            if video_out:
+                vi = input_idx
+                args += ["-ss", f"{piece['file_start']:.6f}", "-t",
+                         f"{span:.6f}", "-i", video]
                 input_idx += 1
-            else:
-                ai = input_idx
-                args += ["-f", "lavfi", "-t", f"{span:.6f}", "-i",
-                         "anullsrc=r=48000:cl=stereo"]
-                input_idx += 1
-            filters.append(
-                f"[{vi}:v:0]{CANVAS},setsar=1,fps=30,"
-                f"tpad=stop_mode=clone:stop_duration=2,"
-                f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
-            if has_audio:
                 filters.append(
-                    f"[{ai}:a:0]aresample=48000,aformat=sample_fmts=s16:"
-                    f"channel_layouts=stereo,"
-                    f"atrim=start={a_start:.6f}:end={a_start + a_len:.6f},"
-                    f"asetpts=PTS-STARTPTS,apad,atrim=end_sample={samples},"
-                    f"asetpts=PTS-STARTPTS[a{j}]")
-            else:
-                filters.append(
-                    f"[{ai}:a:0]aresample=48000,aformat=sample_fmts=s16:"
-                    f"channel_layouts=stereo,apad,atrim=end_sample={samples},"
-                    f"asetpts=PTS-STARTPTS[a{j}]")
+                    f"[{vi}:v:0]{CANVAS},setsar=1,fps=30,"
+                    f"tpad=stop_mode=clone:stop_duration=2,"
+                    f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
+            if audio_out:
+                if has_audio:
+                    # Input seeking lands on a packet boundary; -copyts keeps
+                    # original pts so atrim can slice by absolute file time
+                    # sample-exactly.
+                    ai = input_idx
+                    a_start = float(piece["a_start"])
+                    a_len = samples / SAMPLE_RATE
+                    a_seek = max(0.0, a_start - 2.0)
+                    args += ["-copyts", "-ss", f"{a_seek:.6f}", "-t",
+                             f"{a_start + a_len - a_seek + 2:.6f}",
+                             "-i", video]
+                    input_idx += 1
+                    filters.append(
+                        f"[{ai}:a:0]aresample=48000,aformat=sample_fmts=s16:"
+                        f"channel_layouts=stereo,"
+                        f"atrim=start={a_start:.6f}:end={a_start + a_len:.6f},"
+                        f"asetpts=PTS-STARTPTS,apad,atrim=end_sample={samples},"
+                        f"asetpts=PTS-STARTPTS[a{j}]")
+                else:
+                    args += ["-f", "lavfi", "-t", f"{span:.6f}", "-i",
+                             "anullsrc=r=48000:cl=stereo"]
+                    ai = input_idx
+                    input_idx += 1
+                    filters.append(
+                        f"[{ai}:a:0]aresample=48000,aformat=sample_fmts=s16:"
+                        f"channel_layouts=stereo,apad,"
+                        f"atrim=end_sample={samples},"
+                        f"asetpts=PTS-STARTPTS[a{j}]")
         else:
-            filters.append(
-                f"color=black:s={MEZZ_SIZE}:r=30,setsar=1,"
-                f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
-            filters.append(
-                f"anullsrc=r=48000:cl=stereo,atrim=end_sample={samples},"
-                f"asetpts=PTS-STARTPTS[a{j}]")
+            if video_out:
+                filters.append(
+                    f"color=black:s={MEZZ_SIZE}:r=30,setsar=1,"
+                    f"trim=end_frame={frames},setpts=PTS-STARTPTS[v{j}]")
+            if audio_out:
+                filters.append(
+                    f"anullsrc=r=48000:cl=stereo,atrim=end_sample={samples},"
+                    f"asetpts=PTS-STARTPTS[a{j}]")
     # concat pads each segment's shorter stream to the longer one on
     # ffmpeg >=5, which would offset the sample-exact audio bounds — keep
     # the video and audio chains independent.
-    vpads = "".join(f"[v{j}]" for j in range(n))
-    apads = "".join(f"[a{j}]" for j in range(n))
-    filters.append(f"{vpads}concat=n={n}:v=1:a=0[vout]")
-    filters.append(f"{apads}concat=n={n}:v=0:a=1[aout]")
-    args += ["-filter_complex", ";".join(filters), "-map", "[vout]",
-             "-r", "30",
-             "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
-             "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
-             "-sc_threshold", "0", "-force_key_frames",
-             "expr:gte(t,n_forced*1)", "-threads", str(threads),
-             "-video_track_timescale", "15360", "-an", out,
-             "-map", "[aout]", "-c:a", "pcm_s16le", "-ar", "48000",
-             "-ac", "2", wav_out]
+    if video_out:
+        vpads = "".join(f"[v{j}]" for j in range(n))
+        filters.append(f"{vpads}concat=n={n}:v=1:a=0[vout]")
+    if audio_out:
+        apads = "".join(f"[a{j}]" for j in range(n))
+        filters.append(f"{apads}concat=n={n}:v=0:a=1[aout]")
+    args += ["-filter_complex", ";".join(filters)]
+    if video_out:
+        args += ["-map", "[vout]", "-r", "30",
+                 "-c:v", "libx264", "-preset", PRESET, "-crf", CRF,
+                 "-pix_fmt", "yuv420p", "-g", "30", "-keyint_min", "30",
+                 "-sc_threshold", "0", "-force_key_frames",
+                 "expr:gte(t,n_forced*1)", "-threads", str(threads),
+                 "-video_track_timescale", "15360", "-an", out]
+    if audio_out:
+        args += ["-map", "[aout]", "-c:a", "pcm_s16le", "-ar", "48000",
+                 "-ac", "2", wav_out]
     return args
 
 
@@ -425,7 +471,15 @@ def render(videos: list[str], tm, segments: list[dict],
     seg_dir, mezz_dir = workdir / "segs", workdir / "mezz"
     seg_dir.mkdir(parents=True, exist_ok=True)
     mezz_dir.mkdir(parents=True, exist_ok=True)
+    chunk_dir = mezz_dir / "chunks"
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    import math
     from concurrent.futures import ThreadPoolExecutor
+
+    chunk_mode = os.environ.get("HL_RENDER_MODE", "chunk") != "mezz"
+    ch = max(1, int(os.environ.get("HL_RENDER_CHUNK", "10")))
+    total_s = union_hi - union_lo
+    n_chunks = max(1, math.ceil(total_s / ch))
 
     mezzs: dict[int, tuple[Path, Path, str, list[dict]]] = {}
     for i, video in enumerate(videos):
@@ -437,6 +491,45 @@ def render(videos: list[str], tm, segments: list[dict],
                     mezz_dir / f"{i}_{key}.wav", key, pieces)
     n_mezz = len(mezzs)
     mezz_threads = max(1, -(-(os.cpu_count() or 2) // max(1, n_mezz)))
+
+    plans = plan_segments(segments)
+
+    def _plan_chunk_range(plan: dict) -> tuple[int, int]:
+        """[cc0, cc1] chunk indices the plan needs on its angle."""
+        if plan["speed"] != 1.0 or plan["overlay"]:
+            s0 = max(0.0, math.floor(plan["source_t0"]) - 1.0)
+            s1 = min(total_s, math.ceil(plan["source_t1"]) + 1.0)
+            return int(s0) // ch, max(0, math.ceil(s1) - 1) // ch
+        return plan["k0"] // ch, (plan["k1"] - 1) // ch
+
+    # angle -> {chunk index -> (path, key)} for the chunks this cut needs
+    need_chunks: dict[int, dict[int, tuple[Path, str]]] = {}
+    if chunk_mode:
+        for i, (_mp, _wp, _key, pieces) in mezzs.items():
+            idxs: set[int] = set()
+            for plan in plans:
+                if plan["angle"] == i:
+                    cc0, cc1 = _plan_chunk_range(plan)
+                    idxs.update(range(cc0, cc1 + 1))
+            need_chunks[i] = {}
+            for c in sorted(idxs):
+                if c < 0 or c >= n_chunks:
+                    continue
+                sliced = chunk_pieces(pieces, c, ch)
+                if not sliced:
+                    continue
+                k = chunk_key(i, sliced)
+                need_chunks[i][c] = (chunk_dir / f"{i}_{k}.mp4", k)
+
+    def _seg_source_key(i: int, plan: dict) -> str:
+        """Cache key fragment covering the video sources a segment uses."""
+        if not chunk_mode or i not in need_chunks or _seg_ok(mezzs[i][0]):
+            return mezzs[i][2] if i in mezzs else ""
+        cc0, cc1 = _plan_chunk_range(plan)
+        keys = [need_chunks[i][c][1] for c in range(cc0, cc1 + 1)
+                if c in need_chunks[i]]
+        return hashlib.sha1(
+            ("chunk|" + "|".join(keys)).encode()).hexdigest()[:16]
 
     def _build_mezz(i: int) -> None:
         mp, wp, _key, pieces = mezzs[i]
@@ -460,22 +553,77 @@ def render(videos: list[str], tm, segments: list[dict],
         os.replace(tmp_wp, wp)
         log(f"render: mezzanine built (angle {i})")
 
-    with ThreadPoolExecutor(max_workers=max(1, n_mezz)) as ex:
-        list(ex.map(_build_mezz, mezzs))
+    def _build_wav(i: int) -> None:
+        _mp, wp, _key, pieces = mezzs[i]
+        total_samples = sum(x["a1"] - x["a0"] for x in pieces)
+        if _wav_ok(wp, total_samples):
+            log(f"render: audio cached (angle {i})")
+            return
+        wp.unlink(missing_ok=True)
+        tmp_wp = wp.with_name(wp.stem + ".part.wav")
+        tmp_wp.unlink(missing_ok=True)
+        cmd = mezz_cmd(videos[i], pieces, None, str(tmp_wp),
+                       threads=mezz_threads, video_out=False)
+        _run_progress(cmd, total_samples / SAMPLE_RATE,
+                      f"render: audio angle {i}", log)
+        if not _wav_ok(tmp_wp, total_samples):
+            raise RuntimeError(f"render: audio angle {i} invalid")
+        os.replace(tmp_wp, wp)
+
+    def _build_chunk(i: int, c: int) -> None:
+        mp, _k = need_chunks[i][c]
+        if _seg_ok(mp):
+            return
+        tmp = mp.with_name(mp.stem + ".part.mp4")
+        tmp.unlink(missing_ok=True)
+        cmd = mezz_cmd(videos[i], chunk_pieces(mezzs[i][3], c, ch),
+                       str(tmp), None, threads=1, audio_out=False)
+        run(cmd, log)
+        if not _seg_ok(tmp):
+            raise RuntimeError(f"render: chunk {c} angle {i} invalid")
+        os.replace(tmp, mp)
+
+    if chunk_mode:
+        with ThreadPoolExecutor(max_workers=max(1, n_mezz)) as ex:
+            list(ex.map(_build_wav, mezzs))
+        jobs = [(i, c) for i, cs in need_chunks.items() for c in cs
+                if not _seg_ok(cs[c][0])]
+        built = 0
+        with ThreadPoolExecutor(max_workers=max(1, int(
+                os.environ.get("HL_RENDER_CHUNK_WORKERS", "4")))) as ex:
+            futs = [ex.submit(_build_chunk, i, c) for i, c in jobs]
+            for fut in futs:
+                fut.result()
+                built += 1
+                if built % 20 == 0 or built == len(jobs):
+                    log(f"render: chunks built {built}/{len(jobs)} "
+                        + " ".join(
+                            f"(angle {i}: {len(cs)} used of {n_chunks})"
+                            for i, cs in sorted(need_chunks.items())))
+        if not jobs:
+            log("render: chunks built 0/0")
+    else:
+        with ThreadPoolExecutor(max_workers=max(1, n_mezz)) as ex:
+            list(ex.map(_build_mezz, mezzs))
     live = {f.name for mp, wp, *_ in mezzs.values() for f in (mp, wp)}
     for f in mezz_dir.iterdir():
         if f.is_file() and f.name not in live and (
                 f.suffix in (".mp4", ".wav") or ".part." in f.name):
             f.unlink()
+    live_chunks = {p.name for cs in need_chunks.values()
+                   for p, _k in cs.values()}
+    for f in chunk_dir.iterdir():
+        if f.is_file() and f.name not in live_chunks and (
+                f.suffix == ".mp4" or ".part." in f.name):
+            f.unlink()
     wavs = {i: val[1] for i, val in mezzs.items()}
 
-    plans = plan_segments(segments)
     files, used, to_encode = [], set(), []
     reused = 0
     for plan in plans:
         angle = plan["angle"]
-        key = mezzs[angle][2] if angle in mezzs else ""
         req = plan["k1"] - plan["k0"]
+        key = _seg_source_key(angle, plan)
         out = seg_dir / f"{seg_key(angle, plan['k0'], req, key, plan['speed'], plan['overlay'])}.mp4"
         used.add(out.name)
         if out.exists() and out.stat().st_size:
@@ -484,28 +632,51 @@ def render(videos: list[str], tm, segments: list[dict],
             to_encode.append((plan, out))
         files.append(f"segs/{out.name}")
 
+    def _seg_src(plan: dict, tag: str) -> tuple[Path, float]:
+        """(source mp4, time offset of k0/source_t0 inside it)."""
+        angle = plan["angle"]
+        if not chunk_mode or _seg_ok(mezzs[angle][0]):
+            return mezzs[angle][0], 0.0
+        cc0, cc1 = _plan_chunk_range(plan)
+        srcs = [str(need_chunks[angle][c][0])
+                for c in range(cc0, cc1 + 1) if c in need_chunks[angle]]
+        lst = seg_dir / f"srccat_{tag}.txt"
+        lst.write_text("".join(f"file '{s}'\n" for s in srcs))
+        tmp = seg_dir / f"srctmp_{tag}.mp4"
+        tmp.unlink(missing_ok=True)
+        run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+             "-i", str(lst), "-c", "copy",
+             "-video_track_timescale", "15360", str(tmp)], log)
+        lst.unlink(missing_ok=True)
+        return tmp, cc0 * ch
+
     def _enc(plan: dict, out: Path) -> None:
         tmp = out.with_name(out.stem + ".part.mp4")
         tmp.unlink(missing_ok=True)
         angle = plan["angle"]
-        mp = mezzs[angle][0]
         req = plan["k1"] - plan["k0"]
-        if plan["speed"] != 1.0 or plan["overlay"]:
-            cmd = replay_cmd(str(mp), plan["source_t0"],
-                             plan["source_t1"] - plan["source_t0"],
-                             plan["speed"], str(tmp), plan["overlay"])
-            run(cmd, log)
-            # Exact output frame count enforced after replay video encode.
-            fix = ["ffmpeg", "-y", "-v", "error", "-i", str(tmp),
-                   "-vf", f"fps=30,trim=end_frame={plan['frames']},setpts=PTS-STARTPTS",
-                   "-frames:v", str(plan["frames"]), "-an", "-c:v", "libx264",
-                   "-preset", PRESET, "-crf", CRF, "-pix_fmt", "yuv420p",
-                   "-video_track_timescale", "15360", str(out)]
-            run(fix, log)
-            tmp.unlink(missing_ok=True)
-        else:
-            run(extract_cmd(str(mp), plan["k0"], req, str(tmp)), log)
-            os.replace(tmp, out)
+        src, base = _seg_src(plan, out.stem)
+        try:
+            if plan["speed"] != 1.0 or plan["overlay"]:
+                cmd = replay_cmd(str(src), plan["source_t0"] - base,
+                                 plan["source_t1"] - plan["source_t0"],
+                                 plan["speed"], str(tmp), plan["overlay"])
+                run(cmd, log)
+                # Exact output frame count enforced after replay video encode.
+                fix = ["ffmpeg", "-y", "-v", "error", "-i", str(tmp),
+                       "-vf", f"fps=30,trim=end_frame={plan['frames']},setpts=PTS-STARTPTS",
+                       "-frames:v", str(plan["frames"]), "-an", "-c:v", "libx264",
+                       "-preset", PRESET, "-crf", CRF, "-pix_fmt", "yuv420p",
+                       "-video_track_timescale", "15360", str(out)]
+                run(fix, log)
+                tmp.unlink(missing_ok=True)
+            else:
+                run(extract_cmd(str(src), plan["k0"] - base, req,
+                                str(tmp)), log)
+                os.replace(tmp, out)
+        finally:
+            if src != mezzs.get(angle, (None,))[0]:
+                src.unlink(missing_ok=True)
 
     def _encode_all(jobs: list[tuple[dict, Path]], progress: bool) -> None:
         done = 0
@@ -524,7 +695,7 @@ def render(videos: list[str], tm, segments: list[dict],
         byname = {}
         for plan in plans:
             angle = plan["angle"]
-            key = mezzs[angle][2] if angle in mezzs else ""
+            key = _seg_source_key(angle, plan)
             req = plan["k1"] - plan["k0"]
             name = f"{seg_key(angle, plan['k0'], req, key, plan['speed'], plan['overlay'])}.mp4"
             byname[name] = (plan, seg_dir / name)
