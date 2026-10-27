@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +21,7 @@ def _doc(dets, wh=(1920, 1080)):
 def test_ball_rows_threshold_and_normalisation():
     doc = _doc({5: [_det(900, 500, 0.9), _det(100, 100, 0.4),
                     _det(0, 0, 0.1)]})
-    rows = ballfind.ball_rows(doc)
+    rows = ballfind.ball_rows(doc, step=1)
     assert set(rows) == {5}
     score, size, cx, cy = rows[5]
     assert score == 0.9                     # max-score pick
@@ -30,7 +31,7 @@ def test_ball_rows_threshold_and_normalisation():
 
 
 def test_ball_rows_below_thr_dropped():
-    assert ballfind.ball_rows(_doc({3: [_det(0, 0, 0.2)]})) == {}
+    assert ballfind.ball_rows(_doc({3: [_det(0, 0, 0.2)]}), step=1) == {}
 
 
 def test_ball_rows_static_removed():
@@ -39,14 +40,14 @@ def test_ball_rows_static_removed():
     for t in range(0, 40, 7):
         dets[t] = [_det(500, 300, 0.8)]
     dets[14] = [_det(505, 302, 0.8), _det(1500, 700, 0.9)]
-    rows = ballfind.ball_rows(_doc(dets))
+    rows = ballfind.ball_rows(_doc(dets), step=1)
     # the ~same-spot box is static everywhere (>=5 repeats within 60 s),
     # so only t=14's distinct box survives
     assert set(rows) == {14}
     assert rows[14][0] == 0.9
     # a static-only set keeps no box at all
     dets2 = {t: [_det(500, 300, 0.8)] for t in range(0, 40, 7)}
-    assert ballfind.ball_rows(_doc(dets2)) == {}
+    assert ballfind.ball_rows(_doc(dets2), step=1) == {}
 
 
 def test_runs_chunking():
@@ -71,6 +72,7 @@ def test_needed_seconds_gap_and_offset(tmp_path, monkeypatch):
                       read_only=True, durations=[400.0, 400.0])
     monkeypatch.setattr(run_mod, "apply_match_window_src",
                         lambda ctx, sync: None)
+    monkeypatch.setattr(ballfind, "STEP", 1)
     need = ballfind.needed_seconds(ctx)
     assert need[0] == set(range(50, 70))            # file == shared
     assert need[1] == set(range(150, 170))          # offset +100
@@ -259,6 +261,123 @@ def test_coverage_complete(tmp_path, monkeypatch):
     monkeypatch.setattr(ballfind, "_model_path", lambda: None)
     assert ballfind.coverage_complete(ctx)
     assert run_mod._stage_done(ctx, "ballfind")
+
+
+def test_ball_rows_step1_identical():
+    doc = _doc({t: [_det(100 + t, 50, 0.9)] for t in range(200)})
+    assert ballfind.ball_rows(doc, step=1) == \
+        ballfind.ball_rows(doc, step=1)
+    doc2 = _doc({10: [_det(100, 100, 0.9)], 11: [_det(200, 200, 0.8)],
+                 13: [_det(0, 0, 0.3)]})
+    rows1 = ballfind.ball_rows(doc2, step=1)
+    assert set(rows1) == {10, 11, 13}
+
+
+def test_ball_rows_step2():
+    # odd-second det is ignored; u=13 fills from max-conf neighbour
+    doc = _doc({10: [_det(100, 100, 0.9)],
+                11: [_det(200, 200, 0.99)],   # odd -> ignored
+                12: [_det(150, 150, 0.5)],
+                14: [_det(300, 300, 0.7)]})
+    rows = ballfind.ball_rows(doc, step=2)
+    assert rows[10][0] == 0.9
+    assert rows[13][0] == 0.7       # fill takes max(out[12], out[14])
+    assert rows[11][0] == 0.9       # unsampled -> filled from neighbours
+
+
+def test_ball_rows_step2_fill_edges():
+    # one surviving sampled second still fills its unsampled neighbour
+    doc = _doc({10: [_det(100, 100, 0.9)]})
+    rows = ballfind.ball_rows(doc, step=2)
+    assert set(rows) == {10, 11}
+    assert rows[11][0] == 0.9
+    # a second with no surviving sampled neighbour gets no row
+    doc2 = _doc({10: [_det(0, 0, 0.1)], 11: []})
+    assert ballfind.ball_rows(doc2, step=2) == {}
+
+
+def test_ball_rows_step2_static():
+    # static across subsampled seconds still removed
+    dets = {t: [_det(500, 300, 0.8)] for t in range(0, 40, 7)}
+    assert ballfind.ball_rows(_doc(dets), step=2) == \
+        ballfind.ball_rows(_doc({t: v for t, v in dets.items()
+                                 if t % 2 == 0}), step=2)
+    # dense same-spot repeats on even seconds -> static everywhere
+    dets_even = {t: [_det(500, 300, 0.8)] for t in range(0, 40, 2)}
+    assert ballfind.ball_rows(_doc(dets_even), step=2) == {}
+
+
+def test_needed_seconds_step(tmp_path, monkeypatch):
+    monkeypatch.setattr(ballfind, "STEP", 2)
+    ctx = _cov_ctx(tmp_path, monkeypatch, [None])
+    need = ballfind.needed_seconds(ctx)
+    assert all(s % 2 == 0 for s in need[0]) and need[0]
+    # cache of only even seconds is complete
+    full_even = {t: [_det(1, 1, 0.9)] for t in range(0, 100, 2)}
+    ctx = _cov_ctx(tmp_path, monkeypatch, [full_even])
+    assert ballfind.coverage_complete(ctx)
+
+
+def test_model_path_prefers_ncnn(tmp_path, monkeypatch):
+    pt = tmp_path / "ball_v2.pt"
+    pt.write_text("x")
+    ncnn_dir = tmp_path / "ball_v2_ncnn_model"
+    ncnn_dir.mkdir()
+    monkeypatch.setenv("REPLAY_BALL_MODEL", str(pt))
+    monkeypatch.setattr(ballfind, "_ncnn_ok", lambda: True)
+    from highlights.multiangle.engine import prefer_ncnn
+    monkeypatch.setattr(ballfind, "prefer_ncnn", prefer_ncnn,
+                        raising=False)
+    monkeypatch.setattr("highlights.multiangle.engine.ncnn_ok",
+                        lambda: True)
+    assert ballfind._model_path() == ncnn_dir
+    # ncnn unavailable -> .pt
+    monkeypatch.setattr("highlights.multiangle.engine.ncnn_ok",
+                        lambda: False)
+    assert ballfind._model_path() == pt
+    # REPLAY_INFER_ENGINE=torch -> .pt
+    monkeypatch.setenv("REPLAY_INFER_ENGINE", "torch")
+    from highlights.multiangle import engine as eng
+    monkeypatch.setattr("highlights.multiangle.engine.ncnn_ok",
+                        eng.ncnn_ok)
+    assert ballfind._model_path() == pt
+    monkeypatch.delenv("REPLAY_INFER_ENGINE")
+    # direct _ncnn_model env path passes through
+    monkeypatch.setenv("REPLAY_BALL_MODEL", str(ncnn_dir))
+    monkeypatch.setattr("highlights.multiangle.engine.ncnn_ok",
+                        lambda: True)
+    assert ballfind._model_path() == ncnn_dir
+
+
+def test_track_engine_workers(monkeypatch):
+    from highlights.multiangle import engine
+    monkeypatch.delenv("HL_MA_MODEL", raising=False)
+    monkeypatch.delenv("HL_TRACK_WORKERS", raising=False)
+    monkeypatch.delenv("REPLAY_INFER_ENGINE", raising=False)
+
+    # ncnn dir present + importable -> ncnn model, 1 worker, env plain
+    monkeypatch.setattr(engine, "ncnn_ok", lambda: True)
+    monkeypatch.setattr(Path, "exists",
+                        lambda self: str(self).endswith("_ncnn_model"))
+    model, use_ncnn, workers, env = run_mod._track_engine()
+    assert use_ncnn and model.endswith("_ncnn_model") and workers == 1
+    assert "TORCH_NUM_THREADS" not in env or \
+        env["TORCH_NUM_THREADS"] == os.environ.get("TORCH_NUM_THREADS")
+
+    # explicit worker count wins
+    monkeypatch.setenv("HL_TRACK_WORKERS", "4")
+    assert run_mod._track_engine()[2] == 4
+    monkeypatch.delenv("HL_TRACK_WORKERS")
+
+    # no ncnn dir -> torch .pt, 2 workers
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+    model, use_ncnn, workers, env = run_mod._track_engine()
+    assert not use_ncnn and model.endswith("yolov8n.pt") and workers == 2
+    assert env["TORCH_NUM_THREADS"] == "2"
+
+    # explicit HL_MA_MODEL to ncnn dir -> 1 worker
+    monkeypatch.setenv("HL_MA_MODEL", "/x/yolov8n_960_ncnn_model")
+    assert run_mod._track_engine()[2] == 1
 
 
 def test_ballfind_before_director_in_stage_lists():

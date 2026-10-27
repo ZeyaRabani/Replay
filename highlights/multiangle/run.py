@@ -394,18 +394,40 @@ def angle_track_window(lo: float, hi: float, offset,
     return lo_f, max(lo_f, hi_f)
 
 
+def _track_engine() -> tuple[str, bool, int, dict]:
+    """(model, use_ncnn, workers, env): explicit HL_MA_MODEL wins; else
+    the NCNN yolov8n@960 export when present+importable; else the
+    packaged .pt. NCNN runs best as ONE worker on all cores (env
+    untouched); torch stays 2 workers x 2 threads."""
+    from highlights.multiangle.engine import ncnn_ok
+    model_env = os.environ.get("HL_MA_MODEL")
+    if model_env:
+        model = model_env
+        use_ncnn = model_env.endswith("_ncnn_model")
+    else:
+        ncnn_dir = Path("/data/shared/models/yolov8n_960_ncnn_model")
+        if ncnn_dir.exists() and ncnn_ok():
+            model, use_ncnn = str(ncnn_dir), True
+        else:
+            model = str(Path(__file__).parent / "models" / "yolov8n.pt")
+            use_ncnn = False
+    workers = int(os.environ.get(
+        "HL_TRACK_WORKERS", "1" if use_ncnn else "2"))
+    env = (dict(os.environ) if use_ncnn else
+           {**os.environ, "OMP_NUM_THREADS": "2", "TORCH_NUM_THREADS": "2"})
+    return model, use_ncnn, workers, env
+
+
 def stage_track(ctx: Ctx) -> None:
     """Run trackfeat as a subprocess per angle, HL_TRACK_WORKERS (2) at
     a time. OMP/TORCH threads capped at 2 so two workers fit the box.
     Each child writes <out>.progress {t, frames} every 30 frames; the
     stage's stage_progress is the mean of per-angle fractions.
+    NCNN model dir -> 1 worker, env untouched (all cores).
     When multiangle/cut_range.json exists (shared-T == angle-0 file time,
     offsets[0]==0), each angle only tracks its overlap with the match
     window, padded by TRACK_PAD."""
-    workers = int(os.environ.get("HL_TRACK_WORKERS", "2"))
-    model = os.environ.get("HL_MA_MODEL",
-                           str(Path(__file__).parent / "models" / "yolov8n.pt"))
-    env = {**os.environ, "OMP_NUM_THREADS": "2", "TORCH_NUM_THREADS": "2"}
+    model, _use_ncnn, workers, env = _track_engine()
     n = len(ctx.angles)
     # match window in shared-T (cut_range.json), applied per angle;
     # match_window_src.json (file-time on a chosen angle) is converted
