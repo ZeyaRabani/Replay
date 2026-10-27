@@ -28,28 +28,38 @@ DEFAULT_CAND = os.path.join(HERE, "outputs", "candidates.json")
 PREVIEW_LIMIT_MB = 120
 
 
-def codec_args(quality):
+def _sdr_vargs(video, base_vf, *enc):
+    """Video args: tonemap when the source is HDR, the quality's own
+    scale filter, the bt709 setparams tag and the container tags."""
+    from highlights.multiangle.color import SDR_OUT_ARGS, SDR_TAG_VF, TONEMAP_VF, is_hdr
+    vf = (([TONEMAP_VF] if video and is_hdr(video) else [])
+          + ([base_vf] if base_vf else []) + [SDR_TAG_VF])
+    return ["-vf", ",".join(vf), *enc] + SDR_OUT_ARGS
+
+
+def codec_args(quality, video=None):
     """(extension, video codec args, audio codec args, scale_filter|None)."""
     if quality == "preview":
         return ("mp4",
-                ["-vf", "scale='min(960,iw)':-2", "-c:v", "libx264",
-                 "-crf", "28", "-preset", "veryfast"],
+                _sdr_vargs(video, "scale='min(960,iw)':-2",
+                           "-c:v", "libx264", "-crf", "28",
+                           "-preset", "veryfast"),
                 ["-c:a", "aac", "-b:a", "96k"])
     if quality == "high":
         return ("mp4",
-                ["-c:v", "libx264", "-crf", "14", "-preset", "slow",
-                 "-pix_fmt", "yuv420p"],
+                _sdr_vargs(video, None, "-c:v", "libx264", "-crf", "14",
+                           "-preset", "slow", "-pix_fmt", "yuv420p"),
                 ["-c:a", "aac", "-b:a", "256k"])
     if quality == "max":
         return ("mkv",
-                ["-c:v", "libx264", "-crf", "0", "-preset", "veryslow",
-                 "-pix_fmt", "yuv420p"],
+                _sdr_vargs(video, None, "-c:v", "libx264", "-crf", "0",
+                           "-preset", "veryslow", "-pix_fmt", "yuv420p"),
                 ["-c:a", "flac"])
     raise ValueError(f"unknown quality {quality}")
 
 
 def render(video, cands, out_dir, quality):
-    ext, vargs, aargs = codec_args(quality)
+    ext, vargs, aargs = codec_args(quality, video)
     clips_dir = os.path.join(out_dir, "clips")
     os.makedirs(clips_dir, exist_ok=True)
     clips = []
@@ -147,10 +157,11 @@ def main():
 
 def render_preview(args, cands, out, degrade):
     """Preview render with optional CRF31/width800 size fallback."""
-    ext, vargs, aargs = codec_args("preview")
+    ext, vargs, aargs = codec_args("preview", args.video)
     if degrade:
-        vargs = ["-vf", "scale='min(800,iw)':-2", "-c:v", "libx264",
-                 "-crf", "31", "-preset", "veryfast"]
+        vargs = _sdr_vargs(args.video, "scale='min(800,iw)':-2",
+                           "-c:v", "libx264", "-crf", "31",
+                           "-preset", "veryfast")
     clips_dir = os.path.join(out, "clips")
     os.makedirs(clips_dir, exist_ok=True)
     clips = []
