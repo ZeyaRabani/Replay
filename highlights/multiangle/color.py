@@ -36,4 +36,7 @@ def is_hdr(video: str) -> bool:
         return False
     if proc.returncode != 0:
         return False
-    return proc.stdout.strip() in ("smpte2084", "arib-std-b67")
+    # csv output can carry a trailing empty field ("smpte2084,\n")
+    trc = next((line.split(",")[0].strip()
+                for line in proc.stdout.splitlines() if line.strip()), "")
+    return trc in ("smpte2084", "arib-std-b67")
