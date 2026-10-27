@@ -1,6 +1,7 @@
 """Chunked-mezz rendering: piece slicing, mode split, mode parity."""
 
 import json
+import shutil
 import subprocess
 import wave
 from pathlib import Path
@@ -218,3 +219,49 @@ def test_chunk_recut_reuses_untouched_chunks(tmp_path, monkeypatch):
     # earlier identical chunk content is reused, not re-encoded
     kept = [m for m in logs if "chunks built" in m]
     assert kept and int(kept[-1].split("built ")[1].split("/")[0]) <= 1
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg missing")
+def test_unused_chunk_survives_recut(tmp_path, monkeypatch):
+    a0 = _mkvideo(tmp_path / "a0.mp4", 60, freq=330)
+    a1 = _mkvideo(tmp_path / "a1.mp4", 60, freq=550)
+    monkeypatch.setenv("HL_RENDER_MODE", "chunk")
+    kw = dict(videos=[str(a0), str(a1)], tm=[0.0, 0.0],
+              union_lo=0, union_hi=40, durations=[60, 60],
+              ref_video=str(a0))
+    work = tmp_path / "w"
+    render.render(segments=SEGS, workdir=work,
+                  out_path=tmp_path / "o1.mp4", log=lambda *_: None, **kw)
+    a1_before = sorted((work / "mezz" / "chunks").glob("1_*.mp4"))
+    assert a1_before                       # render A built angle-1 chunks
+    # render B uses only angle 0 -> no a1 chunk is needed now
+    segs_b = [{"t_start": 0, "t_end": 40, "angle": 0}]
+    render.render(segments=segs_b, workdir=work,
+                  out_path=tmp_path / "o2.mp4", log=lambda *_: None, **kw)
+    a1_after = sorted((work / "mezz" / "chunks").glob("1_*.mp4"))
+    # chunks still match the current pieces keys -> kept for recut reuse
+    assert a1_after == a1_before
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg missing")
+def test_valid_full_mezz_skips_chunks_for_that_angle(tmp_path, monkeypatch):
+    a0 = _mkvideo(tmp_path / "a0.mp4", 60, freq=330)
+    a1 = _mkvideo(tmp_path / "a1.mp4", 60, freq=550)
+    kw = dict(videos=[str(a0), str(a1)], tm=[0.0, 0.0],
+              union_lo=0, union_hi=40, durations=[60, 60],
+              ref_video=str(a0))
+    # mezz-mode render leaves a valid full mezz for both angles
+    monkeypatch.setenv("HL_RENDER_MODE", "mezz")
+    render.render(segments=SEGS, workdir=tmp_path / "w",
+                  out_path=tmp_path / "o1.mp4",
+                  log=lambda *_: None, **kw)
+    work2 = tmp_path / "w2"
+    work2.mkdir()
+    shutil.copytree(tmp_path / "w" / "mezz", work2 / "mezz")
+    monkeypatch.setenv("HL_RENDER_MODE", "chunk")
+    logs = []
+    render.render(segments=SEGS, workdir=work2,
+                  out_path=tmp_path / "o2.mp4", log=logs.append, **kw)
+    # both angles have valid mezz mp4s -> no chunk builds at all
+    assert not list((work2 / "mezz" / "chunks").glob("*.mp4"))
+    assert any("chunks built 0/0" in m for m in logs)

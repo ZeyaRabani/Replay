@@ -502,10 +502,13 @@ def render(videos: list[str], tm, segments: list[dict],
             return int(s0) // ch, max(0, math.ceil(s1) - 1) // ch
         return plan["k0"] // ch, (plan["k1"] - 1) // ch
 
-    # angle -> {chunk index -> (path, key)} for the chunks this cut needs
+    # angle -> {chunk index -> (path, key)} for the chunks this cut needs;
+    # angles with a valid full mezz mp4 use the mezz fast path instead
     need_chunks: dict[int, dict[int, tuple[Path, str]]] = {}
     if chunk_mode:
-        for i, (_mp, _wp, _key, pieces) in mezzs.items():
+        for i, (mp, _wp, _key, pieces) in mezzs.items():
+            if _seg_ok(mp):
+                continue
             idxs: set[int] = set()
             for plan in plans:
                 if plan["angle"] == i:
@@ -610,11 +613,18 @@ def render(videos: list[str], tm, segments: list[dict],
         if f.is_file() and f.name not in live and (
                 f.suffix in (".mp4", ".wav") or ".part." in f.name):
             f.unlink()
-    live_chunks = {p.name for cs in need_chunks.values()
-                   for p, _k in cs.values()}
+    # keep every chunk still matching the current pieces of any angle,
+    # needed by this cut or not: a later recut moving back to an earlier
+    # camera choice reuses them
+    live_chunks = set()
+    for i, (_mp, _wp, _key, pieces) in mezzs.items():
+        for c in range(n_chunks):
+            sliced = chunk_pieces(pieces, c, ch)
+            if sliced:
+                live_chunks.add(f"{i}_{chunk_key(i, sliced)}.mp4")
     for f in chunk_dir.iterdir():
-        if f.is_file() and f.name not in live_chunks and (
-                f.suffix == ".mp4" or ".part." in f.name):
+        if f.is_file() and (".part." in f.name or (
+                f.suffix == ".mp4" and f.name not in live_chunks)):
             f.unlink()
     wavs = {i: val[1] for i, val in mezzs.items()}
 
