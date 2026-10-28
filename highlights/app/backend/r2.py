@@ -72,12 +72,16 @@ def enabled() -> bool:
 def _mk_client():
     """Build the boto3 S3 client. Separated so tests can stub it."""
     import boto3
+    import botocore.config
     cfg = _load_cfg()
     return boto3.client(
         "s3",
         endpoint_url=cfg["endpoint"],
         aws_access_key_id=cfg["access_key_id"],
         aws_secret_access_key=cfg["secret_access_key"],
+        region_name="auto",
+        config=botocore.config.Config(
+            signature_version="s3v4", retries={"max_attempts": 10}),
     )
 
 
@@ -122,7 +126,8 @@ def status(pid: str, path: Path) -> dict:
     if not enabled():
         return {"state": "off", "progress": 0.0}
     cur = _state.get(pid)
-    if cur and cur.get("state") in ("queued", "uploading", "too_big"):
+    if cur and cur.get("state") in (
+            "queued", "uploading", "waiting", "too_big"):
         return cur
     try:
         key = object_key(pid, path)
@@ -235,9 +240,13 @@ def _run_upload(job: dict) -> None:
                 with contextlib.suppress(Exception):
                     _s3().delete_object(Bucket=_bucket(), Key=o["Key"])
         if not _evict_for(path.stat().st_size, key, auto):
-            _state[pid] = {"state": "too_big", "progress": 0.0,
+            # too_big = the file itself exceeds the cap; waiting = an
+            # auto job deferred because only <24 h objects could go
+            st = "waiting" if auto and \
+                path.stat().st_size <= _cap() else "too_big"
+            _state[pid] = {"state": st, "progress": 0.0,
                            "key": key, "auto": auto}
-            if auto:
+            if auto and st == "waiting":
                 # stays deferred: retry hourly
                 job["defer_until"] = time.time() + DEFER_RETRY_S
                 with _q_cv:

@@ -447,6 +447,8 @@ function R2Control({ r2, onMake }: { r2: R2Status; onMake: () => Promise<void> }
     return <span className={cls}>Preparing fast download… {Math.round(r2.progress * 100)}%</span>;
   if (r2.state === "ready")
     return <span className={cls}>Fast download ready</span>;
+  if (r2.state === "waiting")
+    return <span className={cls}>Fast download waiting for space – a recent match is using it</span>;
   if (r2.state === "too_big")
     return <span className={cls}>Too big for fast download</span>;
   if (r2.state === "error")

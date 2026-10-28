@@ -131,7 +131,8 @@ def test_auto_deferred_when_only_fresh_objects(fake_r2, tmp_path):
     fake.objects["fresh"] = _obj(900, 2)   # <24h: auto may not evict
     job = {"pid": "pid", "path": str(v), "auto": True}
     r2._run_upload(job)
-    assert r2._state["pid"]["state"] == "too_big"
+    # 'waiting' — deferred, not too_big (the file fits under the cap)
+    assert r2._state["pid"]["state"] == "waiting"
     assert not fake.uploaded
     # stays deferred in the queue for the hourly retry
     assert len(r2._q) == 1 and r2._q[0]["defer_until"] > 0
