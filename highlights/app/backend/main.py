@@ -42,7 +42,9 @@ from highlights.multiangle.cuts import (
     activate_cut,
     cut_info,
     list_cuts,
+    remove_cut_video,
     snapshot_cut,
+    stage_cut_plan,
 )
 
 from . import ffmpeg as fx
@@ -2657,6 +2659,10 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
     if status and status.get("state") in ("queued", "running") \
             and pipeline.pid_alive(status.get("pid")):
         raise HTTPException(409, "pipeline is running")
+    cdir = p.multiangle_dir / "cuts" / cut_id
+    if cdir.is_dir() and not (cdir / "match.mp4").is_file():
+        raise HTTPException(
+            409, "this version's video was removed — rebuild it")
     meta = activate_cut(p.root, cut_id)
     if meta is None:
         raise HTTPException(404, "unknown cut")
@@ -2698,6 +2704,60 @@ def delete_cut_route(cut_id: str, p: ScopedP) -> dict:
     shutil.rmtree(cdir)
     _hist(p, "cut_deleted", cut_id=cut_id)
     return list_cuts(p.root)
+
+
+@scoped.delete("/multiangle/cuts/{cut_id}/video")
+def remove_cut_video_route(cut_id: str, p: ScopedP) -> dict:
+    """Delete an old cut's match.mp4; the plan stays so it can be
+    rebuilt later."""
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    cdir = p.multiangle_dir / "cuts" / cut_id
+    if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
+        raise HTTPException(404, "unknown cut")
+    try:
+        freed = remove_cut_video(p.root, cut_id)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
+    _hist(p, "cut_video_removed", cut_id=cut_id, bytes=freed)
+    return {**list_cuts(p.root), "freed_bytes": freed}
+
+
+@scoped.post("/multiangle/cuts/{cut_id}/rebuild")
+def rebuild_cut_route(cut_id: str, p: ScopedP, user: UserDep) -> dict:
+    """Re-render a cut whose video was removed, from its saved plan."""
+    _require_multiangle(p)
+    status = pipeline.read_status(p)
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_alive(status.get("pid")):
+        raise HTTPException(409, "pipeline is running")
+    cdir = p.multiangle_dir / "cuts" / cut_id
+    if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
+        raise HTTPException(404, "unknown cut")
+    if p.meta.get("sources_purged"):
+        raise HTTPException(
+            409, "angle sources were purged — cannot rebuild")
+    if (cdir / "match.mp4").is_file():
+        raise HTTPException(
+            409, "this version still has its video — use Watch this")
+    _ensure_cut_snapshot(p)   # keep the current cut selectable afterwards
+    meta = stage_cut_plan(p.root, cut_id) or {}
+    rb_path = p.multiangle_dir / "rebuild_of.json"
+    write_json_atomic(rb_path, {"id": cut_id}, indent=1)
+    p.invalidate_video()
+    try:
+        ck = _user_default_cookies(p, user) or _project_cookies(p)
+        out = pipeline.spawn_multiangle(
+            p, stages=["render", "fuse"], force=True,
+            style=meta.get("style") or CUT_STYLE, cookies=ck)
+        _hist(p, "cut_rebuild_queued", cut_id=cut_id)
+        return out
+    except pipeline.PipelineBusy as e:
+        rb_path.unlink(missing_ok=True)
+        raise HTTPException(409, str(e)) from e
 
 
 @scoped.get("/multiangle/cuts/{cut_id}/match.mp4")

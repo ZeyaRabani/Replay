@@ -1485,13 +1485,24 @@ def main(argv: list[str] | None = None) -> int:
                     cr = [float(crd["lo"]), float(crd["hi"])]
                 except Exception:
                     pass
+                rb_id = None
+                with contextlib.suppress(Exception):
+                    rb_id = json.loads(
+                        (pipe / "rebuild_of.json").read_text()).get("id")
+                suffix = " + scoreboard" if sb else ""
+                extra = {"scoreboard": True} if sb else None
+                if rb_id:
+                    suffix += " (rebuilt)"
+                    extra = {**(extra or {}), "rebuilt_from": rb_id}
                 try:
                     meta = snapshot_cut(
                         project_dir, ctx.style, cut_range=cr,
-                        label_suffix=" + scoreboard" if sb else "",
-                        extra_meta={"scoreboard": True} if sb else None)
+                        label_suffix=suffix,
+                        extra_meta=extra)
                     if meta:
                         ctx.log(f"cut snapshot: {meta['id']} ({meta['label']})")
+                    if rb_id:
+                        (pipe / "rebuild_of.json").unlink(missing_ok=True)
                 except Exception as e:
                     ctx.log(f"cut snapshot failed ({e})")
         except SystemExit:

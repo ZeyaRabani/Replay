@@ -772,6 +772,9 @@ export interface CutMeta {
   created_at: number;
   range?: [number, number];      // absolute shared-T range the cut covers
   range_out?: [number, number];  // same range on the cut's own timeline
+  has_video?: boolean;
+  video_bytes?: number;          // match.mp4 size when has_video
+  video_removed?: { at: number; bytes: number };
   cut_info?: CutInfo | null;
 }
 

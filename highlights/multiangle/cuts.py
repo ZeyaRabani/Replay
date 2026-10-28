@@ -5,6 +5,7 @@ writes to a tmp file then os.replace()s)."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -149,27 +150,33 @@ def list_cuts(project_dir: Path) -> dict:
             m = _read(d / "meta.json")
             if m:
                 m.setdefault("id", d.name)
+                v = d / "match.mp4"
+                m["has_video"] = v.is_file()
+                if m["has_video"]:
+                    with contextlib.suppress(OSError):
+                        m["video_bytes"] = v.stat().st_size
                 m["cut_info"] = cut_info(project_dir, d, m)
                 metas.append(m)
     metas.sort(key=lambda m: m.get("created_at", 0))
     return {"active": active, "cuts": metas, "range": cur_range}
 
 
-def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
-    """Make cuts/<cut_id>/ the live cut. Returns its meta or None."""
-    cdir = project_dir / "multiangle" / "cuts" / cut_id
-    if not cdir.is_dir() or "/" in cut_id or ".." in cut_id:
+def _cdir(project_dir: Path, cut_id: str) -> Path | None:
+    """Validated cut dir, or None for an unknown/bad id."""
+    if "/" in cut_id or ".." in cut_id or not cut_id:
         return None
-    live_match = project_dir / "match.mp4"
-    src = cdir / "match.mp4"
-    if src.is_file():
-        tmp = project_dir / f".match.{cut_id}.mp4"
-        tmp.unlink(missing_ok=True)
-        try:
-            os.link(src, tmp)
-        except OSError:
-            shutil.copy2(src, tmp)
-        os.replace(tmp, live_match)
+    d = project_dir / "multiangle" / "cuts" / cut_id
+    return d if d.is_dir() else None
+
+
+def stage_cut_plan(project_dir: Path, cut_id: str) -> dict | None:
+    """Copy the cut's plan JSONs over the live multiangle/ state and
+    restore its cut_range — no video, no active.json write. Used by
+    activate_cut (video present) and the rebuild route (video removed).
+    Returns the meta, or None for an unknown/bad id."""
+    cdir = _cdir(project_dir, cut_id)
+    if cdir is None:
+        return None
     for rel in SNAP_FILES:
         src_f = cdir / Path(rel).name
         dst = project_dir / rel
@@ -186,5 +193,51 @@ def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
                                     "hi": meta["range"][1]}, indent=1)
     else:
         cr_path.unlink(missing_ok=True)
-    write_json_atomic(cdir.parent / "active.json", {"id": cut_id}, indent=1)
     return meta or None
+
+
+def activate_cut(project_dir: Path, cut_id: str) -> dict | None:
+    """Make cuts/<cut_id>/ the live cut. Returns its meta or None —
+    also None when the cut's video was removed (rebuild it instead)."""
+    cdir = _cdir(project_dir, cut_id)
+    if cdir is None:
+        return None
+    src = cdir / "match.mp4"
+    if not src.is_file():
+        return None
+    live_match = project_dir / "match.mp4"
+    tmp = project_dir / f".match.{cut_id}.mp4"
+    tmp.unlink(missing_ok=True)
+    try:
+        os.link(src, tmp)
+    except OSError:
+        shutil.copy2(src, tmp)
+    os.replace(tmp, live_match)
+    meta = stage_cut_plan(project_dir, cut_id)
+    write_json_atomic(cdir.parent / "active.json", {"id": cut_id}, indent=1)
+    return meta
+
+
+def remove_cut_video(project_dir: Path, cut_id: str) -> int:
+    """Delete cuts/<cut_id>/match.mp4 (plan kept, rebuildable later).
+    Returns bytes freed. Refuses the active cut, a bad id, and a cut
+    video that is the live match.mp4 inode."""
+    cdir = _cdir(project_dir, cut_id)
+    if cdir is None:
+        raise ValueError("unknown cut")
+    active = (_read(cdir.parent / "active.json") or {}).get("id")
+    if cut_id == active:
+        raise ValueError("cannot remove the active cut's video")
+    v = cdir / "match.mp4"
+    if not v.is_file():
+        return 0
+    live = project_dir / "match.mp4"
+    if live.is_file() and os.stat(v).st_ino == os.stat(live).st_ino \
+            and os.stat(v).st_dev == os.stat(live).st_dev:
+        raise ValueError("cut video is the live match.mp4")
+    size = v.stat().st_size
+    meta = _read(cdir / "meta.json") or {}
+    meta["video_removed"] = {"at": time.time(), "bytes": size}
+    write_json_atomic(cdir / "meta.json", meta, indent=1)
+    v.unlink()
+    return size

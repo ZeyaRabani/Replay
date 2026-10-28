@@ -320,6 +320,10 @@ export function projectApi(id: string) {
       req<CutsList>(`${base}/multiangle/cuts/${id}/activate`, json({})),
     deleteCut: (id: string) =>
       req<CutsList>(`${base}/multiangle/cuts/${id}`, { method: "DELETE" }),
+    removeCutVideo: (id: string) =>
+      req<CutsList>(`${base}/multiangle/cuts/${id}/video`, { method: "DELETE" }),
+    rebuildCut: (id: string) =>
+      req<Record<string, unknown>>(`${base}/multiangle/cuts/${id}/rebuild`, json({})),
     cutDownloadUrl: (id: string) =>
       mediaUrl(`${base}/multiangle/cuts/${id}/match.mp4`),
     directSuggest: (t?: [number, number]) =>

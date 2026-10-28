@@ -712,8 +712,13 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                             active
                           </span>
                         )}
+                        {c.has_video === false && (
+                          <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            video removed · plan kept
+                          </span>
+                        )}
                         <span className="ml-auto flex items-center gap-2">
-                          {!isActive && !live && (
+                          {c.has_video !== false && !isActive && !live && (
                             <button
                               disabled={cutBusy !== null}
                               onClick={() => {
@@ -733,13 +738,54 @@ export default function DirectorCut({ onSeek, onCutsChanged }: Props) {
                               Watch this
                             </button>
                           )}
-                          <a
-                            href={api.cutDownloadUrl(c.id)}
-                            download
-                            className="text-[11px] text-zinc-300 hover:text-zinc-100 border border-zinc-700 rounded px-2 py-0.5"
-                          >
-                            Download
-                          </a>
+                          {c.has_video === false && (
+                            <button
+                              disabled={cutBusy !== null || live}
+                              onClick={() => {
+                                if (!window.confirm(`Rebuild "${c.label}"? This re-renders the video from its saved camera plan (about 1 h).`)) return;
+                                setCutBusy(c.id);
+                                void api.rebuildCut(c.id)
+                                  .then(() => {
+                                    onCutsChanged?.();
+                                    void refresh();
+                                  })
+                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                                  .finally(() => setCutBusy(null));
+                              }}
+                              className="text-[11px] text-emerald-300 hover:text-emerald-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                            >
+                              {cutBusy === c.id ? <Loader2 size={11} className="animate-spin" /> : null}
+                              Rebuild
+                            </button>
+                          )}
+                          {c.has_video !== false && (
+                            <a
+                              href={api.cutDownloadUrl(c.id)}
+                              download
+                              className="text-[11px] text-zinc-300 hover:text-zinc-100 border border-zinc-700 rounded px-2 py-0.5"
+                            >
+                              Download
+                            </a>
+                          )}
+                          {!isActive && c.has_video !== false && (
+                            <button
+                              disabled={cutBusy !== null || live}
+                              onClick={() => {
+                                const gb = c.video_bytes
+                                  ? ` to free ${(c.video_bytes / 1e9).toFixed(1)} GB`
+                                  : "";
+                                if (!window.confirm(`Delete this version's video${gb}? Its camera plan is kept, so you can rebuild it later.`)) return;
+                                setCutBusy(c.id);
+                                void api.removeCutVideo(c.id)
+                                  .then((res) => setCuts(res))
+                                  .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+                                  .finally(() => setCutBusy(null));
+                              }}
+                              className="text-[11px] text-orange-300 hover:text-orange-200 border border-zinc-700 rounded px-2 py-0.5 disabled:opacity-40"
+                            >
+                              Remove video
+                            </button>
+                          )}
                           {!isActive && (
                             <button
                               disabled={cutBusy !== null || live}
