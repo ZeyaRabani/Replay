@@ -27,6 +27,7 @@ import type {
   PlayerGroup,
   PlayersPaths,
   PlayersResponse,
+  R2Status,
   RadarPitch,
   PlayersRoster,
   PlayersStats,
@@ -190,6 +191,9 @@ export function projectApi(id: string) {
     proxyStatus: () => req<{ ready: boolean; progress: number }>(`${base}/video/proxy/status`),
     videoUrl: (kind: "proxy" | "source", v: string) =>
       mediaUrl(`${base}/video/${kind === "proxy" ? "proxy.mp4" : "source.mp4"}`, { v }),
+    downloadUrl: (v: string) => mediaUrl(`${base}/download`, { v }),
+    r2Status: () => req<R2Status>(`${base}/r2`),
+    r2Enqueue: () => req<R2Status>(`${base}/r2`, { method: "POST" }),
 
     getMatchWindow: () =>
       req<{ match_window: [number, number]; halves: { start: number; end: number }[] | null; warning?: string; duration: number }>(

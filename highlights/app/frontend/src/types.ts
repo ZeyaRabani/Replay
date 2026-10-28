@@ -228,6 +228,12 @@ export interface AngleProxyStatus {
   status: "ready" | "started" | "missing";
 }
 
+export interface R2Status {
+  state: "off" | "none" | "queued" | "uploading" | "ready" | "too_big" | "error";
+  progress: number;
+  detail?: string;
+}
+
 export interface MultiangleInfo {
   sync: SyncInfo | null;
   director: DirectorSummary | null;

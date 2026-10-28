@@ -33,7 +33,7 @@ from fastapi import (
     Response,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -48,7 +48,7 @@ from highlights.multiangle.cuts import (
 )
 
 from . import ffmpeg as fx
-from . import history, pipeline, playlist, stats, watchdog
+from . import history, pipeline, playlist, r2, stats, watchdog
 from .schemas import (
     CandidatePatch,
     CandidatesFile,
@@ -255,6 +255,7 @@ async def _lifespan(app: FastAPI):
     get_registry()
     watchdog.start()
     threading.Thread(target=_auto_proxy_loop, daemon=True).start()
+    threading.Thread(target=_r2_auto_loop, daemon=True).start()
     yield
 
 
@@ -520,6 +521,74 @@ def _proxy_status(p: ProjectStore) -> dict:
 
 def _proxy_file(p: ProjectStore) -> FileResponse:
     return _serve(p.root / "proxy.mp4")
+
+
+# ---------- R2 fast downloads ----------
+
+def _safe_filename(title: str) -> str:
+    name = re.sub(r"[^\w .()\[\]-]+", "_", title).strip(" ._") or "match"
+    return f"{name}.mp4"
+
+
+def _download(p: ProjectStore):
+    mp = p.root / "match.mp4"
+    path = mp if mp.is_file() else _video_path(p)
+    if r2.enabled():
+        try:
+            st = r2.status(p.id, path)
+            if st.get("state") == "ready":
+                key = r2.object_key(p.id, path)
+                return RedirectResponse(
+                    r2.presign(key, _safe_filename(p.title)), 302)
+        except Exception as e:
+            print(f"r2 download check failed for {p.id}: {e}")
+    return FileResponse(path, media_type="video/mp4",
+                        filename=_safe_filename(p.title))
+
+
+def _r2_status(p: ProjectStore) -> dict:
+    mp = p.root / "match.mp4"
+    path = mp if mp.is_file() else (_video_path(p) if p.video else None)
+    if path is None:
+        return {"state": "none", "progress": 0.0}
+    return r2.status(p.id, path)
+
+
+def _r2_enqueue(p: ProjectStore) -> dict:
+    mp = p.root / "match.mp4"
+    path = mp if mp.is_file() else _video_path(p)
+    return r2.enqueue(p.id, path, auto=False)
+
+
+def _r2_auto_loop() -> None:
+    """Every 10 min: auto-upload the newest changed match.mp4 to R2.
+
+    Only when the pipeline is done and the cut changed (finished_at or
+    match.mp4 mtime) within the last 48 h — new matches and recuts go
+    up, old ones don't.
+    """
+    while True:
+        time.sleep(600)
+        try:
+            if not r2.enabled():
+                continue
+            now = time.time()
+            for p in get_registry().list_projects():
+                mp = p.root / "match.mp4"
+                if not mp.is_file():
+                    continue
+                st = pipeline.read_status(p) or {}
+                if st.get("state") != "done":
+                    continue
+                fin = st.get("finished_at") or 0
+                changed = max(fin, mp.stat().st_mtime)
+                if now - changed > 48 * 3600:
+                    continue
+                if r2.status(p.id, mp).get("state") == "ready":
+                    continue
+                r2.enqueue(p.id, mp, auto=True)
+        except Exception as e:
+            print(f"r2 auto loop error: {e}")
 
 
 # ---------- match window + trimmed video ----------
@@ -2914,6 +2983,21 @@ def l_proxy_file(p: LegacyP) -> FileResponse:
 @scoped.get("/video/source.mp4")
 def s_source_file(p: PublicP) -> FileResponse:
     return _source_file(p)
+
+
+@scoped.get("/download")
+def s_download(p: PublicP):
+    return _download(p)
+
+
+@scoped.get("/r2")
+def s_r2_status(p: ScopedP) -> dict:
+    return _r2_status(p)
+
+
+@scoped.post("/r2")
+def s_r2_enqueue(p: ScopedP) -> dict:
+    return _r2_enqueue(p)
 
 
 @scoped.get("/match-window")

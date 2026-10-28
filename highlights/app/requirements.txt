@@ -4,3 +4,4 @@ pydantic>=2
 python-multipart
 pandas
 pyarrow
+boto3

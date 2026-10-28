@@ -8,7 +8,7 @@ import RenderBar from "../components/RenderBar";
 import Timeline from "../components/Timeline";
 import VideoPlayer from "../components/VideoPlayer";
 import { fmtClock, parseClock } from "../lib/time";
-import type { Candidate, Team, VideoInfo } from "../types";
+import type { Candidate, R2Status, Team, VideoInfo } from "../types";
 
 interface Props {
   /** seek request from another tab (e.g. Stats); {t, n} so repeated seeks to the same t still fire */
@@ -29,6 +29,7 @@ export default function ProjectReview({ seekRequest }: Props) {
   const [isMultiangle, setIsMultiangle] = useState(false);
   const [cutLabel, setCutLabel] = useState<string | null>(null);
   const [win, setWin] = useState<[number, number] | null>(null);
+  const [r2, setR2] = useState<R2Status | null>(null);
   const [winEdit, setWinEdit] = useState(false);
   const [winIn, setWinIn] = useState("");
   const [winOut, setWinOut] = useState("");
@@ -73,6 +74,7 @@ export default function ProjectReview({ seekRequest }: Props) {
             })
             .catch(() => undefined);
         }
+        api.r2Status().then(setR2).catch(() => undefined);
         try {
           const mw = await api.getMatchWindow();
           setWin(mw.match_window);
@@ -89,6 +91,14 @@ export default function ProjectReview({ seekRequest }: Props) {
       }
     });
   }, [run]);
+
+  useEffect(() => {
+    if (!r2 || (r2.state !== "queued" && r2.state !== "uploading")) return;
+    const t = window.setInterval(() => {
+      api.r2Status().then(setR2).catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(t);
+  }, [r2?.state]);
 
   useEffect(() => {
     api
@@ -327,12 +337,16 @@ export default function ProjectReview({ seekRequest }: Props) {
               )}
               {isMultiangle && (
                 <a
-                  href={api.videoUrl("source", String(video.registered_at))}
+                  href={api.downloadUrl(String(video.registered_at))}
                   download
                   className="text-[11px] text-amber-300 hover:text-amber-200 border border-zinc-700 rounded px-2 py-0.5 mob:text-center"
                 >
-                  Download director cut<span className="mob:hidden"> (full match, MP4)</span>
+                  {r2?.state === "ready" ? "Download (fast)" : "Download director cut"}
+                  <span className="mob:hidden"> (full match, MP4)</span>
                 </a>
+              )}
+              {isMultiangle && r2 && r2.state !== "off" && (
+                <R2Control r2={r2} onMake={async () => setR2(await api.r2Enqueue())} />
               )}
               {isMultiangle && cutLabel && (
                 <span className="rounded px-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700">
@@ -419,4 +433,23 @@ export default function ProjectReview({ seekRequest }: Props) {
       />
     </div>
   );
+}
+
+function R2Control({ r2, onMake }: { r2: R2Status; onMake: () => Promise<void> }) {
+  const cls = "text-[11px] text-zinc-400 border border-zinc-700 rounded px-2 py-0.5 mob:text-center";
+  if (r2.state === "none")
+    return (
+      <button onClick={onMake} className={`${cls} hover:text-amber-200`}>
+        Make fast download
+      </button>
+    );
+  if (r2.state === "queued" || r2.state === "uploading")
+    return <span className={cls}>Preparing fast download… {Math.round(r2.progress * 100)}%</span>;
+  if (r2.state === "ready")
+    return <span className={cls}>Fast download ready</span>;
+  if (r2.state === "too_big")
+    return <span className={cls}>Too big for fast download</span>;
+  if (r2.state === "error")
+    return <span className={cls} title={r2.detail}>Fast download failed{r2.detail ? `: ${r2.detail}` : ""}</span>;
+  return null;
 }
