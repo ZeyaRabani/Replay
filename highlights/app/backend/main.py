@@ -254,6 +254,7 @@ def reset_registry() -> None:
 async def _lifespan(app: FastAPI):
     get_registry()
     watchdog.start()
+    threading.Thread(target=_auto_proxy_loop, daemon=True).start()
     yield
 
 
@@ -443,6 +444,7 @@ def _get_video(p: ProjectStore) -> VideoInfo:
     if p.video is None:
         raise HTTPException(404, "no video registered")
     p.video.proxy_ready = _proxy_ready(p)
+    _maybe_auto_proxy(p)
     return p.video
 
 
@@ -468,6 +470,43 @@ def _build_proxy(p: ProjectStore) -> dict:
     _proxy_jobs[p.id] = job
     job.start()
     return {"status": "started"}
+
+
+def _maybe_auto_proxy(p: ProjectStore) -> None:
+    """Kick off _build_proxy when the box is idle. Never raises."""
+    try:
+        if p.video is None or _proxy_ready(p):
+            return
+        if any(j is not None and not j.done and j.error is None
+               for j in _proxy_jobs.values()):
+            return
+        status = pipeline.read_status(p)
+        if status and status.get("state") in ("queued", "running") \
+                and pipeline.pid_owned_by(status.get("pid"), p):
+            return
+        for q in get_registry().list_projects():
+            if q.id == p.id:
+                continue
+            st = pipeline.read_status(q)
+            if st and st.get("state") in ("queued", "running") \
+                    and pipeline.pid_owned_by(st.get("pid"), q):
+                return
+        _build_proxy(p)
+    except Exception as e:
+        print(f"auto-proxy skipped for {p.id}: {e}")
+
+
+def _auto_proxy_loop() -> None:
+    """Backfill proxies for every project, one at a time, while idle."""
+    while True:
+        time.sleep(600)
+        try:
+            for p in get_registry().list_projects():
+                if p.video is not None and not _proxy_ready(p):
+                    _maybe_auto_proxy(p)
+                    break
+        except Exception as e:
+            print(f"auto-proxy loop error: {e}")
 
 
 def _proxy_status(p: ProjectStore) -> dict:

@@ -166,3 +166,76 @@ def test_out_of_range_candidates_hidden_from_list(client, short_video):
     store = m.get_registry().get(pid)
     assert len(store.candidates) == 5
     assert all(c.t > dur + 1 for c in store.candidates)
+
+
+class _FakeProxyJob:
+    def __init__(self, *a, **k):
+        self.done = False
+        self.error = None
+        self.progress = 0.0
+
+    def start(self):
+        pass
+
+
+def test_proxy_job_cmd_niced_two_threads():
+    import shutil
+
+    from highlights.app.backend import ffmpeg as fx
+    cmd = fx.ProxyJob("/a.mp4", "/b.mp4", 10.0)._cmd()
+    if shutil.which("nice"):
+        assert cmd[:3] == ["nice", "-n", "19"]
+    else:
+        assert cmd[0] == "ffmpeg"
+    assert cmd[cmd.index("-threads") + 1] == "2"
+    assert f"scale=-2:{fx.PROXY_HEIGHT}" in cmd
+
+
+def test_maybe_auto_proxy_gates(client, short_video, monkeypatch):
+    import highlights.app.backend.main as m
+    from highlights.app.backend import ffmpeg as fx
+    from highlights.app.backend import pipeline
+
+    pid = new_project(client, short_video)
+    p = m.get_registry().get(pid)
+    monkeypatch.setattr(fx, "ProxyJob", _FakeProxyJob)
+
+    builds = []
+    orig_build = m._build_proxy
+    monkeypatch.setattr(m, "_build_proxy",
+                        lambda pr: builds.append(pr.id) or orig_build(pr))
+
+    # idle -> a proxy job is started for this project
+    m._maybe_auto_proxy(p)
+    assert builds == [pid]
+    assert pid in m._proxy_jobs
+    assert not m._proxy_jobs[pid].done
+    m._proxy_jobs.pop(pid)
+    builds.clear()
+
+    # proxy already complete -> nothing
+    src = p.video.path
+    p.set_proxy_complete(src)
+    (p.root / "proxy.mp4").write_bytes(b"x")
+    m._maybe_auto_proxy(p)
+    assert builds == []
+
+    # another project's proxy job running -> nothing
+    m._proxy_jobs["other"] = _FakeProxyJob()
+    m._maybe_auto_proxy(p)
+    assert builds == []
+    m._proxy_jobs.pop("other")
+
+    # this project's pipeline running -> nothing
+    pipeline.write_status(p, {"state": "running", "pid": 111, "updated_at": 1})
+    monkeypatch.setattr(pipeline, "pid_owned_by", lambda pid, pr: True)
+    m._maybe_auto_proxy(p)
+    assert builds == []
+    pipeline.write_status(p, {"state": "done", "pid": None})
+
+    # another project's multiangle pipeline running -> nothing
+    pid2 = new_project(client, short_video)
+    p2 = m.get_registry().get(pid2)
+    pipeline.write_status(p2, {"state": "running", "pid": 222, "updated_at": 1})
+    m._maybe_auto_proxy(p)
+    assert builds == []

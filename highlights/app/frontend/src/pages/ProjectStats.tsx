@@ -1,5 +1,5 @@
 import { Activity, Flag, Loader2, Timer, Volume2, Waves } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -22,7 +22,7 @@ import { useProjectApi } from "../api";
 import MatchAnalysis from "../components/MatchAnalysis";
 import PlayerAnalysis from "../components/PlayerAnalysis";
 import RadarReplay from "../components/RadarReplay";
-import Replay3D from "../components/Replay3D";
+const Replay3D = lazy(() => import("../components/Replay3D"));
 import { TYPE_COLORS, TYPE_LABEL } from "../components/Timeline";
 import { fmtClock } from "../lib/time";
 import type { MatchStats, Stats, TopMoment } from "../types";
@@ -242,7 +242,11 @@ export default function ProjectStats({ onSeek, multiangle = false }: Props) {
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
         {multiangle && <MatchAnalysis onSeek={onSeek} />}
         {multiangle && <RadarReplay onSeek={onSeek} />}
-        {multiangle && <Replay3D onSeek={onSeek} />}
+        {multiangle && (
+          <Suspense fallback={<div className="text-sm text-zinc-500 p-4">Loading 3D…</div>}>
+            <Replay3D onSeek={onSeek} />
+          </Suspense>
+        )}
         {multiangle && <PlayerAnalysis onSeek={onSeek} />}
         {ms && <MatchStatsCard ms={ms} onSeek={onSeek} />}
         <div className="grid grid-cols-2 dsk:md:grid-cols-3 dsk:xl:grid-cols-6 gap-3">

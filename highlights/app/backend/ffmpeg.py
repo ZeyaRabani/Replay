@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import threading
 from collections.abc import Callable
@@ -198,11 +199,12 @@ class ProxyJob:
         self.thread.start()
 
     def _cmd(self) -> list[str]:
-        return [
+        nice = ["nice", "-n", "19"] if shutil.which("nice") else []
+        return nice + [
             "ffmpeg", "-y", "-i", str(self.src),
             "-vf", f"scale=-2:{PROXY_HEIGHT}",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
-            "-threads", "0",
+            "-threads", "2",
             "-c:a", "aac", "-b:a", "96k",
             "-movflags", "+faststart",
             "-progress", "pipe:1", "-nostats", str(self.part),
