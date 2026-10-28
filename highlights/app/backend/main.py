@@ -1558,7 +1558,8 @@ def get_project(p: ScopedP) -> dict:
 @scoped.delete("")
 def delete_project(p: ScopedP) -> Response:
     status = pipeline.read_status(p)
-    if status and pipeline.pid_alive(status.get("pid")):
+    if status and status.get("state") in ("queued", "running") \
+            and pipeline.pid_owned_by(status.get("pid"), p):
         pipeline.cancel(p)
     for jid in [j for j, pid in _job_owner.items() if pid == p.id]:
         _jobs.pop(jid, None)
@@ -1709,7 +1710,7 @@ def post_multiangle_scoreboard(p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     if not (p.root / "match.mp4").is_file():
         raise HTTPException(409, "no rendered cut yet — run the pipeline first")
@@ -2657,7 +2658,7 @@ def activate_cut_route(cut_id: str, p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     cdir = p.multiangle_dir / "cuts" / cut_id
     if cdir.is_dir() and not (cdir / "match.mp4").is_file():
@@ -2693,7 +2694,7 @@ def delete_cut_route(cut_id: str, p: ScopedP) -> dict:
     _require_multiangle(p)
     status = pipeline.read_status(p)
     if status and status.get("state") in ("queued", "running") \
-            and pipeline.pid_alive(status.get("pid")):
+            and pipeline.pid_owned_by(status.get("pid"), p):
         raise HTTPException(409, "pipeline is running")
     cur = list_cuts(p.root)
     if cur["active"] == cut_id:
@@ -3095,10 +3096,20 @@ def get_history_artefact(match_id: str, name: str) -> FileResponse:
     return FileResponse(f, filename=_safe_filename(name))
 
 
+class RestartPost(BaseModel):
+    trim: bool = True      # previous trimmed window
+    zones: bool = False    # archived drawn zones -> zones.json (active)
+    learned: bool = False  # archived director_params.json (You Direct)
+
+
 @app.post("/api/history/{match_id}/restart")
-def restart_match(match_id: str, user: UserDep) -> dict:
+def restart_match(match_id: str, user: UserDep,
+                  body: RestartPost | None = None) -> dict:
     """Create a NEW project for the same owner from the archived record:
-    same sources, title + \" (restart)\", window/zones/style as hints."""
+    same sources, title + \" (restart)\". Default restores only the trim
+    (always fast cuts); body opts re-activate archived zones / learned
+    director_params. Zones are always kept in zones_archived.json."""
+    body = body or RestartPost()
     m = _match_or_404(match_id, user)
     rec = m.get("record") or {}
     src = rec.get("sources") or {}
@@ -3120,54 +3131,64 @@ def restart_match(match_id: str, user: UserDep) -> dict:
                     "angles": angles}, meta=meta)
         win = (rec.get("window") or {})
         p.multiangle_dir.mkdir(parents=True, exist_ok=True)
-        if win.get("match_window_src"):
-            write_json_atomic(
-                p.multiangle_dir / "match_window_src.json",
-                win["match_window_src"], indent=1)
-        if win.get("cut_range"):
-            write_json_atomic(
-                p.multiangle_dir / "cut_range.json",
-                win["cut_range"], indent=1)
-        else:
-            # older records lost the range with the project dir; recover
-            # it from the newest cut meta (record or archived artefact)
-            rng = None
-            best = max((c for c in (rec.get("cuts") or [])
-                        if c.get("range")),
-                       key=lambda c: c.get("created_at") or 0,
-                       default=None)
-            if best:
-                rng = best["range"]
-            else:
-                adir = history.archive_root() / match_id / "cuts"
-                metas = []
-                if adir.is_dir():
-                    for c in adir.iterdir():
-                        if c.is_dir():
-                            mdoc = _read_json(c / "meta.json")
-                            if mdoc and mdoc.get("range"):
-                                metas.append(mdoc)
-                if metas:
-                    rng = max(metas,
-                              key=lambda m: m.get("created_at") or 0)["range"]
-            if rng:
+        if body.trim:
+            if win.get("match_window_src"):
+                write_json_atomic(
+                    p.multiangle_dir / "match_window_src.json",
+                    win["match_window_src"], indent=1)
+            if win.get("cut_range"):
                 write_json_atomic(
                     p.multiangle_dir / "cut_range.json",
-                    {"lo": rng[0], "hi": rng[1]}, indent=1)
+                    win["cut_range"], indent=1)
+            else:
+                # older records lost the range with the project dir;
+                # recover it from the newest cut meta (record or
+                # archived artefact)
+                rng = None
+                best = max((c for c in (rec.get("cuts") or [])
+                            if c.get("range")),
+                           key=lambda c: c.get("created_at") or 0,
+                           default=None)
+                if best:
+                    rng = best["range"]
+                else:
+                    adir = history.archive_root() / match_id / "cuts"
+                    metas = []
+                    if adir.is_dir():
+                        for c in adir.iterdir():
+                            if c.is_dir():
+                                mdoc = _read_json(c / "meta.json")
+                                if mdoc and mdoc.get("range"):
+                                    metas.append(mdoc)
+                    if metas:
+                        rng = max(metas,
+                                  key=lambda m: m.get("created_at") or 0
+                                  )["range"]
+                if rng:
+                    write_json_atomic(
+                        p.multiangle_dir / "cut_range.json",
+                        {"lo": rng[0], "hi": rng[1]}, indent=1)
         zones = rec.get("zones") if isinstance(rec.get("zones"), dict) else None
         if zones is None:
             zf = history.artefact_path(match_id, "zones.json")
             zones = _read_json(zf) if zf else None
         if isinstance(zones, dict):
+            # kept for reference; only zones=True re-activates them —
+            # old drawn zones took over camera switching on 4/9
             write_json_atomic(
-                p.multiangle_dir / "zones.json", zones, indent=1)
-        dp = rec.get("director_params")
-        if not isinstance(dp, dict):
-            dpf = history.artefact_path(match_id, "director_params.json")
-            dp = _read_json(dpf) if dpf else None
-        if isinstance(dp, dict):
-            write_json_atomic(
-                p.multiangle_dir / "director_params.json", dp, indent=1)
+                p.multiangle_dir / "zones_archived.json",
+                zones, indent=1)
+            if body.zones:
+                write_json_atomic(
+                    p.multiangle_dir / "zones.json", zones, indent=1)
+        if body.learned:
+            dp = rec.get("director_params")
+            if not isinstance(dp, dict):
+                dpf = history.artefact_path(match_id, "director_params.json")
+                dp = _read_json(dpf) if dpf else None
+            if isinstance(dp, dict):
+                write_json_atomic(
+                    p.multiangle_dir / "director_params.json", dp, indent=1)
         try:
             out = pipeline.spawn_multiangle(
                 p, cookies=_user_default_cookies(p, user))
@@ -3182,7 +3203,7 @@ def restart_match(match_id: str, user: UserDep) -> dict:
             source={"kind": kind, "url": src.get("url"),
                     "filename": src.get("filename")}, meta=meta)
         mw = (rec.get("window") or {}).get("match_window")
-        if mw:
+        if mw and body.trim:
             write_json_atomic(
                 _match_window_path(p), {"match_window": mw}, indent=1)
         ck = _user_default_cookies(p, user)
@@ -3202,7 +3223,9 @@ def restart_match(match_id: str, user: UserDep) -> dict:
                                      stages=NO_DOWNLOAD_STAGES)
         except pipeline.PipelineBusy as e:
             raise HTTPException(409, str(e)) from e
-    history.log(match_id, "restarted", new_project=p.id)
+    history.log(match_id, "restarted", new_project=p.id,
+                restored={"trim": body.trim, "zones": body.zones,
+                          "learned": body.learned})
     _hist(p, "created", restarted_from=match_id)
     _hist(p, "source_added", src=(rec.get("mode") or src.get("kind")),
           n_angles=len(src.get("angles") or []))

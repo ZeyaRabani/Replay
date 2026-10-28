@@ -150,14 +150,22 @@ def test_watchdog_interrupted_and_stale_error(
 
 
 def test_watchdog_leaves_running_alive(client, sample_video, monkeypatch):
+    import subprocess
     pid = new_project(client, sample_video)
     p = m.get_registry().get(pid)
     calls = _record_spawns(monkeypatch)
-    import os
-    _set_status(p, state="running", pid=os.getpid(), error=None,
-                message="downloading")
-    watchdog.pass_once()
-    assert calls == []
+    # the stored pid must be alive AND belong to the project (cmdline
+    # mentions the id) or the watchdog treats it as recycled/stale
+    proc = subprocess.Popen(
+        ["sh", "-c", f"sleep 30 # {p.id}"], start_new_session=True)
+    try:
+        _set_status(p, state="running", pid=proc.pid, error=None,
+                    message="downloading")
+        watchdog.pass_once()
+        assert calls == []
+    finally:
+        proc.kill()
+        proc.wait()
 
 
 def test_cookies_source_picks_newest(tmp_path, monkeypatch):
@@ -297,3 +305,52 @@ def test_cookie_failed_respawns_on_untried_older_file(
     _set_status(p, error=COOKIES_REJECTED_MSG)
     watchdog.pass_once()
     assert len(calls) == 2
+
+
+def test_cancel_does_not_kill_stale_pid(client, sample_video):
+    """A pid in status.json that isn't ours (number recycled after a
+    restart) must NOT be signalled — the 62ffe1b373ac delete bug."""
+    import subprocess
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    proc = subprocess.Popen(["sleep", "30"], start_new_session=True)
+    try:
+        _set_status(p, pid=proc.pid, state="running")
+        pipeline.cancel(p)
+        assert proc.poll() is None
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_cancel_kills_owned_pid(client, sample_video):
+    """A live pid whose cmdline mentions the project id is still killed."""
+    import subprocess
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    proc = subprocess.Popen(
+        ["sh", "-c", f"sleep 30 # {p.id}"], start_new_session=True)
+    try:
+        _set_status(p, pid=proc.pid, state="running")
+        pipeline.cancel(p)
+        proc.wait(timeout=10)
+        assert proc.poll() is not None
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+def test_delete_does_not_kill_stale_pid(client, sample_video):
+    """delete_project must not killpg a foreign process on a stale pid."""
+    import subprocess
+    pid = new_project(client, sample_video)
+    p = m.get_registry().get(pid)
+    proc = subprocess.Popen(["sleep", "30"], start_new_session=True)
+    try:
+        _set_status(p, pid=proc.pid, state="running")
+        assert client.delete(f"/api/projects/{pid}").status_code == 204
+        assert proc.poll() is None
+    finally:
+        proc.kill()
+        proc.wait()

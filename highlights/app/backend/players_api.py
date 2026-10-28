@@ -95,21 +95,21 @@ def _write_status(path: Path, status: dict) -> None:
     tmp.replace(path)
 
 
-def _pid_alive(pid: int | None) -> bool:
+def _pid_alive(pid: int | None, p) -> bool:
     if pid is None or pid <= 0:
         return False
     proc = _procs.get(pid)
     if proc is not None:
         return proc.poll() is None
-    return pipeline.pid_alive(pid)
+    return pipeline.pid_owned_by(pid, p)
 
 
-def _status_alive(status: dict) -> bool:
+def _status_alive(status: dict, p) -> bool:
     pid = status.get("pid")
     if pid is None:
         last = status.get("updated_at") or status.get("started_at") or 0
         return time.time() - last < 15
-    return _pid_alive(pid)
+    return _pid_alive(pid, p)
 
 
 def _runner_cmd() -> list[str]:
@@ -122,7 +122,7 @@ def _runner_cmd() -> list[str]:
 def _reconciled_status(p) -> dict | None:
     path = _players_dir(p) / "status.json"
     status = _read_json(path)
-    if status and status.get("state") in ("queued", "running") and not _status_alive(status):
+    if status and status.get("state") in ("queued", "running") and not _status_alive(status, p):
         status["state"] = "failed"
         status["error"] = "interrupted"
         status["message"] = "interrupted"
@@ -262,7 +262,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         pdir = _players_dir(p)
         status_path = pdir / "status.json"
         status = _read_json(status_path)
-        if status and status.get("state") in ("queued", "running") and _status_alive(status):
+        if status and status.get("state") in ("queued", "running") and _status_alive(status, p):
             raise HTTPException(409, "player analysis already running")
 
         force = bool(body and body.force)
@@ -325,7 +325,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         status_path = _players_dir(p) / "status.json"
         status = _read_json(status_path)
         if status and status.get("state") in ("queued", "running") \
-                and _status_alive(status):
+                and _status_alive(status, p):
             raise HTTPException(409, "player analysis already running")
         now = time.time()
         status = {
@@ -611,7 +611,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         if not status:
             raise HTTPException(404, "no reel for this identity yet")
         if (status.get("state") in ("queued", "running")
-                and not _status_alive(status)):
+                and not _status_alive(status, p)):
             status.update(state="failed", error="interrupted",
                           message="interrupted", finished_at=time.time(),
                           updated_at=time.time())
@@ -641,7 +641,7 @@ def make_router(ScopedP, PublicP) -> APIRouter:
         status_path = rdir / "status.json"
         status = _read_json(status_path)
         if status and status.get("state") in ("queued", "running") \
-                and _status_alive(status):
+                and _status_alive(status, p):
             raise HTTPException(409, "reel already being built")
         now = time.time()
         status = {"state": "queued", "stage": "reel", "progress": 0.0,
