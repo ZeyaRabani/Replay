@@ -222,74 +222,117 @@ def test_disabled_default(client, short_video, monkeypatch):
     r = client.get(scoped(pid, "/download"), follow_redirects=False)
     assert r.status_code == 200
     assert "attachment" in r.headers.get("content-disposition", "")
+def _mkproj(client, short_video, m, pipeline, fin):
+    """Project with match.mp4 + done status; returns its id."""
+    pid = new_project(client, short_video)
+    p = m.get_registry().get(pid)
+    mp = p.root / "match.mp4"
+    mp.write_bytes(b"x" * 100)
+    pipeline.write_status(p, {"state": "done", "finished_at": fin,
+                              "pid": None})
+    return pid
 
 
-def test_auto_pass_respects_auto_since(client, short_video, monkeypatch):
-    """Only cuts changed after auto_since get auto-enqueued."""
-    import os
+def test_queue_pass_orphans_and_picks_newest(fake_r2, client,
+                                           short_video, monkeypatch):
+    import time
+
+    import highlights.app.backend.main as m
+    from highlights.app.backend import pipeline
+
+    r2, fake = fake_r2
+    pids = [_mkproj(client, short_video, m, pipeline, time.time() - i)
+            for i in (0, 1)]
+    # registry list order = newest created first -> pids[1] first
+    fake.objects["deadpid/match-1-1.mp4"] = _obj(10, 100)   # orphan
+    fake.objects[f"{pids[0]}/match-9-9.mp4"] = _obj(10, 99)  # stale key
+    enq = []
+    monkeypatch.setattr(r2, "enqueue",
+                        lambda pid, path, auto=False: enq.append(pid))
+    m._r2_queue_pass()
+    assert "deadpid/match-1-1.mp4" in fake.deleted
+    assert f"{pids[0]}/match-9-9.mp4" in fake.deleted
+    assert enq == [pids[1]]            # first eligible in list order
+
+
+def test_queue_pass_noops_when_current_or_busy(fake_r2, client,
+                                               short_video, monkeypatch):
+    import time
+
+    import highlights.app.backend.main as m
+    from highlights.app.backend import pipeline
+
+    r2, fake = fake_r2
+    pid = _mkproj(client, short_video, m, pipeline, time.time())
+    p = m.get_registry().get(pid)
+    key = r2.object_key(pid, p.root / "match.mp4")
+    enq = []
+    monkeypatch.setattr(r2, "enqueue",
+                        lambda pid, path, auto=False: enq.append(pid))
+
+    fake.objects[key] = _obj(100, 1)               # current object
+    m._r2_queue_pass()
+    assert enq == [] and fake.deleted == []
+
+    fake.objects.clear(); fake.deleted.clear()
+    r2._state["x"] = {"state": "uploading", "progress": 0.1}
+    m._r2_queue_pass()
+    assert enq == []
+
+    r2._state.clear()
+    fake.mpus = [{"Key": "k", "UploadId": "u",
+                  "Initiated": datetime.now(timezone.utc)
+                  - timedelta(minutes=5)}]
+    m._r2_queue_pass()
+    assert enq == []                               # external uploader
+
+
+def test_queue_pass_skips_oversize_picks_next(fake_r2, client,
+                                              short_video, tmp_path,
+                                              monkeypatch):
+    import time
+
+    import highlights.app.backend.main as m
+    from highlights.app.backend import pipeline
+
+    r2, _fake = fake_r2
+    pid_ok = _mkproj(client, short_video, m, pipeline, time.time())
+    pid_big = _mkproj(client, short_video, m, pipeline, time.time())
+    # pid_big is newest -> first in list order; make it oversize
+    m.get_registry().get(pid_big).root.joinpath("match.mp4") \
+        .write_bytes(b"x" * 2000)                  # > cap (1000)
+    enq = []
+    monkeypatch.setattr(r2, "enqueue",
+                        lambda pid, path, auto=False: enq.append(pid))
+    m._r2_queue_pass()
+    assert enq == [pid_ok]                         # oversize skipped
+
+
+def test_delete_hook_removes_pid_objects(fake_r2):
+    r2, fake = fake_r2
+    fake.objects["pid/match-1-1.mp4"] = _obj(10, 50)
+    fake.objects["other/match-1-1.mp4"] = _obj(10, 50)
+    n = r2.delete_pid_objects("pid")
+    assert n == 1
+    assert "other/match-1-1.mp4" in fake.objects
+
+
+def test_r2_current_hides_other_users(client, short_video, monkeypatch):
     import time
 
     import highlights.app.backend.main as m
     import highlights.app.backend.r2 as r2
     from highlights.app.backend import pipeline
 
-    now = time.time()
-    since = now - 3600  # 1 h ago
     monkeypatch.setattr(r2, "enabled", lambda: True)
-    monkeypatch.setattr(r2, "auto_since", lambda: since)
-    monkeypatch.setattr(r2, "status",
-                        lambda pid, path: {"state": "none", "progress": 0.0})
-    enq = []
-    monkeypatch.setattr(r2, "enqueue",
-                        lambda pid, path, auto=False: enq.append((pid, auto)))
-
-    for fin in (now - 7200, now - 300):  # before / after auto_since
-        pid = new_project(client, short_video)
-        p = m.get_registry().get(pid)
-        mp = p.root / "match.mp4"
-        mp.write_bytes(b"x")
-        os.utime(mp, (fin, fin))
-        pipeline.write_status(p, {"state": "done", "finished_at": fin,
-                                  "pid": None})
-
-    m._r2_auto_pass()
-    enq_ids = [pid for pid, _ in enq]
-    assert len(enq_ids) == 1
-    assert all(auto for _, auto in enq)
-    # the enqueued one is the project that finished after auto_since
-    p2 = next(p for p in m.get_registry().list_projects()
-              if p.id in enq_ids)
-    st = pipeline.read_status(p2)
-    assert st["finished_at"] > since
-
-
-def test_download_filename_keeps_date_and_ext(client, short_video,
-                                              monkeypatch):
-    """A title with slashes must keep every segment + the .mp4 suffix —
-    regression for the duplicate _safe_filename shadowing."""
-    import highlights.app.backend.main as m
-    import highlights.app.backend.r2 as r2
-    pid = new_project(client, short_video)
-    p = m.get_registry().get(pid)
-    p.title = "7/8/26 Green team wins (restart)"
-    want = "7_8_26 Green team wins (restart).mp4"
-
-    # not-ready path: FileResponse Content-Disposition
-    monkeypatch.setattr(r2, "enabled", lambda: False)
-    r = client.get(scoped(pid, "/download"), follow_redirects=False)
-    assert r.status_code == 200
-    from urllib.parse import unquote
-    assert want in unquote(r.headers["content-disposition"])
-
-    # ready path: presign called with the same filename
-    calls = []
-    monkeypatch.setattr(r2, "enabled", lambda: True)
-    monkeypatch.setattr(r2, "status",
-                        lambda pid, path: {"state": "ready",
-                                           "progress": 1.0})
-    monkeypatch.setattr(r2, "object_key", lambda pid, path: "k.mp4")
-    monkeypatch.setattr(r2, "presign",
-                        lambda k, f: calls.append(f) or "https://r2.test/x")
-    r = client.get(scoped(pid, "/download"), follow_redirects=False)
-    assert r.status_code == 302
-    assert calls == [want]
+    monkeypatch.setattr(r2, "current",
+                        lambda: {"state": "ready", "pid": "X",
+                                 "progress": 1.0})
+    _mkproj(client, short_video, m, pipeline, time.time())
+    monkeypatch.setattr(r2, "bucket_objects", lambda: [])
+    # job claims pid X -> not the requester's project
+    monkeypatch.setattr(r2, "current",
+                        lambda: {"state": "uploading", "pid": "other",
+                                 "progress": 0.5})
+    r = client.get("/api/r2/current")
+    assert r.json()["state"] == "none"

@@ -27,6 +27,7 @@ import type {
   PlayerGroup,
   PlayersPaths,
   PlayersResponse,
+  R2Current,
   R2Status,
   RadarPitch,
   PlayersRoster,
@@ -380,6 +381,10 @@ export const historyApi = {
     req<ProjectSummary>(`/api/history/${id}/restart`, json(opts ?? {})),
   remove: (id: string) =>
     req<void>(`/api/history/${id}`, { method: "DELETE" }),
+};
+
+export const r2Api = {
+  current: () => req<R2Current>("/api/r2/current"),
 };
 
 export const downloadsApi = {

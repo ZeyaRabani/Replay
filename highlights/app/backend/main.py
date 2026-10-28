@@ -560,40 +560,86 @@ def _r2_enqueue(p: ProjectStore) -> dict:
     return r2.enqueue(p.id, path, auto=False)
 
 
-def _r2_auto_pass() -> None:
-    """Enqueue done projects whose match.mp4 changed recently.
+def _r2_queue_pass() -> None:
+    """Keep exactly one live match on R2, in Projects list order.
 
-    The cut must be <48 h old AND newer than the config's auto_since
-    epoch — new matches and recuts go up, old ones don't.
+    1. Remove orphan objects (deleted pids) and stale keys (live pid,
+       wrong size/mtime).
+    2. A live current object or an in-flight job (ours or a young
+       external MPU) means the slot is taken.
+    3. Otherwise enqueue the first eligible project in list order
+       (newest first).
     """
     if not r2.enabled():
         return
-    now = time.time()
-    since = r2.auto_since()
-    for p in get_registry().list_projects():
+    projs = get_registry().list_projects()
+    live = {p.id: p for p in projs}
+    keep: set[str] = set()
+    for p in projs:
+        mp = p.root / "match.mp4"
+        if mp.is_file():
+            keep.add(r2.object_key(p.id, mp))
+    current_objs = []
+    for o in r2.bucket_objects():
+        pid = o["Key"].split("/", 1)[0]
+        if pid not in live or o["Key"] not in keep:
+            r2.delete_object(o["Key"])
+        else:
+            current_objs.append(o)
+    if current_objs or r2.busy() or r2.young_mpu():
+        return
+    for p in projs:
         mp = p.root / "match.mp4"
         if not mp.is_file():
             continue
         st = pipeline.read_status(p) or {}
         if st.get("state") != "done":
             continue
-        fin = st.get("finished_at") or 0
-        changed = max(fin, mp.stat().st_mtime)
-        if now - changed > 48 * 3600 or changed <= since:
+        try:
+            if mp.stat().st_size > r2.cap_bytes():
+                continue
+        except OSError:
             continue
-        if r2.status(p.id, mp).get("state") == "ready":
-            continue
-        r2.enqueue(p.id, mp, auto=True)
+        r2.enqueue(p.id, mp, auto=False)
+        return
+
+
+def _r2_current(user: str) -> dict:
+    """Slot owner for GET /api/r2/current — only the requester's own."""
+    if not r2.enabled():
+        return {"state": "off", "pid": None, "title": None,
+                "progress": 0.0, "size_bytes": None}
+    cur = r2.current()
+    if cur["state"] == "none":
+        live = {p.id: p for p in get_registry().list_projects()}
+        for o in r2.bucket_objects():
+            pid = o["Key"].split("/", 1)[0]
+            p = live.get(pid)
+            mp = p.root / "match.mp4" if p else None
+            if p and mp.is_file() and \
+                    o["Key"] == r2.object_key(pid, mp):
+                cur = {"state": "ready", "pid": pid, "progress": 1.0,
+                       "size_bytes": o["Size"]}
+                break
+    pid = cur.get("pid")
+    p = next((p for p in get_registry().list_projects()
+              if p.id == pid), None)
+    if p is None or p.owner != user:
+        return {"state": "none", "pid": None, "title": None,
+                "progress": 0.0, "size_bytes": None}
+    return {"state": cur["state"], "pid": pid, "title": p.title,
+            "progress": cur.get("progress", 0.0),
+            "size_bytes": cur.get("size_bytes")}
 
 
 def _r2_auto_loop() -> None:
-    """Every 10 min: auto-upload the newest changed match.mp4 to R2."""
+    """Every 2 min: advance the one-match R2 queue."""
     while True:
-        time.sleep(600)
+        time.sleep(120)
         try:
-            _r2_auto_pass()
+            _r2_queue_pass()
         except Exception as e:
-            print(f"r2 auto loop error: {e}")
+            print(f"r2 queue pass error: {e}")
 
 
 # ---------- match window + trimmed video ----------
@@ -1691,6 +1737,8 @@ def delete_project(p: ScopedP) -> Response:
         print(f"warning: archive failed for {p.id}: {e}")
     get_registry().delete(p.id)
     threading.Thread(target=_train_after_render, args=(p,), daemon=True).start()
+    threading.Thread(target=r2.delete_pid_objects, args=(p.id,),
+                     daemon=True).start()
     return Response(status_code=204)
 
 
@@ -3003,6 +3051,11 @@ def s_r2_status(p: ScopedP) -> dict:
 @scoped.post("/r2")
 def s_r2_enqueue(p: ScopedP) -> dict:
     return _r2_enqueue(p)
+
+
+@app.get("/api/r2/current")
+def r2_current(user: UserDep) -> dict:
+    return _r2_current(user)
 
 
 @scoped.get("/match-window")

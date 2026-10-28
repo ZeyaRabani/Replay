@@ -5,6 +5,7 @@ import { ProjectApiContext, projectApi, projectsApi } from "../api";
 import DirectorCut from "../components/DirectorCut";
 import HistoryPanel from "../components/HistoryPanel";
 import PipelineProgress from "../components/PipelineProgress";
+import R2Notice from "../components/R2Notice";
 import CutBadges from "../components/CutBadges";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
@@ -156,6 +157,7 @@ export default function ProjectPage() {
             </div>
           )}
         </TopBar>
+        <R2Notice />
         {error && <div className="bg-red-900/80 text-red-100 text-sm px-4 py-2 border-b border-red-700">{error}</div>}
         {!project ? (
           <div className="p-6 text-sm text-zinc-500 flex items-center gap-2">

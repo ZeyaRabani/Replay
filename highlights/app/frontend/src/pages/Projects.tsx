@@ -5,6 +5,7 @@ import { configApi, downloadsApi, getUser, historyApi, meApi, mediaUrl, playlist
 import { parseClock } from "../lib/time";
 import type { CookieStatus, ProxyStatus } from "../api";
 import CutBadges from "../components/CutBadges";
+import R2Notice from "../components/R2Notice";
 import StatusPill from "../components/StatusPill";
 import TitleEdit from "../components/TitleEdit";
 import TopBar from "../components/TopBar";
@@ -1237,6 +1238,7 @@ export default function Projects() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar />
+      <R2Notice />
       {error && <div className="bg-red-900/80 text-red-100 text-sm px-4 py-2 border-b border-red-700">{error}</div>}
       <div className="flex-1 grid grid-cols-1 dsk:lg:grid-cols-[1fr_360px] gap-4 p-4 max-w-7xl w-full mx-auto">
         <div className="flex flex-col gap-3 min-w-0">

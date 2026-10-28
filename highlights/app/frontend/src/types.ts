@@ -228,6 +228,14 @@ export interface AngleProxyStatus {
   status: "ready" | "started" | "missing";
 }
 
+export interface R2Current {
+  state: "off" | "none" | "queued" | "uploading" | "waiting" | "ready";
+  pid: string | null;
+  title: string | null;
+  progress: number;
+  size_bytes?: number | null;
+}
+
 export interface R2Status {
   state: "off" | "none" | "queued" | "uploading" | "waiting" | "ready" | "too_big" | "error";
   progress: number;

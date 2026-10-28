@@ -183,30 +183,44 @@ def _list_objects() -> list[dict]:
         tok = r.get("NextContinuationToken")
 
 
+def _list_mpus() -> list[dict]:
+    out: list[dict] = []
+    tok = None
+    while True:
+        kw: dict[str, Any] = {"Bucket": _bucket()}
+        if tok:
+            kw["UploadIdMarker"], kw["KeyMarker"] = tok
+        r = _s3().list_multipart_uploads(**kw)
+        out += r.get("Uploads", [])
+        if not r.get("IsTruncated"):
+            return out
+        tok = (r.get("NextUploadIdMarker"), r.get("NextKeyMarker"))
+
+
 def _abort_stale_mpus() -> None:
     """Abort every multipart upload older than MPU_GRACE_S — incomplete
     parts still count toward storage."""
     now = time.time()
     try:
-        tok = None
-        while True:
-            kw: dict[str, Any] = {"Bucket": _bucket()}
-            if tok:
-                kw["UploadIdMarker"] = tok[0]
-                kw["KeyMarker"] = tok[1]
-            r = _s3().list_multipart_uploads(**kw)
-            for u in r.get("Uploads", []):
-                initiated = u["Initiated"].timestamp()
-                if now - initiated > MPU_GRACE_S:
-                    with contextlib.suppress(Exception):
-                        _s3().abort_multipart_upload(
-                            Bucket=_bucket(), Key=u["Key"],
-                            UploadId=u["UploadId"])
-            if not r.get("IsTruncated"):
-                return
-            tok = (r.get("NextUploadIdMarker"), r.get("NextKeyMarker"))
+        for u in _list_mpus():
+            if now - u["Initiated"].timestamp() > MPU_GRACE_S:
+                with contextlib.suppress(Exception):
+                    _s3().abort_multipart_upload(
+                        Bucket=_bucket(), Key=u["Key"],
+                        UploadId=u["UploadId"])
     except Exception:
         pass
+
+
+def young_mpu() -> bool:
+    """Any in-flight multipart upload younger than 1 h — an external
+    uploader (e.g. a manual r2up run) is writing; don't compete."""
+    now = time.time()
+    try:
+        return any(now - u["Initiated"].timestamp() < MPU_GRACE_S
+                   for u in _list_mpus())
+    except Exception:
+        return False
 
 
 def _evict_for(size: int, keep_key: str, auto: bool) -> bool:
@@ -324,6 +338,63 @@ def enqueue(pid: str, path: Path, auto: bool = False) -> dict:
             _q_cv.notify()
     _ensure_worker()
     return _state.get(pid, {"state": "queued", "progress": 0.0})
+
+
+# ---------- queue helpers (used by main._r2_queue_pass) ----------
+
+def cap_bytes() -> int:
+    return _cap()
+
+
+def bucket_objects() -> list[dict]:
+    return _list_objects()
+
+
+def delete_object(key: str) -> None:
+    with contextlib.suppress(Exception):
+        _s3().delete_object(Bucket=_bucket(), Key=key)
+
+
+def delete_pid_objects(pid: str) -> int:
+    """Best-effort removal of every {pid}/ object — the project was
+    deleted, so its fast download dies with it. Never raises."""
+    n = 0
+    if not enabled():
+        return 0
+    try:
+        for o in _list_objects():
+            if o["Key"].startswith(f"{pid}/"):
+                with contextlib.suppress(Exception):
+                    _s3().delete_object(Bucket=_bucket(), Key=o["Key"])
+                    n += 1
+    except Exception:
+        pass
+    _state.pop(pid, None)
+    with _q_cv:
+        _q[:] = [j for j in _q if j["pid"] != pid]
+    return n
+
+
+def busy() -> bool:
+    """A job is queued/uploading, incl. deferred ones."""
+    if _q:
+        return True
+    return any(s.get("state") in ("queued", "uploading")
+               for s in _state.values())
+
+
+def current() -> dict:
+    """Which pid currently holds the fast-download slot, per job state.
+    Bucket-side 'ready' is resolved by the caller (it needs projects)."""
+    for pid, s in _state.items():
+        if s.get("state") in ("queued", "uploading", "waiting"):
+            return {"state": s["state"], "pid": pid,
+                    "progress": s.get("progress", 0.0)}
+    with _q_cv:
+        if _q:
+            return {"state": "queued", "pid": _q[0]["pid"],
+                    "progress": 0.0}
+    return {"state": "none"}
 
 
 # ---------- test seam ----------
