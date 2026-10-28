@@ -100,6 +100,15 @@ def _cap() -> int:
     return int(_load_cfg()["cap_bytes"])
 
 
+def skip_pids() -> set:
+    """Config opt-out: pids the auto queue must never upload."""
+    cfg = _load_cfg() or {}
+    v = cfg.get("skip_pids")
+    if isinstance(v, list):
+        return {str(x) for x in v}
+    return set()
+
+
 def auto_since() -> float:
     """Config opt-in: only auto-upload cuts changed after this epoch."""
     cfg = _load_cfg() or {}

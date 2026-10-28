@@ -336,3 +336,22 @@ def test_r2_current_hides_other_users(client, short_video, monkeypatch):
                                  "progress": 0.5})
     r = client.get("/api/r2/current")
     assert r.json()["state"] == "none"
+
+
+def test_queue_pass_skips_config_skip_pids(fake_r2, client, short_video,
+                                           monkeypatch):
+    import time
+
+    import highlights.app.backend.main as m
+    from highlights.app.backend import pipeline
+
+    r2, _fake = fake_r2
+    pid_ok = _mkproj(client, short_video, m, pipeline, time.time())
+    pid_skip = _mkproj(client, short_video, m, pipeline, time.time())
+    # pid_skip is newest -> first in list order, but config skips it
+    monkeypatch.setattr(r2, "skip_pids", lambda: {pid_skip})
+    enq = []
+    monkeypatch.setattr(r2, "enqueue",
+                        lambda pid, path, auto=False: enq.append(pid))
+    m._r2_queue_pass()
+    assert enq == [pid_ok]

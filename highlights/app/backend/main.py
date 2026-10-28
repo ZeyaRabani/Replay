@@ -574,6 +574,7 @@ def _r2_queue_pass() -> None:
         return
     projs = get_registry().list_projects()
     live = {p.id: p for p in projs}
+    skip = r2.skip_pids()
     keep: set[str] = set()
     for p in projs:
         mp = p.root / "match.mp4"
@@ -584,11 +585,16 @@ def _r2_queue_pass() -> None:
         pid = o["Key"].split("/", 1)[0]
         if pid not in live or o["Key"] not in keep:
             r2.delete_object(o["Key"])
+        elif pid in skip:
+            continue        # skipped pid's live current object: leave it,
+                            # but don't let it hold the slot
         else:
             current_objs.append(o)
     if current_objs or r2.busy() or r2.young_mpu():
         return
     for p in projs:
+        if p.id in skip:
+            continue
         mp = p.root / "match.mp4"
         if not mp.is_file():
             continue
