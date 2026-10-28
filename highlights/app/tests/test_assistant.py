@@ -24,7 +24,7 @@ def test_status_503_when_unconfigured(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     r = client.get("/api/assistant/status")
     assert r.status_code == 200 and r.json() == {
-        "configured": False, "model": None}
+        "configured": False, "model": None, "devin": False}
     r = client.post("/api/assistant/chat", json={
         "messages": [{"role": "user", "content": "hi"}]})
     assert r.status_code == 503

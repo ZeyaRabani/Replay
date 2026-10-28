@@ -1,8 +1,9 @@
-import { Loader2, MessageCircle, Send, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, MessageCircle, Send, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { assistantApi, getUser } from "../api";
 import type { AssistantAction } from "../api";
+import type { DevinTicket } from "../types";
 
 interface Msg {
   role: "user" | "assistant";
@@ -39,10 +40,40 @@ function loadHistory(): Msg[] {
   }
 }
 
+const DEVIN_BADGE: Record<DevinTicket["status"], { label: string; cls: string }> = {
+  working: { label: "Working…", cls: "border-amber-700 text-amber-300" },
+  needs_reply: { label: "Needs your reply", cls: "border-red-700 text-red-400" },
+  finished: { label: "Done", cls: "border-emerald-700 text-emerald-400" },
+  unknown: { label: "Unknown", cls: "border-zinc-700 text-zinc-500" },
+};
+
+/** Clickable links inside a plain-text Devin message. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/\S+)/g);
+  return (
+    <>
+      {parts.map((s, i) =>
+        /^https?:\/\//.test(s) ? (
+          <a key={i} href={s} target="_blank" rel="noreferrer"
+             className="text-amber-300 hover:underline break-all">{s}</a>
+        ) : (
+          <span key={i}>{s}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export default function Assistant() {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [devinOn, setDevinOn] = useState(false);
+  const [tab, setTab] = useState<"chat" | "devin">("chat");
+  const [tickets, setTickets] = useState<DevinTicket[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>(loadHistory);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -51,9 +82,38 @@ export default function Assistant() {
 
   useEffect(() => {
     assistantApi.status()
-      .then((s) => setConfigured(s.configured))
+      .then((s) => { setConfigured(s.configured); setDevinOn(!!s.devin); })
       .catch(() => setConfigured(false));
   }, []);
+
+  useEffect(() => {
+    if (!open || !devinOn) return;
+    let stop = false;
+    const poll = () => {
+      assistantApi.devin()
+        .then((r) => !stop && setTickets(r.tickets))
+        .catch(() => undefined);
+    };
+    poll();
+    const t = window.setInterval(poll, 20000);
+    return () => { stop = true; window.clearInterval(t); };
+  }, [open, devinOn]);
+
+  const devinReply = async (sid: string) => {
+    const msg = replyDraft.trim();
+    if (!msg || sending) return;
+    setSending(true);
+    try {
+      await assistantApi.devinReply(sid, msg);
+      setReplyDraft("");
+      const r = await assistantApi.devin();
+      setTickets(r.tickets);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -84,6 +144,10 @@ export default function Assistant() {
       setMsgs([...next, { role: "assistant", content: r.reply, actions: r.actions }]);
       if (r.actions.some((a) => a.ok)) {
         window.dispatchEvent(new Event("replay:refresh"));
+      }
+      if (r.actions.some((a) => a.tool === "send_to_devin" && a.ok)) {
+        setTab("devin");
+        assistantApi.devin().then((d) => setTickets(d.tickets)).catch(() => undefined);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -130,7 +194,97 @@ export default function Assistant() {
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
+          {devinOn && (
+            <div className="flex gap-1 border-b border-zinc-700 px-2 py-1">
+              {(["chat", "devin"] as const).map((t) => (
+                <button
+                  key={t}
+                  className={`rounded px-2 py-0.5 text-[11px] font-medium ${
+                    tab === t ? "bg-zinc-800 text-amber-300" : "text-zinc-400 hover:text-zinc-200"}`}
+                  onClick={() => setTab(t)}
+                >
+                  {t === "chat" ? "Chat" : "Devin"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === "devin" && (
+            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+              {tickets.length === 0 && (
+                <p className="text-xs text-zinc-400 pt-2">
+                  No Devin sessions yet. If I can&apos;t fix a problem here,
+                  I can hand it to Devin — an engineer who can change the code
+                  and deploy it.
+                </p>
+              )}
+              {tickets.map((t) => {
+                const b = DEVIN_BADGE[t.status] ?? DEVIN_BADGE.unknown;
+                const openT = expanded === t.session_id;
+                return (
+                  <div key={t.session_id} className="rounded-lg border border-zinc-700">
+                    <button
+                      className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left"
+                      onClick={() => setExpanded(openT ? null : t.session_id)}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-zinc-200">
+                        {t.title ?? "Devin session"}
+                      </span>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] ${b.cls}`}>
+                        {b.label}
+                      </span>
+                      {openT ? <ChevronUp size={13} className="text-zinc-500" />
+                             : <ChevronDown size={13} className="text-zinc-500" />}
+                    </button>
+                    {openT && (
+                      <div className="border-t border-zinc-800 px-2.5 py-2 space-y-2">
+                        {t.messages.length === 0 && (
+                          <p className="text-[11px] text-zinc-500">No messages yet.</p>
+                        )}
+                        {t.messages.map((mm, i) => (
+                          <div key={i} className={mm.source === "user" ? "text-right" : "text-left"}>
+                            <div
+                              className={`inline-block max-w-[85%] rounded-lg px-2.5 py-1 text-[12px] whitespace-pre-wrap text-left ${
+                                mm.source === "user"
+                                  ? "bg-amber-500 text-zinc-950"
+                                  : "bg-zinc-800 text-zinc-100"}`}
+                            >
+                              <Linkified text={mm.text} />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex items-end gap-1.5 pt-1">
+                          <textarea
+                            className="max-h-20 min-h-[30px] flex-1 resize-none rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-[12px] text-zinc-100 outline-none focus:border-amber-500 disabled:opacity-50"
+                            rows={1}
+                            placeholder="Reply to Devin…"
+                            value={replyDraft}
+                            disabled={sending}
+                            onChange={(e) => setReplyDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                void devinReply(t.session_id);
+                              }
+                            }}
+                          />
+                          <button
+                            className="rounded-md bg-amber-500 p-1.5 text-zinc-950 hover:bg-amber-400 disabled:opacity-40"
+                            disabled={!replyDraft.trim() || sending}
+                            onClick={() => void devinReply(t.session_id)}
+                          >
+                            <Send size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div ref={scrollRef} className={`flex-1 overflow-y-auto px-3 py-2 space-y-3 ${tab === "devin" ? "hidden" : ""}`}>
             {configured === false && msgs.length === 0 && (
               <div className="text-xs text-zinc-300 space-y-2">
                 <p>
@@ -201,7 +355,7 @@ export default function Assistant() {
             {error && <div className="text-xs text-red-400">{error}</div>}
           </div>
 
-          <div className="flex items-end gap-2 border-t border-zinc-700 p-2">
+          <div className={`items-end gap-2 border-t border-zinc-700 p-2 ${tab === "devin" ? "hidden" : "flex"}`}>
             <textarea
               className="max-h-24 min-h-[34px] flex-1 resize-none rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500 disabled:opacity-50"
               rows={1}

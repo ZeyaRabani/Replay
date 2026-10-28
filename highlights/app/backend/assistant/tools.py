@@ -81,8 +81,35 @@ def _schemas() -> list[dict]:
     ]
 
 
-def schemas() -> list[dict]:
-    return _schemas()
+def _devin_schemas() -> list[dict]:
+    return [
+        {"name": "send_to_devin",
+         "description": "Hand the problem to Devin, an AI engineer that can fix the code and deploy it. Requires confirmed=true after the user agreed (uses Devin credits).",
+         "parameters": {"type": "object", "properties": {
+             "summary": {"type": "string",
+                         "description": "Detailed problem description including what the user tried"},
+             "confirmed": {"type": "boolean"}},
+             "required": ["summary", "confirmed"]}},
+        {"name": "check_devin_fix",
+         "description": "Check the latest Devin session's status and newest messages.",
+         "parameters": {"type": "object", "properties": {
+             "session_id": {"type": "string"}},
+             "required": []}},
+        {"name": "reply_to_devin",
+         "description": "Send a message to an existing Devin session.",
+         "parameters": {"type": "object", "properties": {
+             "session_id": {"type": "string"},
+             "message": {"type": "string"}},
+             "required": ["message"]}},
+    ]
+
+
+def schemas(user: str | None = None) -> list[dict]:
+    out = _schemas()
+    from . import devin
+    if devin.configured() and (user is None or devin.allowed(user)):
+        out += _devin_schemas()
+    return out
 
 
 def _m():
@@ -295,6 +322,89 @@ def _t_cookie_steps(user: str, _a: dict):
     return {"steps": COOKIE_STEPS}
 
 
+def _own_ticket(user: str, sid: str | None):
+    """Ticket by sid, or the user's newest. (ticket, err)."""
+    from . import devin
+    mine = devin.list_tickets(user)
+    if sid:
+        for t in mine:
+            if t.get("session_id") == sid:
+                return t, None
+        return None, "ticket not found"
+    if not mine:
+        return None, "no Devin sessions yet"
+    return max(mine, key=lambda t: t.get("created_at", 0)), None
+
+
+def _t_send_to_devin(user: str, a: dict, ctx: dict | None):
+    from . import devin
+    if not devin.configured():
+        return "Devin is not configured on this server"
+    if not devin.allowed(user):
+        return "you're not allowed to send problems to Devin"
+    if not a.get("confirmed"):
+        return ("needs confirmation: ask the user 'Send this to Devin to "
+                "fix? It uses Devin credits.' then call again with "
+                "confirmed=true")
+    if not devin.can_create(user):
+        return "daily Devin limit reached — try again tomorrow"
+    ctx = ctx or {}
+    summary = (a.get("summary") or "").strip()
+    if not summary:
+        return "summary is required"
+    pid = ctx.get("project_id")
+    prompt = devin.build_prompt(user, ctx.get("path") or "", pid,
+                                summary, ctx.get("messages") or [])
+    m = _m()
+    title = f"Help: {summary[:60]}"
+    if pid:
+        p = m.get_registry().get(pid)
+        if p and p.owner == user:
+            title = f"Help: {p.title} — {summary[:40]}"
+    try:
+        sess = devin.create_session(prompt, title)
+    except devin.DevinError as e:
+        return f"could not reach Devin: {e}"
+    ticket = {"session_id": sess.get("session_id"), "url": sess.get("url"),
+              "user": user, "title": title, "project_id": pid,
+              "created_at": time.time()}
+    devin.add_ticket(ticket)
+    return {"sent": True, "title": title, "url": sess.get("url")}
+
+
+def _t_check_devin_fix(user: str, a: dict, ctx: dict | None):
+    from . import devin
+    t, err = _own_ticket(user, a.get("session_id"))
+    if err:
+        return err
+    try:
+        sess = devin.get_session(t["session_id"])
+    except devin.DevinError as e:
+        return f"could not reach Devin: {e}"
+    msgs = [mm for mm in devin.session_messages(sess)
+            if mm["source"] == "devin"]
+    return {"title": t.get("title"), "url": t.get("url"),
+            "status": devin.map_status(sess),
+            "devin_messages": [mm["text"] for mm in msgs[-3:]]}
+
+
+def _t_reply_to_devin(user: str, a: dict, ctx: dict | None):
+    from . import devin
+    t, err = _own_ticket(user, a.get("session_id"))
+    if err:
+        return err
+    msg = (a.get("message") or "").strip()
+    if not msg:
+        return "message is required"
+    try:
+        devin.send_message(t["session_id"], msg)
+    except devin.DevinError as e:
+        return f"could not reach Devin: {e}"
+    return {"sent": True}
+
+
+_CTX_TOOLS = {"send_to_devin", "check_devin_fix", "reply_to_devin"}
+
 _EXECUTORS = {
     "list_projects": _t_list_projects,
     "get_project_status": _t_get_project_status,
@@ -307,6 +417,9 @@ _EXECUTORS = {
     "list_archive": _t_list_archive,
     "restart_from_archive": _t_restart_from_archive,
     "get_youtube_cookie_steps": _t_cookie_steps,
+    "send_to_devin": _t_send_to_devin,
+    "check_devin_fix": _t_check_devin_fix,
+    "reply_to_devin": _t_reply_to_devin,
 }
 
 _SUMMARISE = {
@@ -335,16 +448,29 @@ _SUMMARISE = {
         f"restarted as {r['new_project']['title']}"
         if isinstance(r, dict) and r.get("restarted") else str(r)),
     "get_youtube_cookie_steps": lambda r: "returned the cookie steps",
+    "send_to_devin": lambda r: (
+        "sent the problem to Devin" if isinstance(r, dict) and r.get("sent")
+        else str(r)),
+    "check_devin_fix": lambda r: (
+        f"Devin status: {r.get('status')}" if isinstance(r, dict)
+        else str(r)),
+    "reply_to_devin": lambda r: (
+        "sent your reply to Devin" if isinstance(r, dict) and r.get("sent")
+        else str(r)),
 }
 
 
-def execute(user: str, name: str, arguments: dict) -> tuple[bool, object, str]:
-    """Run one tool. Returns (ok, result_or_error_string, summary_line)."""
+def execute(user: str, name: str, arguments: dict,
+            ctx: dict | None = None) -> tuple[bool, object, str]:
+    """Run one tool. Returns (ok, result_or_error_string, summary_line).
+    `ctx` carries request context (page path, project id, chat messages)
+    for tools that need it — never supplied by the LLM."""
     fn = _EXECUTORS.get(name)
     if fn is None:
         return False, f"unknown tool {name}", f"unknown tool {name}"
     try:
-        res = fn(user, arguments or {})
+        res = (fn(user, arguments or {}, ctx) if name in _CTX_TOOLS
+               else fn(user, arguments or {}))
         ok = not (isinstance(res, str))
         try:
             summary = _SUMMARISE.get(name, lambda r: "done")(res)

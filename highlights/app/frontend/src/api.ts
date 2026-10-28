@@ -4,6 +4,7 @@ import type {
   AnchorMoment,
   AngleProxyStatus,
   AnalysisResponse,
+  DevinTicket,
   AnalysisStatus,
   CalibCamera,
   CalibLandmarks,
@@ -423,13 +424,19 @@ export interface AssistantAction {
 
 export const assistantApi = {
   status: () =>
-    req<{ configured: boolean; model: string | null }>("/api/assistant/status"),
+    req<{ configured: boolean; model: string | null; devin?: boolean }>(
+      "/api/assistant/status"),
   chat: (
     messages: { role: "user" | "assistant"; content: string }[],
     page: { path: string; project_id?: string },
   ) =>
     req<{ reply: string; actions: AssistantAction[]; model: string }>(
       "/api/assistant/chat", json({ messages, page })),
+  devin: () =>
+    req<{ tickets: DevinTicket[] }>("/api/assistant/devin"),
+  devinReply: (sessionId: string, message: string) =>
+    req<{ ok: boolean }>(`/api/assistant/devin/${sessionId}/message`,
+      json({ message })),
 };
 
 export const playlistApi = {

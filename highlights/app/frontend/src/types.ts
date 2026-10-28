@@ -228,6 +228,22 @@ export interface AngleProxyStatus {
   status: "ready" | "started" | "missing";
 }
 
+export interface DevinMessage {
+  source: "devin" | "user";
+  text: string;
+  ts: number | null;
+}
+
+export interface DevinTicket {
+  session_id: string;
+  url: string | null;
+  title: string | null;
+  project_id: string | null;
+  created_at: number;
+  status: "working" | "needs_reply" | "finished" | "unknown";
+  messages: DevinMessage[];
+}
+
 export interface R2Current {
   state: "off" | "none" | "queued" | "uploading" | "waiting" | "ready";
   pid: string | null;

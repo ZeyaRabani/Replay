@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import llm, tools
+from . import devin, llm, tools
 
 MAX_HISTORY = 30
 MAX_MSG_CHARS = 4000
@@ -32,6 +32,10 @@ class PageCtx(BaseModel):
     project_id: str | None = None
 
 
+class DevinMessageBody(BaseModel):
+    message: str = ""
+
+
 class ChatBody(BaseModel):
     messages: list[ChatMessage] = Field(default_factory=list)
     page: PageCtx = Field(default_factory=PageCtx)
@@ -43,7 +47,47 @@ def make_router(current_user):
 
     @router.get("/api/assistant/status")
     def status(user: str = Depends(current_user)) -> dict:
-        return {"configured": llm.configured(), "model": llm.model()}
+        return {"configured": llm.configured(), "model": llm.model(),
+                "devin": devin.configured() and devin.allowed(user)}
+
+    @router.get("/api/assistant/devin")
+    def devin_tickets(user: str = Depends(current_user)) -> dict:
+        if not (devin.configured() and devin.allowed(user)):
+            return {"tickets": []}
+        mine = sorted(devin.list_tickets(user),
+                      key=lambda t: t.get("created_at", 0), reverse=True)
+        out = []
+        for i, t in enumerate(mine):
+            row = {"session_id": t["session_id"], "url": t.get("url"),
+                   "title": t.get("title"), "project_id": t.get("project_id"),
+                   "created_at": t.get("created_at"), "messages": []}
+            if i < 3:
+                try:
+                    sess = devin.get_session(t["session_id"])
+                    row["status"] = devin.map_status(sess)
+                    row["messages"] = devin.session_messages(sess)
+                except devin.DevinError:
+                    row["status"] = "unknown"
+            else:
+                row["status"] = "finished"
+            out.append(row)
+        return {"tickets": out}
+
+    @router.post("/api/assistant/devin/{session_id}/message")
+    def devin_reply(session_id: str, body: DevinMessageBody,
+                    user: str = Depends(current_user)) -> dict:
+        if not devin.configured():
+            raise HTTPException(503, "devin not configured")
+        if devin.get_ticket(user, session_id) is None:
+            raise HTTPException(404, "ticket not found")
+        msg = (body.message or "").strip()
+        if not msg:
+            raise HTTPException(422, "message is required")
+        try:
+            devin.send_message(session_id, msg)
+        except devin.DevinError as e:
+            raise HTTPException(502, str(e)) from e
+        return {"ok": True}
 
     @router.post("/api/assistant/chat")
     def chat(body: ChatBody, user: str = Depends(current_user)) -> dict:
@@ -71,7 +115,7 @@ def make_router(current_user):
         actions: list[dict] = []
         reply: str | None = None
         for _ in range(MAX_ITERATIONS):
-            resp = llm.chat(system, convo, tools.schemas())
+            resp = llm.chat(system, convo, tools.schemas(user))
             calls = resp.get("tool_calls") or []
             if not calls:
                 reply = resp.get("text")
@@ -82,7 +126,10 @@ def make_router(current_user):
                          or {"role": "assistant", "content": resp.get("text")})
             for call in calls:
                 ok, result, summary = tools.execute(
-                    user, call["name"], call.get("arguments") or {})
+                    user, call["name"], call.get("arguments") or {},
+                    ctx={"path": body.page.path,
+                         "project_id": body.page.project_id,
+                         "messages": msgs})
                 payload = (result if isinstance(result, str)
                            else json.dumps(result, default=str))
                 payload = payload[:MAX_TOOL_RESULT_CHARS]
