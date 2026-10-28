@@ -114,10 +114,13 @@ def test_cut_clip_high_quality_args(client, monkeypatch):
     assert "256k" in cmd
     vf = cmd[cmd.index("-vf") + 1]
     assert "scale" not in vf
-    # reencode-only path: no filter at all
+    # reencode-only path: bt709 tag filter, but no scale/overlay
     calls.clear()
     fx.cut_clip("/tmp/v.mp4", 1.0, 2.0, "/tmp/o.mp4", reencode=True)
-    assert "-vf" not in calls[-1]
+    vf = calls[-1][calls[-1].index("-vf") + 1]
+    assert "setparams=color_primaries=bt709" in vf
+    assert "scale" not in vf
+    assert "drawtext" not in vf
 
 
 def test_source_switch_revalidates_windows(client, sample_video, short_video):
