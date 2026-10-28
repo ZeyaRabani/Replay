@@ -261,3 +261,35 @@ def test_auto_pass_respects_auto_since(client, short_video, monkeypatch):
               if p.id in enq_ids)
     st = pipeline.read_status(p2)
     assert st["finished_at"] > since
+
+
+def test_download_filename_keeps_date_and_ext(client, short_video,
+                                              monkeypatch):
+    """A title with slashes must keep every segment + the .mp4 suffix —
+    regression for the duplicate _safe_filename shadowing."""
+    import highlights.app.backend.main as m
+    import highlights.app.backend.r2 as r2
+    pid = new_project(client, short_video)
+    p = m.get_registry().get(pid)
+    p.title = "7/8/26 Green team wins (restart)"
+    want = "7_8_26 Green team wins (restart).mp4"
+
+    # not-ready path: FileResponse Content-Disposition
+    monkeypatch.setattr(r2, "enabled", lambda: False)
+    r = client.get(scoped(pid, "/download"), follow_redirects=False)
+    assert r.status_code == 200
+    from urllib.parse import unquote
+    assert want in unquote(r.headers["content-disposition"])
+
+    # ready path: presign called with the same filename
+    calls = []
+    monkeypatch.setattr(r2, "enabled", lambda: True)
+    monkeypatch.setattr(r2, "status",
+                        lambda pid, path: {"state": "ready",
+                                           "progress": 1.0})
+    monkeypatch.setattr(r2, "object_key", lambda pid, path: "k.mp4")
+    monkeypatch.setattr(r2, "presign",
+                        lambda k, f: calls.append(f) or "https://r2.test/x")
+    r = client.get(scoped(pid, "/download"), follow_redirects=False)
+    assert r.status_code == 302
+    assert calls == [want]

@@ -525,7 +525,7 @@ def _proxy_file(p: ProjectStore) -> FileResponse:
 
 # ---------- R2 fast downloads ----------
 
-def _safe_filename(title: str) -> str:
+def _download_filename(title: str) -> str:
     name = re.sub(r"[^\w .()\[\]-]+", "_", title).strip(" ._") or "match"
     return f"{name}.mp4"
 
@@ -539,11 +539,11 @@ def _download(p: ProjectStore):
             if st.get("state") == "ready":
                 key = r2.object_key(p.id, path)
                 return RedirectResponse(
-                    r2.presign(key, _safe_filename(p.title)), 302)
+                    r2.presign(key, _download_filename(p.title)), 302)
         except Exception as e:
             print(f"r2 download check failed for {p.id}: {e}")
     return FileResponse(path, media_type="video/mp4",
-                        filename=_safe_filename(p.title))
+                        filename=_download_filename(p.title))
 
 
 def _r2_status(p: ProjectStore) -> dict:
@@ -2883,7 +2883,7 @@ def get_cut_file(cut_id: str, p: PublicP) -> FileResponse:
         raise HTTPException(404, "cut video not found")
     meta = _read_json(cdir / "meta.json") or {}
     label = meta.get("label") or cut_id
-    fname = _safe_filename(f"{p.title} - {label}.mp4")
+    fname = _download_filename(f"{p.title} - {label}")
     return FileResponse(f, media_type="video/mp4", filename=fname)
 
 
