@@ -15,6 +15,10 @@ import ProjectStats from "./ProjectStats";
 
 type Tab = "review" | "stats" | "director" | "history";
 
+// owner decision: stats/radar/3D are unreliable on multi-angle — hide the
+// Stats tab there (flip back to true to re-enable)
+const SHOW_MULTIANGLE_STATS = false;
+
 export default function ProjectPage() {
   const { id = "" } = useParams();
   const api = useMemo(() => projectApi(id), [id]);
@@ -100,6 +104,9 @@ export default function ProjectPage() {
     !inlineProgress;
   const pct = Math.round((status?.progress ?? project?.progress ?? 0) * 100);
 
+  const statsTab = project?.mode !== "multiangle" || SHOW_MULTIANGLE_STATS;
+  const effTab = tab === "stats" && !statsTab ? "review" : tab;
+
   const tabCls = (on: boolean) =>
     `btn !px-3 !py-1 text-xs rounded-lg ${
       on ? "bg-white/[0.1] text-white" : "btn-ghost !text-zinc-400 hover:!text-zinc-200"
@@ -133,9 +140,11 @@ export default function ProjectPage() {
               <button className={tabCls(tab === "review")} onClick={() => setTab("review")}>
                 <ListVideo size={13} /> Review
               </button>
-              <button className={tabCls(tab === "stats")} onClick={() => setTab("stats")}>
-                <BarChart3 size={13} /> Stats
-              </button>
+              {statsTab && (
+                <button className={tabCls(tab === "stats")} onClick={() => setTab("stats")}>
+                  <BarChart3 size={13} /> Stats
+                </button>
+              )}
               {project.mode === "multiangle" && (
                 <button className={tabCls(tab === "director")} onClick={() => setTab("director")}>
                   <Clapperboard size={13} /> Director cut
@@ -189,10 +198,10 @@ export default function ProjectPage() {
               </div>
             )}
             {/* keep Review mounted so the video/playhead survive tab switches */}
-            <div key={gen} className={tab === "review" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
+            <div key={gen} className={effTab === "review" ? "flex flex-col flex-1 min-h-0" : "hidden"}>
               <ProjectReview seekRequest={seekRequest} />
             </div>
-            {tab === "stats" && (
+            {effTab === "stats" && (
               <ProjectStats
                 key={gen}
                 multiangle={project.mode === "multiangle"}
