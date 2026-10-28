@@ -100,6 +100,15 @@ def _cap() -> int:
     return int(_load_cfg()["cap_bytes"])
 
 
+def auto_since() -> float:
+    """Config opt-in: only auto-upload cuts changed after this epoch."""
+    cfg = _load_cfg() or {}
+    try:
+        return float(cfg.get("auto_since") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def object_key(pid: str, path: Path) -> str:
     st = Path(path).stat()
     return f"{pid}/match-{st.st_size}-{int(st.st_mtime)}.mp4"
@@ -121,8 +130,8 @@ def _head(key: str) -> dict | None:
 
 
 def status(pid: str, path: Path) -> dict:
-    """{state, progress, detail?}: off|none|queued|uploading|ready|
-    too_big|error."""
+    """{state, progress, detail?}: off|none|queued|uploading|waiting|
+    ready|too_big|error."""
     if not enabled():
         return {"state": "off", "progress": 0.0}
     cur = _state.get(pid)

@@ -222,3 +222,42 @@ def test_disabled_default(client, short_video, monkeypatch):
     r = client.get(scoped(pid, "/download"), follow_redirects=False)
     assert r.status_code == 200
     assert "attachment" in r.headers.get("content-disposition", "")
+
+
+def test_auto_pass_respects_auto_since(client, short_video, monkeypatch):
+    """Only cuts changed after auto_since get auto-enqueued."""
+    import os
+    import time
+
+    import highlights.app.backend.main as m
+    import highlights.app.backend.r2 as r2
+    from highlights.app.backend import pipeline
+
+    now = time.time()
+    since = now - 3600  # 1 h ago
+    monkeypatch.setattr(r2, "enabled", lambda: True)
+    monkeypatch.setattr(r2, "auto_since", lambda: since)
+    monkeypatch.setattr(r2, "status",
+                        lambda pid, path: {"state": "none", "progress": 0.0})
+    enq = []
+    monkeypatch.setattr(r2, "enqueue",
+                        lambda pid, path, auto=False: enq.append((pid, auto)))
+
+    for fin in (now - 7200, now - 300):  # before / after auto_since
+        pid = new_project(client, short_video)
+        p = m.get_registry().get(pid)
+        mp = p.root / "match.mp4"
+        mp.write_bytes(b"x")
+        os.utime(mp, (fin, fin))
+        pipeline.write_status(p, {"state": "done", "finished_at": fin,
+                                  "pid": None})
+
+    m._r2_auto_pass()
+    enq_ids = [pid for pid, _ in enq]
+    assert len(enq_ids) == 1
+    assert all(auto for _, auto in enq)
+    # the enqueued one is the project that finished after auto_since
+    p2 = next(p for p in m.get_registry().list_projects()
+              if p.id in enq_ids)
+    st = pipeline.read_status(p2)
+    assert st["finished_at"] > since

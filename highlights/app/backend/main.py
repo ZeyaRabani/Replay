@@ -560,33 +560,38 @@ def _r2_enqueue(p: ProjectStore) -> dict:
     return r2.enqueue(p.id, path, auto=False)
 
 
-def _r2_auto_loop() -> None:
-    """Every 10 min: auto-upload the newest changed match.mp4 to R2.
+def _r2_auto_pass() -> None:
+    """Enqueue done projects whose match.mp4 changed recently.
 
-    Only when the pipeline is done and the cut changed (finished_at or
-    match.mp4 mtime) within the last 48 h — new matches and recuts go
-    up, old ones don't.
+    The cut must be <48 h old AND newer than the config's auto_since
+    epoch — new matches and recuts go up, old ones don't.
     """
+    if not r2.enabled():
+        return
+    now = time.time()
+    since = r2.auto_since()
+    for p in get_registry().list_projects():
+        mp = p.root / "match.mp4"
+        if not mp.is_file():
+            continue
+        st = pipeline.read_status(p) or {}
+        if st.get("state") != "done":
+            continue
+        fin = st.get("finished_at") or 0
+        changed = max(fin, mp.stat().st_mtime)
+        if now - changed > 48 * 3600 or changed <= since:
+            continue
+        if r2.status(p.id, mp).get("state") == "ready":
+            continue
+        r2.enqueue(p.id, mp, auto=True)
+
+
+def _r2_auto_loop() -> None:
+    """Every 10 min: auto-upload the newest changed match.mp4 to R2."""
     while True:
         time.sleep(600)
         try:
-            if not r2.enabled():
-                continue
-            now = time.time()
-            for p in get_registry().list_projects():
-                mp = p.root / "match.mp4"
-                if not mp.is_file():
-                    continue
-                st = pipeline.read_status(p) or {}
-                if st.get("state") != "done":
-                    continue
-                fin = st.get("finished_at") or 0
-                changed = max(fin, mp.stat().st_mtime)
-                if now - changed > 48 * 3600:
-                    continue
-                if r2.status(p.id, mp).get("state") == "ready":
-                    continue
-                r2.enqueue(p.id, mp, auto=True)
+            _r2_auto_pass()
         except Exception as e:
             print(f"r2 auto loop error: {e}")
 
