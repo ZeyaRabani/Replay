@@ -98,9 +98,12 @@ def model() -> str | None:
 
 
 def _post(url: str, headers: dict, body: dict) -> dict:
+    # urllib's default UA is banned by some provider edges (Cloudflare
+    # error 1010 on api.groq.com) — always send a plain UA string.
     req = urllib.request.Request(
         url, data=json.dumps(body).encode(), method="POST",
-        headers={"Content-Type": "application/json", **headers})
+        headers={"Content-Type": "application/json",
+                 "User-Agent": "curl/8.5", **headers})
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         return json.loads(r.read().decode())
 
