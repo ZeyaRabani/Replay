@@ -206,12 +206,76 @@ def _http_err(code, body=b"{}") -> urllib.error.HTTPError:
     return urllib.error.HTTPError("http://x", code, "err", {}, io.BytesIO(body))
 
 
-def test_chat_402_credits_text(client, monkeypatch):
+def test_chat_402_credits_text(client, monkeypatch, capsys):
     r = _chat_err(client, monkeypatch, _http_err(
         402, b'{"error":"RESOURCE_EXHAUSTED: prepayment credits depleted"}'))
     assert r.status_code == 200
     assert r.json()["reply"].startswith(
         "Help's AI (Google Gemini) is out of credits")
+    # the body is read once and the log line still contains it
+    assert "RESOURCE_EXHAUSTED" in capsys.readouterr().out
+
+
+def _llm_cfg_file(monkeypatch, tmp_path, cfg=None):
+    """Point llm at a config file; returns the path."""
+    from highlights.app.backend.assistant import llm
+    p = tmp_path / "llm.json"
+    monkeypatch.setattr(llm, "CONFIG_PATH", str(p))
+    monkeypatch.setattr(llm, "_cfg", {})
+    monkeypatch.setattr(llm, "_cfg_mtime", -1.0)
+    if cfg is not None:
+        p.write_text(json.dumps(cfg))
+    return p
+
+
+def test_llm_json_absent_env_behaviour(monkeypatch, tmp_path):
+    _env(monkeypatch)
+    _llm_cfg_file(monkeypatch, tmp_path)          # file does not exist
+    from highlights.app.backend.assistant import llm
+    assert llm.provider() == "openai"
+    assert llm.model() == "gpt-4o-mini"
+
+
+def test_llm_json_overrides_env(monkeypatch, tmp_path):
+    _env(monkeypatch)
+    _llm_cfg_file(monkeypatch, tmp_path, {
+        "provider": "openai", "api_key": "FILEKEY",
+        "base_url": "http://llm-file.test/v9", "model": "file-model-1"})
+    from highlights.app.backend.assistant import llm
+    assert llm.provider() == "openai" and llm.model() == "file-model-1"
+    seen = {}
+    monkeypatch.setattr(
+        llm, "_post",
+        lambda url, headers, body: seen.update(
+            url=url, headers=headers, body=body)
+        or {"choices": [{"message": {"content": "ok"}}]})
+    llm.chat("sys", [{"role": "user", "content": "hi"}], [])
+    assert seen["url"] == "http://llm-file.test/v9/chat/completions"
+    assert seen["headers"]["Authorization"] == "Bearer FILEKEY"
+    assert seen["body"]["model"] == "file-model-1"
+
+
+def test_llm_json_edit_picked_up(monkeypatch, tmp_path):
+    _env(monkeypatch)
+    p = _llm_cfg_file(monkeypatch, tmp_path, {
+        "provider": "openai", "api_key": "KEY1",
+        "base_url": "http://a", "model": "m1"})
+    from highlights.app.backend.assistant import llm
+    seen = {}
+    monkeypatch.setattr(
+        llm, "_post",
+        lambda url, headers, body: seen.update(headers=headers)
+        or {"choices": [{"message": {"content": "ok"}}]})
+    llm.chat("s", [{"role": "user", "content": "hi"}], [])
+    assert seen["headers"]["Authorization"] == "Bearer KEY1"
+    import os as _os
+    import time as _time
+    p.write_text(json.dumps({
+        "provider": "openai", "api_key": "KEY2",
+        "base_url": "http://a", "model": "m1"}))
+    _os.utime(p, (_time.time() + 5, _time.time() + 5))   # bump mtime
+    llm.chat("s", [{"role": "user", "content": "hi"}], [])
+    assert seen["headers"]["Authorization"] == "Bearer KEY2"
 
 
 def test_chat_429_busy_text(client, monkeypatch):

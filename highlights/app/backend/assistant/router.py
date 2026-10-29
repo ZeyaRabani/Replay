@@ -19,21 +19,21 @@ MAX_TOOL_RESULT_CHARS = 12000
 MAX_ITERATIONS = 8
 
 
-def _err_desc(e: Exception) -> str:
+def _err_body(e: Exception) -> str:
+    """The error body — read ONCE (HTTPError streams are single-use)."""
+    with contextlib.suppress(Exception):
+        return (e.read().decode() if hasattr(e, "read") else str(e))[:400]
+    return ""
+
+
+def _err_desc(e: Exception, body: str) -> str:
     """Status + short body for logs; never headers/keys."""
     code = getattr(e, "code", None) or type(e).__name__
-    try:
-        body = e.read().decode()[:160] if hasattr(e, "read") else str(e)[:160]
-    except Exception:
-        body = ""
-    return f"{code} {body}"
+    return f"{code} {body[:160]}"
 
 
-def _provider_error_text(e: Exception) -> str:
+def _provider_error_text(e: Exception, body: str) -> str:
     code = getattr(e, "code", None)
-    body = ""
-    with contextlib.suppress(Exception):
-        body = e.read().decode() if hasattr(e, "read") else str(e)
     low = (body or "").lower()
     if code == 402 or "resource_exhausted" in low or "credit" in low:
         return ("Help's AI (Google Gemini) is out of credits, so I can't "
@@ -146,8 +146,9 @@ def make_router(current_user):
                 resp = llm.chat(system, convo, tools.schemas(user))
             except Exception as e:
                 # provider outage/billing: answer in-app, never 500
-                reply = _provider_error_text(e)
-                print(f"assistant: llm.chat failed: {_err_desc(e)}")
+                ebody = _err_body(e)
+                reply = _provider_error_text(e, ebody)
+                print(f"assistant: llm.chat failed: {_err_desc(e, ebody)}")
                 break
             calls = resp.get("tool_calls") or []
             if not calls:
