@@ -3,6 +3,7 @@ GET /api/assistant/status. Owns the chat loop: LLM <-> tool calls."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from pathlib import Path
@@ -16,6 +17,32 @@ MAX_HISTORY = 30
 MAX_MSG_CHARS = 4000
 MAX_TOOL_RESULT_CHARS = 12000
 MAX_ITERATIONS = 8
+
+
+def _err_desc(e: Exception) -> str:
+    """Status + short body for logs; never headers/keys."""
+    code = getattr(e, "code", None) or type(e).__name__
+    try:
+        body = e.read().decode()[:160] if hasattr(e, "read") else str(e)[:160]
+    except Exception:
+        body = ""
+    return f"{code} {body}"
+
+
+def _provider_error_text(e: Exception) -> str:
+    code = getattr(e, "code", None)
+    body = ""
+    with contextlib.suppress(Exception):
+        body = e.read().decode() if hasattr(e, "read") else str(e)
+    low = (body or "").lower()
+    if code == 402 or "resource_exhausted" in low or "credit" in low:
+        return ("Help's AI (Google Gemini) is out of credits, so I can't "
+                "answer right now. The Devin tab still works.")
+    if code == 429:
+        return ("Help's AI is busy right now. Please try again in a "
+                "minute.")
+    return (f"Help's AI is unavailable right now (error {code or 'unknown'}). "
+            "Please try again later.")
 
 
 def _knowledge() -> str:
@@ -115,7 +142,13 @@ def make_router(current_user):
         actions: list[dict] = []
         reply: str | None = None
         for _ in range(MAX_ITERATIONS):
-            resp = llm.chat(system, convo, tools.schemas(user))
+            try:
+                resp = llm.chat(system, convo, tools.schemas(user))
+            except Exception as e:
+                # provider outage/billing: answer in-app, never 500
+                reply = _provider_error_text(e)
+                print(f"assistant: llm.chat failed: {_err_desc(e)}")
+                break
             calls = resp.get("tool_calls") or []
             if not calls:
                 reply = resp.get("text")

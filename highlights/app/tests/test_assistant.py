@@ -189,3 +189,44 @@ def test_anthropic_request_and_parse(monkeypatch):
     assert tr["role"] == "user"
     assert tr["content"][0]["type"] == "tool_result"
     assert tr["content"][0]["tool_use_id"] == "u1"
+
+
+def _chat_err(client, monkeypatch, err):
+    _env(monkeypatch)
+    from highlights.app.backend.assistant import llm
+    monkeypatch.setattr(llm, "chat",
+                        lambda *a, **k: (_ for _ in ()).throw(err))
+    r = client.post("/api/assistant/chat", json={
+        "messages": [{"role": "user", "content": "hi"}]})
+    return r
+
+
+def _http_err(code, body=b"{}") -> urllib.error.HTTPError:
+    import io
+    return urllib.error.HTTPError("http://x", code, "err", {}, io.BytesIO(body))
+
+
+def test_chat_402_credits_text(client, monkeypatch):
+    r = _chat_err(client, monkeypatch, _http_err(
+        402, b'{"error":"RESOURCE_EXHAUSTED: prepayment credits depleted"}'))
+    assert r.status_code == 200
+    assert r.json()["reply"].startswith(
+        "Help's AI (Google Gemini) is out of credits")
+
+
+def test_chat_429_busy_text(client, monkeypatch):
+    r = _chat_err(client, monkeypatch, _http_err(429))
+    assert r.status_code == 200
+    assert "busy right now" in r.json()["reply"]
+
+
+def test_chat_500_generic_text(client, monkeypatch):
+    r = _chat_err(client, monkeypatch, _http_err(500))
+    assert r.status_code == 200
+    assert "unavailable right now (error 500)" in r.json()["reply"]
+
+
+def test_chat_generic_exception_text(client, monkeypatch):
+    r = _chat_err(client, monkeypatch, RuntimeError("boom"))
+    assert r.status_code == 200
+    assert "unavailable right now" in r.json()["reply"]
